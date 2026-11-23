@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, type Db } from "@/db/client";
 import { jobBoards } from "@/db/schema";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
+import { env } from "@/lib/env";
 import { JobReadError } from "@/lib/jobs/errors";
 import { safeFetch } from "@/lib/jobs/fetch";
 import { log } from "@/lib/log";
@@ -19,7 +20,9 @@ import {
   parsePinpoint,
   parseRecruitee,
   parseRemoteOk,
+  parseUsajobs,
   parseWorkable,
+  USAJOBS_PAGE_SIZE,
   workdayBoard,
   workdayListUrl,
   type RawJob,
@@ -60,6 +63,8 @@ export const INGEST_LIMITS = {
   workdayRefreshAfterMs: 44 * HOUR_MS,
   himalayasPages: 10,
   jobicyPages: 25,
+  // 500 a page; the API answers at most 10,000 rows a query.
+  usajobsPages: 20,
 } as const;
 
 // Lever's robots.txt asks for 1 s and Himalayas allows 60/min; the rest get a gentle pace.
@@ -77,6 +82,7 @@ export const HOST_SPACING_MS: Record<string, number> = {
   "himalayas.app": 1_000,
   "remoteok.com": 1_000,
   "jobicy.com": 2_000,
+  "data.usajobs.gov": 1_000,
   // Every Workday tenant is its own host, read one request at a time (owner decision 2026-11-22).
   "*.myworkdayjobs.com": 1_500,
 };
@@ -182,6 +188,7 @@ async function getText(
   pace: Pace,
   deadline: number,
   json?: unknown,
+  headers?: Record<string, string>,
 ) {
   await pace(url);
   const res = await safeFetch(url, {
@@ -190,12 +197,19 @@ async function getText(
     maxBytes: INGEST_LIMITS.maxBytes,
     timeoutMs: INGEST_LIMITS.timeoutMs,
     json,
+    headers,
   });
   return res.body;
 }
 
-async function getJson(url: URL, pace: Pace, deadline: number, json?: unknown): Promise<unknown> {
-  const body = await getText(url, "json", pace, deadline, json);
+async function getJson(
+  url: URL,
+  pace: Pace,
+  deadline: number,
+  json?: unknown,
+  headers?: Record<string, string>,
+): Promise<unknown> {
+  const body = await getText(url, "json", pace, deadline, json, headers);
   try {
     return JSON.parse(body) as unknown;
   } catch {
@@ -316,6 +330,42 @@ function failureStatus(error: unknown): "not_found" | "failed" {
   return error instanceof JobReadError && error.reason === "not_found" ? "not_found" : "failed";
 }
 
+type UsajobsAccess = { key: string; email: string };
+
+// USAJOBS stays off until the owner sets the key and the email it was registered with (docs/setup.md 10f).
+function usajobsAccess(): UsajobsAccess | null {
+  const { USAJOBS_API_KEY: key, USAJOBS_EMAIL: email } = env();
+  return key && email ? { key, email } : null;
+}
+
+export function usajobsUrl(page: number): URL {
+  const url = new URL("https://data.usajobs.gov/api/Search");
+  url.search = new URLSearchParams({
+    WhoMayApply: "Public",
+    DatePosted: "30",
+    SortField: "opendate",
+    SortDirection: "desc",
+    Fields: "full",
+    ResultsPerPage: String(USAJOBS_PAGE_SIZE),
+    Page: String(page),
+  }).toString();
+  return url;
+}
+
+async function readUsajobs(access: UsajobsAccess, pace: Pace, deadline: number) {
+  // The API's own rule: the registered email as the user agent, and the key.
+  const headers = { "user-agent": access.email, "authorization-key": access.key };
+  const raws: RawJob[] = [];
+  for (let page = 1; page <= INGEST_LIMITS.usajobsPages && Date.now() < deadline; page++) {
+    const result = parseUsajobs(
+      await getJson(usajobsUrl(page), pace, deadline, undefined, headers),
+    );
+    raws.push(...result.jobs);
+    if (result.count < USAJOBS_PAGE_SIZE || page * USAJOBS_PAGE_SIZE >= result.total) break;
+  }
+  return raws;
+}
+
 async function readFeed(
   source: FeedSource,
   lastFetchedAt: number | null,
@@ -325,6 +375,10 @@ async function readFeed(
 ): Promise<RawJob[]> {
   if (source === "remoteok") {
     return parseRemoteOk(await getJson(new URL("https://remoteok.com/api"), pace, deadline));
+  }
+  if (source === "usajobs") {
+    const access = usajobsAccess();
+    return access ? readUsajobs(access, pace, deadline) : [];
   }
   const raws: RawJob[] = [];
   let cursor: string | null = null;
@@ -369,6 +423,7 @@ async function readFeeds(
   for (const feed of due) {
     if (feed.lastFetchedAt !== null && now - feed.lastFetchedAt < INGEST_LIMITS.refreshAfterMs)
       continue;
+    if (feed.source === "usajobs" && !usajobsAccess()) continue;
     if (Date.now() >= deadline) return;
     const source = feed.source as FeedSource;
     try {

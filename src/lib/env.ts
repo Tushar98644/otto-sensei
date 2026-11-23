@@ -52,6 +52,9 @@ const EnvSchema = z.object({
   DODO_TOPUP_PRODUCT_ID: optionalString,
   BILLING_SIGNING_SECRET: optionalString,
   GITHUB_TOKEN: optionalString,
+  // USAJOBS Search API (docs/setup.md 10f): the key and the email it was registered with, both or neither.
+  USAJOBS_API_KEY: optionalString,
+  USAJOBS_EMAIL: optionalString,
   CRON_SECRET: optionalString,
   RESEND_API_KEY: optionalString,
   EMAIL_FROM: optionalString,

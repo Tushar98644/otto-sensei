@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { jobBoards, jobMatch, jobs } from "@/db/schema";
 import { resetDb } from "@/lib/auth/test-helpers";
+import { resetEnvForTests } from "@/lib/env";
 import { fakeNet } from "@/lib/jobs/test-network";
-import { boardUrl, paceKey, runJobsIngest } from "./ingest";
+import { boardUrl, paceKey, runJobsIngest, usajobsUrl } from "./ingest";
 import { WORKDAY_LIMITS } from "./workday";
 import {
   ASHBY_BOARD,
@@ -18,6 +19,7 @@ import {
   PINPOINT_FEED,
   RECRUITEE_OFFERS,
   REMOTE_OK_FEED,
+  USAJOBS_PAGE,
   WORKABLE_ACCOUNT,
   WORKDAY_JOB_ISRAEL,
   WORKDAY_JOB_UK,
@@ -273,6 +275,78 @@ describe("runJobsIngest on Gem, Pinpoint and Jobvite boards", () => {
   it("refuses a Jobvite company id that isn't one", () => {
     expect(() => boardUrl("jobvite", "../x")).toThrow();
     expect(() => boardUrl("pinpoint", "a.b")).toThrow();
+  });
+});
+
+describe("runJobsIngest on USAJOBS", () => {
+  const item = USAJOBS_PAGE.SearchResult.SearchResultItems[0]!;
+  const open = {
+    ...USAJOBS_PAGE,
+    SearchResult: {
+      ...USAJOBS_PAGE.SearchResult,
+      SearchResultCountAll: 1,
+      SearchResultItems: [
+        {
+          ...item,
+          MatchedObjectDescriptor: {
+            ...item.MatchedObjectDescriptor,
+            PublicationStartDate: "2026-11-09T00:00:00Z",
+            ApplicationCloseDate: "2026-11-30T23:59:59Z",
+          },
+        },
+      ],
+    },
+  };
+  const options = { ...OPTIONS, seeds: [] };
+
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    await resetDb();
+    internet();
+    fakeNet.resolve("data.usajobs.gov", "93.184.216.34");
+    fakeNet.json(usajobsUrl(1).toString(), open);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    delete process.env.USAJOBS_API_KEY;
+    delete process.env.USAJOBS_EMAIL;
+    resetEnvForTests();
+  });
+
+  it("stays off until both the key and its email are set", async () => {
+    process.env.USAJOBS_API_KEY = "key";
+    resetEnvForTests();
+    const outcome = await runJobsIngest(context(), options);
+    expect(outcome.stats.feeds).toBe(3);
+    expect(fakeNet.urls().some((url) => url.includes("usajobs"))).toBe(false);
+  });
+
+  it("reads open public announcements with the key and the registered email", async () => {
+    process.env.USAJOBS_API_KEY = "key";
+    process.env.USAJOBS_EMAIL = "jobs@example.com";
+    resetEnvForTests();
+    const outcome = await runJobsIngest(context(), options);
+    expect(outcome).toMatchObject({ failed: [] });
+    expect(outcome.stats.feeds).toBe(4);
+    const [request] = fakeNet.requests.filter((r) => r.url.hostname === "data.usajobs.gov");
+    expect(request?.headers).toMatchObject({
+      "user-agent": "jobs@example.com",
+      "authorization-key": "key",
+    });
+    const db = await getDb();
+    const saved = await db
+      .select({ title: jobs.title, url: jobs.url, description: jobs.description })
+      .from(jobs)
+      .where(eq(jobs.source, "usajobs"));
+    expect(saved).toEqual([
+      {
+        title: "IT SPECIALIST (INFOSEC/NETWORK)",
+        url: "https://www.usajobs.gov/GetJob/ViewDetails/21947200",
+        description: "",
+      },
+    ]);
   });
 });
 

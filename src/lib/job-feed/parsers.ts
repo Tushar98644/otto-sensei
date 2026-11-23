@@ -10,5 +10,6 @@ export { parsePersonio } from "./parsers/personio";
 export { parsePinpoint } from "./parsers/pinpoint";
 export { parseRecruitee, recruiteeJob, type RecruiteeOfferShape } from "./parsers/recruitee";
 export { parseRemoteOk } from "./parsers/remoteok";
+export { parseUsajobs, USAJOBS_PAGE_SIZE } from "./parsers/usajobs";
 export { parseWorkable } from "./parsers/workable";
 export { workdayBoard, workdayListUrl, type WorkdayBoard } from "./parsers/workday";

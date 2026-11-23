@@ -25,6 +25,7 @@ export const JOB_SOURCES = [
   "himalayas",
   "remoteok",
   "jobicy",
+  "usajobs",
 ] as const;
 export type JobSourceId = (typeof JOB_SOURCES)[number];
 
@@ -42,7 +43,7 @@ export const BOARD_SOURCES = [
 ] as const;
 export type BoardSource = (typeof BOARD_SOURCES)[number];
 
-export const FEED_SOURCES = ["himalayas", "remoteok", "jobicy"] as const;
+export const FEED_SOURCES = ["himalayas", "remoteok", "jobicy", "usajobs"] as const;
 export type FeedSource = (typeof FEED_SOURCES)[number];
 
 export type BoardSeed = { ats: BoardSource; token: string; company: string };

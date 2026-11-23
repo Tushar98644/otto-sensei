@@ -12,6 +12,7 @@ import {
   parsePinpoint,
   parseRecruitee,
   parseRemoteOk,
+  parseUsajobs,
   parseWorkable,
 } from "./parsers";
 import {
@@ -26,6 +27,7 @@ import {
   PINPOINT_FEED,
   RECRUITEE_OFFERS,
   REMOTE_OK_FEED,
+  USAJOBS_PAGE,
   WORKABLE_ACCOUNT,
 } from "./test-fixtures";
 
@@ -326,5 +328,52 @@ describe("parseJobvite", () => {
 
   it("refuses an answer that isn't a Jobvite feed", () => {
     expect(() => parseJobvite("<html></html>", "Acme", "qKr9VfwZ")).toThrow(FeedShapeError);
+  });
+});
+
+describe("parseUsajobs", () => {
+  it("reads each announcement with its agency, place, dates and official link", () => {
+    const page = parseUsajobs(USAJOBS_PAGE);
+    expect(page).toMatchObject({ total: 100, count: 1 });
+    expect(page.jobs[0]).toMatchObject({
+      externalId: "21947200",
+      company: "Space and Naval Warfare Systems Command",
+      title: "IT SPECIALIST (INFOSEC/NETWORK)",
+      location: "Point Loma Complex, San Diego, California",
+      remote: false,
+      employmentType: "full_time",
+      postedAt: Date.parse("2016-06-05T00:00:00Z"),
+      validThrough: Date.parse("2016-12-01T00:00:00Z"),
+      url: "https://www.usajobs.gov/GetJob/ViewDetails/21947200",
+    });
+    expect(page.jobs[0]!.text).toContain("Major Duties and Responsibilities");
+  });
+
+  it("keeps only links to the official announcement, and reads temporary offers", () => {
+    const item = USAJOBS_PAGE.SearchResult.SearchResultItems[0]!;
+    const elsewhere = {
+      ...item,
+      MatchedObjectId: "1",
+      MatchedObjectDescriptor: {
+        ...item.MatchedObjectDescriptor,
+        PositionURI: "https://example.com/x",
+      },
+    };
+    const temporary = {
+      ...item,
+      MatchedObjectId: "2",
+      MatchedObjectDescriptor: {
+        ...item.MatchedObjectDescriptor,
+        PositionOfferingType: [{ Name: "Temporary", Code: "15327" }],
+      },
+    };
+    const page = parseUsajobs({ SearchResult: { SearchResultItems: [elsewhere, temporary] } });
+    expect(page.jobs.map((job) => [job.externalId, job.employmentType])).toEqual([
+      ["2", "temporary"],
+    ]);
+  });
+
+  it("refuses an answer that isn't a search result", () => {
+    expect(() => parseUsajobs({ error: "nope" })).toThrow(FeedShapeError);
   });
 });

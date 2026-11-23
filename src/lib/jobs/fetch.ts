@@ -23,6 +23,8 @@ export type FetchOptions = {
   timeoutMs?: number;
   // Sent as a JSON POST; a redirect is then refused rather than replayed elsewhere.
   json?: unknown;
+  // A keyed API's own headers (USAJOBS wants its key and the registered email as the user agent).
+  headers?: Record<string, string>;
 };
 
 export type Fetched = { url: URL; body: string };
@@ -140,6 +142,7 @@ export async function safeFetch(
     deadline = Number.POSITIVE_INFINITY,
     timeoutMs = FETCH_LIMITS.timeoutMs,
     json,
+    headers: extra = {},
   }: FetchOptions,
 ): Promise<Fetched> {
   const budget = Math.min(timeoutMs, deadline - Date.now());
@@ -159,6 +162,7 @@ export async function safeFetch(
           "content-type": "application/json",
           "content-length": String(Buffer.byteLength(body)),
         }),
+    ...extra,
   };
 
   try {

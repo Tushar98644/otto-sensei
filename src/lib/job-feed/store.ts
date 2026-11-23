@@ -53,6 +53,7 @@ const SOURCE_PRIORITY: Record<JobSourceId, number> = {
   himalayas: 1,
   jobicy: 1,
   remoteok: 2,
+  usajobs: 0,
 };
 
 export const FEED_TOKEN = "feed";

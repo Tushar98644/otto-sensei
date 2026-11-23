@@ -639,3 +639,73 @@ export const PINPOINT_FEED = {
 
 // Trimmed from Nutanix's Jobvite feed (app.jobvite.com/CompanyJobs/Xml.aspx?c=qKr9VfwZ), read 2026-11-23.
 export const JOBVITE_FEED = `<?xml version="1.0" encoding="UTF-8"?><result><job><id>oUQKAfwO</id><externalJobPostingId>oUQKAfwO-CtniVfwN</externalJobPostingId><title>Finance Manager</title><requisitionid>32541</requisitionid><category>Accounting &amp; Finance</category><jobtype>Full-Time</jobtype><region>AMER</region><location>San Jose, CA, United States</location><date>10/5/2026</date><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=oUQKAfwO]]></detail-url><apply-url><![CDATA[http://app.jobvite.com/CompanyJobs/Careers.aspx?c=qKr9VfwZ&j=oUQKAfwO&k=Apply]]></apply-url><description>&lt;p&gt;&lt;strong&gt;About Nutanix&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Lead FP&amp;amp;A for the Americas sales team.&lt;/p&gt;</description><briefdescription></briefdescription></job><job><id>oA7SAfwT</id><externalJobPostingId>oA7SAfwT-CM6EWfwc</externalJobPostingId><title>Senior Tax Manager</title><requisitionid>32766</requisitionid><category>Accounting &amp; Finance</category><jobtype>Full-Time</jobtype><region>AMER</region><location>United States, United States</location><date>10/28/2026</date><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=oA7SAfwT]]></detail-url><apply-url><![CDATA[http://app.jobvite.com/CompanyJobs/Careers.aspx?c=qKr9VfwZ&j=oA7SAfwT&k=Apply]]></apply-url><description>&lt;p&gt;The Senior Tax Manager will be a part of Nutanix's tax team.&lt;/p&gt;</description><briefdescription></briefdescription></job><job><id>oO81Afwh-CKFBVfwF</id><title>AI Agent Engineer (Brazil)</title><jobtype>Full-Time</jobtype><location>Brasília, Brazil</location><date>11/3/2026</date><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=oO81Afwh]]></detail-url><description>&lt;p&gt;Build AI agents.&lt;/p&gt;</description></job><job><id>zz1</id><title>Dropped: bad id</title><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=zz1]]></detail-url></job><job><id>oOther01</id><title>Dropped: another company's link</title><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=other&j=oOther01]]></detail-url></job></result>`;
+
+// The example answer in USAJOBS's API reference (developer.usajobs.gov/api-reference/get-api-search), read 2026-11-23; a real call needs a registered key.
+export const USAJOBS_PAGE = {
+  LanguageCode: "EN",
+  SearchParameters: {},
+  SearchResult: {
+    SearchResultCount: 25,
+    SearchResultCountAll: 100,
+    SearchResultItems: [
+      {
+        MatchedObjectId: "21947200",
+        MatchedObjectDescriptor: {
+          PositionID: "SW62210-05-1716110PB411413H",
+          PositionTitle: "IT SPECIALIST (INFOSEC/NETWORK)",
+          PositionURI: "https://www.usajobs.gov/GetJob/ViewDetails/21947200",
+          ApplyURI: [
+            "https://www.usajobs.gov/GetJob/ViewDetails/21947200?PostingChannelID=RESTAPI",
+          ],
+          PositionLocationDisplay: "Point Loma Complex, San Diego, California",
+          PositionLocation: [
+            {
+              LocationName: "Point Loma Complex, San Diego, California",
+              CountryCode: "United States",
+              CountrySubDivisionCode: "California",
+              CityName: "Point Loma Complex, San Diego, California",
+              Longitude: -117.194382,
+              Latitude: 32.7042961,
+            },
+          ],
+          OrganizationName: "Space and Naval Warfare Systems Command",
+          DepartmentName: "Department of the Navy",
+          JobCategory: [
+            { Name: "Information Technology", Code: "2200" },
+            { Name: "Information Technology Management", Code: "2210" },
+          ],
+          JobGrade: [{ Code: "NO" }],
+          PositionSchedule: [{ Name: "Full Time", Code: "1" }],
+          PositionOfferingType: [{ Name: "Permanent", Code: "15317" }],
+          QualificationSummary: "...",
+          PositionRemuneration: [
+            {
+              MinimumRange: "92108",
+              MaximumRange: "119746",
+              RateIntervalCode: "PA",
+              Description: "Per Year",
+            },
+          ],
+          PositionStartDate: "2016-06-05T00:00:00Z",
+          PositionEndDate: "2016-12-01T00:00:00Z",
+          PublicationStartDate: "2016-06-05T00:00:00Z",
+          ApplicationCloseDate: "2016-12-01T00:00:00Z",
+          UserArea: {
+            Details: {
+              MajorDuties: "Major Duties and Responsibilities: ...",
+              Education: "EDUCATION: ...",
+              Requirements: "",
+              KeyRequirements: [],
+              JobSummary: "...",
+              WhoMayApply: { Name: "United States Citizens", Code: "15514" },
+              LowGrade: "05",
+              HighGrade: "05",
+            },
+            IsRadialSearch: false,
+          },
+        },
+        RelevanceRank: 0.0,
+      },
+    ],
+  },
+};

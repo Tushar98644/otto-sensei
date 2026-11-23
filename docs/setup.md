@@ -925,6 +925,7 @@ quietly; the rest of the app runs the same.
 | `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_TRACES_SAMPLE_RATE`) | Error reports (+ readable stack traces, + the share of server requests traced) | 10b |
 | `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Page views, funnel events and page speed | 10c |
 | `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
+| `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | US federal jobs from USAJOBS in the Jobs tab (both are needed) | 10f |
 | `CRON_SECRET` | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret) | 10e |
 | `RESEND_API_KEY`, `EMAIL_FROM` | The trial-ending email and one-time service notices; follow-ups, new matches and views are bell only | 10e |
 | `EMAIL_POSTAL_ADDRESS` | A postal address (a PO box or virtual mailbox is fine) shown in the footer of optional emails. Tip emails stay off until it's set | 10e |
@@ -1115,6 +1116,42 @@ Then **Actions** → **Title vectors** → **Run workflow** embeds the first tit
   fetched from Google Fonts once at build time.
 - Cleanup keeps: rate-limit windows 2 days, deleted-resume markers 180 days, read notifications
   90 days (unread ones a year), billing webhook ids 400 days.
+
+---
+
+## 10f. US federal jobs: USAJOBS (optional)
+
+The Jobs tab can add every open US federal job announcement that's open to the public, read once a
+day from USAJOBS's free Search API. It stays off until both variables are set. The API needs a key
+tied to a registration, and every call must carry the email you registered with as its user
+agent, so use a shared address you're happy to send to the US government (for example a
+`jobs@` mailbox), not a personal one.
+
+1. Go to https://developer.usajobs.gov/apirequest/ and fill in the form. It asks for a first and
+   last name, an email address, a phone number, the company (Otto Sensei) and a short description
+   of the use (up to 255 characters), for example: "Otto Sensei shows open federal jobs to job
+   seekers in its job matching, each linked to its official USAJOBS announcement." Tick "I agree
+   to the USAJOBS Terms of Service" and send it.
+2. The key arrives by email at that address.
+3. Add both values to Vercel (production), exactly as registered:
+
+```bash
+vercel env add USAJOBS_API_KEY production
+vercel env add USAJOBS_EMAIL production
+```
+
+4. Redeploy. The next daily jobs cron reads up to 20 pages of 500 announcements posted in the last
+   30 days (`WhoMayApply=Public`), 1 second apart, and the jobs show "via USAJOBS" with a link to the
+   official announcement. They close at their application deadline, or 30 days after posting.
+
+- Terms: https://developer.usajobs.gov/guides/terms-of-service. Public data may be stored,
+  republished and used commercially without prior approval; don't present changed text as official
+  or imply that OPM endorses Otto. Keep the key private and the registration's contact details
+  current.
+- `data.usajobs.gov/robots.txt` is `Disallow: /` for every robot, while the API's own terms and
+  docs invite keyed use by job boards. Setting the key is the owner's call on that point
+  (docs/job-sources.md).
+- To turn it off, remove either variable; its jobs close as their deadlines pass.
 
 ---
 

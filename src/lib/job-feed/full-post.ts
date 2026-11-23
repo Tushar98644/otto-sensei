@@ -30,6 +30,7 @@ function targetOf(job: Stored, url: URL): JobTarget | null {
     case "pinpoint":
     case "jobvite":
     case "jobicy":
+    case "usajobs":
       return { kind: "page", url, greenhouseId: null, ashbyId: null };
     case "himalayas":
     case "remoteok":
@@ -41,7 +42,7 @@ export type FullPost = { text: string; posting: Omit<JobPosting, "text"> | null 
 
 function liveTarget(job: Stored): JobTarget | null {
   if (!SOURCE_INFO[job.source].liveText || job.closed) return null;
-  if (job.source !== "jobicy" && !job.board) return null;
+  if (job.source !== "jobicy" && job.source !== "usajobs" && !job.board) return null;
   try {
     return targetOf(job, new URL(job.url));
   } catch {

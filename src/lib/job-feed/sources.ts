@@ -102,6 +102,13 @@ export const SOURCE_INFO: Record<JobSourceId, SourceInfo> = {
     republish: false,
     liveText: true,
   },
+  usajobs: {
+    name: "USAJOBS",
+    homeUrl: "https://www.usajobs.gov",
+    termsUrl: "https://developer.usajobs.gov/guides/terms-of-service",
+    republish: true,
+    liveText: true,
+  },
 };
 
 export function sourceCredit(source: JobSourceId): string {
