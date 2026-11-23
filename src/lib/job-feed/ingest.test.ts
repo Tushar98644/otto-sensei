@@ -407,13 +407,19 @@ describe("runJobsIngest on a Workday career site", () => {
     vi.useRealTimers();
   });
 
-  it("checks robots.txt, lists the reader's countries first, then reads each new post", async () => {
+  it("checks robots.txt, lists US jobs first, then the other target countries, then reads each new post", async () => {
     const outcome = await runJobsIngest(long(), options);
     expect(outcome).toMatchObject({ complete: true });
     expect(outcome.stats).toMatchObject({ boards: 1, added: 2, boardsPartial: 0 });
     expect(fakeNet.urls()[0]).toBe(`https://${WORKDAY_HOST}/robots.txt`);
     const lists = fakeNet.requests.filter((request) => request.url.pathname.endsWith("/jobs"));
-    expect(lists.map((request) => JSON.parse(request.body!).offset)).toEqual([0, 0, 2, 0]);
+    expect(lists.map((request) => JSON.parse(request.body!).offset)).toEqual([0, 0, 2, 0, 0]);
+    const countries = lists.map(
+      (request) =>
+        (JSON.parse(request.body!) as { appliedFacets: Record<string, string[]> }).appliedFacets
+          .locationHierarchy1?.length ?? 0,
+    );
+    expect(countries).toEqual([0, 1, 1, 2, 2]);
     expect(lists.every((request) => request.headers["content-type"] === "application/json")).toBe(
       true,
     );

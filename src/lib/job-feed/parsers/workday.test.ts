@@ -66,7 +66,9 @@ describe("parseWorkdayList", () => {
     expect(countries?.parameter).toBe("locationHierarchy1");
     expect(countries?.values.map((value) => value.code)).toEqual(["BR", "IN", "IL", "GB", "US"]);
     expect(
-      countries?.values.filter((value) => isTargetCountry(value.code)).map((v) => v.code),
+      countries?.values
+        .filter((value) => value.code !== null && isTargetCountry(value.code))
+        .map((v) => v.code),
     ).toEqual(["BR", "GB", "US"]);
   });
 
@@ -88,8 +90,36 @@ describe("parseWorkdayList", () => {
         { id: "a", code: "US", count: 40 },
         { id: "b", code: "CR", count: 9 },
         { id: "c", code: "IN", count: 12 },
+        { id: "d", code: null, count: 3 },
       ],
     });
+  });
+
+  it("reads remote-US and state values as the US, and keeps values naming no country", () => {
+    const countries = countryFacet([
+      {
+        parameter: "locationCountry",
+        values: [
+          { id: "a", name: "United States of America", count: 120 },
+          { id: "b", name: "Remote - United States", count: 30 },
+          { id: "c", name: "Canada", count: 8 },
+          { id: "d", name: "Mexico", count: 5 },
+          { id: "e", name: "Remote", count: 2 },
+        ],
+      },
+    ]);
+    expect(countries?.values.map((value) => value.code)).toEqual(["US", "US", "CA", "MX", null]);
+    const states = countryFacet([
+      {
+        parameter: "locationState",
+        values: [
+          { id: "a", name: "California", count: 40 },
+          { id: "b", name: "Texas", count: 20 },
+          { id: "c", name: "New York", count: 10 },
+        ],
+      },
+    ]);
+    expect(states?.values.map((value) => value.code)).toEqual(["US", "US", "US"]);
   });
 
   it("finds no country facet when a site has none", () => {

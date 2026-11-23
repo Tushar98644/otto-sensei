@@ -1040,7 +1040,7 @@ vercel env add GITHUB_TOKEN production
 Vercel Cron    → /api/cron/cleanup     04:17 UTC daily → old rate-limit windows, tombstones, notifications
                → /api/cron/trial-reminders 13:30 UTC daily → bell notification (+ email) a day before a trial ends
                → /api/cron/follow-ups  14:00 UTC daily → bell notification per account (no email)
-               → /api/cron/jobs        six times, 05:45 to 08:15 UTC → every board and feed, resuming each time
+               → /api/cron/jobs        18 times a day: 17:15 to 04:15 and 05:45 to 08:15 UTC → every board and feed, resuming each time
                  (scripts/jobs-ingest-ci.ts does the same in one run, given a database URL)
 GitHub Actions → /api/cron/title-vectors 08:45 UTC daily → JobBERT-v2 vectors for the day's new titles
 ```
@@ -1048,8 +1048,8 @@ GitHub Actions → /api/cron/title-vectors 08:45 UTC daily → JobBERT-v2 vector
 The three Vercel schedules are in `vercel.json`. They only run on the production deployment, and only
 once `CRON_SECRET` is set: without it every call answers 401 and nothing happens.
 
-The daily job read runs on Vercel: each of the six calls reads boards for up to 4 minutes and resumes
-where the last stopped, and finishes at once when nothing is left. GitHub Actions runs only what needs a
+The daily job read runs on Vercel: each of the 18 calls reads boards for up to 4 minutes and resumes
+where the last stopped, and finishes at once when nothing is left (docs/job-sources.md, "Limits we keep"). GitHub Actions runs only what needs a
 runner: the title vectors (`.github/workflows/title-vectors.yml`, the model can't run on Vercel, a few
 minutes a day) and the daily IndexNow ping. CI, E2E and Evals run only by hand from the Actions tab. In
 GitHub → the repo → **Settings** → **Secrets and variables** → **Actions**, add:

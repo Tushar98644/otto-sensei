@@ -18,7 +18,7 @@ import type { RawJob } from "./parsers";
 import { robotsAllows } from "./robots";
 
 export const WORKDAY_LIMITS = {
-  // Newest first, the reader's countries before the rest, so one giant tenant can't crowd out the others.
+  // Newest first, US jobs, then the other target countries, then the rest, so one giant tenant can't crowd out the others.
   perBoard: 300,
   // Each post is its own request, read only when the job is new or its listing changed.
   postsPerRead: 120,
@@ -35,6 +35,9 @@ export type WorkdayFetch = {
 export type WorkdayRead = { raws: RawJob[]; partial: boolean };
 
 const ROBOT = "OttoResumeBot";
+
+// The US comes first (owner priority, 2026-11-23), then the other target countries, then the rest.
+const FIRST_COUNTRY = "US";
 
 // A missing robots.txt allows everything (RFC 9309); any other failure stops the read.
 async function allowed(board: WorkdayBoard, get: WorkdayFetch): Promise<boolean> {
@@ -57,14 +60,16 @@ async function listAll(board: WorkdayBoard, get: WorkdayFetch): Promise<WorkdayL
   const url = workdayListUrl(board);
   const first = parseWorkdayList(await get.json(url, workdayListBody(0)));
   const countries = countryFacet(first.facets);
-  const target = countries?.values.filter((value) => isTargetCountry(value.code)) ?? [];
-  const rest = countries?.values.filter((value) => !isTargetCountry(value.code)) ?? [];
+  const values = countries?.values ?? [];
+  const target = (code: string | null) => code !== null && isTargetCountry(code);
+  const tiers = [
+    values.filter((value) => value.code === FIRST_COUNTRY),
+    values.filter((value) => value.code !== FIRST_COUNTRY && target(value.code)),
+    values.filter((value) => !target(value.code)),
+  ].filter((tier) => tier.length > 0);
   const passes: (Record<string, string[]> | null)[] =
-    countries && target.length > 0
-      ? [
-          { [countries.parameter]: target.map((value) => value.id) },
-          ...(rest.length > 0 ? [{ [countries.parameter]: rest.map((value) => value.id) }] : []),
-        ]
+    countries && tiers.length > 1
+      ? tiers.map((tier) => ({ [countries.parameter]: tier.map((value) => value.id) }))
       : [null];
 
   const out = new Map<string, WorkdayListing>();

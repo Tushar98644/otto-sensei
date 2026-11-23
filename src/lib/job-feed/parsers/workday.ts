@@ -144,28 +144,36 @@ function siteCountry(name: string): string | null {
 
 export type CountryFacet = {
   parameter: string;
-  values: { id: string; code: string; count: number }[];
+  values: { id: string; code: string | null; count: number }[];
 };
 
 function bestFacet(
   facets: readonly WorkdayFacet[],
   read: (name: string) => string | null,
-): CountryFacet | null {
-  let best: CountryFacet | null = null;
+): WorkdayFacet | null {
+  let best: WorkdayFacet | null = null;
+  let bestKnown = 0;
   for (const facet of facets) {
-    const values = facet.values.flatMap((value) => {
-      const code = read(value.name);
-      return code ? [{ id: value.id, code, count: value.count }] : [];
-    });
-    if (values.length < 2 || values.length < facet.values.length * 0.6) continue;
-    if (!best || values.length > best.values.length) best = { parameter: facet.parameter, values };
+    const known = facet.values.filter((value) => read(value.name)).length;
+    if (known < 2 || known < facet.values.length * 0.6) continue;
+    if (!best || known > bestKnown) [best, bestKnown] = [facet, known];
   }
   return best;
 }
 
 // The country facet where a site has one, else its list of sites when each names its country.
+// Every value is kept: "Remote - United States" reads as the US, and one naming no country ("Remote") has no code.
 export function countryFacet(facets: readonly WorkdayFacet[]): CountryFacet | null {
-  return bestFacet(facets, countryOf) ?? bestFacet(facets, siteCountry);
+  const facet = bestFacet(facets, countryOf) ?? bestFacet(facets, siteCountry);
+  if (!facet) return null;
+  return {
+    parameter: facet.parameter,
+    values: facet.values.map((value) => ({
+      id: value.id,
+      code: countryOf(value.name) ?? siteCountry(value.name),
+      count: value.count,
+    })),
+  };
 }
 
 // Where Otto's readers are asked to look first (owner decision 2026-11-22).
