@@ -3,6 +3,7 @@ import type { BillingInterval, PaidPlanId } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { billingLog, users } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
+import { DAY_MS } from "@/lib/time";
 import { dodoId } from "./dodo-testing";
 import {
   AFTER_TRIAL,
@@ -17,6 +18,7 @@ import {
   refundEvent,
   standardWebhookHeaders,
   subscriptionEvent,
+  type PaymentFields,
   type SubscriptionFields,
 } from "./dodo-webhook-testing";
 import { processWebhook, type WebhookConfig } from "./webhook";
@@ -49,7 +51,12 @@ vi.mock("next/server", async (importOriginal) => ({
 }));
 vi.mock("@/lib/portfolio/cache", () => ({ refreshPortfolioPages: vi.fn() }));
 
-const { proMonth: PRO_MONTH, proTrial: PRO_TRIAL, maxYear: MAX_YEAR } = DODO_TEST_PRODUCTS;
+const {
+  proMonth: PRO_MONTH,
+  proTrial: PRO_TRIAL,
+  maxMonth: MAX_MONTH,
+  maxYear: MAX_YEAR,
+} = DODO_TEST_PRODUCTS;
 const CUS = DODO_TEST_IDS.customer;
 const SUB = DODO_TEST_IDS.subscription;
 const PAY = DODO_TEST_IDS.payment;
@@ -57,6 +64,7 @@ const PAY = DODO_TEST_IDS.payment;
 const PRODUCTS: Record<string, { plan: PaidPlanId; interval: BillingInterval }> = {
   [PRO_MONTH]: { plan: "pro", interval: "month" },
   [PRO_TRIAL]: { plan: "pro", interval: "month" },
+  [MAX_MONTH]: { plan: "max", interval: "month" },
   [MAX_YEAR]: { plan: "max", interval: "year" },
 };
 
@@ -100,6 +108,17 @@ async function sent(): Promise<Sent[]> {
 
 function event(type: string, fields: SubscriptionFields = {}, at?: number) {
   return subscriptionEvent(type, fields, at === undefined ? {} : { timestamp: at });
+}
+
+// The payment.succeeded Dodo sends for a plan change's charge.
+function changeCharge(preTax: number, tax: number, fields: PaymentFields = {}) {
+  return paymentEvent("payment.succeeded", {
+    payment_id: dodoId("pay", "change"),
+    charge_type: "plan_change",
+    total_amount: preTax + tax,
+    tax,
+    ...fields,
+  });
 }
 
 async function tracked(overrides: Partial<typeof users.$inferInsert> = {}): Promise<string> {
@@ -196,18 +215,89 @@ describe("subscription_renewed", () => {
 });
 
 describe("subscription_plan_changed", () => {
-  it("sends from, to and interval and sets the plan, once even when Dodo's events come out of order", async () => {
+  const toMaxMonthly = { product_id: MAX_MONTH };
+  const changed = (props: Record<string, unknown>, userId: string) => ({
+    distinctId: userId,
+    event: "subscription_plan_changed",
+    properties: { ...props, $set: { plan: props.to_plan } },
+  });
+
+  it("sends an upgrade's prorated charge before tax with the change it paid for", async () => {
+    const userId = await tracked();
+    expect(await deliverTwice(changeCharge(700, 63))).toEqual(APPLIED);
+    expect(await sent()).toEqual([]);
+    expect(await deliverTwice(event("subscription.plan_changed", toMaxMonthly))).toEqual(APPLIED);
+    expect(await sent()).toEqual([
+      changed({ from_plan: "pro", to_plan: "max", interval: "month", usd: 7 }, userId),
+    ]);
+  });
+
+  it("sets the plan at once when the change comes first, and sends it when its charge comes", async () => {
+    const userId = await tracked();
+    expect(await deliverTwice(event("subscription.plan_changed", toMaxMonthly))).toEqual(APPLIED);
+    expect(await deliverTwice(changeCharge(700, 63))).toEqual(APPLIED);
+    expect(await sent()).toEqual([
+      { distinctId: userId, event: "$set", properties: { $set: { plan: "max" } } },
+      changed({ from_plan: "pro", to_plan: "max", interval: "month", usd: 7 }, userId),
+    ]);
+  });
+
+  it("sends the full price charged when a trial moves to Max", async () => {
+    const userId = await tracked({ planStatus: "trialing", trialEndsAt: TEST_DATES.trialEnd });
+    const changedAt = TEST_DATES.start + DAY_MS;
+    const maxYearly = event("subscription.plan_changed", {
+      product_id: MAX_YEAR,
+      trial_period_days: 0,
+      previous_billing_date: dodoTime(changedAt),
+      next_billing_date: dodoTime(changedAt + 365 * DAY_MS),
+    });
+    expect(await deliverTwice(maxYearly)).toEqual(APPLIED);
+    expect(await deliverTwice(changeCharge(23_200, 2_088))).toEqual(APPLIED);
+    expect(await sent()).toEqual([
+      { distinctId: userId, event: "$set", properties: { $set: { plan: "max" } } },
+      changed({ from_plan: "pro", to_plan: "max", interval: "year", usd: 232 }, userId),
+    ]);
+  });
+
+  it("sends a downgrade with no charge at once, without dollars", async () => {
+    const userId = await tracked({ plan: "max", planInterval: "year" });
+    expect(await deliverTwice(event("subscription.plan_changed"))).toEqual(APPLIED);
+    const events = await sent();
+    expect(events).toEqual([
+      changed({ from_plan: "max", to_plan: "pro", interval: "month" }, userId),
+    ]);
+    expect(events[0]?.properties).not.toHaveProperty("usd");
+  });
+
+  it("never pairs a change with a charge left unmatched days ago", async () => {
+    const userId = await tracked();
+    const then = Date.now() - 3 * DAY_MS;
+    const stale = changeCharge(500, 0, { payment_id: dodoId("pay", "stale") });
+    const headers = standardWebhookHeaders(stale, DODO_WEBHOOK_TEST_SECRET, {
+      timestamp: Math.floor(then / 1000),
+    });
+    expect(await processWebhook(stale, headers, CONFIG, then)).toEqual(APPLIED);
+    expect(await deliverTwice(event("subscription.plan_changed", toMaxMonthly))).toEqual(APPLIED);
+    expect(await deliverTwice(changeCharge(700, 63))).toEqual(APPLIED);
+    expect(await sent()).toEqual([
+      { distinctId: userId, event: "$set", properties: { $set: { plan: "max" } } },
+      changed({ from_plan: "pro", to_plan: "max", interval: "month", usd: 7 }, userId),
+    ]);
+  });
+
+  it("counts a charge once however Dodo retries or replays it, and the change once out of order", async () => {
     const userId = await tracked();
     const max = { product_id: MAX_YEAR, next_billing_date: dodoTime(TEST_DATES.yearEnd) };
     expect(await deliverTwice(event("subscription.updated", max, 2_000))).toEqual(APPLIED);
     await deliverTwice(event("subscription.plan_changed", max, 1_000));
+    const charge = changeCharge(10_000, 0);
+    expect(await deliverTwice(charge)).toEqual(APPLIED);
+    const replayed = standardWebhookHeaders(charge, DODO_WEBHOOK_TEST_SECRET, { id: "msg_replay" });
+    expect(await processWebhook(charge, replayed, CONFIG)).toEqual(DUPLICATE);
     await deliverTwice(event("subscription.updated", max, 3_000));
     expect(await sent()).toEqual([
-      {
-        distinctId: userId,
-        event: "subscription_plan_changed",
-        properties: { from_plan: "pro", to_plan: "max", interval: "year", $set: { plan: "max" } },
-      },
+      { distinctId: userId, event: "$set", properties: { $set: { plan: "max" } } },
+      changed({ from_plan: "pro", to_plan: "max", interval: "year", usd: 100 }, userId),
     ]);
   });
 });
@@ -394,6 +484,7 @@ describe("privacy and PostHog", () => {
         metadata: { user_id: userId, plan: "pro", interval: "month", trial: "true" },
       }),
       event("subscription.renewed", {}, 1_000),
+      changeCharge(10_000, 0),
       event("subscription.plan_changed", { product_id: MAX_YEAR }, 2_000),
       event(
         "subscription.updated",

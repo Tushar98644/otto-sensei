@@ -53,6 +53,12 @@ import {
 } from "./credit";
 import { TOPUP_METADATA_KEY } from "./credit-types";
 import {
+  changeForCharge,
+  chargeForChange,
+  UNCHARGED,
+  type ChangeCharge,
+} from "./plan-change-charge";
+import {
   isOrphan,
   isRefusedTrial,
   refundRefusedTrial,
@@ -62,6 +68,9 @@ import {
 } from "./replacements";
 import {
   customerIdOf,
+  planChangeOf,
+  preTaxCents,
+  trackChargedChange,
   trackCheckout,
   trackDispute,
   trackPaymentFailure,
@@ -193,7 +202,8 @@ async function recordSubscription(
       : null;
   if (orphanOf) return cancelOrphan(state.subscriptionId, orphanOf, context, now);
   await report(result, { ...context, status: state.status, subscriptionId: state.subscriptionId });
-  trackSubscription(event.type, subscription, event.data, state, result);
+  const charge = await changeCharge(result, state.subscriptionId, context, now);
+  trackSubscription(event.type, subscription, event.data, state, result, charge);
   if (result.outcome === "applied") {
     warnIfTrialMissed(subscription, event.eventAt ?? now, config, context);
   }
@@ -211,6 +221,23 @@ async function recordSubscription(
   return result.outcome === "applied"
     ? { status: 200, message: "applied" }
     : { status: 200, message: result.outcome === "duplicate" ? "duplicate" : "ignored" };
+}
+
+// The event is claimed by now, so a failure here costs only the change's dollars in PostHog.
+async function changeCharge(
+  result: ApplyResult,
+  subscriptionId: string,
+  context: Context,
+  now: number,
+): Promise<ChangeCharge> {
+  const applied = planChangeOf(result);
+  if (!applied) return UNCHARGED;
+  try {
+    return await chargeForChange({ ...applied, subscriptionId }, now);
+  } catch (error) {
+    log.warn("billing.plan_change_charge_failed", { ...context, userId: applied.userId }, error);
+    return UNCHARGED;
+  }
 }
 
 // Dodo has no trial status: a trial-product subscription not seen as one in its first days needs a look.
@@ -276,7 +303,10 @@ async function recordPayment(
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };
   }
-  // A subscription's first payment is its checkout; renewals and plan changes have other charge types.
+  if (payment.charge_type === "plan_change") {
+    return recordChangeCharge(object, payment, subscriptionId, context, config, now);
+  }
+  // A subscription's first payment is its checkout; renewals have their own subscription event.
   if (payment.charge_type !== "new") return ignore("not_checkout");
   const choice = checkoutChoice(payment.metadata);
   if (!choice) return ignore("other_product");
@@ -298,6 +328,50 @@ async function recordPayment(
     }
     trackCheckout(userId, choice, object);
     log.info("billing.checkout_completed", { ...context, userId, ...choice });
+  } catch (error) {
+    log.error("billing.webhook_failed", error, context);
+    return { status: 500, message: "retry" };
+  }
+  return { status: 200, message: "applied" };
+}
+
+// Counted once per payment, and sent with the plan change it paid for.
+async function recordChangeCharge(
+  object: unknown,
+  payment: DodoPayment,
+  subscriptionId: string,
+  context: Context,
+  config: ReadyConfig,
+  now: number,
+): Promise<WebhookResult> {
+  const paymentId = payment.payment_id;
+  const ids = metadataIds(payment.metadata, config.signingSecret, { ...context, paymentId });
+  const cents = preTaxCents(object);
+  const noUser = (): WebhookResult => {
+    log.info("billing.webhook_ignored", { ...context, reason: "no_user" });
+    return { status: 200, message: "ignored" };
+  };
+  try {
+    const userId = await findBillingUserId({
+      userId: ids.userId,
+      customerId: payment.customer.customer_id,
+      subscriptionId,
+    });
+    if (!userId) return noUser();
+    const match = await changeForCharge({ userId, subscriptionId, paymentId, cents }, now);
+    if (match.outcome === "no_user") return noUser();
+    if (match.outcome === "duplicate") {
+      log.info("billing.webhook_duplicate", context);
+      return { status: 200, message: "duplicate" };
+    }
+    if (match.outcome === "matched") trackChargedChange(userId, match.change, cents);
+    log.info("billing.plan_change_charged", {
+      ...context,
+      paymentId,
+      userId,
+      cents,
+      matched: match.outcome === "matched",
+    });
   } catch (error) {
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };

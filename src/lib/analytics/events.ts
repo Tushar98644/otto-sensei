@@ -42,10 +42,12 @@ export type ServerEventProps = {
   credit_added: { usd: number };
   // From the Dodo webhook; usd is before tax for charges and as Dodo reports it for refunds and disputes.
   subscription_renewed: { plan: PaidPlanId; interval: BillingInterval; usd: number };
+  // usd only when the change was charged.
   subscription_plan_changed: {
     from_plan: PaidPlanId;
     to_plan: PaidPlanId;
     interval: BillingInterval;
+    usd?: number;
   };
   subscription_cancelled: { plan: PaidPlanId; at_period_end: boolean; trial: boolean };
   subscription_ended: { plan: PaidPlanId; status: SubscriptionEndStatus; trial: boolean };

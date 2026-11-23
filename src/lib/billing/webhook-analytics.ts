@@ -17,6 +17,7 @@ import { ANONYMOUS_ID, captureServerEvent } from "@/lib/analytics/server";
 import type { DodoDispute, DodoPayment, DodoRefund } from "./dodo-events";
 import type { DodoSubscription } from "./dodo-status";
 import { planForStatus, type ApplyResult, type SubscriptionState } from "./entitlements";
+import type { ChangeCharge, PlanChange } from "./plan-change-charge";
 
 // PostHog gets plans, amounts and statuses under our user id: never Dodo ids, emails, names or card details.
 
@@ -71,16 +72,27 @@ export function customerIdOf(data: unknown): string | null {
   return ChargeFields.parse(data).customer?.customer_id ?? null;
 }
 
+// A payment's cents before tax, when it was charged in dollars.
+export function preTaxCents(data: unknown): number | null {
+  const fields = ChargeFields.parse(data);
+  if (fields.total_amount == null) return null;
+  const cents = fields.total_amount - (fields.tax ?? 0);
+  return usd(cents, fields.currency) === undefined ? null : cents;
+}
+
+function withUsd(change: PlanChange, cents: number | null) {
+  return cents === null ? change : { ...change, usd: cents / 100 };
+}
+
 export function trackCheckout(
   userId: string,
   choice: { plan: PaidPlanId; interval: BillingInterval; trial: boolean },
   data: unknown,
 ): void {
   const { plan, interval, trial } = choice;
-  const fields = ChargeFields.parse(data);
-  const charged = fields.total_amount == null ? null : fields.total_amount - (fields.tax ?? 0);
+  const cents = preTaxCents(data);
   const paid =
-    usd(charged, fields.currency) ?? (trial ? PRO_TRIAL.priceUsd : PRICES_USD[plan][interval]);
+    cents === null ? (trial ? PRO_TRIAL.priceUsd : PRICES_USD[plan][interval]) : cents / 100;
   captureServerEvent(userId, "checkout_completed", { plan, trial, usd: paid }, { set: { plan } });
 }
 
@@ -99,6 +111,27 @@ function renewalOf(
   return { plan, interval, usd: charged ?? PRICES_USD[plan][interval] };
 }
 
+type AppliedChange = { userId: string; change: PlanChange; charges: boolean };
+
+// Our own changes are charged: a trial ends paid in full, an upgrade pays the prorated difference.
+export function planChangeOf(result: ApplyResult): AppliedChange | null {
+  if (result.outcome !== "applied") return null;
+  const { userId, plan, interval, before } = result;
+  if (before.status === null || before.plan === plan || !interval) return null;
+  if (!isPaidPlan(before.plan) || !isPaidPlan(plan)) return null;
+  return {
+    userId,
+    change: { from_plan: before.plan, to_plan: plan, interval },
+    charges: before.trialing || PRICES_USD[plan].month > PRICES_USD[before.plan].month,
+  };
+}
+
+export function trackChargedChange(userId: string, change: PlanChange, cents: number | null) {
+  captureServerEvent(userId, "subscription_plan_changed", withUsd(change, cents), {
+    set: { plan: change.to_plan },
+  });
+}
+
 // Changes are read from the plan and status before and after, so out-of-order events still count once.
 export function trackSubscription(
   type: string,
@@ -106,6 +139,7 @@ export function trackSubscription(
   data: unknown,
   state: SubscriptionState,
   result: ApplyResult,
+  charge: ChangeCharge,
 ): void {
   const renewal = type === "subscription.renewed" ? renewalOf(data, state, result) : null;
   if (result.outcome !== "applied") {
@@ -115,21 +149,18 @@ export function trackSubscription(
     }
     return;
   }
-  const { userId, plan, interval, before } = result;
+  const { userId, plan, before } = result;
   const sent: ServerEvent[] = [];
   const send = <E extends ServerEvent>(event: E, props: ServerEventProps[E]) => {
     captureServerEvent(userId, event, props, { set: { plan } });
     sent.push(event);
   };
   if (renewal) send("subscription_renewed", renewal);
-  if (
-    before.status !== null &&
-    isPaidPlan(before.plan) &&
-    isPaidPlan(plan) &&
-    before.plan !== plan &&
-    interval
-  ) {
-    send("subscription_plan_changed", { from_plan: before.plan, to_plan: plan, interval });
+  const changed = planChangeOf(result);
+  // A change waiting on its charge is sent when the payment comes.
+  if (changed && charge.outcome !== "waiting") {
+    const cents = charge.outcome === "charged" ? charge.cents : null;
+    send("subscription_plan_changed", withUsd(changed.change, cents));
   }
   if (
     isPaidPlan(plan) &&

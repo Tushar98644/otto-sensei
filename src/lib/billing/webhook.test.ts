@@ -940,12 +940,11 @@ describe("checkout_completed analytics", () => {
     ]);
   });
 
-  it("ignores renewals, plan changes, other products, payments without a subscription and strangers", async () => {
+  it("ignores renewals, other products, payments without a subscription and strangers", async () => {
     const user = await createUser();
     const mine = { user_id: user.id, ...choice() };
     const ignoredBodies = [
       paymentEvent("payment.succeeded", { charge_type: "renewal", metadata: mine }),
-      paymentEvent("payment.succeeded", { charge_type: "plan_change", metadata: mine }),
       paymentEvent("payment.succeeded", { charge_type: "on_demand", metadata: mine }),
       paymentEvent("payment.succeeded", { charge_type: null, metadata: mine }),
       paymentEvent("payment.succeeded", { metadata: { ...mine, plan: "ebook" } }),

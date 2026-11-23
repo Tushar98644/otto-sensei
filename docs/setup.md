@@ -703,9 +703,11 @@ Each item says what the code assumes today and where to change it if Dodo does s
 - [ ] **Plan changes.** Pro monthly to Max monthly with `prorated_immediately_keep_cycle` (expect
   the prorated difference now and the same renewal date). Trial to Max monthly and to Max yearly
   with `full_immediately` (expect the trial to end, the full price charged now, the $1 not credited,
-  `subscription.plan_changed` with the dates on the new period, and `trial_period_days` 0). A
-  declined card with `on_payment_failure: prevent_change` (expect the trial unchanged and
-  `payment.failed` with `charge_type` `plan_change`). A plan change while a cancel is scheduled
+  `subscription.plan_changed` with the dates on the new period, and `trial_period_days` 0). Each
+  charged change should bring one `payment.succeeded` with `charge_type` `plan_change` and no
+  `subscription.renewed` (which would count the charge twice in PostHog). A declined card with
+  `on_payment_failure: prevent_change` (expect the trial unchanged and `payment.failed` with
+  `charge_type` `plan_change`). A plan change while a cancel is scheduled
   (which refusal code and HTTP status). Does `change-plan` answer 200 with an empty body? Change:
   `changePlan` in `dodo.ts`, `planChangeRoute` in `index.ts`.
 - [ ] **Cancel at the period end.** Set `cancel_at_next_billing_date` true, then false: which events
