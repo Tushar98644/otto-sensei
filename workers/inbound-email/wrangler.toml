@@ -1,5 +1,5 @@
 # Otto's inbound email Worker: mail for otto+<token>@track.ottosensei.com comes here, is turned into
-# text and is posted to Otto, signed. Setup steps: README.md in this folder.
+# text and is posted to Otto, signed. Setup steps: docs/inbound-email.md.
 name = "otto-inbound-email"
 main = "src/index.ts"
 compatibility_date = "2026-11-01"

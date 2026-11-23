@@ -23,7 +23,9 @@ async function main() {
   const { mode, apply } = parsed;
   const rawUrl = directDatabaseUrl();
   if (!rawUrl) {
-    console.error(`No database URL. Set one of: ${DIRECT_URL_VARS.join(", ")} (see SETUP.md).`);
+    console.error(
+      `No database URL. Set one of: ${DIRECT_URL_VARS.join(", ")} (see docs/setup.md).`,
+    );
     process.exit(1);
   }
   const target = connectionTarget(rawUrl);

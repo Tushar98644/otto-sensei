@@ -11,7 +11,7 @@ import {
 } from "./title-vectors";
 import type { LookingFor, MatchProfile } from "./types";
 
-// Title and occupation similarity from JobBERT-v2 vectors (MATCHING.md). Nothing here runs the model:
+// Title and occupation similarity from JobBERT-v2 vectors (docs/matching.md). Nothing here runs the model:
 // job titles were embedded at ingest, occupations ship in vectors.json, and a person's role is read
 // from the title's stored vector or, failing that, from the occupation its words name.
 

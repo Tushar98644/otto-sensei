@@ -15,7 +15,7 @@ The same Worker also runs Otto's hourly interview run: see
   the Worker forgets it. Otto keeps only the sender's domain, the subject and what it read.
 - Each post carries `x-otto-timestamp` (Unix seconds) and `x-otto-signature: v1=<hex>`, an
   HMAC-SHA256 of `<timestamp>.<body>` with `INBOUND_EMAIL_SECRET`. Otto refuses a bad signature
-  and anything signed more than 5 minutes away from its clock. `src/sign.ts` and
+  and anything signed more than 5 minutes away from its clock. `workers/inbound-email/src/sign.ts` and
   `src/lib/inbound/signature.ts` must change together.
 - Otto answers 404 for an address it doesn't know (turned off, or a handle changed more than
   14 days ago): the Worker bounces that mail. Any other failure throws, so it shows in
@@ -30,7 +30,7 @@ employer that DKIM-signed it. Everything else waits in a "Check this" list for t
 or ignore.
 
 Email Routing doesn't give a Worker trustworthy Authentication-Results headers (see
-cloudflare/workerd#6740), so `src/dkim.ts` verifies the DKIM signatures and the newest ARC message
+cloudflare/workerd#6740), so `workers/inbound-email/src/dkim.ts` verifies the DKIM signatures and the newest ARC message
 signature itself (RFC 6376, 8463, 8617; RSA-SHA256 and Ed25519), looking keys up over DNS over
 HTTPS at cloudflare-dns.com. It sends Otto the domains whose signatures passed, plus the SMTP
 envelope sender, inside the signed body. Its tests include the signed message from RFC 8463.
@@ -71,7 +71,7 @@ bunx wrangler deploy
 ```
 
 `wrangler login` opens the browser to allow Wrangler on your Cloudflare account. `wrangler deploy`
-uploads the Worker and, because `wrangler.toml` lists `addresses = ["otto@track.ottosensei.com"]`,
+uploads the Worker and, because `workers/inbound-email/wrangler.toml` lists `addresses = ["otto@track.ottosensei.com"]`,
 creates the Email Routing rule that sends that address (and every `otto+...` address) to it. This
 needs Wrangler 4.113.0 or later, which `bun install` brings.
 
@@ -97,13 +97,13 @@ Applications page doesn't offer email tracking at all.
    `Otto test`. Send it; within a minute the setup card says "Test received".
 3. Add the address in Gmail's forwarding settings. Gmail's confirmation shows up on the
    Applications page with the Gmail address that asked; press **Confirm**.
-4. To watch the Worker live: `bunx wrangler tail` in this folder (it shows each run and any error,
+4. To watch the Worker live: `bunx wrangler tail` in `workers/inbound-email` (it shows each run and any error,
    never the mail).
 
 ## The hourly interview run
 
 A Cron Trigger in `wrangler.toml` (`crons = ["7 * * * *"]`) wakes the Worker at minute 7 of every
-hour (UTC). Its `scheduled` handler (`src/cron.ts`) posts to `APP_URL/api/cron/interview-briefs`
+hour (UTC). Its `scheduled` handler (`workers/inbound-email/src/cron.ts`) posts to `APP_URL/api/cron/interview-briefs`
 with `Authorization: Bearer <CRON_SECRET>`, the same header Vercel sends to the other crons. That
 run puts the interview-morning brief in the bell at about 7:00 on each person's clock (or two hours
 before an earlier interview) and asks "How did it go?" there the morning after. It sends no email.
@@ -115,7 +115,7 @@ Otto stamps every interview day it handles, so a late, repeated or retried run n
 - Until the secret is set, or if Otto refuses it, each run throws, so it shows as failed in the
   Worker's cron events and in `bunx wrangler tail`. Any answer other than 200 also throws; the
   next hour picks up what's left.
-- To check it: run `bunx wrangler tail` in this folder a little before minute 7 and watch the
+- To check it: run `bunx wrangler tail` in `workers/inbound-email` a little before minute 7 and watch the
   scheduled run finish, or look for `cron.interview_briefs.done` in the Vercel logs.
 
 `vercel.json` also calls `/api/cron/interview-briefs` once a day at 02:37 UTC (about 08:00 in

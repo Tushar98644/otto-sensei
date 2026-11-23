@@ -1,4 +1,4 @@
-// Supabase's "Email OTP Length" must stay at this (SETUP.md).
+// Supabase's "Email OTP Length" must stay at this (docs/setup.md).
 export const LOGIN_CODE_DIGITS = 6;
 
 // No provider rules (Gmail dots, plus tags): other providers treat those as different people.

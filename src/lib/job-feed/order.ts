@@ -33,7 +33,7 @@ export function closeness(
   return found * (0.5 + 0.5 * coverage) + ORDER_LIMITS.familyWeight * kind;
 }
 
-// The ranking's weights (MATCHING.md "Ranking"); each part is 0 to 1, so the score is too.
+// The ranking's weights (docs/matching.md "Ranking"); each part is 0 to 1, so the score is too.
 export const SCORE_WEIGHTS = {
   role: 0.45,
   skills: 0.3,

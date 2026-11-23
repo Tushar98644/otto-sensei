@@ -1,7 +1,7 @@
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { INK, defineTheme } from "../theme";
 
-// After Jake Gutierrez's LaTeX resume template (MIT, credited in THIRD_PARTY_NOTICES.md).
+// After Jake Gutierrez's LaTeX resume template (MIT, credited in docs/third-party-notices.md).
 
 const INDENT = 10.8;
 const INSET = 5.4;

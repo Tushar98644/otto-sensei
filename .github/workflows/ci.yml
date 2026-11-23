@@ -1,6 +1,6 @@
 name: CI
 
-# By hand only (Actions > CI > Run workflow). The same gate runs locally before every push (HANDOFF.md section 3), and a run on each push billed 11 to 15 minutes.
+# By hand only (Actions > CI > Run workflow). The same gate runs locally before every push (docs/handoff.md section 3), and a run on each push billed 11 to 15 minutes.
 on:
   workflow_dispatch:
 

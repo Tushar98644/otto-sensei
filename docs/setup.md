@@ -788,7 +788,7 @@ short: until going live, anyone with a public test card can get Pro (the go-live
 1. **Compliance, early** (long lead time). Email compliance@dodopayments.com:
    - The category pre-check. Dodo often reviews AI writing tools, outreach tools and resume and
      hiring tools, and it prohibits scraping and mass outreach. Explain where the jobs feed comes
-     from (public job board APIs, JOB-SOURCES.md), that outreach drafts are sent by the user one at
+     from (public job board APIs, job-sources.md), that outreach drafts are sent by the user one at
      a time, and that the app never promises jobs or interviews.
    - The merchant-of-record sentence and the refund wording, for approval: Dodo's terms want the
      reseller notice "in a form agreed with Dodo Payments". The sentence lives in one place,
@@ -896,7 +896,7 @@ quietly; the rest of the app runs the same.
 | `CRON_SECRET` | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret) | 10e |
 | `RESEND_API_KEY`, `EMAIL_FROM` | The trial-ending email and one-time service notices; follow-ups, new matches and views are bell only | 10e |
 | `EMAIL_POSTAL_ADDRESS` | A postal address (a PO box or virtual mailbox is fine) shown in the footer of optional emails. Tip emails stay off until it's set | 10e |
-| `INBOUND_EMAIL_SECRET` (+ optional `INBOUND_ADDRESS_STYLE`, `INBOUND_DOMAIN`) | Applications that track themselves from forwarded job emails, through a Cloudflare Email Worker; addresses are `otto+<handle>@track.ottosensei.com` | workers/inbound-email/README.md |
+| `INBOUND_EMAIL_SECRET` (+ optional `INBOUND_ADDRESS_STYLE`, `INBOUND_DOMAIN`) | Applications that track themselves from forwarded job emails, through a Cloudflare Email Worker; addresses are `otto+<handle>@track.ottosensei.com` | inbound-email.md |
 | `OPTIONAL_EMAILS_PER_DAY` | Optional, default 25: the daily allowance for the one-time processor-change notice (step 10.12), kept under Resend's free quota next to sign-in codes. Raise it on a paid Resend plan; 0 stops optional emails | 10e |
 
 ---
@@ -1063,7 +1063,7 @@ Then **Actions** → **Title vectors** → **Run workflow** embeds the first tit
   twice does no harm. Run one by hand with
   `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/cleanup`.
 - **Jobs** (`/api/cron/jobs`) needs no keys or new variables: every source is a public API
-  (JOB-SOURCES.md). It runs up to 300 seconds (`maxDuration`), which Vercel allows on every plan with
+  (job-sources.md). It runs up to 300 seconds (`maxDuration`), which Vercel allows on every plan with
   Fluid compute, the default for new projects (**Settings** → **Functions**). With a shorter limit it
   still works: it saves board by board, and the next run starts with the boards it didn't reach.
   The first run fills the table (about 15,000-20,000 jobs over a day or two; the table is capped at

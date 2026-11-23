@@ -22,6 +22,6 @@ INDEX($base[0][]; .route) as $was
     | if $over == [] then
         "Every route is within \($slack) KB of its first-load baseline and \($total_slack) KB of its total."
       else
-        "Over budget or new: \($over | join(", ")). If that is intended, refresh scripts/bundle-baseline.json (HANDOFF.md section 3).",
+        "Over budget or new: \($over | join(", ")). If that is intended, refresh scripts/bundle-baseline.json (docs/handoff.md section 3).",
         ("" | halt_error(1))
       end)

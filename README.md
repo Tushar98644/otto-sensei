@@ -2,7 +2,7 @@
 
 Resume checker and editor with an otter guide. Upload a resume, see what a recruiter's software reads, fix weak lines, tailor to a job, download a PDF for free.
 
-Design and contracts: [ARCHITECTURE.md](ARCHITECTURE.md). Going live: [SETUP.md](SETUP.md). New laptop, deploys and house rules: [HANDOFF.md](HANDOFF.md). Every env var: [.env.example](.env.example).
+All docs: [docs/](docs/README.md). Design and contracts: [docs/architecture.md](docs/architecture.md). Going live: [docs/setup.md](docs/setup.md). New laptop, deploys and house rules: [docs/handoff.md](docs/handoff.md). Every env var: [.env.example](.env.example).
 
 ## Run locally
 
@@ -19,7 +19,7 @@ No keys and no database server needed. Sign in with any email: the code shows on
 | `OPENROUTER_API_KEY` | Rule-based import; fixes and tailoring return demo output |
 | `DODO_*`, `BILLING_SIGNING_SECRET` | "Upgrade" switches the account to the plan instantly, and a new account to the 3-day Pro trial (mock billing, development only). Production: "Payments aren't live yet, email us" |
 
-To test real email codes and Google sign-in on your laptop, put the Supabase values in `.env.local` (SETUP.md, steps 2 to 8) and run `DEV_AUTH=supabase bun dev`. Production never uses dev codes or `.pglite/`.
+To test real email codes and Google sign-in on your laptop, put the Supabase values in `.env.local` (docs/setup.md, steps 2 to 8) and run `DEV_AUTH=supabase bun dev`. Production never uses dev codes or `.pglite/`.
 
 ## Checks
 
@@ -30,15 +30,15 @@ bun run test       # in-memory Postgres (PGlite) per test file, fake Supabase Au
 bun run build
 ```
 
-CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)), started by hand from the Actions tab, runs the first three as parallel jobs, plus knip and a per-page JS budget from `next analyze`; `scripts/migrations-check.sh` runs squawk on new migrations ([HANDOFF.md](HANDOFF.md) section 3). Vercel's own build on every push stands in for `bun run build`.
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)), started by hand from the Actions tab, runs the first three as parallel jobs, plus knip and a per-page JS budget from `next analyze`; `scripts/migrations-check.sh` runs squawk on new migrations ([docs/handoff.md](docs/handoff.md) section 3). Vercel's own build on every push stands in for `bun run build`.
 
 ## Deploy
 
-Vercel (app, functions in `iad1`) + Supabase (Postgres and Auth, US East) + Resend (sign-in email, as Supabase's SMTP) + Google (sign-in) + OpenRouter (AI) + Dodo Payments (payments, merchant of record, hosted checkout; test mode first, then live). Every click and command is in [SETUP.md](SETUP.md). In short:
+Vercel (app, functions in `iad1`) + Supabase (Postgres and Auth, US East) + Resend (sign-in email, as Supabase's SMTP) + Google (sign-in) + OpenRouter (AI) + Dodo Payments (payments, merchant of record, hosted checkout; test mode first, then live). Every click and command is in [docs/setup.md](docs/setup.md). In short:
 
 ```bash
 vercel link
-vercel env add ...                 # Supabase URL/keys/database URLs, see SETUP.md step 4
+vercel env add ...                 # Supabase URL/keys/database URLs, see docs/setup.md step 4
 vercel env pull .env.local
 bun scripts/migrate.ts             # creates the tables (supabase/migrations)
 vercel --prod

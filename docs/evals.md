@@ -136,7 +136,7 @@ That makes the weekly run about $0.80 a month at most, plus about $0.18 for each
 
 ## Adding a suite
 
-1. Create `scripts/evals/suites/<feature>.ts` and export a suite made with `defineSuite` from `../suite`. See `suites/fix.ts`.
+1. Create `scripts/evals/suites/<feature>.ts` and export a suite made with `defineSuite` from `../suite`. See `scripts/evals/suites/fix.ts`.
 2. Add one import and one entry to `SUITES` in `scripts/evals/suites/index.ts`, in name order.
 3. Run `bun scripts/evals/run.ts --dry-run --feature <feature>` until it says "Dry run passed."
 

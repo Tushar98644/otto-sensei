@@ -10,13 +10,13 @@ On a Greenhouse, Lever, Ashby or Workday application form, **Fill with Otto** (P
 bun run extension:build        # extension/dist/dev, extension/dist/prod and the store zip
 bun extension/build.ts dev     # only the dev build
 bun extension/build.ts prod    # only the store build and its zip
-bun run extension:icons        # redraws store/icons from src/app/icon.svg (commit the PNGs)
+bun run extension:icons        # redraws extension/store/icons from src/app/icon.svg (commit the PNGs)
 ```
 
-- **Dev** (`dist/dev`) talks to `http://localhost:3314` (or `OTTO_DEV_ORIGIN=http://localhost:<port>`), keeps a source map and opens its shadow root so browser tests can reach the badge. Its manifest carries a public `key`, which pins the id to `noofbknlfdjpiihgeghjeoalkjlfafeb`; the dev server lets that id call `/api/extension/*`.
-- **Store** (`dist/prod`, zipped to `dist/otto-for-chrome-<version>.zip`) talks to `https://www.ottosensei.com`, is minified and keeps its shadow root closed. The version comes from `extension/version.json`.
+- **Dev** (`extension/dist/dev`) talks to `http://localhost:3314` (or `OTTO_DEV_ORIGIN=http://localhost:<port>`), keeps a source map and opens its shadow root so browser tests can reach the badge. Its manifest carries a public `key`, which pins the id to `noofbknlfdjpiihgeghjeoalkjlfafeb`; the dev server lets that id call `/api/extension/*`.
+- **Store** (`extension/dist/prod`, zipped to `extension/dist/otto-for-chrome-<version>.zip`) talks to `https://www.ottosensei.com`, is minified and keeps its shadow root closed. The version comes from `extension/version.json`.
 
-The build is Bun's own bundler: three IIFE bundles (`background.js`, `content.js`, `bridge.js`), with the app's pure modules from `src/lib` bundled in. Next never compiles this folder (the root `tsconfig.json` excludes it and `.vercelignore` leaves it out of deploys).
+The build is Bun's own bundler: three IIFE bundles (`background.js`, `content.js`, `bridge.js`), with the app's pure modules from `extension/src/lib` bundled in. Next never compiles `extension/` (the root `tsconfig.json` excludes it and `.vercelignore` leaves it out of deploys).
 
 ## Load it unpacked
 
@@ -30,7 +30,7 @@ The build is Bun's own bundler: three IIFE bundles (`background.js`, `content.js
 
 1. Bump `extension/version.json`, then `bun run extension:build`.
 2. In the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole), add a new item (first time) or a new package, and upload `extension/dist/otto-for-chrome-<version>.zip`.
-3. Fill the listing from `extension/store/listing.md`, the privacy tab from `extension/store/privacy.md` (single purpose, permission justifications, data use) and the images from `extension/store/icons/` plus screenshots at 1280×800.
+3. Fill the listing from `extension-store-listing.md`, the privacy tab from `extension-store-privacy.md` (single purpose, permission justifications, data use) and the images from `extension/store/icons/` plus screenshots at 1280×800.
 4. After the first upload the dashboard shows the extension's id. Add it to `STORE_EXTENSION_IDS` in `src/lib/extension/route.ts` (or set `OTTO_EXTENSION_IDS` in Vercel, comma-separated) and deploy, or the API refuses the published extension. Then submit for review.
 5. Optional: copy the dashboard's public key (Package → View public key) into the dev manifest's `key` in `extension/manifest.ts`, so unpacked builds share the store id.
 
@@ -38,19 +38,19 @@ The build is Bun's own bundler: three IIFE bundles (`background.js`, `content.js
 
 | File                | Where                                                                                            | What                                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `src/content.ts`    | Job pages listed in `manifest.ts` (`JOB_MATCHES`), and any page the toolbar button is pressed on | Reads the post, runs the match in the page, draws the badge in a shadow root                                              |
-| `src/bridge.ts`     | Otto's own site                                                                                  | Hands the connect page's token to the worker; asks for fresh match data after a visit to Otto                             |
-| `src/background.ts` | Service worker                                                                                   | Keeps the token and match data in `chrome.storage.local`, calls `/api/extension/*`, opens Otto tabs                       |
-| `src/page/`         | Content script                                                                                   | One reader per site (`sites/`), falling back from JSON-LD to the site's selectors to the page's largest block of text     |
-| `src/match.ts`      | Content script                                                                                   | `src/lib/match-check` and `src/lib/eligibility`, run locally: the badge never sends the post anywhere                     |
-| `src/forms/`        | Content script, on Greenhouse, Lever, Ashby and Workday forms                                    | Finds the questions, maps each to what fills it, fills with real input events, drafts, and watches for the thank-you page |
+| `extension/src/content.ts`    | Job pages listed in `extension/manifest.ts` (`JOB_MATCHES`), and any page the toolbar button is pressed on | Reads the post, runs the match in the page, draws the badge in a shadow root                                              |
+| `extension/src/bridge.ts`     | Otto's own site                                                                                  | Hands the connect page's token to the worker; asks for fresh match data after a visit to Otto                             |
+| `extension/src/background.ts` | Service worker                                                                                   | Keeps the token and match data in `chrome.storage.local`, calls `/api/extension/*`, opens Otto tabs                       |
+| `extension/src/page/`         | Content script                                                                                   | One reader per site (`sites/`), falling back from JSON-LD to the site's selectors to the page's largest block of text     |
+| `extension/src/match.ts`      | Content script                                                                                   | `src/lib/match-check` and `src/lib/eligibility`, run locally: the badge never sends the post anywhere                     |
+| `extension/src/forms/`        | Content script, on Greenhouse, Lever, Ashby and Workday forms                                    | Finds the questions, maps each to what fills it, fills with real input events, drafts, and watches for the thank-you page |
 
 Supported sites: LinkedIn (`/jobs/view/*` and the search pane, `currentJobId`), Naukri, Indeed, Greenhouse (boards and the embed frame on company sites), Lever, Ashby, Workday, SmartRecruiters and Workable. On any other page the toolbar button reads a schema.org JobPosting, or asks the person to select the post's text. There is no `<all_urls>` permission: `activeTab` plus `scripting` covers that one tab.
 
 ## Fill with Otto
 
 - `forms/platforms.ts`: where each platform's form lives, what holds one question, its submit buttons and thank-you pages. `formPlatformOf()` answers only for Greenhouse (boards and the embed frame), Lever, Ashby and Workday.
-- `forms/scan.ts` reads every control into a question (label, hints, options, required, section, which repeated block); `forms/classify.ts` decides what answers it: a contact field, the current job, a line of work history or education, a saved answer, work rights for a country, the resume file, a question to write (Draft with Otto), a question to ask once, or one Otto must leave alone (self-identification and consent, never filled). `forms/plan.ts` turns that and the fill data into a value; all three are pure and tested on the saved forms in `fixtures/forms/`.
+- `extension/src/forms/scan.ts` reads every control into a question (label, hints, options, required, section, which repeated block); `extension/src/forms/classify.ts` decides what answers it: a contact field, the current job, a line of work history or education, a saved answer, work rights for a country, the resume file, a question to write (Draft with Otto), a question to ask once, or one Otto must leave alone (self-identification and consent, never filled). `extension/src/forms/plan.ts` turns that and the fill data into a value; all three are pure and tested on the saved forms in `extension/fixtures/forms/`.
 - `forms/apply.ts` fills in the page: the element's own value setter plus `input`, `change` and key events (Greenhouse opens its lists on key-up), list options picked by meaning, checkboxes only for "I currently work here", the PDF put on a `DataTransfer` on the file input. It never overwrites what the person typed and outlines what it filled.
 - `forms/session.ts` runs a fill: `GET /api/extension/fill` (contacts and history from the resume to send: the copy tailored for this job if there is one, else the one picked in the badge), `GET /api/extension/resume-file` (that resume's PDF, drawn on the server by the app's own renderer and template), then the form. Questions with no saved answer are asked once in the card and saved (`POST /api/extension/answers`). On Workday it fills each next step as it appears, and never presses Next or Submit. On My Experience it presses each list's own Add (Work Experience, Education, and Websites where the step has it) until there is a panel per job, school and link on the resume, waits for each panel to show, then fills them; panels already there count, and what is typed in them stays (`forms/workday.ts`). The card's "Fill these yourself" names each required field still empty, the ones the resume has nothing for included.
 - Lever's and Ashby's forms and Workday's steps don't show the post, so the content script reads it from the job's own page (same site) for the badge, drafts and the application.
@@ -69,4 +69,4 @@ Supported sites: LinkedIn (`/jobs/view/*` and the search pane, `currentJobId`), 
 
 ## Tests
 
-`bunx vitest run extension src/lib/extension src/app/api/extension`. The readers run on saved pages in `fixtures/` through a small test-only DOM (`src/testing/mini-dom.ts`). Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Workable and the LinkedIn guest page are real public pages, trimmed. Signed-in LinkedIn, Naukri and Indeed can't be saved by a script, so those fixtures are written by hand from their current markup: try them signed in before each release.
+`bunx vitest run extension src/lib/extension src/app/api/extension`. The readers run on saved pages in `fixtures/` through a small test-only DOM (`extension/src/testing/mini-dom.ts`). Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Workable and the LinkedIn guest page are real public pages, trimmed. Signed-in LinkedIn, Naukri and Indeed can't be saved by a script, so those fixtures are written by hand from their current markup: try them signed in before each release.

@@ -15,7 +15,7 @@ Today, without it: every account has a private feed link (`/api/calendar/<token>
 
 ## Google Cloud console steps
 
-Use the existing `Otto Sensei` project from SETUP.md §8a, so the consent screen shows one app.
+Use the existing `Otto Sensei` project from setup.md §8a, so the consent screen shows one app.
 
 1. **APIs & Services → Library:** search **Google Calendar API** → **Enable**.
 2. **Google Auth Platform → Branding:** check the app name `Otto Sensei`, the logo (120×120 PNG, needs review if changed), support email, home page `https://www.ottosensei.com`, privacy policy `https://www.ottosensei.com/privacy`, terms `https://www.ottosensei.com/terms`. **Authorized domains:** `ottosensei.com` (and `supabase.co`, already there for sign-in). **Save**.

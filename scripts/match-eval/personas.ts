@@ -1,7 +1,7 @@
 import { emptyWorkProfile, type WorkProfile } from "@/lib/eligibility/profile";
 import type { PlaceChoice } from "@/lib/job-feed/types";
 
-// Labelled personas for precision and off-role share (MATCHING.md "Evaluation").
+// Labelled personas for precision and off-role share (docs/matching.md "Evaluation").
 // A job's label comes from its title alone, so it never depends on either matcher's own reading:
 // 2 the persona's own role, 1 a neighbouring role they'd still consider, 0 off-role. The rules read
 // the title's role part (before a comma, dash, bracket or "at"); ownAnywhere reads the whole title.

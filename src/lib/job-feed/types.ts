@@ -147,7 +147,7 @@ export type MatchedJob = FeedJob & {
   morePlaces: number;
   visa: string[];
   position: number;
-  // The ranking's parts for this job, logged with its impression (MATCHING.md "Feedback").
+  // The ranking's parts for this job, logged with its impression (docs/matching.md "Feedback").
   features?: number[];
 };
 

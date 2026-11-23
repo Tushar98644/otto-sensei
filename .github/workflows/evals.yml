@@ -1,6 +1,6 @@
 name: Evals
 
-# Real OpenRouter calls, capped by --max-usd; needs the OPENROUTER_EVAL_KEY secret (scripts/evals/README.md, "Running in CI").
+# Real OpenRouter calls, capped by --max-usd; needs the OPENROUTER_EVAL_KEY secret (docs/evals.md, "Running in CI").
 # By hand only: every run spends real OpenRouter money and runner minutes.
 on:
   workflow_dispatch:
@@ -46,7 +46,7 @@ jobs:
             echo "## Evals skipped"
             echo
             echo "The repository secret \`OPENROUTER_EVAL_KEY\` isn't set, so nothing ran and no model was called."
-            echo "To turn the evals on, follow \"Running in CI\" in \`scripts/evals/README.md\`."
+            echo "To turn the evals on, follow \"Running in CI\" in \`docs/evals.md\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/checkout@v4

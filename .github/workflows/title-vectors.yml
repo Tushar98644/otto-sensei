@@ -1,5 +1,5 @@
 name: Title vectors
-# Job matching v2 (MATCHING.md): every job title the day's read added gets its JobBERT-v2 vector here,
+# Job matching v2 (docs/matching.md): every job title the day's read added gets its JobBERT-v2 vector here,
 # on GitHub's runner, never on the site. The Vercel crons read the boards between 05:45 and 08:15 UTC;
 # this then asks /api/cron/title-vectors for the titles still waiting and sends the vectors back
 # (CRON_SECRET, no database credentials), and the last call rebuilds the match index.

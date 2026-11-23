@@ -30,7 +30,9 @@ async function main() {
       console.log("Migrations skipped: no database URL on this build.");
       return;
     }
-    console.error(`No database URL. Set one of: ${DIRECT_URL_VARS.join(", ")} (see SETUP.md).`);
+    console.error(
+      `No database URL. Set one of: ${DIRECT_URL_VARS.join(", ")} (see docs/setup.md).`,
+    );
     process.exit(1);
   }
   const target = connectionTarget(rawUrl);

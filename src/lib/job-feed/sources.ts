@@ -1,6 +1,6 @@
 import type { JobSourceId } from "./types";
 
-// Source terms require every job to link to its posting and name its source (JOB-SOURCES.md).
+// Source terms require every job to link to its posting and name its source (docs/job-sources.md).
 
 export type SourceInfo = {
   name: string;

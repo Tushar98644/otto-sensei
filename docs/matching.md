@@ -1,6 +1,6 @@
 # Job matching
 
-How the Jobs tab picks and orders openings for a resume. Sources and counts are in JOB-SOURCES.md.
+How the Jobs tab picks and orders openings for a resume. Sources and counts are in job-sources.md.
 
 The shape follows what large job sites publish (LinkedIn's _Learning to Retrieve for Job Matching_, arXiv 2402.13435, and _Talent Search and Recommendation Systems at LinkedIn_, arXiv 1809.06481; CareerBuilder's embedding recommender, arXiv 2107.00221), cut to our size and a $0 budget: standardized occupations, hard filters, retrieval then ranking, title embeddings for meaning, and an explainable linear score.
 

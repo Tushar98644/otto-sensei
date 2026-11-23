@@ -45,7 +45,8 @@ async function main() {
   const sender = apply ? senderForApply(baseUrl) : null;
 
   const rawUrl = directDatabaseUrl();
-  if (!rawUrl) fail(`No database URL. Set one of: ${DIRECT_URL_VARS.join(", ")} (see SETUP.md).`);
+  if (!rawUrl)
+    fail(`No database URL. Set one of: ${DIRECT_URL_VARS.join(", ")} (see docs/setup.md).`);
   const target = connectionTarget(rawUrl);
   const sql = postgres(target.url, { ssl: target.ssl, max: 1, prepare: false, onnotice: () => {} });
   try {

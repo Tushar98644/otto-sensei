@@ -1,4 +1,4 @@
-"""JobBERT-v2 job-title vectors for matching (MATCHING.md).
+"""JobBERT-v2 job-title vectors for matching (docs/matching.md).
 
 Runs the ONNX build of TechWolf/JobBERT-v2 (MIT) on the CPU: mean pooling, then the model's
 "anchor" dense layer for titles, then a fixed basis that keeps 256 of its 1024 dimensions, stored
