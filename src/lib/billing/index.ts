@@ -7,7 +7,7 @@ import {
   type BillingInterval,
   type PaidPlanId,
 } from "@/config/plans";
-import type { SessionUser } from "@/lib/auth/types";
+import type { AccountBilling, SessionUser } from "@/lib/auth/types";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 import {
@@ -60,8 +60,11 @@ export function planChangeRoute(status: string): PlanChangeRoute {
   return "portal";
 }
 
-export async function trialAvailableFor(user: SessionUser): Promise<boolean> {
-  return trialOffered() && (await isTrialEligible(user));
+export async function trialAvailableFor(
+  user: SessionUser,
+  known?: AccountBilling,
+): Promise<boolean> {
+  return trialOffered() && (await isTrialEligible(user, undefined, known));
 }
 
 export async function createCheckoutUrl(

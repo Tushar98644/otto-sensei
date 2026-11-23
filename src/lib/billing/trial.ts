@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { getDb, type Db, type Tx } from "@/db/client";
 import { billingLog, users } from "@/db/schema";
 import { normalizeEmail } from "@/lib/auth/policy";
-import type { SessionUser } from "@/lib/auth/types";
+import type { AccountBilling, SessionUser } from "@/lib/auth/types";
 import { trialKey } from "./log";
 
 export type TrialHistoryKind = "trial" | "paid";
@@ -24,21 +24,25 @@ export async function recordTrialHistory(
     .onConflictDoNothing();
 }
 
+// known: the row's billing fields as the session read them in this request, so the row isn't read again.
 export async function isTrialEligible(
   user: Pick<SessionUser, "id" | "email" | "plan">,
   conn?: Db | Tx,
+  known?: AccountBilling,
 ): Promise<boolean> {
   if (user.plan !== "free") return false;
   const db = conn ?? (await getDb());
-  const [row] = await db
-    .select({
-      planStatus: users.planStatus,
-      billingSubscriptionId: users.billingSubscriptionId,
-      billingCustomerId: users.billingCustomerId,
-    })
-    .from(users)
-    .where(eq(users.id, user.id))
-    .limit(1);
+  const [row] = known
+    ? [known]
+    : await db
+        .select({
+          planStatus: users.planStatus,
+          billingSubscriptionId: users.billingSubscriptionId,
+          billingCustomerId: users.billingCustomerId,
+        })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1);
   if (!row) return false;
   if (
     row.planStatus !== null ||

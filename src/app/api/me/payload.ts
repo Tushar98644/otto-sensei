@@ -1,6 +1,6 @@
 import type { MeResponse } from "@/lib/api/types";
 import { authMode } from "@/lib/auth/session";
-import type { SessionUser } from "@/lib/auth/types";
+import type { AccountBilling, SessionUser } from "@/lib/auth/types";
 import { billingMode, trialAvailableFor } from "@/lib/billing";
 import { isDodoId } from "@/lib/billing/dodo-status";
 import { getBillingRecord, type BillingRecord } from "@/lib/billing/entitlements";
@@ -19,13 +19,20 @@ function billingHold(record: BillingRecord | null) {
 }
 
 // GET /api/me's answer; the dashboard layout hands the same one to the browser with the page.
-export async function mePayload(user: SessionUser | null): Promise<MePayload> {
+export async function mePayload(
+  user: SessionUser | null,
+  billing?: AccountBilling,
+): Promise<MePayload> {
   const mode = billingMode();
   const [state, trial, record] = user
     ? await Promise.all([
         getUsageState(user),
-        trialAvailableFor(user),
-        mode === "dodo" ? getBillingRecord(user.id) : null,
+        trialAvailableFor(user, billing),
+        mode !== "dodo"
+          ? null
+          : billing
+            ? { plan: user.plan, ...billing }
+            : getBillingRecord(user.id),
       ])
     : [null, trialOffered(), null];
   return {

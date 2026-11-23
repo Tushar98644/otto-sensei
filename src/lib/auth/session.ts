@@ -10,11 +10,11 @@ import {
   type ServerSupabase,
 } from "@/lib/supabase/server";
 import { ensureUser, findUserById, isUserId, toSessionUser } from "@/lib/users";
-import { clearDevSession, getDevUser } from "./dev";
+import { clearDevSession, getDevAccount } from "./dev";
 import { DEV_SESSION_COOKIE, devAuthActive } from "./dev-mode";
 import { devGitHubConnection, githubConnectionOf } from "./github";
 import { authErrorFields, isSignedOutError } from "./supabase-errors";
-import type { AuthMode, SessionUser } from "./types";
+import type { AccountBilling, AuthMode, SessionUser } from "./types";
 
 export function authMode(): AuthMode {
   if (devAuthActive()) return "dev";
@@ -24,13 +24,14 @@ export function authMode(): AuthMode {
 export type CurrentAccount = {
   user: SessionUser;
   github: GitHubConnection | null;
+  billing: AccountBilling;
 };
 
 // getUser, not getClaims: a revoked session stops at once. Throws so an outage signs nobody out.
 export const getCurrentAccount = cache(async (): Promise<CurrentAccount | null> => {
   if (devAuthActive()) {
-    const user = await getDevUser();
-    return user ? { user, github: devGitHubConnection() } : null;
+    const dev = await getDevAccount();
+    return dev ? { ...dev, github: devGitHubConnection() } : null;
   }
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
@@ -49,9 +50,15 @@ export const getCurrentAccount = cache(async (): Promise<CurrentAccount | null> 
   if (!email) return null;
   const read = await early;
   const known = read?.id === id ? read.row : undefined;
+  const row = await ensureUser({ id, email }, Date.now(), known);
   return {
-    user: toSessionUser(await ensureUser({ id, email }, Date.now(), known)),
+    user: toSessionUser(row),
     github: githubConnectionOf(data.user),
+    billing: {
+      planStatus: row.planStatus,
+      billingCustomerId: row.billingCustomerId,
+      billingSubscriptionId: row.billingSubscriptionId,
+    },
   };
 });
 
@@ -61,7 +68,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 
 // The JWT alone (signature checked, revocation not): only for choices that grant nothing.
 export async function currentUserIdHint(): Promise<string | null> {
-  if (devAuthActive()) return (await getDevUser())?.id ?? null;
+  if (devAuthActive()) return (await getDevAccount())?.user.id ?? null;
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
   const { data } = await supabase.auth.getClaims();

@@ -4,7 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { execSql } from "@/db/testing";
-import { clearSession, currentUserIdHint, getCurrentUser, hasSessionCookie } from "./session";
+import {
+  clearSession,
+  currentUserIdHint,
+  getCurrentAccount,
+  getCurrentUser,
+  hasSessionCookie,
+} from "./session";
 import {
   AUTH_COOKIE,
   cookieJar,
@@ -47,6 +53,22 @@ describe("getCurrentUser", () => {
     const db = await getDb();
     await db.update(users).set({ plan: "pro" }).where(eq(users.id, user.id));
     await expect(getCurrentUser()).resolves.toMatchObject({ plan: "pro" });
+  });
+
+  it("brings the row's billing fields with the account, and never in the user", async () => {
+    const user = await signInAs("ada@example.com");
+    const db = await getDb();
+    await db
+      .update(users)
+      .set({ planStatus: "on_hold", billingCustomerId: "cus_1", billingSubscriptionId: "sub_1" })
+      .where(eq(users.id, user.id));
+    const account = await getCurrentAccount();
+    expect(account?.billing).toEqual({
+      planStatus: "on_hold",
+      billingCustomerId: "cus_1",
+      billingSubscriptionId: "sub_1",
+    });
+    expect(account?.user).not.toHaveProperty("billingCustomerId");
   });
 
   it("creates our row on the first request after Supabase signs someone in", async () => {

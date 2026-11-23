@@ -9,7 +9,7 @@ import { log, maskEmail } from "@/lib/log";
 import { ensureUser, toSessionUser } from "@/lib/users";
 import { DEV_SESSION_COOKIE, devAuthActive } from "./dev-mode";
 import { LOGIN_CODE_DIGITS } from "./policy";
-import type { SessionUser } from "./types";
+import type { AccountBilling, SessionUser } from "./types";
 
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
@@ -103,7 +103,9 @@ function sessionIdFrom(cookie: string | undefined): string | null {
   return sameMac(Buffer.from(signature, "base64url"), hmac(id)) ? id : null;
 }
 
-export async function getDevUser(now = Date.now()): Promise<SessionUser | null> {
+export type DevAccount = { user: SessionUser; billing: AccountBilling };
+
+export async function getDevAccount(now = Date.now()): Promise<DevAccount | null> {
   if (!devAuthActive()) return null;
   const sessionId = sessionIdFrom((await cookies()).get(DEV_SESSION_COOKIE)?.value);
   if (!sessionId) return null;
@@ -118,12 +120,17 @@ export async function getDevUser(now = Date.now()): Promise<SessionUser | null> 
       trialEndsAt: users.trialEndsAt,
       planPeriodStartsAt: users.planPeriodStartsAt,
       planPeriodEndsAt: users.planPeriodEndsAt,
+      planStatus: users.planStatus,
+      billingCustomerId: users.billingCustomerId,
+      billingSubscriptionId: users.billingSubscriptionId,
     })
     .from(devSessions)
     .innerJoin(users, eq(users.id, devSessions.userId))
     .where(and(eq(devSessions.id, sessionId), gt(devSessions.expiresAt, now)))
     .limit(1);
-  return row ?? null;
+  if (!row) return null;
+  const { planStatus, billingCustomerId, billingSubscriptionId, ...user } = row;
+  return { user, billing: { planStatus, billingCustomerId, billingSubscriptionId } };
 }
 
 export async function clearDevSession(): Promise<void> {

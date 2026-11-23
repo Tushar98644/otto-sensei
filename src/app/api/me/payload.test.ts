@@ -109,3 +109,29 @@ describe("mePayload billing hold flags", () => {
     expect(await flags(user)).toEqual(NEITHER);
   });
 });
+
+describe("mePayload with the session's billing fields", () => {
+  it("answers as a fresh read would, without reading the users row again", async () => {
+    const held = {
+      planStatus: "on_hold",
+      billingCustomerId: DODO_CUSTOMER,
+      billingSubscriptionId: DODO_SUBSCRIPTION,
+    };
+    const user = await userWith({ plan: "free", ...held });
+    const read = await mePayload(user);
+    const select = vi.spyOn(await getDb(), "select");
+    expect(await mePayload(user, held)).toEqual(read);
+    // Only the allowance counts: an account with a billing status can't start a trial.
+    expect(select).toHaveBeenCalledTimes(1);
+    select.mockRestore();
+
+    await resetDb();
+    const plain = await userWith({ plan: "free" });
+    const none = { planStatus: null, billingCustomerId: null, billingSubscriptionId: null };
+    const fresh = await mePayload(plain);
+    const again = vi.spyOn(await getDb(), "select");
+    expect(await mePayload(plain, none)).toEqual(fresh);
+    // The allowance counts and the one-trial-per-email check.
+    expect(again).toHaveBeenCalledTimes(2);
+  });
+});
