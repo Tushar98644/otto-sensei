@@ -12,11 +12,13 @@ import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
 import { PORTFOLIO_PICKS, PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { suggestedFileName } from "@/lib/resume/ops";
+import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
 import { createSampleResume } from "@/lib/resume/sample";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { ExtensionShowcase } from "./extension-showcase";
 import { Faq } from "./faq";
 import { FEATURES, FeaturesOverview } from "./features-overview";
+import { FEATURE_PREVIEWS } from "./features-previews";
 import { FinalCta } from "./final-cta";
 import { Hero } from "./hero";
 import { HeroCta } from "./hero-cta";
@@ -180,6 +182,15 @@ describe("the home page's copy", () => {
       "Technical roles also get a technical round on your projects, core concepts and system design, and a practice mode.",
     );
     expect(features).not.toMatch(/every application|every job you apply/i);
+  });
+
+  it("lists the career log in What's inside, free on every plan, with its preview", () => {
+    const html = renderToStaticMarkup(<FeaturesOverview />);
+    expect(text(html)).toContain("Career log");
+    expect(FEATURES[CAREER_LOG_ROUTE]?.text).toBe(
+      "A one-minute note on your work each month, free on every plan, so your next resume starts from facts. On Pro, Otto turns the notes into resume lines with your own numbers.",
+    );
+    expect(FEATURE_PREVIEWS[CAREER_LOG_ROUTE]).toBeTypeOf("function");
   });
 
   it("says jobs are of the person's own kind of work, read for meaning, from boards worldwide", () => {

@@ -6,6 +6,7 @@ import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
 import { Panel, Window } from "@/components/ui/panel";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
+import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { FEATURE_PREVIEWS, PreloadPortfolioPreview } from "./features-previews";
 import { Section, SectionHeader } from "./section";
@@ -33,6 +34,9 @@ export const FEATURES: Record<string, Feature> = {
   [PORTFOLIO_ROUTE]: {
     text: "A portfolio site made from your resume, hosted for you at your own link.",
     section: "#portfolio",
+  },
+  [CAREER_LOG_ROUTE]: {
+    text: "A one-minute note on your work each month, free on every plan, so your next resume starts from facts. On Pro, Otto turns the notes into resume lines with your own numbers.",
   },
 };
 

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusPill } from "@/components/ui/status";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";
 import { MATCH_LABELS } from "@/lib/job-feed/types";
+import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
 import { DEMO_PERSON } from "./recruiter-demo-data";
 
 function Row({ title, meta, children }: { title: string; meta: string; children?: ReactNode }) {
@@ -157,7 +158,26 @@ function PortfolioPreview() {
   );
 }
 
+function CareerLogPreview() {
+  const months = [
+    ["November 2026", "Shipped the new sign-up flow. Finished sign-ups up 12%."],
+    ["October 2026", "Ran 8 user interviews on the billing page and led the redesign."],
+    ["September 2026", "Nothing new this month"],
+  ] as const;
+  return (
+    <ul className="flex flex-col gap-2">
+      {months.map(([month, note]) => (
+        <li key={month} className="rounded-xl bg-surface p-3 ring-1 ring-border sm:p-4">
+          <p className="text-xs font-medium text-muted">{month}</p>
+          <p className="mt-1 text-sm text-ink">{note}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export const FEATURE_PREVIEWS: Record<string, () => ReactNode> = {
+  [CAREER_LOG_ROUTE]: CareerLogPreview,
   [ROUTES.dashboardResumes]: ResumesPreview,
   [ROUTES.dashboardLetters]: LettersPreview,
   [ROUTES.dashboardJobs]: JobsPreview,
