@@ -17,7 +17,6 @@ import { portfolioPath, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { PortfolioView } from "@/lib/portfolio/view";
 import { cn } from "@/lib/utils";
 import { previewFit, type PreviewWidth } from "./preview-frame";
-import { templateFontClasses } from "./templates/fonts";
 import { LazyTemplate } from "./templates/lazy";
 
 type PortfolioPreviewProps = {
@@ -146,7 +145,7 @@ export const PortfolioPreview = memo(function PortfolioPreview({
                 {zoom > 0 ? (
                   <div
                     inert
-                    className={cn("flex flex-col", templateFontClasses(shown))}
+                    className="flex flex-col"
                     style={
                       {
                         zoom,

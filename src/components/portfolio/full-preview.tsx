@@ -18,7 +18,6 @@ import { PORTFOLIO_TEMPLATE_IDS, type PortfolioTemplateId } from "@/lib/portfoli
 import { cn } from "@/lib/utils";
 import type { TemplateSample } from "./live-template";
 import { PreviewSourceNote, PreviewSourceSwitch, usePreviewSource } from "./preview-source";
-import { templateFontClasses } from "./templates/fonts";
 import { LazyTemplate, preloadTemplate } from "./templates/lazy";
 
 type Width = "desktop" | "phone";
@@ -178,7 +177,6 @@ export function FullPortfolioPreview({
                   // One screen is the window less the header (4rem) and the page bar (2.5rem).
                   "flex h-full flex-col overflow-y-auto [--pf-screen:calc(100dvh-6.5rem)]",
                   width === "phone" && "md:[--pf-screen:calc(100dvh-9.5rem)]",
-                  templateFontClasses(id),
                 )}
               >
                 <LazyTemplate

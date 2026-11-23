@@ -2,7 +2,8 @@ import { Fragment, type ReactNode } from "react";
 import type { ContentLink } from "@/lib/portfolio/content";
 import { Marked, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { NotesApp, type NoteMeta } from "./islands";
+import type { NoteMeta } from "./islands";
+import { NotesApp } from "./on-demand";
 import { FOLIO_CSS } from "./styles";
 
 // Ported from alanagoyal/alanagoyal's Notes app (MIT, see ./LICENSE.txt).

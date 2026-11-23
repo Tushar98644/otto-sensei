@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { mePayload } from "@/app/api/me/payload";
 import { AppShell } from "@/components/dashboard/app-shell";
 import { ROUTES } from "@/components/site/routes";
+import { SiteFonts } from "@/components/site/site-fonts";
 import { getCurrentAccount } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { REQUEST_PATH_HEADER, requestedPathWithin } from "@/lib/request-path";
@@ -37,6 +38,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   });
   return (
     <AppShell initialUser={user} initialMe={me} seeds={seeds}>
+      <SiteFonts />
       {children}
     </AppShell>
   );

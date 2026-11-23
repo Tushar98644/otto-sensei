@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { SiteFonts } from "@/components/site/site-fonts";
 
 export const metadata: Metadata = {
   title: "Studio",
@@ -9,5 +10,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#eef3ef" };
 
 export default function StudioLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <SiteFonts />
+      {children}
+    </>
+  );
 }

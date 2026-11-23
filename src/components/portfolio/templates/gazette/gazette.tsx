@@ -19,7 +19,7 @@ import {
 } from "../parts";
 import { RevealOnScroll } from "../reveal";
 import type { PortfolioTemplateProps } from "../types";
-import { LocalTime } from "./islands";
+import { LocalTime } from "./on-demand";
 import { Caret, Fleuron, Hand, Star } from "./ornaments";
 import { GAZETTE_CSS } from "./styles";
 

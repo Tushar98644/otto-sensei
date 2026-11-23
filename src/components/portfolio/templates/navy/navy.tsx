@@ -13,7 +13,8 @@ import {
 } from "../parts";
 import { RevealOnScroll } from "../reveal";
 import type { PortfolioTemplateProps } from "../types";
-import { JobTabs, NavMenu, NavScroll, ShowMore, type NavLink, type NavyJob } from "./islands";
+import type { NavLink, NavyJob } from "./islands";
+import { JobTabs, NavMenu, NavScroll, ShowMore } from "./on-demand";
 import { CodeScreen } from "./screen";
 import { NAVY_CSS } from "./styles";
 

@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { ContentProject } from "@/lib/portfolio/content";
 import { featuredFirst, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { Stage } from "./islands";
+import { Stage } from "./on-demand";
 import { STARRING_CSS } from "./styles";
 
 // Ported from pipozzz/starring (MIT, see ./LICENSE.txt): a career told as a film, act by act.

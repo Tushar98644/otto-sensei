@@ -9,7 +9,7 @@ import {
   TemplateStyle,
 } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { PopIn } from "./islands";
+import { PopIn } from "./on-demand";
 import { Mascot, MascotDefs, type MascotKind } from "./mascots";
 import { BUBBLE_CSS } from "./styles";
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { ROUTES } from "@/components/site/routes";
+import { NotFoundFonts } from "@/components/site/not-found-fonts";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { buttonClasses } from "@/components/ui/button";
@@ -12,6 +13,7 @@ export const metadata: Metadata = { title: "Page not found" };
 export default function NotFound() {
   return (
     <div className="flex min-h-dvh flex-col">
+      <NotFoundFonts />
       <SiteHeader />
       <main id="main" className="flex flex-1 items-center">
         <div className="container-page flex flex-col items-center py-24 text-center sm:py-32">

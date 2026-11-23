@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useSessionUserId } from "@/components/account/session-user";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
-import { WRITINGS } from "@/lib/queries/keys";
+import { LETTERED_APPLICATIONS, WRITINGS } from "@/lib/queries/keys";
 import { writingsQuery } from "@/lib/queries/options";
 import type { Writing } from "@/lib/writings/schema";
 
@@ -32,7 +32,9 @@ function update(change: (data: Writings) => Writings) {
 }
 
 export function forgetWritings(): void {
-  void getQueryClient().invalidateQueries({ queryKey: WRITINGS });
+  const client = getQueryClient();
+  void client.invalidateQueries({ queryKey: WRITINGS });
+  void client.invalidateQueries({ queryKey: LETTERED_APPLICATIONS });
 }
 
 export function useWritings(): WritingsState {

@@ -28,10 +28,9 @@ import {
   type Working,
 } from "@/lib/applications/working";
 import { useAppQueryClient } from "@/lib/queries/client";
-import { writingsQuery } from "@/lib/queries/options";
+import { letteredApplicationsQuery, writingsQuery } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
-import type { Writing } from "@/lib/writings/schema";
 
 type Variant = "home" | "page";
 
@@ -44,8 +43,6 @@ export type WhatsWorkingProps = {
   onAddApplication?: () => void;
 };
 
-const NO_WRITINGS: Writing[] = [];
-
 export function WhatsWorking({
   applications,
   resumes,
@@ -57,13 +54,22 @@ export function WhatsWorking({
   const userId = useSessionUserId();
   const pro = useProTools() === true;
   const client = useAppQueryClient();
-  const letters = useQuery({ ...writingsQuery(userId ?? ""), enabled: pro && !!userId }, client);
-  const writings = letters.data?.items ?? NO_WRITINGS;
-  const kinds = useMemo(() => resumeKinds(resumes), [resumes]);
-  const lettered = useMemo(
-    () => (pro && letters.data ? letteredApplications(writings) : null),
-    [pro, letters.data, writings],
+  // The letters list once something has loaded it, else just which applications have a letter.
+  const listed = client.getQueryData(writingsQuery(userId ?? "").queryKey) !== undefined;
+  const letters = useQuery(
+    { ...writingsQuery(userId ?? ""), enabled: pro && !!userId && listed },
+    client,
   );
+  const ids = useQuery(
+    { ...letteredApplicationsQuery(userId ?? ""), enabled: pro && !!userId && !letters.data },
+    client,
+  );
+  const kinds = useMemo(() => resumeKinds(resumes), [resumes]);
+  const lettered = useMemo(() => {
+    if (!pro) return null;
+    if (letters.data) return letteredApplications(letters.data.items);
+    return ids.data ? new Set(ids.data) : null;
+  }, [pro, letters.data, ids.data]);
   const working = useMemo(
     () => (now === 0 ? null : whatsWorking({ applications, kinds, lettered, now })),
     [applications, kinds, lettered, now],

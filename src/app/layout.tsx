@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { EB_Garamond, Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { LoadingScreenHost } from "@/components/mascot/otto-loading-screen";
 import { ReferralTracker } from "@/components/referrals/referral-tracker";
@@ -9,11 +8,6 @@ import { BRAND } from "@/config/brand";
 import { Analytics } from "@/lib/analytics/analytics";
 import { appUrl } from "@/lib/env";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
-
-// The italic face is declared only where headings use it: (marketing)/_components/display-italic.ts.
-const garamond = EB_Garamond({ subsets: ["latin"], display: "swap", variable: "--font-garamond" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl()),
@@ -36,8 +30,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    // The font variables must sit on <html>: the @theme font tokens are resolved at :root.
-    <html lang="en" className={`${inter.variable} ${garamond.variable}`}>
+    // The app's fonts come from components/site/site-fonts.tsx, rendered by each layout except /p.
+    <html lang="en">
       <body>
         <a
           href="#main"

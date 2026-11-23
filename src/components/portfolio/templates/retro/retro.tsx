@@ -11,6 +11,7 @@ import { Fragment, type CSSProperties, type ReactNode } from "react";
 import type { ContentProject, ContentRole } from "@/lib/portfolio/content";
 import { allSkills, Marked, nameOf, OutLink, safeId, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
+import type { WinId } from "./islands";
 import {
   AppMenu,
   Clock,
@@ -22,8 +23,7 @@ import {
   Picker,
   Typed,
   Win,
-  type WinId,
-} from "./islands";
+} from "./on-demand";
 import { RETRO_CSS } from "./styles";
 
 // Ported from mirkoschubert/retro-os (MIT, see ./LICENSE.txt): a fictional retro workstation, no brand art.

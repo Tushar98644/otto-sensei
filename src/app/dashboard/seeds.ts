@@ -19,10 +19,14 @@ import { ROUTES } from "@/components/site/routes";
 import { hasProTools } from "@/config/plans";
 import { CAREER_LOG_ROUTE, CHECKIN_ROUTE, homeCheckinMonth } from "@/lib/career-log/links";
 import type { NotificationsResponse } from "@/lib/notifications/types";
-import type { ApiSeeds, SeedKey } from "@/lib/api/seeds";
+import type { ApiSeeds, LetteredApplications, NextApplications, SeedKey } from "@/lib/api/seeds";
+import type { ApplicationsResponse } from "@/lib/api/types";
 import type { SessionUser } from "@/lib/auth/types";
+import { letteredApplicationIds } from "@/lib/writings/records";
 
-type RouteKey = Exclude<SeedKey, "resumeVersions">;
+// Each key but the second page of applications, which follows the first (nextApplications).
+type ReadKey = Exclude<SeedKey, "applicationsNext">;
+type RouteKey = Exclude<ReadKey, "resumeVersions" | "letteredApplications">;
 
 // The routes' own handlers, so a seed is exactly what the browser would have been sent.
 const ROUTE_READS: Record<RouteKey, () => Promise<Response>> = {
@@ -43,9 +47,9 @@ const ROUTE_READS: Record<RouteKey, () => Promise<Response>> = {
 };
 
 // The shell's reads (bell, setup defaults, resume list) and the other pages' small ones (see warmSharedReads).
-function everyPage(user: SessionUser): SeedKey[] {
-  const shell: SeedKey[] = ["notifications", "workProfile", "accountSetup", "resumeVersions"];
-  const pro: SeedKey[] = ["reminderSettings", "savedJobs", "interviewPacks"];
+function everyPage(user: SessionUser): ReadKey[] {
+  const shell: ReadKey[] = ["notifications", "workProfile", "accountSetup", "resumeVersions"];
+  const pro: ReadKey[] = ["reminderSettings", "savedJobs", "interviewPacks"];
   return [...shell, "shares", ...(hasProTools(user.plan) ? pro : [])];
 }
 
@@ -61,8 +65,8 @@ const APPLICATION_SECTIONS: readonly string[] = [
   ROUTES.dashboardInterview,
 ];
 
-function largeReads(pathname: string, user: SessionUser): SeedKey[] {
-  const keys: SeedKey[] = [];
+function largeReads(pathname: string, user: SessionUser): ReadKey[] {
+  const keys: ReadKey[] = [];
   if (
     APPLICATION_PAGES.includes(pathname) ||
     APPLICATION_SECTIONS.some((route) => pathname === route || pathname.startsWith(`${route}/`))
@@ -70,12 +74,12 @@ function largeReads(pathname: string, user: SessionUser): SeedKey[] {
     keys.push("applications");
   }
   // Home's What's working sets applications sent with a letter against those without, on Pro tools.
-  if (pathname === ROUTES.dashboard && hasProTools(user.plan)) keys.push("writings");
+  if (pathname === ROUTES.dashboard && hasProTools(user.plan)) keys.push("letteredApplications");
   return keys;
 }
 
 // What each page asks for as it opens on any plan (see the requests in components/dashboard/prefetch.ts).
-function pageReads(pathname: string, user: SessionUser): SeedKey[] {
+function pageReads(pathname: string, user: SessionUser): ReadKey[] {
   switch (pathname) {
     case ROUTES.dashboardApplications:
       return ["savedJobs", "writings", "savedPosts", "emailTracking", "careerLog"];
@@ -102,9 +106,15 @@ async function routeAnswer(key: RouteKey): Promise<unknown> {
   }
 }
 
-function seedFor(key: SeedKey, user: SessionUser): Promise<unknown> {
-  if (key !== "resumeVersions") return routeAnswer(key);
-  return listBackupVersions(user.id).catch(() => null);
+function seedFor(key: ReadKey, user: SessionUser): Promise<unknown> {
+  if (key === "resumeVersions") return listBackupVersions(user.id).catch(() => null);
+  if (key === "letteredApplications") {
+    return letteredApplicationIds(user.id).then(
+      (ids): LetteredApplications => ({ ids }),
+      () => null,
+    );
+  }
+  return routeAnswer(key);
 }
 
 // Home's check-in card reads the career log, so Home brings it only when the bell has the card's note.
@@ -112,6 +122,21 @@ async function homeCareerLog(notifications: Promise<unknown> | undefined): Promi
   const bell = (await notifications) as NotificationsResponse | null;
   if (!bell || homeCheckinMonth(bell.notifications, Date.now()) === null) return null;
   return routeAnswer("careerLog");
+}
+
+// Past one page of applications, the next one too, so the list is whole when the page hydrates.
+async function nextApplications(first: Promise<unknown>): Promise<NextApplications | null> {
+  const page = (await first) as ApplicationsResponse | null;
+  const cursor = page?.nextCursor;
+  if (!cursor) return null;
+  try {
+    const res = await readApplications(
+      new Request(`http://localhost/api/applications?cursor=${encodeURIComponent(cursor)}`),
+    );
+    return res.ok ? { cursor, page: (await res.json()) as ApplicationsResponse } : null;
+  } catch {
+    return null;
+  }
 }
 
 // Started, not awaited: the page streams out at once and each answer follows in the same response.
@@ -123,5 +148,6 @@ export function dashboardSeeds(user: SessionUser, path: string | null): ApiSeeds
     seeds[key] = seedFor(key, user);
   }
   if (pathname === ROUTES.dashboard) seeds.careerLog = homeCareerLog(seeds.notifications);
+  if (seeds.applications) seeds.applicationsNext = nextApplications(seeds.applications);
   return seeds;
 }

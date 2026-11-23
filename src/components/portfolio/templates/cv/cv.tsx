@@ -25,7 +25,15 @@ import type { ContentRole, MilestoneKind } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
 import { Marked, nameOf, OutLink, safeId, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { Greeting, IsoMark, LocalTime, Logotype, ShowMore, Taglines, ThemeToggle } from "./islands";
+import {
+  Greeting,
+  IsoMark,
+  LocalTime,
+  Logotype,
+  ShowMore,
+  Taglines,
+  ThemeToggle,
+} from "./on-demand";
 import { DimensionLine, WidthDimension } from "./dimension";
 import { flatPaths, isoPaths, pixelText, ROWS } from "./pixel";
 import { CV_CSS } from "./styles";

@@ -14,7 +14,8 @@ import {
   GLOBE_SCREEN,
   screenLine,
 } from "./ascii";
-import { Run, Shell, type ShellLinks } from "./islands";
+import type { ShellLinks } from "./islands";
+import { Run, Shell } from "./on-demand";
 import { Ps1 } from "./prompt";
 import { TERMINAL_CSS } from "./styles";
 

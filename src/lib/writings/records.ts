@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, isNull, or, type SQL } from "drizzle-orm";
 import { getDb, type Db } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { applications, jobs, writings } from "@/db/schema";
@@ -67,6 +67,26 @@ export async function listWritings(
     db.select({ n: count() }).from(writings).where(own),
   ]);
   return { writings: rows.map(toWriting), total: stored?.n ?? rows.length };
+}
+
+// The applications with a letter among the writings listWritings returns, for Home's What's working.
+export async function letteredApplicationIds(
+  userId: string,
+  limit: number = WRITING_LIMITS.listed,
+): Promise<string[]> {
+  const db = await getDb();
+  const listed = db
+    .select({ kind: writings.kind, applicationId: writings.applicationId })
+    .from(writings)
+    .where(eq(writings.userId, userId))
+    .orderBy(desc(writings.createdAt), desc(writings.id))
+    .limit(limit)
+    .as("listed");
+  const rows = await db
+    .selectDistinct({ id: listed.applicationId })
+    .from(listed)
+    .where(and(eq(listed.kind, "letter"), isNotNull(listed.applicationId)));
+  return rows.flatMap(({ id }) => (id ? [id] : []));
 }
 
 // Under the account's row lock, so parallel saves can't pass WRITING_LIMITS.perUser.

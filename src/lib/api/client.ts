@@ -15,6 +15,7 @@ import {
   dropSeeds,
   listFromVersions,
   takeSeed,
+  type NextApplications,
   type ResumeVersions,
   type SeedKey,
 } from "@/lib/api/seeds";
@@ -377,9 +378,18 @@ export const api = {
       ? seeded("applications", () =>
           request<ApplicationsResponse>("/api/applications", { cache: "no-store" }),
         )
-      : request<ApplicationsResponse>(`/api/applications?cursor=${encodeURIComponent(cursor)}`, {
-          cache: "no-store",
-        }),
+      : seeded(
+          "applicationsNext",
+          () =>
+            request<ApplicationsResponse>(
+              `/api/applications?cursor=${encodeURIComponent(cursor)}`,
+              { cache: "no-store" },
+            ),
+          (body) => {
+            const next = body as NextApplications;
+            return next.cursor === cursor ? next.page : null;
+          },
+        ),
   applicationThread: (id: string) =>
     request<ApplicationThreadResponse>(`/api/applications/${encodeURIComponent(id)}`, {
       cache: "no-store",

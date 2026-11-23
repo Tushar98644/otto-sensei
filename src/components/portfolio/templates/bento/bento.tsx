@@ -4,7 +4,7 @@ import { compactNumber } from "@/lib/portfolio/metrics";
 import { SocialIcon } from "../icons";
 import { featuredFirst, nameOf, OutLink, seeded, seedOf, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { AccentSwatches, TimeZoneTile } from "./islands";
+import { AccentSwatches, TimeZoneTile } from "./on-demand";
 import { PixelArrow, PixelGitHub, PixelLinkedIn } from "./pixel-icons";
 import { BENTO_CSS } from "./styles";
 

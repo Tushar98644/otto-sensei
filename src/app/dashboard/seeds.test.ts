@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_RESUMES_PER_USER } from "@/config/plans";
 import { getDb } from "@/db/client";
-import { notifications } from "@/db/schema";
+import { applications, notifications, writings } from "@/db/schema";
 import { GET as listApplications } from "@/app/api/applications/route";
 import { GET as readCareerLog } from "@/app/api/career-log/route";
 import { GET as readEmailTracking } from "@/app/api/email-tracking/route";
@@ -19,9 +20,13 @@ import {
   type ResumeVersions,
   type SeedKey,
 } from "@/lib/api/seeds";
+import type { ApplicationsResponse } from "@/lib/api/types";
+import { APPLICATION_LIMITS } from "@/lib/applications/schema";
+import { letteredApplications } from "@/lib/applications/working";
 import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { createSampleResume } from "@/lib/resume/sample";
+import type { WritingsResponse } from "@/lib/writings/schema";
 import { dashboardSeeds } from "./seeds";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
@@ -72,7 +77,7 @@ describe("dashboardSeeds", () => {
     ];
     expect(keysOf(dashboardSeeds(user, "/dashboard/account"))).toEqual(everywhere);
     expect(keysOf(dashboardSeeds(user, "/dashboard/jobs"))).toEqual(
-      [...everywhere, "applications"].sort(),
+      [...everywhere, "applications", "applicationsNext"].sort(),
     );
     expect(keysOf(dashboardSeeds(user, "/dashboard/portfolio"))).toEqual(
       [...everywhere, "githubConnection", "portfolio"].sort(),
@@ -81,6 +86,7 @@ describe("dashboardSeeds", () => {
       [
         ...everywhere,
         "applications",
+        "applicationsNext",
         "careerLog",
         "emailTracking",
         "savedPosts",
@@ -116,18 +122,102 @@ describe("dashboardSeeds", () => {
     ]) {
       expect(keysOf(dashboardSeeds(user, path))).not.toContain("applications");
     }
-    for (const path of ["/dashboard", "/dashboard/letters", "/dashboard/applications"]) {
+    for (const path of ["/dashboard/letters", "/dashboard/applications"]) {
       expect(keysOf(dashboardSeeds(user, path))).toContain("writings");
     }
-    for (const path of ["/dashboard/resumes", "/dashboard/jobs", "/dashboard/interview"]) {
+    for (const path of [
+      "/dashboard",
+      "/dashboard/resumes",
+      "/dashboard/jobs",
+      "/dashboard/interview",
+    ]) {
       expect(keysOf(dashboardSeeds(user, path))).not.toContain("writings");
     }
+  });
+
+  it("carries the page after the first for an account past one page, and nothing below it", async () => {
+    const user = await signIn();
+    const db = await getDb();
+    const row = (at: number) => ({
+      id: randomUUID(),
+      userId: user.id,
+      company: `Company ${at}`,
+      appliedAt: at,
+      statusChangedAt: at,
+      createdAt: at,
+      updatedAt: at,
+    });
+    await db.insert(applications).values([row(1)]);
+    expect(await dashboardSeeds(user, "/dashboard/applications").applicationsNext).toBeNull();
+
+    const more = APPLICATION_LIMITS.pageSize + 2;
+    await db.insert(applications).values(Array.from({ length: more }, (_, at) => row(at + 2)));
+    const seeds = dashboardSeeds(user, "/dashboard/applications");
+    const first = (await seeds.applications) as ApplicationsResponse;
+    const cursor = first.nextCursor ?? "";
+    expect(cursor).not.toBe("");
+    expect(await seeds.applicationsNext).toEqual({
+      cursor,
+      page: await routeJson(
+        listApplications(
+          new Request(`http://localhost/api/applications?cursor=${encodeURIComponent(cursor)}`),
+        ),
+      ),
+    });
+    expect(dashboardSeeds(user, "/dashboard/account").applicationsNext).toBeUndefined();
+  });
+
+  it("gives Home only which applications have a letter, as the letters list would show it", async () => {
+    const user = await signIn();
+    const db = await getDb();
+    const [sent, asked] = [randomUUID(), randomUUID()];
+    await db.insert(applications).values(
+      [sent, asked].map((id, at) => ({
+        id,
+        userId: user.id,
+        company: `Company ${at}`,
+        appliedAt: at,
+        statusChangedAt: at,
+        createdAt: at,
+        updatedAt: at,
+      })),
+    );
+    const writing = (kind: "letter" | "answer", at: number, applicationId: string | null) => ({
+      id: randomUUID(),
+      userId: user.id,
+      kind,
+      body: "Dear team,",
+      applicationId,
+      createdAt: at,
+      updatedAt: at,
+    });
+    await db
+      .insert(writings)
+      .values([
+        writing("letter", 1, sent),
+        writing("letter", 2, sent),
+        writing("answer", 3, asked),
+        writing("letter", 4, null),
+      ]);
+
+    const seeds = dashboardSeeds(user, "/dashboard");
+    const listed = (await routeJson(readWritings())) as WritingsResponse;
+    expect(seeds.writings).toBeUndefined();
+    expect(await seeds.letteredApplications).toEqual({
+      ids: [...letteredApplications(listed.writings)],
+    });
   });
 
   it("leaves out the reads a Free account's pages never make", async () => {
     const user = await signIn("free");
     const home = keysOf(dashboardSeeds(user, "/dashboard"));
-    for (const key of ["reminderSettings", "savedJobs", "writings", "interviewPacks"]) {
+    for (const key of [
+      "reminderSettings",
+      "savedJobs",
+      "writings",
+      "letteredApplications",
+      "interviewPacks",
+    ]) {
       expect(home).not.toContain(key);
     }
     expect(keysOf(dashboardSeeds(user, "/dashboard/portfolio"))).not.toContain("portfolio");

@@ -1,12 +1,20 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { contentView } from "@/lib/portfolio/content-view";
 import { emptyContent, type PortfolioContent, type ProjectEntry } from "@/lib/portfolio/content";
 import { jordanContent, jordanGitHub, jordanV2Resume } from "@/lib/portfolio/fixtures/jordan";
-import { PORTFOLIO_SECTIONS, type PortfolioTemplateId } from "@/lib/portfolio/types";
+import {
+  PORTFOLIO_SECTIONS,
+  PORTFOLIO_TEMPLATE_IDS,
+  type PortfolioTemplateId,
+} from "@/lib/portfolio/types";
 import { portfolioView, type ViewSettings } from "@/lib/portfolio/view";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { loadTemplate } from "./lazy";
 import { PORTFOLIO_TEMPLATES } from "./registry";
+
+// Each design's islands come in their own chunk; loading the designs brings them in.
+beforeAll(() => Promise.all(PORTFOLIO_TEMPLATE_IDS.map(loadTemplate)));
 
 const NOW = Date.UTC(2026, 10, 8);
 const OPEN: ViewSettings = { showEmail: true, showPhone: false, hiddenSections: [] };

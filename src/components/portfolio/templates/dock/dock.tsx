@@ -26,7 +26,8 @@ import {
   unbroken,
 } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { Dock, FlickeringGrid, type DockLink } from "./islands";
+import type { DockLink } from "./islands";
+import { Dock, FlickeringGrid } from "./on-demand";
 import { DOCK_CSS } from "./styles";
 
 // Ported from dillionverma/portfolio (MIT, see ./LICENSE.txt).

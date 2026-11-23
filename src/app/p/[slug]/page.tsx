@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { notFound, redirect } from "next/navigation";
-import { templateFontClasses } from "@/components/portfolio/templates/fonts";
-import { PORTFOLIO_TEMPLATES } from "@/components/portfolio/templates/registry";
+import { PortfolioRuntime } from "@/components/portfolio/portfolio-runtime";
 import { PortfolioViewBeacon } from "@/components/portfolio/view-beacon";
+import { PORTFOLIO_TEMPLATES } from "@/components/portfolio/templates/registry";
 import { JsonLd } from "@/components/site/json-ld";
 import { BRAND } from "@/config/brand";
 import { profilePageJsonLd } from "@/lib/portfolio/json-ld";
@@ -12,7 +12,6 @@ import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { DEFAULT_PORTFOLIO_TEMPLATE, portfolioPath } from "@/lib/portfolio/types";
 import { portfolioDescription } from "@/lib/portfolio/view";
 import { absoluteUrl } from "@/lib/seo/urls";
-import { cn } from "@/lib/utils";
 
 // Must stay a literal (= PORTFOLIO_REVALIDATE_SECONDS): Next reads it statically.
 export const revalidate = 3600;
@@ -82,11 +81,10 @@ export default async function PublicPortfolioPage({ params }: Props) {
     updatedAt: portfolio.updatedAt,
   });
   return (
-    <main
-      id="main"
-      className={cn("flex min-h-dvh flex-col", templateFontClasses(portfolio.template))}
-    >
-      {jsonLd ? <JsonLd data={jsonLd} /> : null}
+    <main id="main" className="flex min-h-dvh flex-col">
+      <PortfolioRuntime template={portfolio.template}>
+        {jsonLd ? <JsonLd data={jsonLd} /> : null}
+      </PortfolioRuntime>
       <Component
         view={portfolio.view}
         content={portfolio.content}

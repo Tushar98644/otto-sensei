@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { readMigrations } from "@/db/migration-files";
 import { emptyContent, type PortfolioContentView } from "@/lib/portfolio/content";
 import { contentView } from "@/lib/portfolio/content-view";
@@ -10,7 +10,11 @@ import { templateOrder } from "@/lib/portfolio/templates";
 import { DEFAULT_PORTFOLIO_TEMPLATE, PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { portfolioView, type PortfolioView } from "@/lib/portfolio/view";
 import { emptyResume } from "@/lib/resume/schema";
+import { loadTemplate } from "./lazy";
 import { PORTFOLIO_TEMPLATE_LIST, PORTFOLIO_TEMPLATES } from "./registry";
+
+// Each design's islands come in their own chunk; loading the designs brings them in.
+beforeAll(() => Promise.all(PORTFOLIO_TEMPLATE_IDS.map(loadTemplate)));
 
 function selectorsOf(html: string): string[] {
   const css = (/<style>([\s\S]*?)<\/style>/.exec(html)?.[1] ?? "").replace(

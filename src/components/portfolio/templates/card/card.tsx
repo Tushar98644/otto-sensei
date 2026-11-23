@@ -21,7 +21,8 @@ import type { ContentProject } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
 import { contactHref, featuredFirst, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { Filtered, MoreInfo, Pages, type CardPanel, type FilterItem } from "./islands";
+import type { CardPanel, FilterItem } from "./islands";
+import { Filtered, MoreInfo, Pages } from "./on-demand";
 import { CARD_CSS } from "./styles";
 
 // Ported from codewithsadee/vcard-personal-portfolio (MIT, see ./LICENSE.txt). Its memoji

@@ -14,7 +14,7 @@ import {
   unbroken,
 } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { ToTop } from "./islands";
+import { ToTop } from "./on-demand";
 import { BRUTAL_CSS } from "./styles";
 
 // Ported from ElianCodes/brutal and its brutal-ui cards, buttons and pills (MIT, see ./LICENSE.txt).

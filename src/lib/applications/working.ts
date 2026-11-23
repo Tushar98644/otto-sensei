@@ -1,6 +1,5 @@
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
-import type { Writing } from "@/lib/writings/schema";
 import type { Application } from "./schema";
 import { formatCount, outcomeOf } from "./stats";
 
@@ -76,15 +75,7 @@ export function resumeKinds(
   return kinds;
 }
 
-export function letteredApplications(
-  writings: readonly Pick<Writing, "kind" | "applicationId">[],
-): Set<string> {
-  const ids = new Set<string>();
-  for (const writing of writings) {
-    if (writing.kind === "letter" && writing.applicationId) ids.add(writing.applicationId);
-  }
-  return ids;
-}
+export { letteredApplications } from "@/lib/writings/lettered";
 
 // Any stage past Applied: an interview, an offer or a no all count as hearing back.
 export function heardBack(application: WorkingApplication): boolean {

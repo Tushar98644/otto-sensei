@@ -11,16 +11,19 @@ import {
   SUMMARIES_MAX,
   titleScale,
 } from "./data";
-import { ExtraSection } from "./extra";
-import { Intro } from "./intro";
-import { Navbar, type ReelNavLink, type ReelSocial } from "./navbar";
-import { Profile } from "./profile";
-import { RevealFrame } from "./reveal-frame";
-import { ReelRoot } from "./root";
+import type { ReelNavLink, ReelSocial } from "./navbar";
+import {
+  ExtraSection,
+  Intro,
+  Navbar,
+  Profile,
+  ProjectSummary,
+  ReelRoot,
+  RevealFrame,
+} from "./on-demand";
 import { DrawnScreen, type DrawnContent } from "./screen";
 import { ReelSprites } from "./sprites";
 import { REEL_CSS, REEL_NOSCRIPT_CSS } from "./styles";
-import { ProjectSummary } from "./summary";
 import { Button } from "./ui";
 
 // Ported from HamishMW/portfolio (MIT, see ./LICENSE.txt).

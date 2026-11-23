@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { ContentProject } from "@/lib/portfolio/content";
 import { allSkills, nameOf, OutLink, safeId, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { Frame, Fx, ModeButtons, Reveal } from "./islands";
+import { Frame, Fx, ModeButtons, Reveal } from "./on-demand";
 import { PAPER_CSS } from "./styles";
 
 // Ported from umutxyp/Personal-Website (MIT, see ./LICENSE.txt); its fox world, day and night.

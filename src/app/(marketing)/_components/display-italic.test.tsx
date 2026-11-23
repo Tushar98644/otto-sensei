@@ -28,8 +28,8 @@ const styles = (call: FontCall | undefined) => [call?.options.style ?? "normal"]
 const ems = (html: string) => html.match(/<em [^>]*>/g) ?? [];
 
 describe("Garamond's italic", () => {
-  it("is no longer part of the root layout, so the app's other pages never preload it", async () => {
-    await import("@/app/layout");
+  it("is no longer part of the app's own fonts, so the app's other pages never preload it", async () => {
+    await import("@/components/site/site-fonts");
     const root = calls.find((call) => call.options.variable === "--font-garamond");
     expect(root?.family).toBe("EB Garamond");
     expect(styles(root)).toEqual(["normal"]);

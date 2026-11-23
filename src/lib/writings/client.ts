@@ -2,12 +2,16 @@
 
 import { api } from "@/lib/api/client";
 import { getQueryClient } from "@/lib/queries/client";
-import { WRITINGS } from "@/lib/queries/keys";
+import { LETTERED_APPLICATIONS, WRITINGS } from "@/lib/queries/keys";
 import type { CreateWritingBody, Writing } from "./schema";
 
 const synced = new Map<string, string>();
 
-const forgetWritings = () => void getQueryClient().invalidateQueries({ queryKey: WRITINGS });
+function forgetWritings(): void {
+  const client = getQueryClient();
+  void client.invalidateQueries({ queryKey: WRITINGS });
+  void client.invalidateQueries({ queryKey: LETTERED_APPLICATIONS });
+}
 
 export async function keepWriting(body: CreateWritingBody): Promise<Writing | null> {
   try {

@@ -1,11 +1,13 @@
 import { queryOptions } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
+import { takeSeed, type LetteredApplications } from "@/lib/api/seeds";
 import type { Application } from "@/lib/api/types";
 import { MAX_APPLICATIONS_PER_USER } from "@/config/plans";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import type { WorkProfile } from "@/lib/eligibility/profile";
 import { NO_CHOICE, type LookingForChoice } from "@/lib/job-feed/types";
 import type { ReminderSettings } from "@/lib/notifications/types";
+import { letteredApplications } from "@/lib/writings/lettered";
 import { queryKeys } from "./keys";
 
 const MINUTE = 60_000;
@@ -68,6 +70,19 @@ export const writingsQuery = (userId: string) =>
     queryFn: async () => {
       const res = await api.writings();
       return { items: res.writings, total: res.total };
+    },
+    staleTime: 5 * MINUTE,
+  });
+
+// Home's seed when it has one, else read from the letters list, which this also caches.
+export const letteredApplicationsQuery = (userId: string) =>
+  queryOptions({
+    queryKey: queryKeys.letteredApplications(userId),
+    queryFn: async ({ client }): Promise<string[]> => {
+      const seed = (await takeSeed("letteredApplications")) as LetteredApplications | null;
+      if (seed) return seed.ids;
+      const { items } = await client.fetchQuery(writingsQuery(userId));
+      return [...letteredApplications(items)];
     },
     staleTime: 5 * MINUTE,
   });

@@ -4,7 +4,7 @@ import type { ContentProject } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
 import { Marked, nameOf, OutLink, seedOf, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { ArtPlum, ToTop } from "./islands";
+import { ArtPlum, ToTop } from "./on-demand";
 import { PROSE_CSS } from "./styles";
 
 // Ported from antfu/antfu.me (code MIT, see ./LICENSE.txt); none of its CC BY-NC-SA content.
