@@ -260,7 +260,7 @@ describe("OTTO lines", () => {
   it("gives Free both paid plans' numbers of resumes and applications, never every one", () => {
     expect(OTTO.limit.tool("resumes", false)).toBe("Free keeps 1 resume. Pro keeps 25, Max 50.");
     expect(OTTO.limit.tool("tracker", false)).toBe(
-      "Free tracks 1 application. Pro tracks 1,500, Max 3,000.",
+      "Free tracks 1 application. Pro tracks 1,000, Max 2,000.",
     );
     expect(OTTO.limit.tool("tracker")).not.toMatch(/every one/);
   });
@@ -273,10 +273,10 @@ describe("OTTO lines", () => {
       "Max keeps 50 resumes. Delete one to save another.",
     );
     expect(OTTO.limit.full("tracker", "pro")).toBe(
-      "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
+      "Pro tracks 1,000 applications. Delete some old ones to add more, or move to Max for 2,000.",
     );
     expect(OTTO.limit.full("tracker", "max")).toBe(
-      "Max tracks 3,000 applications. Delete some old ones to add more.",
+      "Max tracks 2,000 applications. Delete some old ones to add more.",
     );
     expect(OTTO.limit.full("resumes", "pro", 25, false)).toBe(
       "Pro keeps 25 resumes. Delete one to save another.",
@@ -288,7 +288,7 @@ describe("OTTO lines", () => {
       "Pro keeps 25 resumes; you have 40. Delete 16 to save another, or move to Max for 50.",
     );
     expect(OTTO.limit.full("tracker", "pro", 1_800)).toBe(
-      "Pro tracks 1,500 applications; you have 1,800. Delete 301 to add another, or move to Max for 3,000.",
+      "Pro tracks 1,000 applications; you have 1,800. Delete 801 to add another, or move to Max for 2,000.",
     );
     expect(OTTO.limit.full("resumes", "pro", 25)).toBe(OTTO.limit.full("resumes", "pro"));
   });

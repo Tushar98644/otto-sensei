@@ -111,7 +111,7 @@ describe("UpgradeDialog", () => {
 
     const trial = dialog(ON_TRIAL, {}, undefined, { tool: "tracker" });
     expect(trial).toContain(
-      "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
+      "Pro tracks 1,000 applications. Delete some old ones to add more, or move to Max for 2,000.",
     );
     expect(trial).toContain(trialUpgradeNotice("max", "month"));
   });
@@ -140,7 +140,7 @@ describe("UpgradeDialog", () => {
       undefined,
       { tool: "tracker" },
     );
-    expect(body).toContain("Pro tracks 1,500 applications. Delete some old ones to add more.");
+    expect(body).toContain("Pro tracks 1,000 applications. Delete some old ones to add more.");
     expect(body).not.toContain("move to Max");
   });
 

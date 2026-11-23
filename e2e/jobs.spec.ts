@@ -114,7 +114,7 @@ function upgradeDialog(page: Page, line: RegExp): Locator {
   return page.getByRole("dialog").filter({ hasText: line });
 }
 
-const TRACKER_LIMIT = /Free tracks 1 application\. Pro tracks 1,500, Max 3,000\./;
+const TRACKER_LIMIT = /Free tracks 1 application\. Pro tracks 1,000, Max 2,000\./;
 // Chrome puts a space before the link's visually hidden ": open this application".
 const APPLIED_LINK = /^Applied ?: open this application$/;
 // On Free the Save button carries a quiet Pro mark, read out as ", comes with Pro".
@@ -508,7 +508,7 @@ test.describe("Free tracking limit", () => {
     await page.goto("/dashboard/applications");
 
     const main = page.getByRole("main");
-    const limitNote = main.getByText("Free tracks 1 application. Pro tracks 1,500, Max 3,000.", {
+    const limitNote = main.getByText("Free tracks 1 application. Pro tracks 1,000, Max 2,000.", {
       exact: true,
     });
     await expect(limitNote).toBeVisible(FIRST_LOAD);

@@ -34,7 +34,7 @@ describe("the plan table", () => {
     expect(cells("Word (.docx) downloads")).toEqual({ free: false, pro: true, max: true });
     expect(cells("PDF downloads")).toEqual({ free: true, pro: true, max: true });
     expect(cells("Job matches")).toEqual({ free: "5 closest", pro: "All", max: "All" });
-    expect(cells("Tracked applications")).toEqual({ free: "1", pro: "1,500", max: "3,000" });
+    expect(cells("Tracked applications")).toEqual({ free: "1", pro: "1,000", max: "2,000" });
     for (const row of rows) {
       expect(`${row.label} ${row.detail ?? ""} ${Object.values(row.cells).join(" ")}`).not.toMatch(
         /unlimited|fair use/i,

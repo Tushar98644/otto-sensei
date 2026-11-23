@@ -210,7 +210,7 @@ describe("/api/applications", () => {
     expect(await errorOf(res)).toEqual({
       code: "limit_reached",
       message:
-        "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
+        "Pro tracks 1,000 applications. Delete some old ones to add more, or move to Max for 2,000.",
     });
 
     const [first] = ((await (await list()).json()) as ApplicationsResponse).applications;
@@ -297,7 +297,7 @@ describe("the tracker on Free", () => {
     expect(second.status).toBe(402);
     expect(await errorOf(second)).toEqual({
       code: "upgrade_required",
-      message: "Free tracks 1 application. Pro tracks up to 1,500. Try Pro for 3 days.",
+      message: "Free tracks 1 application. Pro tracks up to 1,000. Try Pro for 3 days.",
     });
     expect(await listed()).toHaveLength(1);
 
@@ -345,7 +345,7 @@ describe("each plan's tracker cap", () => {
     expect((await create(body())).status).toBe(201);
     const res = await create(body({ company: "Linear" }));
     expect(res.status).toBe(429);
-    expect((await errorOf(res)).message).toMatch(/^Pro tracks 1,500 applications\./);
+    expect((await errorOf(res)).message).toMatch(/^Pro tracks 1,000 applications\./);
   });
 
   it("lets Max past Pro's number, up to its own, with no plan to sell after it", async () => {
@@ -357,7 +357,7 @@ describe("each plan's tracker cap", () => {
     expect(res.status).toBe(429);
     expect(await errorOf(res)).toEqual({
       code: "limit_reached",
-      message: "Max tracks 3,000 applications. Delete some old ones to add more.",
+      message: "Max tracks 2,000 applications. Delete some old ones to add more.",
     });
     expect(await count(ada.id)).toBe(applicationLimit("max"));
   });

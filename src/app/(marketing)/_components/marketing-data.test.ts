@@ -45,7 +45,7 @@ describe("plan copy", () => {
     expect(proTools().join(" ")).toMatch(/All 6 formats, up to 25 resumes and Word downloads/);
     expect(proTools().join(" ")).toMatch(/Every match from [0-9,]+\+ open jobs/);
     expect(proTools().join(" ")).toMatch(
-      /Track up to 1,500 applications, with follow-up reminders/,
+      /Track up to 1,000 applications, with follow-up reminders/,
     );
     expect(proTools().join(" ")).not.toMatch(/every application/i);
     expect(proTools().join(" ")).toMatch(/Share links, and a portfolio site in all \d+ designs/);
@@ -70,7 +70,7 @@ describe("plan copy", () => {
       "Over twice the line fixes",
       "3 times the uploads read by AI",
       "3 times the drafts from your notes and GitHub",
-      "Up to 50 resumes and 3,000 tracked applications",
+      "Up to 50 resumes and 2,000 tracked applications",
     ]);
   });
 

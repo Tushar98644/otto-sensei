@@ -466,7 +466,7 @@ describe("Applied after sending", () => {
     expect(((await full.json()) as ApiErrorBody).error).toEqual({
       code: "limit_reached",
       message:
-        "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
+        "Pro tracks 1,000 applications. Delete some old ones to add more, or move to Max for 2,000.",
     });
     await setPlan(user, "max");
     expect((await applied(bearer("POST", "/api/extension/applications", token, body))).status).toBe(

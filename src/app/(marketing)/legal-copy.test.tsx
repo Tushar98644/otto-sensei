@@ -244,7 +244,7 @@ describe("legal pages you can scan", () => {
       `(summary help counts as one), ${RESUME_LIMITS.free} resume, the Classic and Compact formats`,
     );
     expect(body).toContain(
-      "Pro and the trial keep up to 25 resumes and track up to 1,500 applications; Max keeps up to 50 and tracks up to 3,000. Tailored versions count as resumes.",
+      "Pro and the trial keep up to 25 resumes and track up to 1,000 applications; Max keeps up to 50 and tracks up to 2,000. Tailored versions count as resumes.",
     );
     expect(body).toContain(
       "Moving to a smaller plan works the same way: resumes and applications past its limits stay, and you can add more once you're under them.",
@@ -316,10 +316,10 @@ describe("pricing billing questions", () => {
   it("give each plan's resumes and tracked applications, and keep what's past them after a move to Pro", async () => {
     const body = text(await pricingHtml());
     expect(body).toContain(
-      "Resumes, with tailored versions counted: 1 on Free, 25 on Pro and the trial, 50 on Max. Tracked applications: 1 on Free, 1,500 on Pro and the trial, 3,000 on Max.",
+      "Resumes, with tailored versions counted: 1 on Free, 25 on Pro and the trial, 50 on Max. Tracked applications: 1 on Free, 1,000 on Pro and the trial, 2,000 on Max.",
     );
     expect(body).toContain("up to 25 resumes, Word downloads");
-    expect(body).toContain("tracking up to 1,500 applications, share links");
+    expect(body).toContain("tracking up to 1,000 applications, share links");
     expect(body).toContain(
       "Moving to Pro keeps every resume and application you have; past Pro's limits, you can add more once you're under them.",
     );

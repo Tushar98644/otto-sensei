@@ -173,7 +173,7 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 | Letters, answers, interview prep | – | 150 | 300 | 15 |
 | AI token budget (abuse guard) | – | 5M | 10M | 0.5M |
 | Resumes (tailored copies count) | 1 | 25 | 50 | 25 |
-| Tracked applications | 1 | 1,500 | 3,000 | 1,500 |
+| Tracked applications | 1 | 1,000 | 2,000 | 1,000 |
 
 - **Worst-case cost per user a month**, with every cap hit: Pro about $3.6 (after Dodo's fees you keep about $10 of $15), Max about $7 (you keep about $20 of $29).
 - **Typical cost:** a few cents.

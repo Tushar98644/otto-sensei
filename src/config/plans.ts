@@ -127,7 +127,7 @@ export type ProTool =
 
 // Tailored copies count as resumes; the trial is a Pro plan, so it has Pro's numbers.
 export const RESUME_LIMITS: Record<PlanId, number> = { free: 1, pro: 25, max: 50 };
-export const TRACKER_LIMITS: Record<PlanId, number> = { free: 1, pro: 1_500, max: 3_000 };
+export const TRACKER_LIMITS: Record<PlanId, number> = { free: 1, pro: 1_000, max: 2_000 };
 // The largest plan's numbers bound every read and response, so an account past its plan's number still fits.
 export const MAX_RESUMES_PER_USER = Math.max(...Object.values(RESUME_LIMITS));
 export const MAX_APPLICATIONS_PER_USER = Math.max(...Object.values(TRACKER_LIMITS));

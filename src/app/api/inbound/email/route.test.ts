@@ -235,7 +235,7 @@ describe("/api/inbound/email", () => {
     expect(((await full.json()) as ApiErrorBody).error).toEqual({
       code: "limit_reached",
       message:
-        "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
+        "Pro tracks 1,000 applications. Delete some old ones to add more, or move to Max for 2,000.",
     });
     expect((await state()).events.find((event) => event.id === waiting!.id)?.change).toBe(
       "pending",

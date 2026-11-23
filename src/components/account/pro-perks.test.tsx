@@ -14,7 +14,7 @@ describe("PlanPerks", () => {
       expect(html).toContain("A portfolio page from your resume");
       expect(html).toContain("All 6 formats, up to 25 resumes and Word downloads");
       expect(html).toContain("Free has 1 resume, Classic and Compact, and PDFs.");
-      expect(html).toContain("Every job match, up to 1,500 tracked applications, share links");
+      expect(html).toContain("Every job match, up to 1,000 tracked applications, share links");
       expect(html).not.toMatch(/every application|unlimited/i);
       expect(html).toContain(
         interval === "year"
@@ -33,7 +33,7 @@ describe("PlanPerks", () => {
       expect(max).toContain("300 tailored versions a month");
       expect(max).toContain("Pro has 150.");
       expect(max).toContain(
-        "Up to 50 resumes and 3,000 tracked applications Pro has 25 and 1,500.",
+        "Up to 50 resumes and 2,000 tracked applications Pro has 25 and 1,000.",
       );
       expect(max).not.toMatch(/a week/);
     }
