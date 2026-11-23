@@ -365,7 +365,7 @@ function SetupFolder({
 
 const FORWARD_STEPS: ReactNode[] = [
   <>
-    Go to <B>Forwarding and POP/IMAP</B> in Gmail&apos;s settings.
+    Click the <B>Forwarding and POP/IMAP</B> tab at the top.
   </>,
   <>
     Press <B>Add a forwarding address</B>.

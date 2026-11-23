@@ -30,7 +30,8 @@ const quoted = (word: string) => (word.includes(" ") ? `"${word}"` : word);
 
 export const GMAIL_FILTER = `from:(${SENDERS.join(" OR ")}) OR subject:(${SUBJECTS.map(quoted).join(" OR ")})`;
 
-export const GMAIL_FORWARDING_URL = "https://mail.google.com/mail/u/0/#settings/fwdandpop";
+// Opened straight to #settings/fwdandpop, Gmail drops the "Add a forwarding address" button; reached from another tab it shows.
+export const GMAIL_FORWARDING_URL = "https://mail.google.com/mail/u/0/#settings/general";
 
 export const GMAIL_FILTERS_URL = "https://mail.google.com/mail/u/0/#settings/filters";
 
