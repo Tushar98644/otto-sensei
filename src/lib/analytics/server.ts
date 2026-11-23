@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { PostHog } from "posthog-node";
+import type { PostHog } from "posthog-node";
 import { log } from "@/lib/log";
 import { posthogKey, posthogServerHost } from "./config";
 import type { ServerEvent, ServerEventProps } from "./events";
@@ -9,17 +9,25 @@ export const ANONYMOUS_ID = "anonymous";
 
 const REQUEST_TIMEOUT_MS = 3_000;
 
-let client: PostHog | null = null;
+let client: Promise<PostHog> | null = null;
 
-function posthog(key: string): PostHog {
-  client ??= new PostHog(key, {
-    host: posthogServerHost(),
-    flushAt: 1,
-    flushInterval: 0,
-    requestTimeout: REQUEST_TIMEOUT_MS,
-    fetchRetryCount: 1,
-    disableGeoip: true,
-  });
+// The SDK loads with the first event, so a route that sends none doesn't load it when it starts cold.
+function posthog(key: string): Promise<PostHog> {
+  client ??= import("posthog-node").then(
+    ({ PostHog }) =>
+      new PostHog(key, {
+        host: posthogServerHost(),
+        flushAt: 1,
+        flushInterval: 0,
+        requestTimeout: REQUEST_TIMEOUT_MS,
+        fetchRetryCount: 1,
+        disableGeoip: true,
+      }),
+    (error: unknown) => {
+      client = null;
+      throw error;
+    },
+  );
   return client;
 }
 
@@ -43,7 +51,8 @@ export function captureServerEvent<E extends ServerEvent>(
 
   const send = async () => {
     try {
-      await posthog(key).captureImmediate({ distinctId, event, properties, disableGeoip: true });
+      const sdk = await posthog(key);
+      await sdk.captureImmediate({ distinctId, event, properties, disableGeoip: true });
     } catch (error) {
       log.warn("analytics.capture_failed", { event }, error);
     }

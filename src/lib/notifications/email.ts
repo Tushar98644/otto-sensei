@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import type { Resend } from "resend";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 
@@ -49,11 +49,22 @@ export function emailSender(): EmailSender | null {
   const config = emailConfig();
   if (!config) return null;
   const { apiKey, from } = config;
-  const resend = new Resend(apiKey);
+  // The SDK loads with the first send, so the routes that only ask whether email is on never load it.
+  let resend: Promise<Resend> | null = null;
+  const client = () =>
+    (resend ??= import("resend").then(
+      ({ Resend }) => new Resend(apiKey),
+      (error: unknown) => {
+        resend = null;
+        throw error;
+      },
+    ));
 
   async function attempt(messages: EmailMessage[], idempotencyKey: string): Promise<Attempt> {
     try {
-      const { data, error } = await resend.batch.send(
+      const { data, error } = await (
+        await client()
+      ).batch.send(
         messages.map((message) => ({ from, ...message })),
         { idempotencyKey, batchValidation: "permissive", signal: AbortSignal.timeout(TIMEOUT_MS) },
       );
