@@ -6,6 +6,7 @@ import {
   JOB_PAGE_SIZE,
   LEVELS,
   LOOKING_FOR_LIMITS,
+  MATCH_FEATURES,
   MATCH_PROFILE_LIMITS,
   MAX_JOB_PAGE,
   NOT_FIT_REASONS,
@@ -131,6 +132,7 @@ export const ImpressionBatchSchema = z.object({
           .min(1)
           .max(MAX_JOB_PAGE * JOB_PAGE_SIZE),
         label: z.enum(["strong", "good", "stretch"]).nullable(),
+        features: z.array(z.number().min(0).max(1)).max(MATCH_FEATURES).nullable().default(null),
       }),
     )
     .min(1)

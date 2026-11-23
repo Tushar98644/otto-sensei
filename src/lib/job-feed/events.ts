@@ -12,10 +12,26 @@ export type ImpressionContext = {
   now: number;
 };
 
-export type ShownJob = { jobId: string; position: number; label: MatchLabel | null };
+export type ShownJob = {
+  jobId: string;
+  position: number;
+  label: MatchLabel | null;
+  features: number[] | null;
+};
 
 export function shownJobs(jobs: readonly MatchedJob[]): ShownJob[] {
-  return jobs.map((job) => ({ jobId: job.id, position: job.position, label: job.match.label }));
+  return jobs.map((job) => ({
+    jobId: job.id,
+    position: job.position,
+    label: job.match.label,
+    features: job.features ?? null,
+  }));
+}
+
+// Each part 0 to 1 kept as one byte, so an impression's features cost five bytes.
+export function featureBytes(features: readonly number[] | null): Buffer | null {
+  if (!features || features.length === 0) return null;
+  return Buffer.from(features.map((part) => Math.round(Math.max(0, Math.min(1, part)) * 255)));
 }
 
 export async function logImpressions(
@@ -33,6 +49,7 @@ export async function logImpressions(
       jobId: job.jobId,
       position: job.position,
       label: job.label,
+      features: featureBytes(job.features),
       variant: context.variant,
       resumeHash: context.resumeHash,
       createdAt: context.now,

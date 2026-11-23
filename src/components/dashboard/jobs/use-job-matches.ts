@@ -88,6 +88,7 @@ export function noteShown(data: JobMatchesResponse): void {
         jobId: job.id,
         position: job.position,
         label: job.match.label,
+        ...(job.features ? { features: job.features } : {}),
       })),
     })
     .catch(() => undefined);

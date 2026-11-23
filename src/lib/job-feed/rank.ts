@@ -9,6 +9,7 @@ import {
   lookingForOf,
   placeFit,
   roleOptions,
+  roleTitle,
   titleFits,
   type PlaceFit,
 } from "./looking-for";
@@ -20,6 +21,7 @@ import {
   personFrom,
   unmatched,
   type EligibilityHint,
+  type Kind,
   type MatchableJob,
 } from "./match";
 import { MAJOR_GROUPS, OCCUPATIONS, occupationOf, readTitle } from "./occupations";
@@ -33,18 +35,20 @@ import {
 } from "./match-index";
 import {
   capPerCompany,
-  closeness,
   compareRanked,
-  freshness,
   levelFactor,
   levelGap,
+  linearScore,
   ORDER_LIMITS,
-  placeFactor,
+  placePart,
+  recencyPart,
+  skillPart,
   zoneFactor,
   type Ranked,
 } from "./order";
 import { gateAllows, roleGate } from "./role-gate";
 import { familyFits } from "./roles";
+import { personRole, sameness, SEMANTIC, titleSimilarities, type PersonRole } from "./semantic";
 import {
   CANDIDATE_POOL,
   DEFAULT_SKILL_WEIGHT,
@@ -74,7 +78,7 @@ const COPIES_CHECKED = 6;
 const PLACES_SHOWN = 2;
 const FREE_POOL = 60;
 
-export const MATCH_VARIANT = "role-gate-v1";
+export const MATCH_VARIANT = "title-vectors-v1";
 
 export function occupationOption(code: string | null): OccupationOption | null {
   const occupation = occupationOf(code);
@@ -260,6 +264,8 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   ]);
   const weight = (skill: string) => weights.get(skill) ?? DEFAULT_SKILL_WEIGHT;
   const families = [...person.families];
+  // Without stored title vectors (a new database, or before the first embedding run) the rules decide.
+  const role = await personRole(db, lookingFor, request.profile).catch(() => null);
   const accepted = acceptedPlaces(lookingFor.place);
   // Only the person's own kind of work is shown, however many skills another job shares.
   const gate = roleGate(lookingFor);
@@ -290,24 +296,49 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       },
       gate,
       interns,
+      similar: role ? (keys) => titleSimilarities(db, role, keys) : undefined,
     },
     counts,
     now,
   );
+  const similar: ReadonlyMap<string, number> = !role
+    ? new Map()
+    : (pool.similar ??
+      (await titleSimilarities(
+        db,
+        role,
+        pool.openings.flatMap((opening) => opening.kind?.tkey || []),
+      ).catch(() => new Map<string, number>())));
 
   const scored: Scored[] = [];
   for (const opening of pool.openings) {
     const fit = placeFit(opening.places, accepted);
     if (fit === "miss") continue;
     const { row } = opening;
-    const facts = factsOf(row, opening.kind);
-    if (!gateAllows(gate, facts) || (!interns && row.seniority === "intern")) continue;
+    const read = factsOf(row, opening.kind);
+    if (!gateAllows(gate, read) || (!interns && row.seniority === "intern")) continue;
+    // A job the gate let in stays at least a neighbouring kind; its title then orders it.
+    const floor = gate && kindOf(person, read).weight >= KIND.same ? KIND.same : 0;
+    const facts = {
+      ...read,
+      kind: role ? titleKind(role, row.title, opening.kind, similar, floor) : null,
+    };
     if (!matchJob(person, facts)) continue;
     const { shown, others, hint } = pickCopy(opening, check, accepted);
     const match = matchJob(person, facts, hint) ?? unmatched(facts, hint);
     if (filters.eligibleOnly && match.blocked) continue;
     const gap = levelGap(person.seniority, row.seniority);
     const kind = kindOf(person, facts).weight;
+    const parts = {
+      role: Math.min(
+        1,
+        kind * (titleFits(row.title, lookingFor.title) ? ORDER_LIMITS.titleFit : 1),
+      ),
+      skills: skillPart(match, row.keywords, weight),
+      level: levelFactor(gap) * zoneFactor(person, facts),
+      recency: recencyPart(Math.min(row.postedAt, row.firstSeenAt), now),
+      place: placePart(fit),
+    };
     scored.push({
       match,
       company: row.company,
@@ -315,13 +346,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       firstSeenAt: row.firstSeenAt,
       far: Math.abs(gap) >= 2,
       pastKind: kind >= KIND.same && kind < KIND.own,
-      closeness:
-        closeness(match, row.keywords, weight, kind) *
-        freshness(Math.min(row.postedAt, row.firstSeenAt), now) *
-        levelFactor(gap) *
-        zoneFactor(person, facts) *
-        placeFactor(fit) *
-        (titleFits(row.title, lookingFor.title) ? ORDER_LIMITS.titleFit : 1),
+      closeness: linearScore(parts),
       job: {
         ...toFeedJob(row),
         id: shown.id,
@@ -335,6 +360,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
         morePlaces: Math.max(0, others.length - PLACES_SHOWN),
         visa: visaLines(opening.visa, now),
         position: 0,
+        features: Object.values(parts).map((part) => Math.round(part * 1000) / 1000),
       },
     });
   }
@@ -405,6 +431,29 @@ async function withSaved(db: Db, userId: string, result: RankResult): Promise<Ra
     ...result,
     jobs: result.jobs.map((job) => ({ ...job, saved: saved.has(job.id) })),
     savedCount: total,
+  };
+}
+
+// The job's kind of role by title vectors: its own vector when stored, else what the index read.
+function titleKind(
+  role: PersonRole,
+  title: string,
+  read: PooledOpening["kind"],
+  similar: ReadonlyMap<string, number>,
+  floor: number,
+): Kind | null {
+  const similarity = read?.tkey ? similar.get(read.tkey) : undefined;
+  if (similarity === undefined) return null;
+  const weight = Math.max(floor, sameness(similarity));
+  const jobRole = roleTitle(title);
+  const differs = role.title && !titleFits(title, role.title) && !titleFits(role.title, jobRole);
+  return {
+    weight,
+    via: weight > 0 ? "title" : null,
+    role:
+      differs && similarity >= SEMANTIC.explain && jobRole
+        ? { job: jobRole, person: roleTitle(role.title) }
+        : null,
   };
 }
 

@@ -147,7 +147,11 @@ export type MatchedJob = FeedJob & {
   morePlaces: number;
   visa: string[];
   position: number;
+  // The ranking's parts for this job, logged with its impression (MATCHING.md "Feedback").
+  features?: number[];
 };
+
+export const MATCH_FEATURES = 5;
 
 export const MATCH_PROFILE_LIMITS = { skills: 200, titles: 12, titleChars: 200 } as const;
 export type MatchProfile = z.output<typeof MatchProfileSchema>;

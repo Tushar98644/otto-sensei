@@ -142,3 +142,16 @@ What Otto changed (both licences ask for changes to be marked):
   Customer Success Manager (`41-X101.00`).
 - Only O*NET's closest ten Related Occupations per occupation are kept ("Primary-Short" and
   "Primary-Long").
+
+## Job title model
+
+Job titles are compared by meaning with JobBERT-v2. The model runs only in the daily jobs workflow
+on GitHub's runner (`scripts/title-vectors.py`), never in the app. The app ships two things derived
+from it: `src/lib/job-feed/occupations/vectors.json` (one vector per occupation, made from the
+occupation names above) and `scripts/title-vectors.basis` (the fixed 256-dimension basis the stored
+vectors use).
+
+| Model | Version | Owner | Licence | Source |
+|---|---|---|---|---|
+| JobBERT-v2 | Revision `a480476` (dense "anchor" layer) | TechWolf | MIT | [huggingface.co/TechWolf/JobBERT-v2](https://huggingface.co/TechWolf/JobBERT-v2) |
+| JobBERT-v2 ONNX build (int8, tokenizer) | Revision `c684fd6` | ONNX Community | MIT | [huggingface.co/onnx-community/JobBERT-v2-ONNX](https://huggingface.co/onnx-community/JobBERT-v2-ONNX) |

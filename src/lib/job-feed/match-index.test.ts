@@ -12,7 +12,14 @@ import {
 } from "./match-index";
 import type { RawJob } from "./parsers";
 import { rankJobs } from "./rank";
+import { occupationVectors } from "./semantic";
 import { refreshSkillWeights, saveJobs, syncBoards } from "./store";
+import {
+  saveTitleVectors,
+  titleVectorKey,
+  waitingTitles,
+  type TitleVectorRow,
+} from "./title-vectors";
 import { DEFAULT_FILTERS, type JobFilters } from "./types";
 
 const DAY = 24 * 60 * 60 * 1_000;
@@ -330,6 +337,64 @@ describe("match index", () => {
       "Listed as a UK visa sponsor",
       "H-1B visa petitions approved in fiscal 2025 (USCIS)",
     ]);
+  });
+
+  it("reads each job's kind of role from its title vector once one is stored", async () => {
+    const text = "Build services in Go, PostgreSQL and Kubernetes on Linux.";
+    await ingest([
+      raw("dev", { title: "Backend Developer", text }),
+      raw("support", { title: "Associate Linux Support Engineer", text }),
+      raw("nurse", { title: "Registered Nurse", text: "Patient care." }),
+    ]);
+    const db = await getDb();
+    // Each test title gets its occupation's vector.
+    const row = (title: string, code: string): TitleVectorRow => {
+      const vector = occupationVectors().get(code)!;
+      return [
+        titleVectorKey(title),
+        Buffer.from(vector.buffer, vector.byteOffset, vector.length).toString("base64"),
+        [code],
+        [0.9],
+      ];
+    };
+    expect((await waitingTitles(db, 10)).sort()).toEqual([
+      "associate linux support engineer",
+      "backend developer",
+      "registered nurse",
+    ]);
+    await saveTitleVectors(
+      db,
+      [
+        row("Backend Developer", "15-1252.00"),
+        row("Associate Linux Support Engineer", "15-1232.00"),
+        row("Registered Nurse", "29-1141.00"),
+      ],
+      NOW,
+    );
+    expect(await rebuildMatchIndex(db, NOW)).toBe(3);
+    const user = await createUser("ada@example.com");
+    const result = await rankJobs(db, {
+      userId: user.id,
+      view: "matches",
+      profile: {
+        skills: ["Go", "PostgreSQL", "Kubernetes", "Linux"],
+        titles: ["Software Engineer"],
+        years: 4,
+      },
+      filters: DEFAULT_FILTERS,
+      page: 1,
+      workProfile: null,
+      deviceTimeZone: "",
+      now: NOW,
+    });
+    const [first, ...rest] = result.jobs;
+    expect(first).toMatchObject({ title: "Backend Developer", match: { label: "strong" } });
+    expect(first!.match.reason).toMatch(
+      /^Role match: Backend Developer ≈ your Software Engineer\. /,
+    );
+    expect(first!.features).toHaveLength(5);
+    expect(rest.map((job) => job.title)).not.toContain("Registered Nurse");
+    for (const job of rest) expect(job.match.label).not.toBe("strong");
   });
 
   it("keeps a page of matches for the day and reuses it, with saved jobs read fresh", async () => {

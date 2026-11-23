@@ -1,9 +1,11 @@
+import { getDb } from "@/db/client";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { saveLookingFor } from "@/lib/eligibility/records";
 import { readJson } from "@/lib/http";
 import { type LookingForResponse } from "@/lib/job-feed/types";
+import { noteTitles, titleVectorKey } from "@/lib/job-feed/title-vectors";
 import { LookingForChoiceSchema } from "@/lib/job-feed/validation";
 import { log } from "@/lib/log";
 
@@ -25,6 +27,13 @@ export async function PUT(req: Request): Promise<Response> {
     }
     const result = await saveLookingFor(user.id, body.data);
     if (result.status === "no_user") return fail("unauthorized", SIGN_IN, 401, NO_STORE);
+    // A role typed in is embedded once by the next jobs workflow run, then matched by its own vector.
+    const title = body.data.role?.title ? titleVectorKey(body.data.role.title) : "";
+    if (title) {
+      await noteTitles(await getDb(), [title], Date.now(), { touch: true }).catch(
+        (error: unknown) => log.warn("jobs.looking_for_title_not_noted", {}, error),
+      );
+    }
     const response: Omit<LookingForResponse, "ok"> = { choice: result.stored.lookingFor };
     return ok(response, { headers: NO_STORE });
   } catch (error) {

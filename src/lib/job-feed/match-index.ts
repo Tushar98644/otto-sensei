@@ -24,6 +24,13 @@ import {
   type MatchQuery,
   wordsQuery,
 } from "./records";
+import {
+  noteTitles,
+  pruneTitles,
+  readTitleKinds,
+  titleVectorKey,
+  type TitleKind,
+} from "./title-vectors";
 import { companyKey, type VisaFacts } from "./visa";
 import { DEFAULT_FILTERS, LEVEL_SENIORITIES, SENIORITIES, type JobFilters } from "./types";
 
@@ -101,6 +108,7 @@ const MATCH_COLUMNS = [
   "seenAt",
   "ukSponsor",
   "h1bYear",
+  "tkey",
 ] as const satisfies readonly (keyof MatchRow)[];
 
 const EXCLUDED_MATCH_COLUMNS = Object.fromEntries(
@@ -185,6 +193,13 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
       rules.set(row.id, row.rulesText);
   }
 
+  // Each opening carries its title's nearest occupations once scripts/title-vectors.py has embedded it.
+  const titleKinds = await readTitleKinds(db);
+  const fresh = [...new Set(rows.map((row) => titleVectorKey(row.title)))].filter(
+    (key) => key && !titleKinds.has(key),
+  );
+  await noteTitles(db, fresh, now);
+
   type Opening = typeof jobMatch.$inferInsert;
   const openings = new Map<string, Opening & { placeSet: Set<string> }>();
   for (const row of rows) {
@@ -201,7 +216,9 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
     const facts = visa.get(companyKey(row.company));
     // Read again from the title, so a change to the title rules reaches every stored job.
     const read = readTitle(row.title);
-    const occ = read.occupation ?? row.occupation;
+    const tkey = titleVectorKey(row.title);
+    const near = titleKinds.get(tkey);
+    const occ = read.occupation ?? row.occupation ?? nearestOccupation(near);
     const family = read.family && familyFits(read.family, occ) ? read.family : null;
     openings.set(grp, {
       id: row.id,
@@ -223,6 +240,7 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
       seenAt,
       ukSponsor: facts?.ukSponsor ?? false,
       h1bYear: facts?.h1bYear ?? null,
+      tkey,
     });
   }
   const values: Opening[] = [...openings.values()].map(({ placeSet, ...opening }) => ({
@@ -259,7 +277,19 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
       .values({ id: 1, ...counts })
       .onConflictDoUpdate({ target: jobCountsRow.id, set: counts });
   });
+  await pruneTitles(db, now);
   return values.length;
+}
+
+// Past this the title's nearest occupation names it, for titles the rules can't read.
+export const OCCUPATION_FROM_VECTOR = 0.7;
+
+function nearestOccupation(near: TitleKind | undefined): string | null {
+  const [code] = near?.occs ?? [];
+  const [sim] = near?.sims ?? [];
+  return code && sim !== undefined && sim >= OCCUPATION_FROM_VECTOR && occupationOf(code)
+    ? code
+    : null;
 }
 
 export async function storedJobCounts(
@@ -275,13 +305,21 @@ export type PooledOpening = {
   copies: CandidateRow[];
   places: string[];
   visa: VisaFacts | null;
-  kind: { family: CandidateRow["family"]; occupation: string | null; zone: number | null } | null;
+  kind: {
+    family: CandidateRow["family"];
+    occupation: string | null;
+    zone: number | null;
+    // The key of its title's stored vector (title-vectors.ts).
+    tkey?: string;
+  } | null;
 };
 
 export type OpeningPool = {
   openings: PooledOpening[];
   groups: number;
   source: "index" | "jobs";
+  // Each pooled title's similarity to the person's role, when the pool read title vectors.
+  similar?: ReadonlyMap<string, number> | null;
 };
 
 export type PoolQuery = MatchQuery & {
@@ -298,6 +336,8 @@ export type PoolQuery = MatchQuery & {
   gate?: RoleGate | null;
   // Internships are shown only to someone looking for one.
   interns?: boolean;
+  // Each title key's similarity to the person's role, read from the stored vectors.
+  similar?: (keys: string[]) => Promise<Map<string, number>>;
 };
 
 const floatArray = (values: readonly number[]) =>
@@ -406,6 +446,7 @@ async function indexedPool(
     family: CandidateRow["family"];
     occ: string | null;
     zone: number | null;
+    tkey: string;
     groups: number;
   }>(
     await db.execute(sql`
@@ -431,12 +472,16 @@ async function indexedPool(
         limit ${query.limit ?? CANDIDATE_POOL}::int offset ${query.offset ?? 0}::int
       )
       select r.id::text as id, m.grp, m.places, m.uk_sponsor, m.h1b_year, m.family, m.occ, m.zone,
-        r.groups
+        m.tkey, r.groups
       from ranked r join ${jobMatch} m on m.id = r.id
       order by r.near desc, r.score desc, r.posted_at desc, r.id
     `),
   );
   if (pooled.length === 0) return { openings: [], groups: 0, source: "index" };
+  // The pooled titles' similarity to the person's role, read once for the ranking.
+  const similar = query.similar
+    ? await query.similar([...new Set(pooled.map((row) => row.tkey))])
+    : null;
 
   const ids = pooled.map((row) => row.id);
   const idSet = new Set(ids);
@@ -473,10 +518,15 @@ async function indexedPool(
         item.uk_sponsor || item.h1b_year !== null
           ? { ukSponsor: item.uk_sponsor, h1bYear: item.h1b_year }
           : null,
-      kind: { family: item.family, occupation: item.occ, zone: item.zone },
+      kind: {
+        family: item.family,
+        occupation: item.occ,
+        zone: item.zone,
+        tkey: item.tkey,
+      },
     });
   }
-  return { openings, groups: pooled[0]?.groups ?? 0, source: "index" };
+  return { openings, groups: pooled[0]?.groups ?? 0, source: "index", similar };
 }
 
 async function jobsPool(db: Db, query: PoolQuery, now: number): Promise<OpeningPool> {

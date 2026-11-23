@@ -33,6 +33,62 @@ export function closeness(
   return found * (0.5 + 0.5 * coverage) + ORDER_LIMITS.familyWeight * kind;
 }
 
+// The ranking's weights (MATCHING.md "Ranking"); each part is 0 to 1, so the score is too.
+export const SCORE_WEIGHTS = {
+  role: 0.45,
+  skills: 0.3,
+  level: 0.1,
+  recency: 0.1,
+  place: 0.05,
+} as const;
+
+export const SCORE_LIMITS = {
+  // Weighted skills found that count as a full match on their own.
+  skillsFull: 6,
+  // Days for the recency part to halve.
+  halfLifeDays: 30,
+} as const;
+
+export type ScoreParts = {
+  role: number;
+  skills: number;
+  level: number;
+  recency: number;
+  place: number;
+};
+
+export function skillPart(
+  match: Pick<JobMatch, "found">,
+  keywords: readonly string[],
+  weight: (skill: string) => number,
+): number {
+  let found = 0;
+  for (const skill of match.found) found += weight(skill);
+  let asked = 0;
+  for (const skill of keywords) asked += weight(skill);
+  const coverage = asked === 0 ? 0 : found / asked;
+  return 0.5 * coverage + 0.5 * Math.min(1, found / SCORE_LIMITS.skillsFull);
+}
+
+export function recencyPart(seenAt: number, now: number): number {
+  const days = Math.max(0, now - seenAt) / DAY_MS;
+  return Math.pow(0.5, days / SCORE_LIMITS.halfLifeDays);
+}
+
+export function placePart(fit: PlaceFit): number {
+  return fit === "match" ? 1 : fit === "unknown" ? 0.6 : 0;
+}
+
+export function linearScore(parts: ScoreParts): number {
+  return (
+    SCORE_WEIGHTS.role * parts.role +
+    SCORE_WEIGHTS.skills * parts.skills +
+    SCORE_WEIGHTS.level * parts.level +
+    SCORE_WEIGHTS.recency * parts.recency +
+    SCORE_WEIGHTS.place * parts.place
+  );
+}
+
 export function levelGap(person: Seniority | null, job: Seniority): number {
   return person === null ? 0 : SENIORITY_RANK[job] - SENIORITY_RANK[person];
 }

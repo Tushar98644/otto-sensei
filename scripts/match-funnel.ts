@@ -1,4 +1,4 @@
-// What each matching step keeps per persona: OTTO_PGLITE_DIR=<copy> bun scripts/match-funnel.ts [--set india|global] [--rebuild] [--json out.json]
+// What each matching step keeps per persona: OTTO_PGLITE_DIR=<copy> bun scripts/match-funnel.ts [--set india|global|v2] [--rebuild] [--json out.json]
 import { writeFileSync } from "node:fs";
 import { and, isNull, eq, sql } from "drizzle-orm";
 import { jobMatch, jobs, matchSkills } from "@/db/schema";
@@ -7,6 +7,7 @@ import { acceptedPlaces, lookingForOf, placeFit } from "@/lib/job-feed/looking-f
 import { KIND, kindOf, personFrom } from "@/lib/job-feed/match";
 import { OCCUPATIONS } from "@/lib/job-feed/occupations";
 import { findSkills } from "@/lib/job-feed/skills";
+import { PERSONAS, PLACES } from "./match-eval/personas";
 import {
   DEFAULT_FILTERS,
   JOB_PAGE_SIZE,
@@ -171,9 +172,22 @@ async function main() {
     `${MATCH_VARIANT}: ${open?.n ?? 0} open openings, ${rows.length} in the index, fresh for ${fresh / DAY_MS} days, public count ${counts?.openJobs ?? "?"}`,
   );
 
-  const global = flag("--set") === "global";
-  const personas = global ? GLOBAL_PERSONAS : INDIA_PERSONAS;
-  const places = global ? GLOBAL_PLACES : INDIA_PLACES;
+  const set = flag("--set");
+  // v2: the labelled personas and places of scripts/match-eval/personas.ts.
+  const personas =
+    set === "v2"
+      ? Object.fromEntries(
+          PERSONAS.map((p) => [p.name, { skills: p.skills, titles: p.titles, years: p.years }]),
+        )
+      : set === "global"
+        ? GLOBAL_PERSONAS
+        : INDIA_PERSONAS;
+  const places: Place[] =
+    set === "v2"
+      ? PLACES.map((p) => ({ name: p.id, place: p.place, remote: false, work: p.work }))
+      : set === "global"
+        ? GLOBAL_PLACES
+        : INDIA_PLACES;
   const out: Record<string, Record<string, Record<string, number>>> = {};
   for (const [name, persona] of Object.entries(personas)) {
     const profile: MatchProfile = {

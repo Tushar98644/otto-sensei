@@ -54,6 +54,7 @@ const TABLES: Record<string, Table> = {
   match_skills: global("ids for the skills in public posts"),
   job_match: global("a ranking copy of public posts"),
   job_counts: global("counts of public posts"),
+  title_vectors: global("meaning vectors of public job titles"),
   match_cache: accountNotExported("a day's cache of ranked public posts"),
   company_visa: global("public visa registers"),
   match_events: accountNotExported("which posts were shown and opened, to measure ranking"),

@@ -25,6 +25,8 @@ export type MatchableJob = {
   occupation?: string | null;
   occupationName?: string | null;
   zone?: number | null;
+  // How near the job's title is to the person's role by title vectors, when both have one.
+  kind?: Kind | null;
 };
 
 export type EligibilityHint = { blocked: boolean; note: string | null };
@@ -106,13 +108,16 @@ export function personFrom(
 
 export type Kind = {
   weight: number;
-  via: "family" | "same" | "close" | "group" | null;
+  via: "family" | "same" | "close" | "group" | "title" | null;
+  // The job's role and the person's when their titles differ but mean the same work.
+  role?: { job: string; person: string } | null;
 };
 
 export function kindOf(
   person: MatchPerson,
-  job: Pick<MatchableJob, "title" | "family" | "occupation">,
+  job: Pick<MatchableJob, "title" | "family" | "occupation" | "kind">,
 ): Kind {
+  if (job.kind) return job.kind;
   const family = job.family !== undefined ? job.family : roleFamily(job.title);
   const code = job.occupation ?? null;
   const exact = code ? (person.occupations.get(code) ?? 0) : 0;
@@ -215,6 +220,7 @@ export function matchJob(
   }
 
   let reason: string;
+  const role = kind.role ? `Role match: ${kind.role.job} ≈ your ${kind.role.person}. ` : "";
   if (found.length > 0) {
     reason = `Found in your resume: ${list(found, MAX_FOUND_SHOWN)}.`;
     if (missing.length > 0) reason += ` Not found: ${list(missing, MAX_MISSING_SHOWN)}.`;
@@ -225,7 +231,7 @@ export function matchJob(
         ? `${what} Not found: ${list(missing, MAX_MISSING_SHOWN)}.`
         : `${what} The post names no tools to compare.`;
   }
-  return { label, found, missing, reason, notes, blocked: eligibility.blocked };
+  return { label, found, missing, reason: role + reason, notes, blocked: eligibility.blocked };
 }
 
 function kindLine(kind: Kind, pastKind: boolean, name: string | null): string {
@@ -233,6 +239,8 @@ function kindLine(kind: Kind, pastKind: boolean, name: string | null): string {
   if (kind.via === "same" && !pastKind) return `The same occupation as yours${named}.`;
   if (kind.via === "close") return `A closely related occupation${named}.`;
   if (kind.via === "group") return `A related kind of work${named}.`;
+  if (kind.via === "title")
+    return pastKind ? "A neighbouring kind of role." : "The same kind of role as yours.";
   return pastKind ? "Like an earlier role on your resume." : "The same kind of role as yours.";
 }
 

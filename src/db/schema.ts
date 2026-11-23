@@ -380,6 +380,7 @@ export const referrals = pgTable(
 );
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
+const bytea = customType<{ data: Uint8Array }>({ dataType: () => "bytea" });
 
 export const jobs = pgTable("jobs", {
   id: uuid("id").primaryKey(),
@@ -460,6 +461,16 @@ export const jobMatch = pgTable("job_match", {
   seenAt: epochMs("seen_at").notNull(),
   ukSponsor: boolean("uk_sponsor").notNull().default(false),
   h1bYear: smallint("h1b_year"),
+  tkey: text("tkey").notNull().default(""),
+});
+
+export const titleVectors = pgTable("title_vectors", {
+  key: text("key").primaryKey(),
+  vec: bytea("vec"),
+  occs: text("occs").array().notNull().default([]),
+  sims: real("sims").array().notNull().default([]),
+  seenAt: epochMs("seen_at").notNull(),
+  embeddedAt: epochMs("embedded_at"),
 });
 
 export const jobCountsRow = pgTable("job_counts", {
@@ -508,6 +519,7 @@ export const matchEvents = pgTable(
     resumeHash: text("resume_hash"),
     reason: text("reason", { enum: NOT_FIT_REASONS }),
     answer: text("answer", { enum: ASKED_APPLIED_ANSWERS }),
+    features: bytea("features"),
     createdAt: epochMs("created_at").notNull(),
   },
   (t) => [index("match_events_created_idx").on(t.createdAt)],
