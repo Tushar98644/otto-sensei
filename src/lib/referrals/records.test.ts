@@ -215,7 +215,7 @@ describe("claimReferral", () => {
       ),
     );
     expect(outcomes.every((outcome) => outcome === "rewarded")).toBe(true);
-    const summary = await referralSummary(owner.id, null, NOV);
+    const summary = await referralSummary(owner, null, NOV);
     expect(summary).toMatchObject({
       joined: MAX_REWARDED_REFERRALS + 2,
       checked: MAX_REWARDED_REFERRALS + 2,
@@ -265,7 +265,7 @@ describe("referralSummary", () => {
       { userId: (await friend()).id, code, deviceId: OWNER_DEVICE, checked: true },
       NOV,
     );
-    expect(await referralSummary(owner.id, null, NOV)).toEqual({
+    expect(await referralSummary(owner, null, NOV)).toEqual({
       code,
       url: `https://otto.example/?ref=${code}`,
       joined: 2,
@@ -301,7 +301,7 @@ describe("referralSummary", () => {
     expect((await getUsage(onPro(maya), NOV)).fix.limit).toBe(
       PLANS.pro.limits.fix + REFERRAL_BONUS.fix,
     );
-    expect(await referralSummary(owner.id, null, NOV)).toMatchObject({
+    expect(await referralSummary(yearlyOwner, null, NOV)).toMatchObject({
       thisPeriod: REFERRAL_BONUS,
       period: "month",
     });

@@ -21,12 +21,13 @@ export const dynamic = "force-dynamic";
 const READ = { name: "answers", limit: 240, windowMs: HOUR_MS };
 const WRITE = { name: "answers_save", limit: 120, windowMs: HOUR_MS };
 
+// The work profile is read beside the answers, not after them.
 async function respond(
   userId: string,
-  saved: ApplyAnswers,
+  answers: ApplyAnswers | Promise<ApplyAnswers>,
   headers: Record<string, string>,
 ): Promise<Response> {
-  const work = await readWorkProfile(userId);
+  const [saved, work] = await Promise.all([answers, readWorkProfile(userId)]);
   const response: Omit<ApplyAnswersResponse, "ok"> = {
     answers: withWorkProfile(saved, work.updatedAt === null ? null : work.profile),
     saved,
@@ -39,7 +40,7 @@ export async function GET(req: Request): Promise<Response> {
   return extensionRoute(req, READ, async ({ user }, headers) => {
     const blocked = fillRequired(user, headers);
     if (blocked) return blocked;
-    return respond(user.id, await readApplyAnswers(user.id), headers);
+    return respond(user.id, readApplyAnswers(user.id), headers);
   });
 }
 

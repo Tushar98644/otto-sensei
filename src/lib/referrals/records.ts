@@ -5,7 +5,7 @@ import { lockUser } from "@/db/locks";
 import { usage, users, userSettings } from "@/db/schema";
 import { appUrl } from "@/lib/env";
 import { log } from "@/lib/log";
-import { periodForUser } from "@/lib/usage";
+import { periodForUser, resolvePeriod, type PeriodAccount } from "@/lib/usage";
 import {
   BONUS_FEATURES,
   CLAIM_WINDOW_MS,
@@ -310,17 +310,17 @@ export async function claimReferral(
   });
 }
 
+// The signed-in account's own row gives the period, so the counts read beside the code, not after it.
 export async function referralSummary(
-  userId: string,
+  user: PeriodAccount,
   deviceId: string | null,
   now = Date.now(),
 ): Promise<ReferralSummary | null> {
-  const code = await ensureReferralCode(userId, deviceId, now);
-  if (!code) return null;
+  const userId = user.id;
   const db = await getDb();
-  const period = await periodForUser(db, userId, now);
-  if (!period) return null;
-  const [byStatus, extras] = await Promise.all([
+  const period = resolvePeriod(user, now);
+  const [code, byStatus, extras] = await Promise.all([
+    ensureReferralCode(userId, deviceId, now),
     db
       .select({ status: userSettings.referralStatus, n: count() })
       .from(userSettings)
@@ -337,6 +337,7 @@ export async function referralSummary(
         ),
       ),
   ]);
+  if (!code) return null;
   const tally = (status: ReferralRow["status"]) =>
     byStatus.find((row) => row.status === status)?.n ?? 0;
   const extra = (feature: BonusFeature) =>

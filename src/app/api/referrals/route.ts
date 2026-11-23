@@ -15,7 +15,7 @@ export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
-    const summary = await referralSummary(user.id, await getDeviceId());
+    const summary = await referralSummary(user, await getDeviceId());
     if (!summary) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
     return ok({ referrals: summary } satisfies Omit<ReferralSummaryResponse, "ok">, {
       headers: NO_STORE,
