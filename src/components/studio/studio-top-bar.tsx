@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMe } from "@/components/account/use-me";
+import { IntentLink } from "@/components/site/intent-link";
 import { OttoMark } from "@/components/site/otto-mark";
 import { ROUTES } from "@/components/site/routes";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,10 +22,12 @@ export function StudioTopBar({ hydrated, onSignIn }: StudioTopBarProps) {
   const activeId = useStudioStore((s) => s.activeId);
   // The proxy redirects "/" only on full loads; a client-side move would show the sales page.
   const { user } = useMe();
+  // A guest's way home is rare from here, so the sales page loads on intent, not with the studio.
+  const HomeLink = user ? Link : IntentLink;
   return (
     <header className="sticky top-0 z-30 bg-surface-muted">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4 sm:h-16 sm:gap-4 sm:px-6">
-        <Link
+        <HomeLink
           href={user ? ROUTES.dashboard : ROUTES.home}
           aria-label={`${BRAND.name} home`}
           className="flex h-11 shrink-0 items-center gap-2 rounded-lg pr-1"
@@ -33,7 +36,7 @@ export function StudioTopBar({ hydrated, onSignIn }: StudioTopBarProps) {
           <span className="hidden font-display text-xl/none font-medium tracking-tight text-ink sm:inline">
             {BRAND.name}
           </span>
-        </Link>
+        </HomeLink>
         <div className="flex min-w-0 flex-1">
           {hydrated ? <ResumeSwitcher /> : <Skeleton className="h-11 w-40 rounded-lg" />}
         </div>
