@@ -104,6 +104,12 @@ subsets) in the PDFs users download. All files are unmodified upstream releases.
 | Source Sans 3 3.052 | `source-sans-3/SourceSans3-{Light,LightIt,Regular,Bold}.ttf` | (c) 2010-2024 Adobe, Reserved Font Name "Source" | SIL OFL 1.1 (`LICENSE.md`) | [adobe-fonts/source-sans](https://github.com/adobe-fonts/source-sans) |
 | Charis 7.000 | `charis/Charis-{Regular,Bold,Italic}.ttf` | (c) 1997-2025 SIL Global, Reserved Font Names "Charis" and "SIL" | SIL OFL 1.1 (`OFL.txt`) | [software.sil.org/charis](https://software.sil.org/charis/) |
 
+## Not-found page fonts
+
+The latin subsets of Inter 4.001 and EB Garamond 1.003, as Google Fonts serves them, in
+`src/app/fonts/` with the licence beside them (`OFL.txt`): (c) 2016 The Inter Project Authors and
+(c) 2017 The EB Garamond Project Authors, SIL OFL 1.1. Unmodified.
+
 ## Occupation data
 
 The Jobs tab reads every job title (and the titles on a resume) as an occupation, using a lookup

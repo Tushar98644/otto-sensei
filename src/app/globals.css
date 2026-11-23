@@ -1,5 +1,35 @@
 @import "tailwindcss";
 
+/* Not-found pages are in every page's build, so their copies of Inter and EB Garamond live here, never preloaded (not-found-fonts.tsx). */
+@font-face {
+  font-family: "Not Found Sans";
+  src: url("./fonts/inter-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Not Found Sans Fallback";
+  src: local("Arial");
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+  size-adjust: 107.12%;
+}
+@font-face {
+  font-family: "Not Found Display";
+  src: url("./fonts/eb-garamond-latin.woff2") format("woff2");
+  font-weight: 400 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Not Found Display Fallback";
+  src: local("Times New Roman");
+  ascent-override: 106.26%;
+  descent-override: 31.44%;
+  line-gap-override: 0%;
+  size-adjust: 94.77%;
+}
+
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-garamond), ui-serif, Georgia, serif;

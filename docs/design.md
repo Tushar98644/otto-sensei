@@ -55,13 +55,13 @@ Shadows: `--shadow-card` for product windows. `--shadow-float` for dialogs, popo
 import { EB_Garamond, Inter } from "next/font/google";
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 const garamond = EB_Garamond({ subsets: ["latin"], display: "swap" });
-// It sets --font-inter and --font-garamond at :root from inter.style.fontFamily; not-found pages use not-found-fonts.tsx (no preload).
+// It sets --font-inter and --font-garamond at :root from inter.style.fontFamily; not-found pages point them at their own copies, declared in globals.css (no preload, no extra stylesheet).
 // (marketing)/_components/display-italic.ts: the true italic, for the one phrase per heading that gets
 // a voice (set on its <em> with displayItalic.className), so only those pages load and preload it.
 const displayItalic = EB_Garamond({ subsets: ["latin"], style: "italic", display: "swap", fallback: ["ui-serif", "Georgia", "serif"] });
 ```
 
-In globals.css: `--font-display: var(--font-garamond), ui-serif, Georgia, serif;` (the root layout carries no fonts, so public portfolios preload neither face and set both variables to the system's; `src/app/site-fonts.test.ts` checks every other screen gets them). `--font-sans` is unchanged, and mono stays the system stack (parsed text only). Why EB Garamond: it is a free Garamond with a real italic, the closest match to Wispr. Instrument Serif is skipped on purpose because it is now the stock font of AI-built landing pages. Newsreader is the fallback if Garamond ever feels too bookish.
+In globals.css: `--font-display: var(--font-garamond), ui-serif, Georgia, serif;` (the root layout carries no fonts, so public portfolios preload neither face and set both variables to the system's; `src/app/site-fonts.test.ts` checks every other screen gets them and that nothing /p is built from preloads a font). `--font-sans` is unchanged, and mono stays the system stack (parsed text only). Why EB Garamond: it is a free Garamond with a real italic, the closest match to Wispr. Instrument Serif is skipped on purpose because it is now the stock font of AI-built landing pages. Newsreader is the fallback if Garamond ever feels too bookish.
 
 | Role | Classes | Phone → desktop |
 |---|---|---|
