@@ -56,7 +56,7 @@ describe("home sections below the fold", () => {
 
   it("pause Otto's loops off screen only where Otto loops", () => {
     for (const section of [
-      <Hero key="hero" />,
+      <Hero key="hero" jobCounts={JOB_COUNTS_FALLBACK} />,
       <HowItWorks key="how" />,
       <FinalCta key="final" />,
     ]) {

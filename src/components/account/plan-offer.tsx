@@ -124,7 +124,7 @@ function PlanOfferCard({
           {card.current ? (
             <Badge className="bg-surface">Current plan</Badge>
           ) : card.popular ? (
-            <Badge variant="ink">Recommended</Badge>
+            <Badge variant="ink">Popular</Badge>
           ) : null}
         </div>
         <p className="flex flex-wrap items-baseline gap-x-1 gap-y-1">

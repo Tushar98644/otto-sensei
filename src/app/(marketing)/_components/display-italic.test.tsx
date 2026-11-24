@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
 
 type FontCall = {
   family: string;
@@ -45,7 +46,7 @@ describe("Garamond's italic", () => {
     expect(italic).toHaveLength(1);
     expect(styles(italic[0])).toEqual(["italic"]);
     for (const node of [
-      <Hero key="hero" />,
+      <Hero key="hero" jobCounts={JOB_COUNTS_FALLBACK} />,
       <PortfolioShowcase key="portfolio" />,
       <PricingTeaser key="pricing" />,
     ]) {

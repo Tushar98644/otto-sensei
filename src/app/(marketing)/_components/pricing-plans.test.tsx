@@ -58,8 +58,8 @@ describe("PricingPlans", () => {
       expect(html).toContain("$15 /month");
       expect(html).toContain("$29 /month");
     }
-    expect(html).not.toMatch(/Rezi|pizza|Most popular/);
-    expect(html.match(/Recommended/g)).toHaveLength(1);
+    expect(html).not.toMatch(/Rezi|pizza/);
+    expect(html.match(/Popular/g)).toHaveLength(1);
     expect(html).toContain("1 resume · 3 line fixes a month from Otto");
     expect(html).toContain("Classic or Compact");
     expect(html).toContain("Monthly");
@@ -93,7 +93,7 @@ describe("PricingPlans", () => {
     const html = text(renderToStaticMarkup(<PricingPlans offer={OFFER} trial />));
     expect(html).toMatch(/Current plan · trial until Nov 2[45]/);
     expect(html).toContain("Manage your plan");
-    expect(html).not.toMatch(/Get Pro|Try Pro|Upgrade to Pro|Recommended/);
+    expect(html).not.toMatch(/Get Pro|Try Pro|Upgrade to Pro|Popular/);
     expect(html).toContain("Start Max now");
     expect(html).toContain("Included in Pro.");
   });

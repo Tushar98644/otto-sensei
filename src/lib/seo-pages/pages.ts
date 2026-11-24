@@ -70,7 +70,7 @@ export const HOME_PAGE: SeoPage = {
   path: ROUTES.home,
   title: `Free ATS resume checker and builder with AI${TITLE_SUFFIX}`,
   absoluteTitle: true,
-  description: `Free ATS resume checker: upload your resume, see the text hiring software reads, fix weak lines with ${BRAND.mascotName}'s AI help and download a clean PDF for free.`,
+  description: `Free ATS resume checker and builder with ${BRAND.mascotName}'s AI help, plus jobs ranked for your resume, application tracking, interview prep and a portfolio site.`,
   lastModified: PRODUCT_PAGES_UPDATED,
 };
 

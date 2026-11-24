@@ -30,7 +30,7 @@ export default async function HomePage() {
       <TrackView event="landing_viewed" />
       <SmoothScroll />
       <HomeUpload />
-      <Hero />
+      <Hero jobCounts={jobCounts} />
       <HowItWorks />
       <FeaturesOverview />
       <JobsShowcase jobCounts={jobCounts} />

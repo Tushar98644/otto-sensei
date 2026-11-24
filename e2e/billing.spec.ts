@@ -167,7 +167,7 @@ test.describe("pricing page", () => {
     );
 
     const pro = pricingCard(page, "Pro");
-    await expect(pro.getByText("Recommended")).toBeVisible();
+    await expect(pro.getByText("Popular")).toBeVisible();
     await expect(pro.getByText(planPrice("pro", "month"), { exact: true })).toBeVisible();
     await expect(pro.getByText(trialSentence())).toBeVisible();
     await expect(pro.getByRole("link", { name: trialHeadline() })).toHaveAttribute(

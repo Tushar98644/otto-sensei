@@ -31,7 +31,7 @@ describe("plan cards for a visitor", () => {
       primary: false,
     });
     expect(free.notes).toEqual(["No card needed"]);
-    expect(pro.badge).toEqual({ label: "Recommended", tone: "ink" });
+    expect(pro.badge).toEqual({ label: "Popular", tone: "ink" });
     expect(pro.cta).toEqual({ href: upgradeHref("pro", "month"), label: "Get Pro", primary: true });
     expect(max.cta).toEqual({
       href: upgradeHref("max", "month"),
@@ -79,7 +79,7 @@ describe("plan cards for a signed-in account", () => {
       label: "Try Pro for 7 days",
       primary: true,
     });
-    expect(pro.badge?.label).toBe("Recommended");
+    expect(pro.badge?.label).toBe("Popular");
     expect(max.cta?.label).toBe("Upgrade to Max");
   });
 

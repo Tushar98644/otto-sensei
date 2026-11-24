@@ -51,6 +51,8 @@ export const TRIAL_EMAIL_NOTE = "We'll email you the day before it renews.";
 
 const FREE_CTA = { href: ROUTES.studio, label: "Check my resume, free" } as const;
 
+const POPULAR: PlanBadge = { label: "Popular", tone: "ink" };
+
 const rank = (plan: PlanId) => PLAN_ORDER.indexOf(plan);
 
 function priceNotes(
@@ -159,7 +161,7 @@ export function planCards({
         interval: card.interval,
         cta: { href: upgradeHref(plan, card.interval), label, primary: plan === primary },
         manage: false,
-        badge: plan === recommended ? { label: "Recommended", tone: "ink" } : null,
+        badge: plan === "pro" ? POPULAR : null,
         notes: [...notes, ...priceNotes(plan, card.interval, base, choosing)],
       };
     }
@@ -180,7 +182,7 @@ export function planCards({
       interval,
       cta: null,
       manage: false,
-      badge: null,
+      badge: plan === "pro" ? POPULAR : null,
       notes:
         rank(plan) < rank(current)
           ? [`Included in ${PLANS[current].name}.`]

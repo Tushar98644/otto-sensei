@@ -26,7 +26,7 @@ export const FEATURES: Record<string, Feature> = {
     section: "#jobs",
   },
   [ROUTES.dashboardApplications]: {
-    text: "The jobs you apply to on one board, with the resume you sent and reminders to follow up.",
+    text: "The jobs you apply to on one board, with the resume you sent and reminders to follow up. On Pro, forward your job emails once and Otto moves each application along by itself.",
   },
   [ROUTES.dashboardInterview]: {
     text: "For each interview: likely questions, stories from your own resume lines and questions to ask. Technical roles also get a technical round on your projects, core concepts and system design, and a practice mode.",
@@ -49,13 +49,9 @@ export function FeaturesOverview() {
       labelledBy="features-title"
       lazySize="[contain-intrinsic-size:auto_740px] sm:[contain-intrinsic-size:auto_790px]"
     >
-      <SectionHeader
-        id="features-title"
-        eyebrow="What's inside"
-        title="Your whole job hunt, in one place"
-      >
-        One account for your resume, the jobs, and your applications after it. Pick a section to see
-        it.
+      <SectionHeader id="features-title" eyebrow="What's inside" title="Every step, one account">
+        Your resume, the jobs, your applications and the interviews after them. Pick a section to
+        see it.
       </SectionHeader>
       <Tabs defaultValue={SHOWN[0]!.href} className="mt-12 sm:mt-16">
         <div className="grid gap-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-6">

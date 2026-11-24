@@ -6,7 +6,7 @@ type PublicPage = { name: string; path: string; heading: string | RegExp };
 const HOME: PublicPage = {
   name: "home",
   path: "/",
-  heading: /^See your resume the way recruiters do\.$/,
+  heading: /^Your whole job hunt, in one place\.$/,
 };
 const PRICING: PublicPage = {
   name: "pricing",

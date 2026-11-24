@@ -203,9 +203,9 @@ describe("the home page's copy", () => {
     expect(jobs).toContain("in the US, the UK, Australia, Latin America, Europe and more");
   });
 
-  it("never advertises email tracking or email reminders, and Otto for Chrome only as coming soon until it's in the store", () => {
+  it("never advertises email reminders, and Otto for Chrome only as coming soon until it's in the store", () => {
+    const hero = text(renderToStaticMarkup(<Hero jobCounts={JOB_COUNTS_FALLBACK} />));
     const others = [
-      <Hero key="hero" />,
       <HowItWorks key="how" />,
       <FeaturesOverview key="features" />,
       <JobsShowcase key="jobs" jobCounts={JOB_COUNTS_FALLBACK} />,
@@ -222,8 +222,9 @@ describe("the home page's copy", () => {
     const comingSoon = realStore.CHROME_STORE_URL === null;
     expect(/coming soon/i.test(extension)).toBe(comingSoon);
     expect(/add to chrome/i.test(extension)).toBe(!comingSoon);
-    const page = `${others} ${extension}`;
-    expect(page).not.toMatch(/track\w* (your )?email|forward|inbox/i);
+    expect(hero).toMatch(/chrome extension/i);
+    expect(/chrome extension, soon/i.test(hero)).toBe(comingSoon);
+    const page = `${hero} ${others} ${extension}`;
     expect(page).not.toMatch(/we('ll| will) email|by email|email (you|reminders?)/i);
   });
 });

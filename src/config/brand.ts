@@ -2,8 +2,8 @@ export const BRAND = {
   name: "Otto Sensei",
   shortName: "Otto",
   mascotName: "Otto",
-  tagline: "See your resume the way recruiters do.",
+  tagline: "Your whole job hunt, in one place.",
   description:
-    "Upload your resume, see exactly what hiring software reads, fix weak lines with Otto, tailor it to a job, and download a clean PDF. Free downloads, always.",
+    "Check and fix your resume with Otto, find open jobs ranked for it, track every application from your inbox, prep for interviews and share a portfolio site. Free downloads, always.",
   supportEmail: "hello@ottosensei.com",
 } as const;
