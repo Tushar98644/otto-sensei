@@ -17,6 +17,7 @@ import { PORTFOLIO_TEMPLATE_INFO, templateOrder } from "@/lib/portfolio/template
 import { PORTFOLIO_TEMPLATE_IDS, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import { cn } from "@/lib/utils";
 import type { TemplateSample } from "./live-template";
+import { followPreviewLink } from "./preview-links";
 import { PreviewSourceNote, PreviewSourceSwitch, usePreviewSource } from "./preview-source";
 import { LazyTemplate, preloadTemplate } from "./templates/lazy";
 
@@ -173,6 +174,8 @@ export function FullPortfolioPreview({
             >
               <div
                 key={`${id}-${width}-${choice.source}`}
+                data-pf-preview=""
+                onClick={followPreviewLink}
                 className={cn(
                   // One screen is the window less the header (4rem) and the page bar (2.5rem).
                   "flex h-full flex-col overflow-y-auto [--pf-screen:calc(100dvh-6.5rem)]",

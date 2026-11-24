@@ -10,5 +10,6 @@ export function scrollToHash(event: MouseEvent<HTMLAnchorElement>, reduceMotion:
   if (!target) return;
   event.preventDefault();
   target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
-  if (!root.closest("dialog")) window.history.pushState(window.history.state, "", href);
+  if (!root.closest("dialog, [data-pf-preview]"))
+    window.history.pushState(window.history.state, "", href);
 }

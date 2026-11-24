@@ -17,6 +17,7 @@ import { portfolioPath, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { PortfolioView } from "@/lib/portfolio/view";
 import { cn } from "@/lib/utils";
 import { previewFit, type PreviewWidth } from "./preview-frame";
+import { followPreviewLink } from "./preview-links";
 import { LazyTemplate } from "./templates/lazy";
 
 type PortfolioPreviewProps = {
@@ -50,7 +51,7 @@ function useBoxSize() {
   return [ref, size] as const;
 }
 
-// Only the page is inert, not the scroll box: an inert box let the wheel fall to the editor.
+// Links in the page scroll this box or open a new tab (preview-links.ts), so it works as visitors see it.
 export const PortfolioPreview = memo(function PortfolioPreview({
   view,
   content,
@@ -137,6 +138,8 @@ export const PortfolioPreview = memo(function PortfolioPreview({
               <div
                 key={`${shown}-${width}`}
                 ref={scrollerRef}
+                data-pf-preview=""
+                onClick={followPreviewLink}
                 tabIndex={0}
                 role="region"
                 aria-label={`Preview of your page in ${name}. Scroll to see all of it.`}
@@ -144,7 +147,6 @@ export const PortfolioPreview = memo(function PortfolioPreview({
               >
                 {zoom > 0 ? (
                   <div
-                    inert
                     className="flex flex-col"
                     style={
                       {
