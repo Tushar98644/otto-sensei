@@ -66,9 +66,10 @@ async function main() {
 
   const db = await getDb();
   const started = Date.now();
+  // Three minutes of finishing passes keep a 20-minute read inside the workflow's 35-minute step.
   const outcome = await runJobsIngest(
     { now: started, deadline: started + minutes * 60_000 },
-    { db, workers },
+    { db, workers, finishMs: 3 * 60_000 },
   );
   const { openJobs } = await jobStats(db);
   const { stats } = outcome;

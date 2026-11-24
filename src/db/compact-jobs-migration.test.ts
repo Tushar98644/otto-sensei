@@ -258,6 +258,15 @@ describe("compact jobs migration", { timeout: MIGRATIONS_TIMEOUT_MS }, () => {
 
     // The new app's first rebuild reads the old rules text into compact facts, and pages read it all.
     const db = drizzle(client, { schema }) as unknown as Db;
+    const legacy = async () =>
+      (
+        await client.query<{ n: number }>(
+          "select count(*)::int as n from public.listings where left(facts, 1) = chr(1)",
+        )
+      ).rows[0]!.n;
+    // With no time for finishing, the rebuild still builds the index and leaves the rows for the next.
+    expect(await rebuildMatchIndex(db, NOW, { finishMs: 0 })).toBeGreaterThan(0);
+    expect(await legacy()).toBe(5);
     expect(await rebuildMatchIndex(db, NOW)).toBeGreaterThan(0);
     const facts = (
       await client.query<{ n: number }>(

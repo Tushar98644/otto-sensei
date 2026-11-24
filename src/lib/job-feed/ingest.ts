@@ -69,6 +69,8 @@ export const INGEST_LIMITS = {
   jobicyPages: 25,
   // 500 a page; the API answers at most 10,000 rows a query.
   usajobsPages: 20,
+  // The closing rebuild's finishing passes, within a cron call's last minute.
+  finishMs: 15_000,
 } as const;
 
 // Lever's robots.txt asks for 1 s and Himalayas allows 60/min; the rest get a gentle pace.
@@ -117,6 +119,8 @@ export type IngestOptions = {
   spacing?: Record<string, number>;
   workers?: number;
   visa?: boolean;
+  // How long the closing rebuild may spend finishing rows the compact-jobs migration copied.
+  finishMs?: number;
 };
 
 const SOURCE_HOSTS: Record<Exclude<BoardSource, "workday">, string> = {
@@ -613,7 +617,11 @@ export async function runJobsIngest(
     (await readStoredCounts(db)) === null;
   const skills = changed ? await refreshSkillWeights(db, Date.now()) : -1;
   // Last, so the match index, stored counts and every cached match list name this run.
-  const indexed = changed ? await rebuildMatchIndex(db, Date.now()) : await noteBoardsRead(db);
+  const indexed = changed
+    ? await rebuildMatchIndex(db, Date.now(), {
+        finishMs: options.finishMs ?? INGEST_LIMITS.finishMs,
+      })
+    : await noteBoardsRead(db);
   return {
     stats: {
       ...totals,

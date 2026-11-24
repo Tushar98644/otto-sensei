@@ -1,15 +1,9 @@
-import { and, desc, inArray, isNotNull, isNull, lt, notExists, sql } from "drizzle-orm";
+import { and, desc, gt, inArray, isNotNull, isNull, lt, notExists, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { listings, titles } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
 import { hash53, packOccupation } from "./codes";
-import {
-  encodeTitleVector,
-  TITLE_CODE_BYTES,
-  TITLE_DIMS,
-  titleCodeFrom,
-  type TitleCode,
-} from "./title-code";
+import { encodeTitleVector, TITLE_DIMS, titleCodeFrom, type TitleCode } from "./title-code";
 import { OCCUPATION_CODE } from "./types";
 
 // JobBERT-v2 title vectors (scripts/title-vectors.py), stored in titles as 64-byte codes (title-code.ts).
@@ -170,26 +164,37 @@ export async function saveTitleVectors(db: Db, rows: readonly TitleVectorRow[]):
   return saved;
 }
 
-// Vectors kept from title_vectors (256 bytes) become 64-byte codes.
-export async function recodeTitles(db: Db): Promise<number> {
-  const rows = await db
-    .select({ id: titles.id, code: titles.code })
-    .from(titles)
-    .where(sql`octet_length(${titles.code}) <> ${TITLE_CODE_BYTES}`);
+// Vectors kept from title_vectors (256 bytes) become 64-byte codes, a batch a transaction, until `until`.
+export async function recodeTitles(db: Db, until: number): Promise<number> {
+  let after = -1;
   let recoded = 0;
-  for (const part of chunked(rows, TITLE_VECTOR_LIMITS.writeChunk)) {
-    const values = part.flatMap((row) => {
-      const code = titleCodeFrom(row.code);
-      return code ? [sql`(${row.id}::bigint, ${Buffer.from(code)}::bytea)`] : [];
+  while (Date.now() < until) {
+    const done = await db.transaction(async (tx) => {
+      await tx.execute(sql`set local statement_timeout = '120s'`);
+      const rows = await tx
+        .select({ id: titles.id, code: titles.code })
+        .from(titles)
+        .where(and(gt(titles.id, after), sql`octet_length(${titles.code}) = ${TITLE_DIMS}`))
+        .orderBy(titles.id)
+        .limit(TITLE_VECTOR_LIMITS.writeChunk);
+      const last = rows.at(-1);
+      if (!last) return 0;
+      after = last.id;
+      const values = rows.flatMap((row) => {
+        const code = titleCodeFrom(row.code);
+        return code ? [sql`(${row.id}::bigint, ${Buffer.from(code)}::bytea)`] : [];
+      });
+      if (values.length > 0) {
+        await tx
+          .update(titles)
+          .set({ code: sql`v.code` })
+          .from(sql`(values ${sql.join(values, sql`, `)}) as v(id, code)`)
+          .where(sql`${titles.id} = v.id`);
+      }
+      return rows.length;
     });
-    if (values.length === 0) continue;
-    const updated = await db
-      .update(titles)
-      .set({ code: sql`v.code` })
-      .from(sql`(values ${sql.join(values, sql`, `)}) as v(id, code)`)
-      .where(sql`${titles.id} = v.id`)
-      .returning({ id: titles.id });
-    recoded += updated.length;
+    if (done === 0) break;
+    recoded += done;
   }
   return recoded;
 }

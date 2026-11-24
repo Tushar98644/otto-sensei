@@ -1,7 +1,8 @@
-import { and, eq, inArray, max, sql, type SQL } from "drizzle-orm";
+import { and, eq, gt, inArray, max, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { companyVisa, jobBoards, jobCountsRow, listings, titles } from "@/db/schema";
 import { postFacts } from "@/lib/eligibility/facts";
+import { log } from "@/lib/log";
 import {
   familyCode,
   FLAG,
@@ -125,83 +126,104 @@ function nearestOccupation(occ: number | null, sim: number | null): string | nul
 const LEGACY = "\u0001";
 const LEGACY_BATCH = 2_000;
 
+// The finishing passes a rebuild runs before the index itself, so a call ends in time; the next carries on.
+export const REBUILD_LIMITS = { finishMs: 60_000 } as const;
+
 // Rows the compact-jobs migration copied keep the old rules text in facts: read it into compact facts
-// and their own places, and give a copy whose title SQL couldn't key the right title.
-async function finishCopiedRows(db: Db, now: number): Promise<number> {
+// and their own places, and give a copy whose title SQL couldn't key the right title. A batch a
+// transaction, in id order, until `until`.
+async function finishCopiedRows(db: Db, now: number, until: number): Promise<number> {
+  let after = 0;
   let done = 0;
-  for (;;) {
-    const rows = await db
-      .select({
-        id: listings.id,
-        location: listings.location,
-        facts: listings.facts,
-        title: listings.title,
-        titleText: listings.titleText,
-        text: titles.text,
-      })
-      .from(listings)
-      .innerJoin(titles, eq(titles.id, listings.title))
-      .where(sql`left(${listings.facts}, 1) = ${LEGACY}`)
-      .limit(LEGACY_BATCH);
-    if (rows.length === 0) return done;
-    const fixed = rows.map((row) => {
-      const rules = row.facts.slice(1);
-      const title = row.titleText || row.text;
-      return {
-        id: row.id,
-        facts: postFacts({ location: row.location, text: rules }),
-        places: jobPlaces(row.location, rules).join(" "),
-        title,
-        key: titleId(titleVectorKey(title)),
-      };
+  while (Date.now() < until) {
+    const batch = await db.transaction(async (tx) => {
+      await tx.execute(sql`set local statement_timeout = '120s'`);
+      const rows = await tx
+        .select({
+          id: listings.id,
+          location: listings.location,
+          facts: listings.facts,
+          titleText: listings.titleText,
+          text: titles.text,
+        })
+        .from(listings)
+        .innerJoin(titles, eq(titles.id, listings.title))
+        .where(and(gt(listings.id, after), sql`left(${listings.facts}, 1) = ${LEGACY}`))
+        .orderBy(listings.id)
+        .limit(LEGACY_BATCH);
+      const last = rows.at(-1);
+      if (!last) return 0;
+      after = last.id;
+      const fixed = rows.map((row) => {
+        const rules = row.facts.slice(1);
+        const title = row.titleText || row.text;
+        return {
+          id: row.id,
+          facts: postFacts({ location: row.location, text: rules }),
+          places: jobPlaces(row.location, rules).join(" "),
+          title,
+          key: titleId(titleVectorKey(title)),
+        };
+      });
+      const missing = [...new Map(fixed.map((row) => [row.key, row.title]))];
+      for (let i = 0; i < missing.length; i += 500) {
+        await tx
+          .insert(titles)
+          .values(missing.slice(i, i + 500).map(([id, text]) => ({ id, text, seen: today(now) })))
+          .onConflictDoNothing({ target: titles.id });
+      }
+      const canonical = new Map(
+        (
+          await tx
+            .select({ id: titles.id, text: titles.text })
+            .from(titles)
+            .where(inArray(titles.id, [...new Set(fixed.map((row) => row.key))]))
+        ).map((row) => [row.id, row.text]),
+      );
+      const values = fixed.map(
+        (row) =>
+          sql`(${row.id}::bigint, ${row.key}::bigint, ${canonical.get(row.key) === row.title ? "" : row.title}::text, ${row.facts}::text, ${row.places}::text)`,
+      );
+      await tx
+        .update(listings)
+        .set({
+          title: sql`v.title`,
+          titleText: sql`v.title_text`,
+          facts: sql`v.facts`,
+          places: sql`v.places`,
+        })
+        .from(sql`(values ${sql.join(values, sql`, `)}) as v(id, title, title_text, facts, places)`)
+        .where(sql`${listings.id} = v.id`);
+      return rows.length;
     });
-    const missing = [...new Map(fixed.map((row) => [row.key, row.title]))];
-    for (let i = 0; i < missing.length; i += 500) {
-      await db
-        .insert(titles)
-        .values(missing.slice(i, i + 500).map(([id, text]) => ({ id, text, seen: today(now) })))
-        .onConflictDoNothing({ target: titles.id });
-    }
-    const canonical = new Map(
-      (
-        await db
-          .select({ id: titles.id, text: titles.text })
-          .from(titles)
-          .where(inArray(titles.id, [...new Set(fixed.map((row) => row.key))]))
-      ).map((row) => [row.id, row.text]),
-    );
-    const values = fixed.map(
-      (row) =>
-        sql`(${row.id}::bigint, ${row.key}::bigint, ${canonical.get(row.key) === row.title ? "" : row.title}::text, ${row.facts}::text, ${row.places}::text)`,
-    );
-    await db
-      .update(listings)
-      .set({
-        title: sql`v.title`,
-        titleText: sql`v.title_text`,
-        facts: sql`v.facts`,
-        places: sql`v.places`,
-      })
-      .from(sql`(values ${sql.join(values, sql`, `)}) as v(id, title, title_text, facts, places)`)
-      .where(sql`${listings.id} = v.id`);
-    done += rows.length;
+    if (batch === 0) break;
+    done += batch;
   }
+  return done;
 }
 
-export async function rebuildMatchIndex(db: Db, now: number): Promise<number | null> {
+export async function rebuildMatchIndex(
+  db: Db,
+  now: number,
+  { finishMs = REBUILD_LIMITS.finishMs }: { finishMs?: number } = {},
+): Promise<number | null> {
   try {
     await db.select({ id: listings.id }).from(listings).limit(1);
   } catch (error) {
     if (missingTable(error)) return null;
     throw error;
   }
-  await finishCopiedRows(db, now);
-  await recodeTitles(db);
+  const started = Date.now();
+  const until = started + finishMs;
+  const finished = await finishCopiedRows(db, now, until);
+  const recoded = await recodeTitles(db, until);
   // One transaction, so this read of every open job may run past the app role's 15 s statement limit.
-  return db.transaction(async (tx) => {
+  const matchable = await db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout = '120s'`);
     return buildMatchIndex(tx as unknown as Db, now);
   });
+  log.info("jobs.rebuilt", { finished, recoded, matchable, ms: Date.now() - started });
+  return matchable;
 }
 
 type Member = {
