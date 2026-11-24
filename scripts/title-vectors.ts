@@ -48,7 +48,7 @@ async function occupations(out: string) {
   const { titleVectorKey } = await import("@/lib/job-feed/title-vectors");
   const titles = rowsOf<{ title: string }>(
     await db.execute(
-      sql`select title from (select distinct title from jobs where closed_at is null) t order by md5(title) limit ${SAMPLE}`,
+      sql`select t.text as title from titles t where exists (select 1 from listings l where l.title = t.id) order by md5(t.text) limit ${SAMPLE}`,
     ),
   );
   const sample = [...new Set(titles.map((row) => titleVectorKey(row.title)))];
@@ -79,7 +79,7 @@ async function fill(modelDir: string) {
     );
     if (run.status !== 0) throw new Error(`title-vectors.py exited with ${run.status}`);
     const { vectors } = JSON.parse(readFileSync(output, "utf8")) as { vectors: TitleVectorRow[] };
-    total += await saveTitleVectors(db, vectors, Date.now());
+    total += await saveTitleVectors(db, vectors);
     console.log(`${total} titles embedded`);
   }
   const started = Date.now();

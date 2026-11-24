@@ -265,4 +265,7 @@ export type JobPostResponse = {
 export const SAVED_JOBS_LIMIT = 500;
 export type SavedJobResponse = { ok: true; saved: boolean; savedCount: number };
 export type SavedJob = FeedJob & { savedAt: number };
+
+// What a saved job or an application keeps of its job, so it still shows once the job closes and goes.
+export type JobSnapshot = Omit<FeedJob, "id" | "closed">;
 export type SavedJobsResponse = { ok: true; jobs: SavedJob[] };

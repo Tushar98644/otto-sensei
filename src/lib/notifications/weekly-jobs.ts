@@ -1,16 +1,18 @@
-import { and, asc, desc, eq, inArray, isNull, lte, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import { ROUTES } from "@/components/site/routes";
 import { FREE_JOB_MATCHES, hasProTools, type PlanId } from "@/config/plans";
 import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, jobs, resumes, users, userSettings } from "@/db/schema";
+import { applications, resumes, users, userSettings } from "@/db/schema";
 import { normalizeJobUrl } from "@/lib/applications/schema";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
 import { readWorkProfile } from "@/lib/eligibility/records";
+import { listingIdOf } from "@/lib/job-feed/codes";
 import { lookingForOf } from "@/lib/job-feed/looking-for";
 import { readStoredCounts, type StoredCounts } from "@/lib/job-feed/match-index";
 import { matchProfileOf } from "@/lib/job-feed/profile";
 import { rankJobs } from "@/lib/job-feed/rank";
+import { listingRows } from "@/lib/job-feed/records";
 import { DEFAULT_FILTERS, type MatchedJob } from "@/lib/job-feed/types";
 import { log } from "@/lib/log";
 import type { Resume } from "@/lib/resume/schema";
@@ -78,10 +80,10 @@ export async function defaultResume(db: Db, userId: string): Promise<Resume | nu
 // New means Otto first read it after the last note: a feed's post date can be older than the day it was read.
 async function firstSeenAfter(db: Db, ids: string[], since: number): Promise<Set<string>> {
   if (ids.length === 0) return new Set();
-  const rows = await db
-    .select({ id: jobs.id, firstSeenAt: jobs.firstSeenAt })
-    .from(jobs)
-    .where(inArray(jobs.id, ids));
+  const rows = await listingRows(
+    db,
+    ids.flatMap((id) => listingIdOf(id) ?? []),
+  );
   return new Set(rows.filter((row) => row.firstSeenAt > since).map((row) => row.id));
 }
 

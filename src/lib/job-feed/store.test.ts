@@ -1,30 +1,25 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { eq, getTableColumns, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb, type Db } from "@/db/client";
 import * as schema from "@/db/schema";
-import { applications, jobBoards, jobs, savedJobs } from "@/db/schema";
+import { applications, jobBoards, listings, savedJobs, titles } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
+import { listingIdOf, publicJobId } from "./codes";
+import { rebuildMatchIndex } from "./match-index";
 import type { RawJob } from "./parsers";
-import {
-  filterConditions,
-  jobCounts,
-  matchableConditions,
-  matchCandidates,
-  saveJob,
-  skillWeights,
-} from "./records";
+import { jobCounts, keptJob, listingRows, listSavedJobs, saveJob, skillWeights } from "./records";
 import { JOB_LIMITS } from "./normalize";
 import {
   boardFailed,
   refreshSkillWeights,
   saveJobs,
   STORE_LIMITS,
+  storedHashes,
   syncBoards,
   tidyJobs,
 } from "./store";
-import { DEFAULT_FILTERS, type JobFilters } from "./types";
 
 const DAY = 24 * 60 * 60 * 1_000;
 const NOW = Date.UTC(2026, 10, 8, 6);
@@ -51,31 +46,22 @@ const SEEDS = [{ ats: "greenhouse" as const, token: "acme", company: "Acme" }];
 async function rows() {
   const db = await getDb();
   return db
-    .select({
-      externalId: jobs.externalId,
-      source: jobs.source,
-      closedAt: jobs.closedAt,
-      closeReason: jobs.closeReason,
-      missedRuns: jobs.missedRuns,
-    })
-    .from(jobs)
-    .orderBy(jobs.externalId);
+    .select({ ext: listings.ext, board: listings.board, missed: listings.missed })
+    .from(listings)
+    .orderBy(listings.ext);
 }
 
-async function titlesFor(filters: JobFilters): Promise<string[]> {
+async function jobOf(ext: string) {
   const db = await getDb();
-  const rows = await db
-    .select({ title: jobs.title })
-    .from(jobs)
-    .where(and(...filterConditions(filters, NOW)))
-    .orderBy(desc(jobs.postedAt), desc(jobs.id));
-  return rows.map((row) => row.title);
+  const [row] = await db.select({ id: listings.id }).from(listings).where(eq(listings.ext, ext));
+  const [job] = row ? await listingRows(db, [row.id]) : [];
+  return job;
 }
 
 describe("job store", () => {
   beforeEach(async () => {
     await resetDb();
-    await syncBoards(await getDb(), SEEDS, NOW);
+    await syncBoards(await getDb(), SEEDS);
   });
 
   it("adds new jobs once and only marks unchanged ones as seen", async () => {
@@ -87,17 +73,58 @@ describe("job store", () => {
       ACME,
       [raw("1"), raw("2", { title: "Senior Backend Engineer 2" })],
       NOW + DAY,
-      {
-        snapshot: true,
-      },
+      { snapshot: true },
     );
     expect(again).toMatchObject({ added: 0, updated: 1, seen: 2 });
-    const [two] = await db.select().from(jobs).where(eq(jobs.externalId, "2"));
-    expect(two).toMatchObject({ seniority: "senior", lastSeenAt: NOW + DAY });
-    const [one] = await db.select().from(jobs).where(eq(jobs.externalId, "1"));
-    expect(one).toMatchObject({ lastSeenAt: NOW, missedRuns: 0 });
+    expect(await jobOf("2")).toMatchObject({
+      seniority: "senior",
+      title: "Senior Backend Engineer 2",
+      firstSeenAt: NOW,
+      url: "https://job-boards.greenhouse.io/acme/jobs/2",
+      keywords: ["Go", "PostgreSQL", "Kubernetes"],
+      minYears: 3,
+      closed: false,
+    });
     const [board] = await db.select().from(jobBoards).where(eq(jobBoards.token, "acme"));
-    expect(board).toMatchObject({ lastStatus: "ok", openJobs: 2, lastFetchedAt: NOW + DAY });
+    expect(board).toMatchObject({
+      lastStatus: "ok",
+      openJobs: 2,
+      lastFetchedAt: NOW + DAY,
+      urlTemplate: "https://job-boards.greenhouse.io/acme/jobs/{id}",
+    });
+  });
+
+  it("keeps a link only when the board's pattern doesn't make it, and a title only when written otherwise", async () => {
+    const db = await getDb();
+    await saveJobs(
+      db,
+      ACME,
+      [
+        raw("1"),
+        raw("2"),
+        raw("3", { url: "https://acme.example/careers/3" }),
+        raw("4", { title: "backend engineer 1", location: "Berlin, Germany" }),
+      ],
+      NOW,
+      { snapshot: true },
+    );
+    const stored = await db
+      .select({ ext: listings.ext, url: listings.url, titleText: listings.titleText })
+      .from(listings)
+      .orderBy(listings.ext);
+    expect(stored).toEqual([
+      { ext: "1", url: "", titleText: "" },
+      { ext: "2", url: "", titleText: "" },
+      { ext: "3", url: "https://acme.example/careers/3", titleText: "" },
+      { ext: "4", url: "", titleText: "backend engineer 1" },
+    ]);
+    expect((await jobOf("3"))?.url).toBe("https://acme.example/careers/3");
+    expect((await jobOf("4"))?.title).toBe("backend engineer 1");
+    expect(await db.select({ text: titles.text }).from(titles).orderBy(titles.text)).toEqual([
+      { text: "Backend Engineer 1" },
+      { text: "Backend Engineer 2" },
+      { text: "Backend Engineer 3" },
+    ]);
   });
 
   it("rewrites changed jobs to exactly what a fresh read stores, one statement per chunk", async () => {
@@ -112,27 +139,15 @@ describe("job store", () => {
         text: `Ship C++, C# and Node.js services. Job ${i} pays "well"; it's remote.`,
       }),
     );
-    const bookkeeping = new Set([
-      "id",
-      "firstSeenAt",
-      "lastSeenAt",
-      "missedRuns",
-      "createdAt",
-      "updatedAt",
-    ]);
+    // Every column a read writes; seen and missed are kept from the first read.
     const content = Object.fromEntries(
-      Object.entries(getTableColumns(jobs)).filter(([key]) => !bookkeeping.has(key)),
-    );
+      Object.entries(getTableColumns(listings)).filter(
+        ([key]) => key !== "seen" && key !== "missed",
+      ),
+    ) as Omit<ReturnType<typeof getTableColumns<typeof listings>>, "seen" | "missed">;
     await saveJobs(db, ACME, posts, NOW, { snapshot: true });
-    const fresh = await db.select(content).from(jobs).orderBy(jobs.externalId);
-    await db.update(jobs).set({
-      title: "Old",
-      keywords: [],
-      search: sql`''::tsvector`,
-      groupKey: "",
-      remote: false,
-      contentHash: "stale",
-    });
+    const fresh = await db.select(content).from(listings).orderBy(listings.ext);
+    await db.update(listings).set({ skills: [], grp: 0, flags: 0, hash: 1, facts: "" });
 
     const chunk = STORE_LIMITS.writeChunk;
     Object.assign(STORE_LIMITS, { writeChunk: 2 });
@@ -147,10 +162,18 @@ describe("job store", () => {
       Object.assign(STORE_LIMITS, { writeChunk: chunk });
     }
     expect(statements.filter((query) => query.includes("from (values")).length).toBe(3);
-    expect(await db.select(content).from(jobs).orderBy(jobs.externalId)).toEqual(fresh);
-    expect(
-      await db.select({ lastSeenAt: jobs.lastSeenAt, updatedAt: jobs.updatedAt }).from(jobs),
-    ).toEqual(Array.from({ length: 5 }, () => ({ lastSeenAt: NOW + DAY, updatedAt: NOW + DAY })));
+    expect(await db.select(content).from(listings).orderBy(listings.ext)).toEqual(fresh);
+  });
+
+  it("keeps the rebuild's marks when a read rewrites a job", async () => {
+    const db = await getDb();
+    await saveJobs(db, ACME, [raw("1")], NOW, { snapshot: true });
+    await rebuildMatchIndex(db, NOW);
+    await saveJobs(db, ACME, [raw("1", { title: "Senior Backend Engineer 1" })], NOW, {
+      snapshot: true,
+    });
+    const [row] = await db.select({ flags: listings.flags }).from(listings);
+    expect(row!.flags & 4).toBe(4);
   });
 
   it("leaves a board's row alone while its company name stays the same", async () => {
@@ -163,31 +186,25 @@ describe("job store", () => {
           .where(eq(jobBoards.token, "acme"))
       )[0]?.xmin;
     const first = await version();
-    await syncBoards(db, SEEDS, NOW + DAY);
+    await syncBoards(db, SEEDS);
     expect(await version()).toBe(first);
-    await syncBoards(db, [{ ...SEEDS[0]!, company: "Acme Labs" }], NOW + DAY);
+    await syncBoards(db, [{ ...SEEDS[0]!, company: "Acme Labs" }]);
     expect(await version()).not.toBe(first);
   });
 
-  it("closes a job missing from two reads in a row, and reopens it if it comes back", async () => {
+  it("deletes a job missing from two reads in a row, and gives it the same id if it comes back", async () => {
     const db = await getDb();
     await saveJobs(db, ACME, [raw("1"), raw("2")], NOW, { snapshot: true });
+    const id = (await jobOf("2"))!.id;
     await saveJobs(db, ACME, [raw("1")], NOW + DAY, { snapshot: true });
-    expect((await rows()).find((row) => row.externalId === "2")).toMatchObject({
-      missedRuns: 1,
-      closedAt: null,
-    });
+    expect((await rows()).find((row) => row.ext === "2")).toMatchObject({ missed: 1 });
     const third = await saveJobs(db, ACME, [raw("1")], NOW + 2 * DAY, { snapshot: true });
     expect(third.closed).toBe(1);
-    expect((await rows()).find((row) => row.externalId === "2")).toMatchObject({
-      closeReason: "gone",
-    });
+    expect((await rows()).map((row) => row.ext)).toEqual(["1"]);
     const back = await saveJobs(db, ACME, [raw("1"), raw("2")], NOW + 3 * DAY, { snapshot: true });
-    expect(back).toMatchObject({ reopened: 1, added: 0, closed: 0 });
-    expect((await rows()).find((row) => row.externalId === "2")).toMatchObject({
-      closedAt: null,
-      missedRuns: 0,
-    });
+    expect(back).toMatchObject({ added: 1, closed: 0 });
+    expect((await jobOf("2"))!.id).toBe(id);
+    expect((await rows()).find((row) => row.ext === "1")).toMatchObject({ missed: 0 });
   });
 
   it("keeps one copy of an opening listed by a board and a feed, the board's", async () => {
@@ -209,12 +226,12 @@ describe("job store", () => {
     });
     expect(
       await saveJobs(db, { source: "himalayas", board: "" }, [repeat], NOW, { snapshot: false }),
-    ).toMatchObject({
-      added: 0,
-      duplicates: 1,
-    });
-    const open = (await rows()).filter((row) => row.closedAt === null);
-    expect(open.map((row) => row.source)).toEqual(["greenhouse"]);
+    ).toMatchObject({ added: 0, duplicates: 1 });
+    const left = await listingRows(
+      db,
+      (await db.select({ id: listings.id }).from(listings)).map((row) => row.id),
+    );
+    expect(left.map((row) => row.source)).toEqual(["greenhouse"]);
   });
 
   it("keeps a board's jobs of any age while the board lists them", async () => {
@@ -234,12 +251,46 @@ describe("job store", () => {
       snapshot: false,
     });
     const stored = await db
-      .select({ externalId: jobs.externalId, description: jobs.description, rules: jobs.rulesText })
-      .from(jobs)
-      .orderBy(jobs.externalId);
-    expect(stored[0]).toMatchObject({ externalId: "board", description: "" });
-    expect(stored[1]!.description.length).toBeGreaterThan(5_000);
-    expect(stored[1]!.description.length).toBeLessThanOrEqual(JOB_LIMITS.feedDescriptionChars);
+      .select({ ext: listings.ext, post: listings.post })
+      .from(listings)
+      .orderBy(listings.ext);
+    expect(stored[0]).toMatchObject({ ext: "board", post: "" });
+    expect(stored[1]!.post.length).toBeGreaterThan(5_000);
+    expect(stored[1]!.post.length).toBeLessThanOrEqual(JOB_LIMITS.feedDescriptionChars);
+  });
+
+  it("keeps work-rights facts and places from the post instead of its text", async () => {
+    const db = await getDb();
+    await saveJobs(
+      db,
+      ACME,
+      [
+        raw("1", {
+          location: "Remote",
+          text: "This role is open to candidates based in the United Kingdom only. We do not sponsor visas.",
+        }),
+      ],
+      NOW,
+      { snapshot: true },
+    );
+    const [row] = await db
+      .select({ facts: listings.facts, places: listings.places })
+      .from(listings);
+    expect(row).toEqual({ facts: "PGB;!m;R0GB;Un::", places: "GB" });
+  });
+
+  it("keeps a Workday job's path under its site, and finds its stored hash by the list's id", async () => {
+    const db = await getDb();
+    const site = { source: "workday" as const, board: "acme.wd1/Careers" };
+    const job = raw("acme/Careers/job/London/Engineer_R1", {
+      url: "https://acme.wd1.myworkdayjobs.com/Careers/job/London/Engineer_R1",
+      hashKey: "listing",
+    });
+    await saveJobs(db, site, [job], NOW, { snapshot: true });
+    expect((await rows())[0]?.ext).toBe("/job/London/Engineer_R1");
+    expect((await jobOf("/job/London/Engineer_R1"))?.url).toBe(job.url);
+    const hashes = await storedHashes(db, site, [job.externalId, "acme/Careers/job/x_R2"]);
+    expect([...hashes.keys()]).toEqual([job.externalId]);
   });
 
   it("skips feed jobs past their end date or older than 30 days", async () => {
@@ -258,22 +309,22 @@ describe("job store", () => {
     expect(stats.added).toBe(1);
   });
 
-  it("closes a board's jobs after two 404s in a row", async () => {
+  it("deletes a board's jobs after two 404s in a row", async () => {
     const db = await getDb();
     await saveJobs(db, ACME, [raw("1")], NOW, { snapshot: true });
     expect(await boardFailed(db, "greenhouse", "acme", "not_found", NOW + DAY)).toBe(0);
     expect(await boardFailed(db, "greenhouse", "acme", "not_found", NOW + 2 * DAY)).toBe(1);
-    expect((await rows())[0]).toMatchObject({ closeReason: "board_gone" });
+    expect(await rows()).toEqual([]);
   });
 
-  it("closes the jobs of a board taken off the seed list", async () => {
+  it("deletes the jobs of a board taken off the seed list", async () => {
     const db = await getDb();
     await saveJobs(db, ACME, [raw("1")], NOW, { snapshot: true });
-    expect(await syncBoards(db, [], NOW + DAY)).toBe(1);
-    expect((await rows())[0]).toMatchObject({ closeReason: "board_gone" });
+    expect(await syncBoards(db, [])).toBe(1);
+    expect(await rows()).toEqual([]);
   });
 
-  it("expires, ages out, deletes long-closed jobs and their saves", async () => {
+  it("expires and ages out jobs, and a saved one stays saved as it was", async () => {
     const db = await getDb();
     const user = await createUser("maya@example.com");
     await saveJobs(db, ACME, [raw("1", { validThrough: NOW + DAY }), raw("2")], NOW, {
@@ -286,53 +337,60 @@ describe("job store", () => {
       NOW,
       { snapshot: false },
     );
-    const [one] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.externalId, "1"));
+    const one = await jobOf("1");
     expect(await saveJob(db, user.id, one!.id, NOW)).toBe("saved");
 
-    const later = await tidyJobs(db, NOW + 2 * DAY);
-    expect(later).toMatchObject({ expired: 1, aged: 1, deleted: 0 });
-    const gone = await tidyJobs(db, NOW + 33 * DAY);
-    expect(gone.deleted).toBe(2);
-    expect(await db.select().from(savedJobs)).toEqual([]);
+    expect(await tidyJobs(db, NOW + 2 * DAY)).toMatchObject({ expired: 1, aged: 1 });
+    expect((await rows()).map((row) => row.ext)).toEqual(["2"]);
+    const [saved] = await listSavedJobs(db, user.id);
+    expect(saved).toMatchObject({
+      id: one!.id,
+      title: "Backend Engineer 1",
+      company: "Acme",
+      url: "https://job-boards.greenhouse.io/acme/jobs/1",
+      keywords: ["Go", "PostgreSQL", "Kubernetes"],
+      closed: true,
+      savedAt: NOW,
+    });
+    expect(await keptJob(db, user.id, one!.id)).toMatchObject({
+      title: "Backend Engineer 1",
+      closed: true,
+      description: "",
+    });
   });
 
-  it("deletes closed rows after a week, unless saved or linked to an application", async () => {
+  it("keeps an application's job once the job is gone", async () => {
     const db = await getDb();
     const user = await createUser("maya@example.com");
-    await saveJobs(db, ACME, [raw("1"), raw("2"), raw("3")], NOW, { snapshot: true });
-    const ids = new Map(
-      (await db.select({ id: jobs.id, externalId: jobs.externalId }).from(jobs)).map((row) => [
-        row.externalId,
-        row.id,
-      ]),
-    );
-    expect(await saveJob(db, user.id, ids.get("1")!, NOW)).toBe("saved");
+    await saveJobs(db, ACME, [raw("1")], NOW, { snapshot: true });
+    const job = await jobOf("1");
     await db.insert(applications).values({
       id: crypto.randomUUID(),
       userId: user.id,
       company: "Acme",
-      jobId: ids.get("2")!,
+      jobId: job!.id,
+      job: { ...job!, keywords: job!.keywords },
       appliedAt: NOW,
       statusChangedAt: NOW,
       createdAt: NOW,
       updatedAt: NOW,
     });
-    await db.update(jobs).set({ closedAt: NOW, closeReason: "gone" });
-    expect((await tidyJobs(db, NOW + 8 * DAY)).deleted).toBe(1);
-    expect((await rows()).map((row) => row.externalId)).toEqual(["1", "2"]);
-    expect((await tidyJobs(db, NOW + 31 * DAY)).deleted).toBe(2);
+    await boardFailed(db, "greenhouse", "acme", "not_found", NOW);
+    await boardFailed(db, "greenhouse", "acme", "not_found", NOW);
+    expect(await rows()).toEqual([]);
+    expect(await keptJob(db, user.id, job!.id)).toMatchObject({
+      title: "Backend Engineer 1",
+      closed: true,
+    });
+    expect(await db.select({ jobId: savedJobs.jobId }).from(savedJobs)).toEqual([]);
   });
 
-  it("trims the oldest rows past the cap, closed ones first", async () => {
+  it("trims the oldest rows past the cap", async () => {
     const db = await getDb();
     const many = Array.from({ length: 5 }, (_, i) =>
       raw(String(i), { postedAt: NOW - (10 - i) * DAY }),
     );
     await saveJobs(db, ACME, many, NOW, { snapshot: true });
-    await db
-      .update(jobs)
-      .set({ closedAt: NOW, closeReason: "gone" })
-      .where(eq(jobs.externalId, "4"));
     const cap = STORE_LIMITS.maxRows;
     Object.assign(STORE_LIMITS, { maxRows: 3 });
     try {
@@ -340,66 +398,10 @@ describe("job store", () => {
     } finally {
       Object.assign(STORE_LIMITS, { maxRows: cap });
     }
-    expect((await rows()).map((row) => row.externalId)).toEqual(["1", "2", "3"]);
+    expect((await rows()).map((row) => row.ext)).toEqual(["2", "3", "4"]);
   });
 
-  it("filters open jobs and finds candidates by skill or kind", async () => {
-    const db = await getDb();
-    await saveJobs(
-      db,
-      ACME,
-      [
-        raw("1"),
-        raw("2", {
-          title: "Product Designer",
-          text: "Design in Figma.",
-          location: "Berlin",
-          remote: false,
-          postedAt: NOW - 2 * DAY,
-        }),
-        raw("3", {
-          title: "Account Executive",
-          text: "Sell with Salesforce.",
-          postedAt: NOW - 20 * DAY,
-        }),
-      ],
-      NOW,
-      { snapshot: true },
-    );
-    expect(await titlesFor(DEFAULT_FILTERS)).toEqual([
-      "Backend Engineer 1",
-      "Product Designer",
-      "Account Executive",
-    ]);
-    expect(await titlesFor({ ...DEFAULT_FILTERS, remote: true, postedWithin: 7 })).toEqual([
-      "Backend Engineer 1",
-    ]);
-    expect(await titlesFor({ ...DEFAULT_FILTERS, q: "desig", place: "berlin" })).toEqual([
-      "Product Designer",
-    ]);
-    expect(await titlesFor({ ...DEFAULT_FILTERS, role: "design" })).toHaveLength(1);
-    expect(await titlesFor({ ...DEFAULT_FILTERS, q: "') | !:* &" })).toHaveLength(3);
-
-    const query = { seniority: null, filters: DEFAULT_FILTERS, weights: new Map<string, number>() };
-    const pool = await matchCandidates(
-      db,
-      { ...query, skills: ["Go", "PostgreSQL"], families: ["sales"] },
-      NOW,
-    );
-    expect(pool.rows.map((job) => job.title).sort()).toEqual([
-      "Account Executive",
-      "Backend Engineer 1",
-    ]);
-    expect(pool.groups).toBe(2);
-    expect(
-      (await matchCandidates(db, { ...query, skills: ["Go"], families: [] }, NOW)).rows,
-    ).toEqual([]);
-    expect((await matchCandidates(db, { ...query, skills: [], families: [] }, NOW)).rows).toEqual(
-      [],
-    );
-  });
-
-  it("ranks candidates by weighted overlap across every open job, not the newest", async () => {
+  it("weighs skills by how rare they are among open jobs", async () => {
     const db = await getDb();
     const old = raw("old", {
       title: "Elixir Engineer",
@@ -418,80 +420,9 @@ describe("job store", () => {
     const weights = await skillWeights(db);
     expect(weights.get("Elixir")).toBeCloseTo(Math.log(7), 5);
     expect(weights.get("PostgreSQL")).toBeCloseTo(0.05, 5);
-    const pool = await matchCandidates(
-      db,
-      {
-        skills: ["Elixir", "JavaScript", "PostgreSQL"],
-        families: [],
-        seniority: null,
-        filters: DEFAULT_FILTERS,
-        weights,
-      },
-      NOW,
-    );
-    expect(pool.rows[0]?.title).toBe("Elixir Engineer");
-    expect(pool.groups).toBe(7);
   });
 
-  it("shows location copies as one candidate, keeps filler posts off Matches but on the list, and counts neither as open", async () => {
-    const db = await getDb();
-    const text =
-      "Own enterprise accounts with Salesforce and Gong.\nThis role is based in {place}.";
-    await saveJobs(
-      db,
-      ACME,
-      [
-        raw("uk", {
-          title: "Account Executive - Remote UK",
-          location: "Remote, United Kingdom",
-          text: text.replace("{place}", "London"),
-        }),
-        raw("ca", {
-          title: "Account Executive (Canada)",
-          location: "Toronto, Canada",
-          text: text.replace("{place}", "Toronto"),
-        }),
-        raw("pool", {
-          title: "Account Executive — Future Opportunities",
-          text: "Salesforce and Gong.",
-        }),
-        raw("stale", {
-          title: "Account Executive, Mid-Market",
-          text: "Salesforce and Gong.",
-          postedAt: NOW - DAY,
-        }),
-      ],
-      NOW,
-      { snapshot: true },
-    );
-    await db
-      .update(jobs)
-      .set({ firstSeenAt: NOW - 150 * DAY })
-      .where(eq(jobs.externalId, "stale"));
-    const pool = await matchCandidates(
-      db,
-      {
-        skills: ["Salesforce", "Gong"],
-        families: ["sales"],
-        seniority: null,
-        filters: DEFAULT_FILTERS,
-        weights: new Map(),
-      },
-      NOW,
-    );
-    expect(pool.groups).toBe(1);
-    expect(pool.rows).toHaveLength(1);
-    expect(
-      pool.copies
-        .get(pool.rows[0]!.groupKey)
-        ?.map((copy) => copy.location)
-        .sort(),
-    ).toEqual(["Remote, United Kingdom", "Toronto, Canada"]);
-    expect(await titlesFor(DEFAULT_FILTERS)).toHaveLength(4);
-    expect(await jobCounts(db, NOW)).toEqual({ open: 2, matchable: 1 });
-  });
-
-  it("keeps a job for 90 days from its posting, or from when it was first read if that came first", async () => {
+  it("counts open jobs for 90 days from posting, or from the first read if that came first, never filler posts", async () => {
     const db = await getDb();
     await saveJobs(
       db,
@@ -501,19 +432,24 @@ describe("job store", () => {
         raw("recent", { postedAt: NOW - 80 * DAY }),
         raw("undated", { postedAt: null }),
         raw("redated", { postedAt: NOW - DAY }),
+        raw("pool", { title: "Account Executive — Future Opportunities" }),
       ],
       NOW,
       { snapshot: true },
     );
     await db
-      .update(jobs)
-      .set({ firstSeenAt: NOW - 95 * DAY })
-      .where(eq(jobs.externalId, "redated"));
-    const shown = await db
-      .select({ id: jobs.externalId })
-      .from(jobs)
-      .where(and(...matchableConditions(DEFAULT_FILTERS, NOW)));
-    expect(shown.map((row) => row.id).sort()).toEqual(["recent", "undated"]);
+      .update(listings)
+      .set({ seen: sql`${listings.seen} - ${95 * 24 * 60}` })
+      .where(eq(listings.ext, "redated"));
     expect((await jobCounts(db, NOW)).open).toBe(2);
+  });
+
+  it("gives each job a public id in the shape of a UUID", async () => {
+    const db = await getDb();
+    await saveJobs(db, ACME, [raw("1")], NOW, { snapshot: true });
+    const [row] = await db.select({ id: listings.id }).from(listings);
+    const id = publicJobId(row!.id);
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(listingIdOf(id)).toBe(row!.id);
   });
 });

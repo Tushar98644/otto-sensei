@@ -4,7 +4,7 @@ import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { applications } from "@/db/schema";
 import { firstFollowUpAt, snoozedUntil } from "@/lib/applications/follow-up";
-import { linkWritings, resolveJobId } from "@/lib/applications/links";
+import { linkedJob, linkWritings } from "@/lib/applications/links";
 import {
   APPLICATION_LIMITS,
   type Application,
@@ -145,6 +145,12 @@ export async function listApplications(
 }
 
 // Under the account's row lock, so parallel requests can't push it past `max`, the plan's applicationLimit.
+// The linked job, and what to show of it once it's gone.
+const jobLink = (linked: Awaited<ReturnType<typeof linkedJob>>) => ({
+  jobId: linked?.id ?? null,
+  job: linked?.job ?? null,
+});
+
 export async function createApplication(
   userId: string,
   input: Omit<CreateApplicationInput, "jobId"> & { jobId?: string | null },
@@ -192,7 +198,7 @@ export async function createApplication(
         statusChangedAt: now,
         notes: input.notes,
         followUpAt,
-        jobId: await resolveJobId(tx, input.jobId ?? null, input.jobUrl),
+        ...jobLink(await linkedJob(tx, input.jobId ?? null, input.jobUrl)),
         statusHistory: startingHistory(input.status, input.appliedAt, now),
         ...interviewFields(input),
         createdAt: now,
@@ -287,7 +293,7 @@ export async function updateApplication(
   if (patch.role !== undefined) set.role = patch.role;
   if (patch.jobUrl !== undefined) {
     set.jobUrl = patch.jobUrl;
-    set.jobId = await resolveJobId(db, null, patch.jobUrl);
+    Object.assign(set, jobLink(await linkedJob(db, null, patch.jobUrl)));
   }
   if (patch.appliedAt !== undefined) set.appliedAt = patch.appliedAt;
   if (patch.notes !== undefined) set.notes = patch.notes;

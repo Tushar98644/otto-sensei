@@ -5,10 +5,8 @@ import { getDb } from "@/db/client";
 import {
   applications,
   feedback,
-  jobs,
   portfolios,
   resumes,
-  savedJobs,
   savedPosts,
   shares,
   userSettings,
@@ -19,7 +17,7 @@ import { careerLogJson, careerLogText } from "@/lib/career-log/export";
 import { listEntries } from "@/lib/career-log/records";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import { EXTENSION_LIMITS } from "@/lib/extension/types";
-import { SAVED_JOBS_LIMIT } from "@/lib/job-feed/types";
+import { savedCandidates } from "@/lib/job-feed/records";
 import { trackingExport } from "@/lib/inbound/records";
 import { recapCutoffDay } from "@/lib/recap/types";
 import { MAX_APPLICATIONS_PER_USER, MAX_RESUMES_PER_USER } from "@/config/plans";
@@ -193,19 +191,18 @@ export async function buildDataExport(userId: string, now = Date.now()): Promise
       .where(eq(shares.userId, userId))
       .orderBy(asc(shares.createdAt))
       .limit(SHARE_EXPORT_LIMIT),
-    db
-      .select({
-        title: jobs.title,
-        company: jobs.company,
-        location: jobs.location,
-        url: jobs.url,
-        savedAt: savedJobs.savedAt,
-      })
-      .from(savedJobs)
-      .innerJoin(jobs, eq(jobs.id, savedJobs.jobId))
-      .where(eq(savedJobs.userId, userId))
-      .orderBy(asc(savedJobs.savedAt))
-      .limit(SAVED_JOBS_LIMIT),
+    // An open job as it is now, a closed one as it was when saved.
+    savedCandidates(db, userId).then((rows) =>
+      rows
+        .map(({ title, company, location, url, savedAt }) => ({
+          title,
+          company,
+          location,
+          url,
+          savedAt,
+        }))
+        .reverse(),
+    ),
     db
       .select({
         kind: feedback.kind,

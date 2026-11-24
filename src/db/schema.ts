@@ -29,12 +29,12 @@ import { EMAIL_CHANGES, EMAIL_KINDS, EMAIL_TRUST, type HiringSystem } from "@/li
 import { FEEDBACK_KINDS } from "@/lib/feedback/types";
 import {
   ASKED_APPLIED_ANSWERS,
-  EMPLOYMENT_TYPES,
   JOB_SOURCES,
   MATCH_EVENT_KINDS,
   NOT_FIT_REASONS,
   ROLE_FAMILIES,
   SENIORITIES,
+  type JobSnapshot,
 } from "@/lib/job-feed/types";
 import type { InterviewPrep } from "@/lib/insights/prep";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/types";
@@ -303,6 +303,8 @@ export const applications = pgTable(
     remindedAt: epochMs("reminded_at"),
     followUpAt: epochMs("follow_up_at"),
     jobId: uuid("job_id"),
+    // The linked job as it was, shown once it closes.
+    job: jsonb("job").$type<JobSnapshot>(),
     statusHistory: jsonb("status_history").$type<StatusEvent[]>().notNull().default([]),
     interviewAt: epochMs("interview_at"),
     // The interview day last reminded, so a moved interview is reminded again.
@@ -372,51 +374,83 @@ export const feedback = pgTable("feedback", {
   createdAt: epochMs("created_at").notNull(),
 });
 
-const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
 const bytea = customType<{ data: Uint8Array }>({ dataType: () => "bytea" });
 
-export const jobs = pgTable("jobs", {
-  id: uuid("id").primaryKey(),
-  source: text("source", { enum: JOB_SOURCES }).notNull(),
-  externalId: text("external_id").notNull(),
-  board: text("board").notNull().default(""),
-  company: text("company").notNull(),
-  title: text("title").notNull(),
-  location: text("location").notNull().default(""),
-  remote: boolean("remote").notNull().default(false),
-  employmentType: text("employment_type", { enum: EMPLOYMENT_TYPES }),
-  seniority: text("seniority", { enum: SENIORITIES }).notNull().default("mid"),
-  family: text("family", { enum: ROLE_FAMILIES }),
-  occupation: text("occupation"),
-  minYears: integer("min_years"),
-  postedAt: epochMs("posted_at").notNull(),
-  validThrough: epochMs("valid_through"),
-  url: text("url").notNull(),
-  description: text("description").notNull().default(""),
-  rulesText: text("rules_text").notNull().default(""),
-  keywords: text("keywords").array().notNull().default([]),
-  search: tsvector("search").notNull(),
-  dedupeKey: text("dedupe_key").notNull(),
-  groupKey: text("group_key").notNull().default(""),
-  evergreen: boolean("evergreen").notNull().default(false),
-  contentHash: text("content_hash").notNull(),
-  firstSeenAt: epochMs("first_seen_at").notNull(),
-  lastSeenAt: epochMs("last_seen_at").notNull(),
-  missedRuns: integer("missed_runs").notNull().default(0),
-  closedAt: epochMs("closed_at"),
-  closeReason: text("close_reason", {
-    enum: ["gone", "expired", "duplicate", "board_gone", "aged"],
-  }),
-  createdAt: epochMs("created_at").notNull(),
-  updatedAt: epochMs("updated_at").notNull(),
-});
+// One row per open job; a closed job is deleted (docs/database.md, listings). No column is null.
+export const listings = pgTable(
+  "listings",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey(),
+    title: bigint("title", { mode: "number" }).notNull(),
+    dedupe: bigint("dedupe", { mode: "number" }).notNull(),
+    // Minutes since 1970.
+    posted: integer("posted").notNull(),
+    seen: integer("seen").notNull(),
+    valid: integer("valid").notNull().default(0),
+    grp: integer("grp").notNull(),
+    hash: integer("hash").notNull(),
+    occ: integer("occ").notNull().default(0),
+    board: smallint("board").notNull(),
+    level: smallint("level").notNull(),
+    family: smallint("family").notNull().default(0),
+    minYears: smallint("min_years").notNull().default(-1),
+    flags: smallint("flags").notNull().default(0),
+    missed: smallint("missed").notNull().default(0),
+    ext: text("ext").notNull(),
+    titleText: text("title_text").notNull().default(""),
+    location: text("location").notNull().default(""),
+    places: text("places").notNull().default(""),
+    oplaces: text("oplaces").notNull().default(""),
+    company: text("company").notNull().default(""),
+    url: text("url").notNull().default(""),
+    facts: text("facts").notNull().default(""),
+    skills: smallint("skills").array().notNull().default([]),
+    post: text("post").notNull().default(""),
+  },
+  (t) => [
+    index("listings_copies_idx")
+      .on(t.board, t.grp)
+      .where(sql`(flags & 16) <> 0`),
+    index("listings_valid_idx")
+      .on(t.valid)
+      .where(sql`valid > 0`),
+    index("listings_url_idx")
+      .on(t.url)
+      .where(sql`url <> ''`),
+  ],
+);
+
+// One row per way a title is written (titleVectorKey): its text, meaning code and nearest occupation.
+export const titles = pgTable(
+  "titles",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey(),
+    text: text("text").notNull(),
+    code: bytea("code"),
+    occ: integer("occ"),
+    sim: smallint("sim"),
+    // Days since 1970 a job or a person last carried it.
+    seen: integer("seen").notNull(),
+  },
+  (t) => [
+    index("titles_waiting_idx")
+      .on(t.seen)
+      .where(sql`code is null`),
+  ],
+);
 
 export const jobBoards = pgTable(
   "job_boards",
   {
     source: text("source", { enum: JOB_SOURCES }).notNull(),
     token: text("token").notNull(),
+    // listings.board; given once from a sequence.
+    id: smallint("id")
+      .notNull()
+      .default(sql`nextval('public.job_boards_id_seq')`),
     company: text("company").notNull().default(""),
+    // A job's link with its own id as {id}, when its board's links follow one pattern.
+    urlTemplate: text("url_template").notNull().default(""),
     lastFetchedAt: epochMs("last_fetched_at"),
     lastStatus: text("last_status", { enum: ["ok", "not_found", "failed"] }),
     failures: integer("failures").notNull().default(0),
@@ -432,35 +466,6 @@ export const skills = pgTable("skills", {
   openJobs: integer("open_jobs").notNull().default(0),
   weight: real("weight"),
   updatedAt: epochMs("updated_at").notNull(),
-});
-
-export const jobMatch = pgTable("job_match", {
-  id: uuid("id").primaryKey(),
-  grp: text("grp").notNull(),
-  company: text("company").notNull(),
-  family: text("family", { enum: ROLE_FAMILIES }),
-  occ: text("occ"),
-  occMinor: text("occ_minor"),
-  occMajor: text("occ_major"),
-  zone: smallint("zone"),
-  level: smallint("level").notNull(),
-  sids: integer("sids").array().notNull(),
-  places: text("places").array().notNull().default([]),
-  remote: boolean("remote").notNull(),
-  postedAt: epochMs("posted_at").notNull(),
-  seenAt: epochMs("seen_at").notNull(),
-  ukSponsor: boolean("uk_sponsor").notNull().default(false),
-  h1bYear: smallint("h1b_year"),
-  tkey: text("tkey").notNull().default(""),
-});
-
-export const titleVectors = pgTable("title_vectors", {
-  key: text("key").primaryKey(),
-  vec: bytea("vec"),
-  occs: text("occs").array().notNull().default([]),
-  sims: real("sims").array().notNull().default([]),
-  seenAt: epochMs("seen_at").notNull(),
-  embeddedAt: epochMs("embedded_at"),
 });
 
 export const jobCountsRow = pgTable("job_counts", {
@@ -521,6 +526,8 @@ export const savedJobs = pgTable(
     userId: uuid("user_id").notNull(),
     jobId: uuid("job_id").notNull(),
     savedAt: epochMs("saved_at").notNull(),
+    // What the job said when saved, shown once it closes.
+    job: jsonb("job").$type<JobSnapshot>(),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.jobId] }),

@@ -1,45 +1,59 @@
-import { and, count, desc, eq, gte, inArray, isNull, max, or, sql, type SQL } from "drizzle-orm";
-import type { Db } from "@/db/client";
+import { and, count, desc, eq, inArray, max, sql, type SQL } from "drizzle-orm";
+import type { Db, Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { jobBoards, jobs, savedJobs, skills } from "@/db/schema";
+import { applications, jobBoards, listings, savedJobs, skills, titles } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
-import { searchWords } from "./normalize";
-import { PAST_KIND_WEIGHT } from "./match";
-import { ORDER_LIMITS } from "./order";
 import {
-  DEFAULT_FILTERS,
-  LEVEL_SENIORITIES,
+  employmentTypeOf,
+  familyOf,
+  FLAG,
+  fromMinutes,
+  jobUrlOf,
+  listingIdOf,
+  publicJobId,
+  seniorityOf,
+  toMinutes,
+  unpackOccupation,
+} from "./codes";
+import { searchWords } from "./normalize";
+import { readTitle } from "./occupations";
+import { titleCodeFrom, type TitleCode } from "./title-code";
+import {
   SAVED_JOBS_LIMIT,
-  SENIORITIES,
   type FeedJob,
-  type JobFilters,
+  type JobSnapshot,
+  type JobSourceId,
   type RoleFamily,
   type SavedJob,
-  type Seniority,
 } from "./types";
 
 export const CANDIDATE_POOL = 300;
 // A job counts as posted when the board says, or when first read if that's earlier or the date is missing.
 export const FRESH_FOR_MS = 90 * DAY_MS;
 export const DEFAULT_SKILL_WEIGHT = 1;
-export const LIST_COLUMNS = {
-  id: jobs.id,
-  source: jobs.source,
-  company: jobs.company,
-  title: jobs.title,
-  location: jobs.location,
-  remote: jobs.remote,
-  employmentType: jobs.employmentType,
-  seniority: jobs.seniority,
-  postedAt: jobs.postedAt,
-  url: jobs.url,
-  keywords: jobs.keywords,
-  closedAt: jobs.closedAt,
+
+// A job as ranking and the pages read it: a listing with its title and board, or a saved snapshot.
+export type CandidateRow = FeedJob & {
+  // The listing's own id; 0 for a job that's gone.
+  listing: number;
+  board: number;
+  ext: string;
+  token: string;
+  grp: number;
+  flags: number;
+  family: RoleFamily | null;
+  occupation: string | null;
+  minYears: number | null;
+  facts: string;
+  places: string;
+  oplaces: string;
+  firstSeenAt: number;
+  validThrough: number | null;
+  code: TitleCode | null;
+  post: string;
 };
 
-type ListRow = { [K in keyof typeof LIST_COLUMNS]: (typeof jobs.$inferSelect)[K] };
-
-export function toFeedJob(row: ListRow): FeedJob {
+export function toFeedJob(row: FeedJob): FeedJob {
   return {
     id: row.id,
     source: row.source,
@@ -52,68 +66,207 @@ export function toFeedJob(row: ListRow): FeedJob {
     postedAt: row.postedAt,
     url: row.url,
     keywords: row.keywords,
-    closed: row.closedAt !== null,
+    closed: row.closed,
   };
 }
 
-// Only letters and digits reach the query, so no tsquery syntax gets through.
-export function wordsQuery(input: string): string | null {
-  const words = searchWords(input).split(" ").filter(Boolean).slice(0, 6);
-  return words.length === 0 ? null : words.map((word) => `${word}:*`).join(" & ");
+// Only letters and digits are matched, as the search box always did.
+export function queryWords(input: string): string[] {
+  return searchWords(input).split(" ").filter(Boolean).slice(0, 6);
 }
 
-export function filterConditions(filters: JobFilters, now: number): SQL[] {
-  const conditions: SQL[] = [isNull(jobs.closedAt)];
-  if (filters.remote) conditions.push(eq(jobs.remote, true));
-  for (const text of [filters.q, filters.place]) {
-    const query = wordsQuery(text);
-    if (query) conditions.push(sql`${jobs.search} @@ to_tsquery('simple', ${query})`);
-  }
-  if (filters.role) conditions.push(eq(jobs.family, filters.role));
-  if (filters.level)
-    conditions.push(inArray(jobs.seniority, [...LEVEL_SENIORITIES[filters.level]]));
-  if (filters.postedWithin)
-    conditions.push(gte(jobs.postedAt, now - filters.postedWithin * DAY_MS));
-  return conditions;
+// Every word starts a word of the job's title, company, place or skills.
+export function matchesWords(
+  row: Pick<FeedJob, "title" | "company" | "location" | "keywords">,
+  words: readonly string[],
+): boolean {
+  if (words.length === 0) return true;
+  const tokens = searchWords(
+    `${row.title} ${row.company} ${row.location} ${row.keywords.join(" ")}`,
+  ).split(" ");
+  return words.every((word) => tokens.some((token) => token.startsWith(word)));
 }
 
-export type CandidateRow = ListRow & {
-  family: RoleFamily | null;
-  occupation: string | null;
-  minYears: number | null;
-  rulesText: string;
-  firstSeenAt: number;
-  groupKey: string;
+// Skill names by id; a new id the cache hasn't seen reads the table again.
+let skillCache: { at: number; names: Map<number, string> } | null = null;
+const SKILL_CACHE_MS = 10 * 60_000;
+
+export async function skillNames(
+  db: Db | Tx,
+  needed: Iterable<number> = [],
+): Promise<Map<number, string>> {
+  const now = Date.now();
+  const cached = skillCache;
+  if (
+    cached &&
+    now - cached.at < SKILL_CACHE_MS &&
+    [...needed].every((sid) => cached.names.has(sid))
+  )
+    return cached.names;
+  const rows = await db
+    .select({ skill: skills.skill, sid: skills.sid })
+    .from(skills)
+    .where(sql`${skills.sid} is not null`);
+  const names = new Map(rows.map((row) => [row.sid!, row.skill]));
+  skillCache = { at: now, names };
+  return names;
+}
+
+const ROW_COLUMNS = {
+  id: listings.id,
+  board: listings.board,
+  ext: listings.ext,
+  titleText: listings.titleText,
+  title: titles.text,
+  code: titles.code,
+  location: listings.location,
+  places: listings.places,
+  oplaces: listings.oplaces,
+  company: listings.company,
+  url: listings.url,
+  posted: listings.posted,
+  seen: listings.seen,
+  valid: listings.valid,
+  grp: listings.grp,
+  occ: listings.occ,
+  level: listings.level,
+  family: listings.family,
+  minYears: listings.minYears,
+  flags: listings.flags,
+  facts: listings.facts,
+  skills: listings.skills,
+  post: listings.post,
+  source: jobBoards.source,
+  token: jobBoards.token,
+  boardCompany: jobBoards.company,
+  template: jobBoards.urlTemplate,
 };
 
-export const CANDIDATE_COLUMNS = {
-  ...LIST_COLUMNS,
-  family: jobs.family,
-  occupation: jobs.occupation,
-  minYears: jobs.minYears,
-  rulesText: jobs.rulesText,
-  firstSeenAt: jobs.firstSeenAt,
-  groupKey: jobs.groupKey,
-};
+const selectRows = (db: Db | Tx, where: SQL) =>
+  db
+    .select(ROW_COLUMNS)
+    .from(listings)
+    .innerJoin(titles, eq(titles.id, listings.title))
+    .innerJoin(jobBoards, eq(jobBoards.id, listings.board))
+    .where(where);
 
-export type CopyRow = CandidateRow;
+type Stored = Awaited<ReturnType<typeof selectRows>>[number];
 
-export type MatchQuery = {
-  skills: readonly string[];
-  families: readonly RoleFamily[];
-  pastFamilies?: readonly RoleFamily[];
-  seniority: Seniority | null;
-  filters: JobFilters;
-  weights: ReadonlyMap<string, number>;
-};
+function candidateOf(row: Stored, names: ReadonlyMap<number, string>): CandidateRow {
+  return {
+    id: publicJobId(row.id),
+    listing: row.id,
+    board: row.board,
+    ext: row.ext,
+    token: row.token,
+    source: row.source as JobSourceId,
+    company: row.company || row.boardCompany,
+    title: row.titleText || row.title,
+    location: row.location,
+    remote: (row.flags & FLAG.remote) !== 0,
+    employmentType: employmentTypeOf(row.flags),
+    seniority: seniorityOf(row.level),
+    postedAt: fromMinutes(row.posted),
+    url: jobUrlOf(row.template, row.ext, row.url),
+    keywords: row.skills.flatMap((sid) => names.get(sid) ?? []),
+    closed: false,
+    grp: row.grp,
+    flags: row.flags,
+    family: familyOf(row.family),
+    occupation: unpackOccupation(row.occ),
+    minYears: row.minYears || null,
+    facts: row.facts,
+    places: row.places,
+    oplaces: row.oplaces,
+    firstSeenAt: fromMinutes(row.seen),
+    validThrough: row.valid ? fromMinutes(row.valid) : null,
+    code: titleCodeFrom(row.code),
+    post: row.post,
+  };
+}
 
-export type CandidatePool = {
-  rows: CandidateRow[];
-  copies: Map<string, CopyRow[]>;
-  groups: number;
-};
+async function readRows(db: Db | Tx, where: SQL): Promise<CandidateRow[]> {
+  const rows = await selectRows(db, where);
+  const names = await skillNames(
+    db,
+    rows.flatMap((row) => row.skills),
+  );
+  return rows.map((row) => candidateOf(row, names));
+}
 
-// Each skill's match index id, once an indexed post names it, and its weight while open posts do.
+export async function listingRows(db: Db | Tx, ids: readonly number[]): Promise<CandidateRow[]> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return [];
+  const out: CandidateRow[] = [];
+  for (let i = 0; i < unique.length; i += 1_000)
+    out.push(...(await readRows(db, inArray(listings.id, unique.slice(i, i + 1_000)))));
+  return out;
+}
+
+// The copies of the given openings that the last rebuild found, by board and group.
+export async function copyRows(
+  db: Db,
+  groups: readonly { board: number; grp: number }[],
+): Promise<CandidateRow[]> {
+  if (groups.length === 0) return [];
+  const boards = sql.join(
+    groups.map((group) => sql`${group.board}`),
+    sql`, `,
+  );
+  const grps = sql.join(
+    groups.map((group) => sql`${group.grp}`),
+    sql`, `,
+  );
+  // The literal matches listings_copies_idx's predicate, so the planner can use it.
+  return readRows(
+    db,
+    sql`(${listings.flags} & ${sql.raw(String(FLAG.copy))}) <> 0 and (${listings.board}, ${listings.grp}) in
+      (select * from unnest(array[${boards}]::smallint[], array[${grps}]::integer[]))`,
+  );
+}
+
+// A gone job, from what a saved job or application kept of it.
+export function snapshotRow(id: string, job: JobSnapshot): CandidateRow {
+  const read = readTitle(job.title);
+  return {
+    ...job,
+    keywords: job.keywords ?? [],
+    id,
+    closed: true,
+    listing: 0,
+    board: 0,
+    ext: "",
+    token: "",
+    grp: 0,
+    flags: 0,
+    family: read.family,
+    occupation: read.occupation,
+    minYears: null,
+    facts: "",
+    places: "",
+    oplaces: "",
+    firstSeenAt: job.postedAt,
+    validThrough: null,
+    code: null,
+    post: "",
+  };
+}
+
+export function snapshotOf(row: FeedJob): JobSnapshot {
+  return {
+    source: row.source,
+    company: row.company,
+    title: row.title,
+    location: row.location,
+    remote: row.remote,
+    employmentType: row.employmentType,
+    seniority: row.seniority,
+    postedAt: row.postedAt,
+    url: row.url,
+    keywords: row.keywords,
+  };
+}
+
 export async function readSkills(
   db: Db,
 ): Promise<{ ids: Map<string, number>; weights: Map<string, number> }> {
@@ -133,128 +286,46 @@ export async function skillWeights(db: Db): Promise<Map<string, number>> {
   return (await readSkills(db)).weights;
 }
 
-export const textArray = (items: readonly string[]) =>
-  sql`array[${sql.join(
-    items.map((item) => sql`${item}`),
-    sql`, `,
-  )}]::text[]`;
-
 // postgres.js hands back an array of rows, PGlite an object holding them.
 export function rowsOf<T>(result: unknown): T[] {
   return (Array.isArray(result) ? result : (result as { rows: T[] }).rows) as T[];
 }
 
-export function matchableConditions(filters: JobFilters, now: number): SQL[] {
-  return [
-    ...filterConditions(filters, now),
-    eq(jobs.evergreen, false),
-    sql`least(${jobs.postedAt}, ${jobs.firstSeenAt}) >= ${now - FRESH_FOR_MS}::bigint`,
-  ];
+// Listings anyone could be shown: not a general application, first posted within 90 days.
+export function shownConditions(now: number): SQL {
+  return sql`(${listings.flags} & ${FLAG.evergreen}) = 0 and least(${listings.posted}, ${listings.seen}) >= ${toMinutes(now - FRESH_FOR_MS)}`;
 }
 
-export const GROUP = sql`coalesce(nullif(${jobs.groupKey}, ''), ${jobs.id}::text)`;
-
-export async function matchCandidates(
+// The saved jobs' rows, newest first: the listing while it's open, the snapshot once it's gone.
+export async function savedCandidates(
   db: Db,
-  query: MatchQuery,
-  now = Date.now(),
-): Promise<CandidatePool> {
-  const { skills, seniority, filters, weights } = query;
-  const past = query.pastFamilies ?? [];
-  const families = [...query.families, ...past];
-  if (skills.length === 0 && families.length === 0)
-    return { rows: [], copies: new Map(), groups: 0 };
-  const skillList = textArray(skills);
-  const weightList = sql`array[${sql.join(
-    skills.map((skill) => sql`${weights.get(skill) ?? DEFAULT_SKILL_WEIGHT}`),
-    sql`, `,
-  )}]::float8[]`;
-  const familyList = textArray(families);
-  const kindWeight = sql`case when ${jobs.family} = any(${textArray(query.families)}) then ${ORDER_LIMITS.familyWeight}::float8
-    when ${jobs.family} = any(${textArray(past)}) then ${ORDER_LIMITS.familyWeight * PAST_KIND_WEIGHT}::float8 else 0::float8 end`;
-  const level = seniority === null ? null : SENIORITIES.indexOf(seniority);
-  const levelOf = sql`array_position(${textArray(SENIORITIES)}, ${jobs.seniority})`;
-  const levelFactor =
-    level === null
-      ? sql`1::float8`
-      : sql`case r.level - 1 - ${level}::int when 0 then 1::float8 when 1 then ${ORDER_LIMITS.oneUp}::float8
-          when -1 then ${ORDER_LIMITS.oneDown}::float8 else ${ORDER_LIMITS.farLevel}::float8 end`;
-
-  const pooled = rowsOf<{ id: string; groups: number }>(
-    await db.execute(sql`
-      with person(skill, weight) as (select * from unnest(${skillList}, ${weightList})),
-      reach as (
-        select ${jobs.id} as id, ${GROUP} as grp, ${jobs.keywords} as keywords, ${jobs.postedAt} as posted_at,
-          coalesce(${jobs.family} = any(${familyList}), false) as same_kind, ${kindWeight} as kind_weight, ${levelOf} as level
-        from ${jobs}
-        where ${and(
-          ...matchableConditions(filters, now),
-          or(sql`${jobs.keywords} && ${skillList}`, sql`${jobs.family} = any(${familyList})`),
-        )}
-      ),
-      hits as (
-        select r.id, sum(p.weight) as overlap, count(*) as found
-        from reach r cross join lateral unnest(r.keywords) as k(skill)
-        join person p on p.skill = k.skill
-        group by r.id
-      ),
-      scored as (
-        select r.id, r.grp, r.posted_at,
-          (coalesce(h.overlap, 0) + r.kind_weight) * ${levelFactor} as score
-        from reach r left join hits h on h.id = r.id
-        where r.same_kind or coalesce(h.found, 0) >= 2
-      ),
-      best as (
-        select distinct on (grp) id, score, posted_at from scored order by grp, score desc, posted_at desc, id
-      )
-      select id::text as id, (count(*) over ())::int as groups
-      from best
-      order by score desc, posted_at desc, id
-      limit ${CANDIDATE_POOL}::int
-    `),
-  );
-  if (pooled.length === 0) return { rows: [], copies: new Map(), groups: 0 };
-
-  const ids = pooled.map((row) => row.id);
-  const found = await db.select(CANDIDATE_COLUMNS).from(jobs).where(inArray(jobs.id, ids));
-  const byId = new Map(found.map((row) => [row.id, row]));
-  const rows = ids
-    .map((id) => byId.get(id))
-    .filter((row): row is CandidateRow => row !== undefined);
-
-  const keys = [...new Set(rows.map((row) => row.groupKey).filter(Boolean))];
-  const copies = new Map<string, CopyRow[]>();
-  if (keys.length > 0) {
-    const others = await db
-      .select(CANDIDATE_COLUMNS)
-      .from(jobs)
-      .where(and(...matchableConditions(filters, now), inArray(jobs.groupKey, keys)))
-      .orderBy(desc(jobs.postedAt), desc(jobs.id));
-    for (const row of others) copies.set(row.groupKey, [...(copies.get(row.groupKey) ?? []), row]);
-    for (const [key, list] of copies) if (list.length < 2) copies.delete(key);
-  }
-  return { rows, copies, groups: pooled[0]?.groups ?? 0 };
-}
-
-export async function savedCandidates(db: Db, userId: string): Promise<CandidateRow[]> {
-  return db
-    .select(CANDIDATE_COLUMNS)
+  userId: string,
+): Promise<(CandidateRow & { savedAt: number })[]> {
+  const saved = await db
+    .select({ jobId: savedJobs.jobId, savedAt: savedJobs.savedAt, job: savedJobs.job })
     .from(savedJobs)
-    .innerJoin(jobs, eq(jobs.id, savedJobs.jobId))
     .where(eq(savedJobs.userId, userId))
-    .orderBy(desc(savedJobs.savedAt))
+    .orderBy(desc(savedJobs.savedAt), desc(savedJobs.jobId))
     .limit(SAVED_JOBS_LIMIT);
+  const live = new Map(
+    (
+      await listingRows(
+        db,
+        saved.flatMap((row) => listingIdOf(row.jobId) ?? []),
+      )
+    ).map((row) => [row.id, row]),
+  );
+  return saved.flatMap((row) => {
+    const found = live.get(row.jobId) ?? (row.job ? snapshotRow(row.jobId, row.job) : null);
+    return found ? [{ ...found, savedAt: row.savedAt }] : [];
+  });
 }
 
 export async function listSavedJobs(db: Db, userId: string): Promise<SavedJob[]> {
-  const rows = await db
-    .select({ ...LIST_COLUMNS, savedAt: savedJobs.savedAt })
-    .from(savedJobs)
-    .innerJoin(jobs, eq(jobs.id, savedJobs.jobId))
-    .where(eq(savedJobs.userId, userId))
-    .orderBy(desc(savedJobs.savedAt), desc(jobs.id))
-    .limit(SAVED_JOBS_LIMIT);
-  return rows.map(({ savedAt, ...row }) => ({ ...toFeedJob(row), savedAt }));
+  return (await savedCandidates(db, userId)).map((row) => ({
+    ...toFeedJob(row),
+    savedAt: row.savedAt,
+  }));
 }
 
 export async function savedIds(
@@ -277,10 +348,7 @@ export async function savedCount(db: Db, userId: string): Promise<number> {
 
 // Open jobs anyone could be shown: the public count says no more than that.
 export async function countShownJobs(db: Db, now: number): Promise<number> {
-  const [open] = await db
-    .select({ n: count() })
-    .from(jobs)
-    .where(and(...matchableConditions(DEFAULT_FILTERS, now)));
+  const [open] = await db.select({ n: count() }).from(listings).where(shownConditions(now));
   return open?.n ?? 0;
 }
 
@@ -288,14 +356,14 @@ export async function jobCounts(
   db: Db,
   now = Date.now(),
 ): Promise<{ open: number; matchable: number }> {
-  const [open, [matchable]] = await Promise.all([
-    countShownJobs(db, now),
-    db
-      .select({ n: sql<number>`count(distinct ${GROUP})::int` })
-      .from(jobs)
-      .where(and(...matchableConditions(DEFAULT_FILTERS, now))),
-  ]);
-  return { open, matchable: matchable?.n ?? 0 };
+  const [row] = await db
+    .select({
+      open: count(),
+      matchable: sql<number>`count(*) filter (where (${listings.flags} & ${FLAG.lead}) <> 0)::int`,
+    })
+    .from(listings)
+    .where(shownConditions(now));
+  return { open: row?.open ?? 0, matchable: row?.matchable ?? 0 };
 }
 
 export async function jobStats(
@@ -317,9 +385,10 @@ export async function saveJob(
   jobId: string,
   now = Date.now(),
 ): Promise<SaveJobResult> {
+  const listing = listingIdOf(jobId);
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return "no_user";
-    const [job] = await tx.select({ id: jobs.id }).from(jobs).where(eq(jobs.id, jobId)).limit(1);
+    const [job] = listing === null ? [] : await listingRows(tx, [listing]);
     if (!job) return "not_found";
     const [already] = await tx
       .select({ jobId: savedJobs.jobId })
@@ -332,7 +401,10 @@ export async function saveJob(
       .from(savedJobs)
       .where(eq(savedJobs.userId, userId));
     if ((total?.n ?? 0) >= SAVED_JOBS_LIMIT) return "limit_reached";
-    await tx.insert(savedJobs).values({ userId, jobId, savedAt: now }).onConflictDoNothing();
+    await tx
+      .insert(savedJobs)
+      .values({ userId, jobId, savedAt: now, job: snapshotOf(job) })
+      .onConflictDoNothing();
     return "saved";
   });
 }
@@ -349,19 +421,36 @@ export type JobDetail = FeedJob & {
   externalId: string;
 };
 
+function detailOf(row: CandidateRow): JobDetail {
+  return {
+    ...toFeedJob(row),
+    description: row.post,
+    validThrough: row.validThrough,
+    board: row.token === "feed" ? "" : row.token,
+    externalId: row.ext,
+  };
+}
+
 export async function jobById(db: Db, id: string): Promise<JobDetail | null> {
-  const [row] = await db
-    .select({
-      ...LIST_COLUMNS,
-      description: jobs.description,
-      validThrough: jobs.validThrough,
-      board: jobs.board,
-      externalId: jobs.externalId,
-    })
-    .from(jobs)
-    .where(eq(jobs.id, id))
+  const listing = listingIdOf(id);
+  const [row] = listing === null ? [] : await listingRows(db, [listing]);
+  return row ? detailOf(row) : null;
+}
+
+// A job that's gone, as the account's saved job or application kept it.
+export async function keptJob(db: Db, userId: string, id: string): Promise<JobDetail | null> {
+  const [saved] = await db
+    .select({ job: savedJobs.job })
+    .from(savedJobs)
+    .where(and(eq(savedJobs.userId, userId), eq(savedJobs.jobId, id)))
     .limit(1);
-  if (!row) return null;
-  const { description, validThrough, board, externalId } = row;
-  return { ...toFeedJob(row), description, validThrough, board, externalId };
+  const [applied] = saved?.job
+    ? []
+    : await db
+        .select({ job: applications.job })
+        .from(applications)
+        .where(and(eq(applications.userId, userId), eq(applications.jobId, id)))
+        .limit(1);
+  const job = saved?.job ?? applied?.job;
+  return job ? detailOf(snapshotRow(id, job)) : null;
 }

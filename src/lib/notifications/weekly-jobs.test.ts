@@ -1,11 +1,19 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { applications, jobs, notifications, resumes, savedJobs, userSettings } from "@/db/schema";
+import {
+  applications,
+  listings,
+  notifications,
+  resumes,
+  savedJobs,
+  userSettings,
+} from "@/db/schema";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import type { RawJob } from "@/lib/job-feed/parsers";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
+import { storedJobIds } from "@/lib/job-feed/test-fixtures";
 import { emptyResume, newBullet, newId, type Resume } from "@/lib/resume/schema";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
 import { matchesNotice, runWeeklyMatches, WEEKLY_JOBS } from "./weekly-jobs";
@@ -15,22 +23,17 @@ const context = (now = Date.now()) => ({ now, deadline: Date.now() + 30_000 });
 const jobUrl = (id: string) => `https://job-boards.greenhouse.io/acme/jobs/${id}`;
 
 async function jobIdOf(id: string): Promise<string> {
-  const [row] = await (
-    await getDb()
-  )
-    .select({ id: jobs.id })
-    .from(jobs)
-    .where(eq(jobs.url, jobUrl(id)));
-  return row!.id;
+  const rows = await storedJobIds(await getDb());
+  return rows.find((row) => row.externalId === id)!.id;
 }
 
 async function firstSeen(id: string, at: number) {
   await (
     await getDb()
   )
-    .update(jobs)
-    .set({ firstSeenAt: at })
-    .where(eq(jobs.url, jobUrl(id)));
+    .update(listings)
+    .set({ seen: Math.floor(at / 60_000) })
+    .where(eq(listings.ext, id));
 }
 
 function raw(id: string, overrides: Partial<RawJob> = {}): RawJob {
@@ -51,7 +54,7 @@ function raw(id: string, overrides: Partial<RawJob> = {}): RawJob {
 
 async function seedJobs(list: RawJob[]) {
   const db = await getDb();
-  await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }], Date.now());
+  await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }]);
   await saveJobs(db, { source: "greenhouse", board: "acme" }, list, Date.now(), { snapshot: true });
 }
 

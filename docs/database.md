@@ -18,7 +18,7 @@ Accounts and settings
 Resumes, applications and writing
 
 - `resumes`: cloud backups of resumes (JSON).
-- `applications`: tracked applications with status history, follow-up and interview dates, interview prep.
+- `applications`: tracked applications with status history, follow-up and interview dates, interview prep, and a snapshot of the linked job (`job`) that shows once the job is gone.
 - `writings`: cover letters, application answers and outreach messages.
 - `career_log_entries`: one career note per month.
 - `notifications`: the bell.
@@ -31,14 +31,13 @@ Sharing
 
 Jobs (not per account unless named)
 
-- `jobs`: openings from public boards (capped at 150,000 rows).
-- `job_boards`: each board and when it was last read.
-- `skills`: each skill that posts name, with the small id the match index stores for it (given once, never changed) and its rarity weight while open posts name it.
-- `job_match`: the narrow copy of open jobs that ranking reads.
+- `listings`: one compact row per open job (capped at 150,000 rows; about 240 bytes each with its key). A closed job is deleted at once. No column is null and no post text is kept: numbers and codes stand for what repeats (`src/lib/job-feed/codes.ts`): the id is the board in the top bits and a hash of the board's own job id (so one board is one key range, and a job that closes and comes back keeps its id; the app shows it in a UUID's shape), times are minutes since 1970, level, kind and occupation are small codes, `flags` holds remote, general application, the job type and what the last rebuild marked (lead of its opening, copy, opening remote), the link is rebuilt from the board's `url_template` unless the job keeps its own, the title is a `titles` key (`title_text` only when this job writes it otherwise), skills are `skills.sid` values, `places` are the countries and regions it can be taken from, and `facts` are its work-rights facts in about 13 bytes (`src/lib/eligibility/facts.ts`). Feeds whose posts can't be read again (Himalayas, Remote OK) keep up to 6,000 characters in `post`.
+- `job_boards`: each board, its small `id` for `listings.board`, its link pattern and when it was last read.
+- `titles`: one row per way a job title is written (`titleVectorKey`): its text, its 64-byte meaning code (`src/lib/job-feed/title-code.ts`), filled by the daily title vectors workflow, and its nearest occupation.
+- `skills`: each skill that posts name, with the small id listings store for it (given once, never changed) and its rarity weight while open posts name it.
 - `job_counts`: one row of counts from the last ingest.
-- `title_vectors`: one JobBERT-v2 meaning vector per way a job title is written (256 bytes each), filled by the daily title vectors workflow.
 - `company_visa`: companies on the UK and US visa registers.
-- `saved_jobs`: jobs an account saved.
+- `saved_jobs`: jobs an account saved, each with a snapshot of the job (`job`) that shows once the job is gone.
 - `match_cache`: one page of an account's Matches, a day. Unlogged, so keeping a page writes no WAL; in a logged table each page (about 6 KB stored) would write 7-25 KB of WAL.
 - `match_events`: what Matches showed and what was done with it, to measure ranking.
 
@@ -52,26 +51,27 @@ Email tracking and the extension
 
 The daily cleanup (`src/lib/cron/cleanup.ts`, called once a day by `.github/workflows/daily.yml`) deletes in batches of 1,000. The jobs ingest and the recap code own their own deletes.
 
-| Rows                                                                   | Kept                                                                  |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `rate_limits`                                                          | 2 days                                                                |
-| `metered_calls`, `extension_tokens`                                    | until they expire                                                     |
-| `match_cache`                                                          | 1 day                                                                 |
-| `match_events` impressions                                             | 30 days                                                               |
-| `match_events` actions (open, save, tailor, applied, not a fit, asked) | 90 days                                                               |
-| `notifications`                                                        | read: 90 days; unread: 1 year                                         |
-| `inbound_emails`                                                       | 180 days                                                              |
-| `inbound_handles` released                                             | 90 days after release                                                 |
-| `user_settings.deleted_resumes`                                        | 180 days, and the newest 1,000                                        |
-| `user_settings.active_days`, `user_settings.recaps`                    | about 10 weeks                                                        |
-| `portfolios.old_slugs`                                                 | until they expire (90 days)                                           |
-| `usage`                                                                | 400 days after the period                                             |
-| `billing_log` events                                                   | 400 days                                                              |
-| `billing_log` trials                                                   | always (only an email hash)                                           |
-| `billing_log` credit checkouts                                         | 30 days                                                               |
-| `billing_log` credit spends                                            | 400 days                                                              |
-| `billing_log` top-ups and take-backs                                   | until the account is deleted                                          |
-| `jobs`                                                                 | closed: 7 days, or 30 when saved or linked to an application (ingest) |
-| `skills`                                                               | always (a few hundred rows; `job_match` holds their ids)              |
-| `saved_jobs`                                                           | with their job                                                        |
-| everything else                                                        | until the person deletes it or the account                            |
+| Rows                                                                   | Kept                                                                |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `rate_limits`                                                          | 2 days                                                              |
+| `metered_calls`, `extension_tokens`                                    | until they expire                                                   |
+| `match_cache`                                                          | 1 day                                                               |
+| `match_events` impressions                                             | 30 days                                                             |
+| `match_events` actions (open, save, tailor, applied, not a fit, asked) | 90 days                                                             |
+| `notifications`                                                        | read: 90 days; unread: 1 year                                       |
+| `inbound_emails`                                                       | 180 days                                                            |
+| `inbound_handles` released                                             | 90 days after release                                               |
+| `user_settings.deleted_resumes`                                        | 180 days, and the newest 1,000                                      |
+| `user_settings.active_days`, `user_settings.recaps`                    | about 10 weeks                                                      |
+| `portfolios.old_slugs`                                                 | until they expire (90 days)                                         |
+| `usage`                                                                | 400 days after the period                                           |
+| `billing_log` events                                                   | 400 days                                                            |
+| `billing_log` trials                                                   | always (only an email hash)                                         |
+| `billing_log` credit checkouts                                         | 30 days                                                             |
+| `billing_log` credit spends                                            | 400 days                                                            |
+| `billing_log` top-ups and take-backs                                   | until the account is deleted                                        |
+| `listings`                                                             | while open: deleted when it closes (ingest)                         |
+| `titles`                                                               | while a listing carries it, or 30 days after a person last chose it |
+| `skills`                                                               | always (a few hundred rows; `listings` holds their ids)             |
+| `saved_jobs`                                                           | until the person removes it, with its snapshot once the job is gone |
+| everything else                                                        | until the person deletes it or the account                          |

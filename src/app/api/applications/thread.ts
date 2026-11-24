@@ -1,6 +1,8 @@
 import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { applications, jobs, writings } from "@/db/schema";
+import { applications, writings } from "@/db/schema";
+import { listingIdOf } from "@/lib/job-feed/codes";
+import { listingRows, snapshotRow } from "@/lib/job-feed/records";
 import { readHistory } from "@/lib/applications/status";
 import type { ApplicationThread, ThreadJob } from "@/lib/applications/thread";
 import { readPrep } from "@/lib/insights/prep";
@@ -20,32 +22,18 @@ export async function getApplicationThread(
       ...APPLICATION_COLUMNS,
       statusHistory: applications.statusHistory,
       prep: applications.prep,
+      storedJob: applications.job,
     })
     .from(applications)
     .where(and(eq(applications.userId, userId), eq(applications.id, id)))
     .limit(1);
   if (!row) return null;
-  const { statusHistory, prep: storedPrep, ...columns } = row;
+  const { statusHistory, prep: storedPrep, storedJob, ...columns } = row;
   const application = toApplication(columns);
 
+  const listing = application.jobId ? listingIdOf(application.jobId) : null;
   const [jobRows, writingRows] = await Promise.all([
-    application.jobId
-      ? db
-          .select({
-            id: jobs.id,
-            company: jobs.company,
-            title: jobs.title,
-            location: jobs.location,
-            remote: jobs.remote,
-            url: jobs.url,
-            postedAt: jobs.postedAt,
-            closedAt: jobs.closedAt,
-            source: jobs.source,
-          })
-          .from(jobs)
-          .where(eq(jobs.id, application.jobId))
-          .limit(1)
-      : Promise.resolve([]),
+    listing === null ? Promise.resolve([]) : listingRows(db, [listing]),
     db
       .select()
       .from(writings)
@@ -64,7 +52,10 @@ export async function getApplicationThread(
       .limit(THREAD_WRITINGS),
   ]);
 
-  const jobRow = jobRows[0];
+  // A job that's gone shows as the application kept it.
+  const jobRow =
+    jobRows[0] ??
+    (application.jobId && storedJob ? snapshotRow(application.jobId, storedJob) : null);
   const job: ThreadJob | null = jobRow
     ? {
         id: jobRow.id,
@@ -74,7 +65,7 @@ export async function getApplicationThread(
         remote: jobRow.remote,
         url: jobRow.url,
         postedAt: jobRow.postedAt,
-        closed: jobRow.closedAt !== null,
+        closed: jobRow.closed,
         source: jobRow.source,
       }
     : null;

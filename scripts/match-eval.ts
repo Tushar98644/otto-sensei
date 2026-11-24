@@ -1,8 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { and, desc, inArray, isNull, or, sql } from "drizzle-orm";
-import { jobs } from "@/db/schema";
-import { checkEligibility } from "@/lib/eligibility/check";
+import { sql } from "drizzle-orm";
+import { blockedHint } from "@/lib/eligibility/facts";
 import {
   matchJob,
   personFrom,
@@ -11,7 +10,9 @@ import {
   type MatchableJob,
 } from "@/lib/job-feed/match";
 import { MATCH_VARIANT, rankJobs } from "@/lib/job-feed/rank";
-import { CONTEXT_SKILLS, findSkills } from "@/lib/job-feed/skills";
+import { familyCode, listingIdOf } from "@/lib/job-feed/codes";
+import { listingRows, rowsOf } from "@/lib/job-feed/records";
+import { findSkills } from "@/lib/job-feed/skills";
 import { lookingForOf } from "@/lib/job-feed/looking-for";
 import {
   DEFAULT_FILTERS,
@@ -60,16 +61,8 @@ function profileOf(resume: TestResume): MatchProfile {
   };
 }
 
-function hintFor(
-  resume: TestResume,
-  row: { location: string; rulesText: string },
-  now: number,
-): EligibilityHint {
-  if (!row.rulesText && !row.location) return { blocked: false, note: null };
-  const blocked = checkEligibility({ location: row.location, text: row.rulesText }, resume.work, {
-    now,
-  }).find((finding) => finding.verdict === "blocked");
-  return { blocked: Boolean(blocked), note: blocked?.note ?? null };
+function hintFor(resume: TestResume, row: { facts: string }, now: number): EligibilityHint {
+  return blockedHint(row.facts, resume.work, { now });
 }
 
 // Frozen baseline ordering: leave it unchanged, the comparison depends on it.
@@ -79,34 +72,19 @@ async function rankNewestV0(
   now: number,
 ): Promise<Listed[]> {
   const person = personFrom(profileOf(resume));
-  const skills = [...person.skills];
-  const reach = [];
-  if (skills.length > 0) {
-    reach.push(
-      sql`${jobs.keywords} && array[${sql.join(
-        skills.map((skill) => sql`${skill}`),
-        sql`, `,
-      )}]::text[]`,
-    );
-  }
-  if (person.families.size > 0) reach.push(inArray(jobs.family, [...person.families.keys()]));
-  const rows = await db
-    .select({
-      id: jobs.id,
-      groupKey: jobs.groupKey,
-      company: jobs.company,
-      title: jobs.title,
-      keywords: jobs.keywords,
-      seniority: jobs.seniority,
-      minYears: jobs.minYears,
-      location: jobs.location,
-      rulesText: jobs.rulesText,
-      postedAt: jobs.postedAt,
-    })
-    .from(jobs)
-    .where(and(isNull(jobs.closedAt), or(...reach)))
-    .orderBy(desc(jobs.postedAt), desc(jobs.id))
-    .limit(1_000);
+  const sids = (await readSkillIds(db, [...person.skills])).join(",");
+  const families = [...person.families.keys()].map(familyCode).join(",");
+  const newest = rowsOf<{ id: string }>(
+    await db.execute(sql`select id::text from listings
+      where skills && ${`{${sids}}`}::smallint[] or family = any(${`{${families}}`}::smallint[])
+      order by posted desc, id desc limit 1000`),
+  );
+  const rows = (
+    await listingRows(
+      db,
+      newest.map((row) => Number(row.id)),
+    )
+  ).sort((a, b) => b.postedAt - a.postedAt || b.listing - a.listing);
   const ranked: (Listed & { keywords: string[]; match: JobMatch })[] = [];
   for (const row of rows) {
     const facts: MatchableJob = {
@@ -120,7 +98,7 @@ async function rankNewestV0(
     const match = matchJob(person, facts, hint) ?? unmatched(facts, hint);
     ranked.push({
       id: row.id,
-      group: row.groupKey || row.id,
+      group: `${row.board}:${row.grp}`,
       company: row.company,
       title: row.title,
       label: match.label,
@@ -167,14 +145,10 @@ async function rankNew(
     deviceTimeZone: resume.work.timeZone,
     now,
   });
-  const ids = result.jobs.map((job) => job.id);
-  const groups = ids.length
-    ? await db
-        .select({ id: jobs.id, groupKey: jobs.groupKey })
-        .from(jobs)
-        .where(inArray(jobs.id, ids))
-    : [];
-  const groupOf = new Map(groups.map((row) => [row.id, row.groupKey || row.id]));
+  const ids = result.jobs.flatMap((job) => listingIdOf(job.id) ?? []);
+  const groupOf = new Map(
+    (await listingRows(db, ids)).map((row) => [row.id, `${row.board}:${row.grp}`]),
+  );
   return result.jobs.map((job) => ({
     id: job.id,
     group: groupOf.get(job.id) ?? job.id,
@@ -183,6 +157,16 @@ async function rankNew(
     label: job.match.label,
     postedAt: job.postedAt,
   }));
+}
+
+async function readSkillIds(db: Awaited<ReturnType<typeof openDb>>, names: string[]) {
+  if (names.length === 0) return [];
+  const rows = rowsOf<{ sid: number }>(
+    await db.execute(
+      sql`select sid from skills where sid is not null and skill = any(${`{${names.map((name) => `"${name.replace(/["\\]/g, "")}"`).join(",")}}`}::text[])`,
+    ),
+  );
+  return rows.map((row) => row.sid);
 }
 
 async function openDb() {
@@ -223,80 +207,6 @@ async function rankAll() {
   }
   writeJson(LISTS, { at: saved?.at ?? now, variants } satisfies Lists);
   console.log(`Saved ${LISTS}`);
-}
-
-async function refresh() {
-  const db = await openDb();
-  const { refreshSkillWeights } = await import("@/lib/job-feed/store");
-  const { rebuildMatchIndex } = await import("@/lib/job-feed/match-index");
-  const { brandName, searchWords } = await import("@/lib/job-feed/normalize");
-  const { seniorityOf } = await import("@/lib/job-feed/roles");
-  const { readTitle } = await import("@/lib/job-feed/occupations");
-  const rows = await db
-    .select({
-      id: jobs.id,
-      title: jobs.title,
-      company: jobs.company,
-      description: jobs.description,
-      keywords: jobs.keywords,
-      family: jobs.family,
-      occupation: jobs.occupation,
-      seniority: jobs.seniority,
-    })
-    .from(jobs);
-  const contextual = new Set(CONTEXT_SKILLS);
-  const added = new Set(["C", "Elm"]);
-  let changed = 0;
-  const dropped = new Map<string, number>();
-  for (const row of rows) {
-    const kind = readTitle(row.title);
-    if (!row.description) {
-      if (kind.family === row.family && kind.occupation === row.occupation) continue;
-      changed += 1;
-      await db
-        .update(jobs)
-        .set({ family: kind.family, occupation: kind.occupation })
-        .where(sql`${jobs.id} = ${row.id}`);
-      continue;
-    }
-    const found = new Set(findSkills(`${row.title}\n${row.description}`));
-    const brand = brandName(row.company);
-    const text = `${row.title}\n${row.description}`;
-    const shown = (skill: string) =>
-      new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(skill)}(?![\\p{L}\\p{N}+#])`, "u").test(text);
-    const next = row.keywords.filter(
-      (skill) =>
-        (!contextual.has(skill) || found.has(skill) || !shown(skill)) &&
-        searchWords(skill) !== brand,
-    );
-    for (const skill of found) if (added.has(skill) && !next.includes(skill)) next.push(skill);
-    for (const skill of row.keywords)
-      if (!next.includes(skill)) dropped.set(skill, (dropped.get(skill) ?? 0) + 1);
-    const { family, occupation } = kind;
-    const fromTitle = seniorityOf(row.title);
-    const seniority = fromTitle === "mid" ? row.seniority : fromTitle;
-    if (
-      family === row.family &&
-      occupation === row.occupation &&
-      seniority === row.seniority &&
-      next.length === row.keywords.length &&
-      next.every((skill, i) => skill === row.keywords[i])
-    )
-      continue;
-    changed += 1;
-    await db
-      .update(jobs)
-      .set({ keywords: next, family, occupation, seniority })
-      .where(sql`${jobs.id} = ${row.id}`);
-  }
-  console.log(
-    `Rewrote keywords, kind, occupation or level on ${changed} of ${rows.length} jobs. Dropped per skill:`,
-  );
-  console.log(Object.fromEntries([...dropped].sort((a, b) => b[1] - a[1]).slice(0, 25)));
-  const now = Date.now();
-  console.log({ skills: await refreshSkillWeights(db, now) });
-  const started = Date.now();
-  console.log({ indexed: await rebuildMatchIndex(db, now), ms: Date.now() - started });
 }
 
 const key = (resumeId: string, jobId: string) => `${resumeId}|${jobId}`;
@@ -362,20 +272,11 @@ const tokensOf = (text: string) => Math.ceil(text.length / 3.6);
 async function loadPosts(ids: readonly string[]): Promise<Map<string, JobText>> {
   const db = await openDb();
   const out = new Map<string, JobText>();
-  for (let i = 0; i < ids.length; i += 500) {
-    const rows = await db
-      .select({
-        id: jobs.id,
-        title: jobs.title,
-        company: jobs.company,
-        location: jobs.location,
-        remote: jobs.remote,
-        description: jobs.description,
-      })
-      .from(jobs)
-      .where(inArray(jobs.id, ids.slice(i, i + 500)));
-    for (const row of rows) out.set(row.id, row);
-  }
+  const rows = await listingRows(
+    db,
+    ids.flatMap((id) => listingIdOf(id) ?? []),
+  );
+  for (const row of rows) out.set(row.id, { ...row, description: row.post });
   return out;
 }
 
@@ -434,23 +335,15 @@ async function fillLiveText(posts: Map<string, JobText>, ids: readonly string[])
   });
   const { fullPostText } = await import("@/lib/job-feed/full-post");
   const db = await openDb();
-  const rows = await db
-    .select({
-      id: jobs.id,
-      source: jobs.source,
-      board: jobs.board,
-      externalId: jobs.externalId,
-      url: jobs.url,
-      description: jobs.description,
-      closedAt: jobs.closedAt,
-    })
-    .from(jobs)
-    .where(inArray(jobs.id, missing));
+  const { jobById } = await import("@/lib/job-feed/records");
+  const rows = (await Promise.all(missing.map((id) => jobById(db, id)))).flatMap((row) =>
+    row ? [row] : [],
+  );
   let read = 0;
   for (const row of rows) {
     // Politely: Workable answers 429 at about one request a second.
     await new Promise((resolve) => setTimeout(resolve, row.source === "workable" ? 3_000 : 400));
-    const text = await fullPostText({ ...row, closed: false });
+    const text = await fullPostText(row);
     if (text) read += 1;
     posts.set(row.id, { ...posts.get(row.id)!, description: text });
   }
@@ -531,105 +424,6 @@ async function judge() {
   await Promise.all(Array.from({ length: 6 }, worker));
   writeJson(GRADES, grades);
   console.log(`Graded. ${failed} failed. Spent in all: $${grades.spentUsd.toFixed(3)}.`);
-}
-
-const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-async function skillsCheck() {
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY isn't set (bun reads it from .env.local).");
-  const maxUsd = Number(flag("--max-usd") ?? 0.2);
-  const db = await openDb();
-  const rows = await db
-    .select({ id: jobs.id, title: jobs.title, description: jobs.description })
-    .from(jobs)
-    .where(isNull(jobs.closedAt));
-  const order = (id: string) =>
-    [...id].reduce((hash, ch) => (hash * 31 + ch.charCodeAt(0)) >>> 0, 7);
-  rows.sort((a, b) => order(a.id) - order(b.id));
-  type Tally = {
-    kept: number;
-    keptRight: number;
-    dropped: number;
-    droppedRight: number;
-    seenKept: number;
-    seenDropped: number;
-  };
-  const out: Record<string, Tally> = {};
-  let spent = 0;
-  for (const skill of CONTEXT_SKILLS) {
-    const word = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(skill)}(?![\\p{L}\\p{N}+#])`, "u");
-    const kept: string[] = [];
-    const dropped: string[] = [];
-    let seenKept = 0;
-    let seenDropped = 0;
-    for (const row of rows) {
-      const text = `${row.title}\n${row.description}`;
-      if (!word.test(text)) continue;
-      const lines = text
-        .split("\n")
-        .filter((line) => word.test(line))
-        .slice(0, 3)
-        .map((line) => {
-          const at = line.search(word);
-          return line.slice(Math.max(0, at - 90), at + 90).trim();
-        })
-        .join(" | ");
-      if (findSkills(text).includes(skill)) {
-        seenKept += 1;
-        if (kept.length < 20) kept.push(lines);
-      } else {
-        seenDropped += 1;
-        if (dropped.length < 20) dropped.push(lines);
-      }
-    }
-    const ask = async (items: string[]): Promise<number> => {
-      if (items.length === 0 || spent >= maxUsd) return 0;
-      const prompt = items.map((item, i) => `${i + 1}. ${item}`).join("\n");
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-        body: JSON.stringify({
-          model: JUDGE.model,
-          max_tokens: 300,
-          reasoning: { enabled: false },
-          usage: { include: true },
-          messages: [
-            {
-              role: "system",
-              content: `For each numbered excerpt from a job post, say whether "${skill}" there means the software technology, programming language or tool called ${skill} (yes), or something else such as an ordinary word, a person, a place or a company (no). Reply with JSON only: {"answers": ["yes" or "no", ...]}, one per excerpt, in order.`,
-            },
-            { role: "user", content: prompt },
-          ],
-        }),
-      });
-      const data = (await res.json().catch(() => null)) as {
-        choices?: { message?: { content?: string } }[];
-        usage?: { cost?: number };
-      } | null;
-      spent += data?.usage?.cost ?? 0;
-      const answers = (data?.choices?.[0]?.message?.content ?? "").match(/"(yes|no)"/g) ?? [];
-      return answers.filter((answer) => answer === '"yes"').length;
-    };
-    const keptRight = await ask(kept);
-    const droppedRight = await ask(dropped);
-    out[skill] = {
-      kept: kept.length,
-      keptRight,
-      dropped: dropped.length,
-      droppedRight,
-      seenKept,
-      seenDropped,
-    };
-    console.log(skill, out[skill]);
-  }
-  writeJson(path.join(OUT, "skills-check.json"), {
-    at: new Date().toISOString(),
-    model: JUDGE.model,
-    spentUsd: spent,
-    skills: out,
-  });
-  console.log(`Spent $${spent.toFixed(3)}.`);
 }
 
 function dcg(gains: readonly number[]): number {
@@ -776,15 +570,16 @@ async function report() {
       ),
     ),
   ];
-  const open = new Set<string>();
+  // A closed job is deleted, so the open ones are those still stored.
   const ceilingDb = await openDb();
-  for (let i = 0; i < listed.length; i += 500) {
-    const rows = await ceilingDb
-      .select({ id: jobs.id })
-      .from(jobs)
-      .where(and(inArray(jobs.id, listed.slice(i, i + 500)), isNull(jobs.closedAt)));
-    for (const row of rows) open.add(row.id);
-  }
+  const open = new Set(
+    (
+      await listingRows(
+        ceilingDb,
+        listed.flatMap((id) => listingIdOf(id) ?? []),
+      )
+    ).map((row) => row.id),
+  );
   const goodFor = (resumeId: string, variantNames: readonly string[], openOnly: boolean) =>
     new Set(
       variantNames.flatMap((variant) =>
@@ -941,19 +736,11 @@ async function report() {
     ],
   ];
   const urls = new Map(
-    (picked.length
-      ? await (
-          await openDb()
-        )
-          .select({ id: jobs.id, url: jobs.url })
-          .from(jobs)
-          .where(
-            inArray(
-              jobs.id,
-              picked.map((id) => id.split("|")[1]!),
-            ),
-          )
-      : []
+    (
+      await listingRows(
+        await openDb(),
+        picked.flatMap((id) => listingIdOf(id.split("|")[1]!) ?? []),
+      )
     ).map((row) => [row.id, row.url]),
   );
   for (const id of picked) {
@@ -983,55 +770,6 @@ async function report() {
   console.log(`Saved ${path.join(OUT, "results.json")} and ${file} (${picked.length} pairs).`);
 }
 
-async function stats() {
-  const db = await openDb();
-  const { jobCounts } = await import("@/lib/job-feed/records");
-  const query = async (statement: string) => {
-    const result: unknown = await db.execute(sql.raw(statement));
-    return Array.isArray(result) ? result : (result as { rows: unknown[] }).rows;
-  };
-  const old = Date.now() - 120 * DAY_MS;
-  console.log({ counts: await jobCounts(db) });
-  console.log(
-    await query(`select count(*)::int as rows, count(*) filter (where closed_at is null)::int as open,
-      count(*) filter (where evergreen and closed_at is null)::int as filler,
-      count(*) filter (where least(posted_at, first_seen_at) < ${old} and closed_at is null)::int as open_120_days,
-      count(distinct nullif(group_key, '')) filter (where closed_at is null)::int as groups,
-      (pg_total_relation_size('jobs') / greatest(count(*), 1))::int as bytes_per_row,
-      (pg_total_relation_size('jobs') / 1048576)::int as mb from jobs`),
-  );
-  console.log(
-    await query(`select board, count(*)::int as open, count(distinct group_key)::int as openings from jobs
-      where closed_at is null and board <> '' group by board order by 2 desc limit 8`),
-  );
-  console.log(
-    await query(`select count(*)::int as boards_at_200 from (select board from jobs where closed_at is null
-      and board <> '' group by board having count(*) >= 200) full_boards`),
-  );
-  console.log(await query(`select title from jobs where evergreen and closed_at is null limit 15`));
-  console.log(
-    await query(`select coalesce(family, 'none') as family, count(*)::int as open from jobs
-      where closed_at is null group by 1 order by 2 desc`),
-  );
-  console.log(
-    await query(`select source, count(*)::int as open, count(distinct board)::int as boards from jobs
-      where closed_at is null group by 1 order by 2 desc`),
-  );
-  console.log(
-    await query(`select count(*)::int as open,
-      count(*) filter (where occupation is null)::int as no_occupation,
-      count(*) filter (where family is null)::int as no_family,
-      count(*) filter (where occupation is null and family is null)::int as neither,
-      round(100.0 * count(*) filter (where occupation is null) / count(*), 1) as no_occupation_pct,
-      round(100.0 * count(*) filter (where occupation is null and family is null) / count(*), 1) as neither_pct
-      from jobs where closed_at is null`),
-  );
-  console.log(
-    await query(`select left(occupation, 2) as major, count(*)::int as open from jobs
-      where closed_at is null group by 1 order by 2 desc`),
-  );
-}
-
 async function tidy() {
   const db = await openDb();
   const { tidyJobs, refreshSkillWeights } = await import("@/lib/job-feed/store");
@@ -1044,39 +782,23 @@ async function tidy() {
   });
 }
 
-async function shrink() {
-  const db = await openDb();
-  const { SOURCE_INFO } = await import("@/lib/job-feed/sources");
-  const live = Object.entries(SOURCE_INFO)
-    .filter(([, info]) => info.liveText)
-    .map(([source]) => source as (typeof jobs.$inferSelect)["source"]);
-  const emptied = await db
-    .update(jobs)
-    .set({ description: "" })
-    .where(and(inArray(jobs.source, live), sql`${jobs.description} <> ''`))
-    .returning({ id: jobs.id });
-  console.log(`Emptied the stored text of ${emptied.length} jobs.`);
-}
-
 async function sizes() {
   const db = await openDb();
-  const query = async (statement: string) => {
-    const result: unknown = await db.execute(sql.raw(statement));
-    return Array.isArray(result) ? result : (result as { rows: unknown[] }).rows;
-  };
+  const query = async (statement: string) =>
+    rowsOf<Record<string, unknown>>(await db.execute(sql.raw(statement)));
   if (process.argv.includes("--vacuum")) {
-    await query("vacuum full analyze jobs");
-    await query("vacuum full analyze job_match");
+    await query("vacuum full analyze listings");
+    await query("vacuum full analyze titles");
   }
   const columns = (await query(`select column_name from information_schema.columns
-    where table_schema = 'public' and table_name = 'jobs' order by ordinal_position`)) as {
+    where table_schema = 'public' and table_name = 'listings' order by ordinal_position`)) as {
     column_name: string;
   }[];
   const averages = columns
     .map((c) => `round(avg(pg_column_size("${c.column_name}")))::int as "${c.column_name}"`)
     .join(", ");
   console.log("Average stored bytes per column:");
-  console.log((await query(`select count(*)::int as rows, ${averages} from jobs`))[0]);
+  console.log((await query(`select count(*)::int as rows, ${averages} from listings`))[0]);
   console.log(
     await query(`select relname as table,
       pg_relation_size(c.oid) / 1024 as heap_kb,
@@ -1089,7 +811,7 @@ async function sizes() {
   );
   console.log(
     await query(`select indexrelname as index, pg_relation_size(indexrelid) / 1024 as kb
-      from pg_stat_user_indexes where relname in ('jobs', 'job_match')
+      from pg_stat_user_indexes where relname in ('listings', 'titles')
       order by pg_relation_size(indexrelid) desc`),
   );
   console.log({
@@ -1097,13 +819,6 @@ async function sizes() {
       await query(`select (pg_database_size(current_database()) / 1048576)::int as mb`)
     )[0],
   });
-  console.log(
-    await query(`select round(avg(pg_column_size(search)))::int as search_now,
-      round(avg(pg_column_size(to_tsvector('simple', title || ' ' || company || ' ' || location || ' ' ||
-        array_to_string(keywords, ' ') || ' ' || left(description, 1500)))))::int as search_with_text,
-      round(avg(pg_column_size(left(description, 1500))))::int as description_1500_raw
-      from jobs`),
-  );
 }
 
 // Personas (scripts/match-eval/personas.ts): the first `--pages` pages for each persona and place.
@@ -1253,14 +968,10 @@ const step = process.argv[2];
 const steps: Record<string, () => Promise<unknown>> = {
   sizes,
   tidy,
-  shrink,
-  refresh,
-  "skills-check": skillsCheck,
   rank: rankAll,
   estimate,
   judge,
   report,
-  stats,
   personas,
   "persona-report": personaReport,
 };

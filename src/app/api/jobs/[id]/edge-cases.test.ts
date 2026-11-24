@@ -1,12 +1,13 @@
 import { AuthRetryableFetchError } from "@supabase/supabase-js";
-import { asc, eq, like, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { jobs, rateLimits } from "@/db/schema";
+import { listings, rateLimits, users } from "@/db/schema";
 import type { ApiErrorBody, JobPostResponse } from "@/lib/api/types";
 import { cookieJar, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
-import { jobById } from "@/lib/job-feed/records";
+import { jobById, saveJob } from "@/lib/job-feed/records";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
+import { storedJobIds } from "@/lib/job-feed/test-fixtures";
 import { fakeNet } from "@/lib/jobs/test-network";
 import { GET } from "./route";
 
@@ -54,14 +55,14 @@ const POSTED = {
 };
 
 async function onlyJobId(): Promise<string> {
-  const [row] = await (await getDb()).select({ id: jobs.id }).from(jobs);
+  const [row] = await storedJobIds(await getDb());
   return row!.id;
 }
 
-// A closed job is never read from its board again, and a board job keeps no text of its own.
-async function seedClosedJob(): Promise<string> {
+// A board's job, kept by every signed-up account that saved it before it closed.
+async function seedOpenJob(): Promise<string> {
   const db = await getDb();
-  await syncBoards(db, [{ ats: "greenhouse", token: "gitlab", company: "GitLab" }], NOW);
+  await syncBoards(db, [{ ats: "greenhouse", token: "gitlab", company: "GitLab" }]);
   await saveJobs(
     db,
     { source: "greenhouse", board: "gitlab" },
@@ -76,8 +77,17 @@ async function seedClosedJob(): Promise<string> {
     NOW,
     { snapshot: true },
   );
-  const id = await onlyJobId();
-  await db.update(jobs).set({ closedAt: NOW, closeReason: "gone" }).where(eq(jobs.id, id));
+  return onlyJobId();
+}
+
+// A closed job is gone from the board's rows, never read from its board again, and opens as an
+// account saved it.
+async function seedClosedJob(): Promise<string> {
+  const db = await getDb();
+  const id = await seedOpenJob();
+  for (const user of await db.select({ id: users.id }).from(users))
+    expect(await saveJob(db, user.id, id, NOW)).toBe("saved");
+  await db.delete(listings);
   return id;
 }
 
@@ -215,20 +225,17 @@ describe("GET /api/jobs/[id]", () => {
   it("remembers at most 1,000 boards that just failed, forgetting the oldest first", async () => {
     await signInAs();
     fakeNet.resolve("boards-api.greenhouse.io", "93.184.216.34");
-    await seedClosedJob();
+    await seedOpenJob();
     const db = await getDb();
     await db.execute(sql`
-      insert into public.jobs (id, source, external_id, board, company, title, posted_at, url,
-        search, dedupe_key, content_hash, first_seen_at, last_seen_at, created_at, updated_at)
-      select gen_random_uuid(), source, (9000000000 + n)::text, board, company, title, posted_at,
-        'https://job-boards.greenhouse.io/gitlab/jobs/' || (9000000000 + n)::text, search,
-        dedupe_key || '-' || n, content_hash, first_seen_at, last_seen_at, created_at, updated_at
-      from public.jobs cross join generate_series(1, 1001) as n`);
-    const live = await db
-      .select({ id: jobs.id })
-      .from(jobs)
-      .where(like(jobs.externalId, "9%"))
-      .orderBy(asc(jobs.externalId));
+      insert into public.listings (id, title, dedupe, posted, seen, grp, hash, board, level, ext,
+        location, facts, skills)
+      select id + n, title, dedupe + n, posted, seen, grp, hash, board, level,
+        (9000000000 + n)::text, location, facts, skills
+      from public.listings cross join generate_series(1, 1001) as n`);
+    const live = (await storedJobIds(db))
+      .filter((row) => row.externalId.startsWith("9"))
+      .sort((a, b) => a.externalId.localeCompare(b.externalId));
     expect(live).toHaveLength(1_001);
 
     for (const [i, { id }] of live.entries()) {

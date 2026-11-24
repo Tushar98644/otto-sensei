@@ -1,11 +1,19 @@
-import { and, desc, inArray, isNull, lt, notExists, sql } from "drizzle-orm";
+import { and, desc, inArray, isNotNull, isNull, lt, notExists, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { jobMatch, titleVectors } from "@/db/schema";
+import { listings, titles } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
+import { hash53, packOccupation } from "./codes";
+import {
+  encodeTitleVector,
+  TITLE_CODE_BYTES,
+  TITLE_DIMS,
+  titleCodeFrom,
+  type TitleCode,
+} from "./title-code";
 import { OCCUPATION_CODE } from "./types";
 
-// JobBERT-v2 title vectors (scripts/title-vectors.py), cut to TITLE_DIMS by a fixed basis and stored as int8.
-export const TITLE_DIMS = 256;
+// JobBERT-v2 title vectors (scripts/title-vectors.py), stored in titles as 64-byte codes (title-code.ts).
+export { TITLE_DIMS };
 export const TITLE_KEY_CHARS = 120;
 
 const GENDER = /\(\s*(?:[mwfdhx]\s*\/\s*)+[mwfdhx]\s*\)|\(\s*all genders?\s*\)/giu;
@@ -29,53 +37,21 @@ export function titleVectorKey(title: string): string {
     .slice(0, TITLE_KEY_CHARS);
 }
 
-export type TitleVector = Int8Array;
+// titles.id: the migration that made the table hashed keys the same way in SQL.
+export const titleId = (key: string) => hash53(key);
 
-export function vectorFrom(bytes: Uint8Array | null | undefined): TitleVector | null {
-  if (!bytes || bytes.length !== TITLE_DIMS) return null;
-  return new Int8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-}
+export type TitleVector = TitleCode;
 
 export function fromBase64(text: string): TitleVector | null {
-  return vectorFrom(Uint8Array.from(Buffer.from(text, "base64")));
+  const bytes = Uint8Array.from(Buffer.from(text, "base64"));
+  return bytes.length === TITLE_DIMS
+    ? encodeTitleVector(new Int8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength))
+    : null;
 }
 
-const norms = new WeakMap<TitleVector, number>();
-function normOf(vector: TitleVector): number {
-  let norm = norms.get(vector);
-  if (norm === undefined) {
-    let sum = 0;
-    for (let i = 0; i < vector.length; i++) sum += vector[i]! * vector[i]!;
-    norm = Math.sqrt(sum);
-    norms.set(vector, norm);
-  }
-  return norm;
-}
+export const today = (now: number) => Math.floor(now / DAY_MS);
 
-export function cosine(a: TitleVector, b: TitleVector): number {
-  let dot = 0;
-  for (let i = 0; i < a.length; i++) dot += a[i]! * b[i]!;
-  const scale = normOf(a) * normOf(b);
-  return scale === 0 ? 0 : dot / scale;
-}
-
-// Several weighted titles read as one direction, the latest counting most.
-export function blend(
-  parts: readonly { vector: TitleVector; weight: number }[],
-): TitleVector | null {
-  if (parts.length === 0) return null;
-  const sum = new Float64Array(TITLE_DIMS);
-  for (const { vector, weight } of parts) {
-    const scale = weight / (normOf(vector) || 1);
-    for (let i = 0; i < TITLE_DIMS; i++) sum[i]! += vector[i]! * scale;
-  }
-  let peak = 0;
-  for (const value of sum) peak = Math.max(peak, Math.abs(value));
-  if (peak === 0) return null;
-  return Int8Array.from(sum, (value) => Math.round((value / peak) * 127));
-}
-
-// A key's vector never changes once stored, so each server keeps those it has read.
+// A key's code never changes once stored, so each server keeps those it has read.
 const known = new Map<string, TitleVector>();
 const KNOWN_MAX = 100_000;
 
@@ -84,23 +60,24 @@ export async function readTitleVectors(
   keys: readonly string[],
 ): Promise<Map<string, TitleVector>> {
   const out = new Map<string, TitleVector>();
-  const unique = [...new Set(keys)].filter(Boolean);
-  const missing = unique.filter((key) => {
+  const missing = [...new Set(keys)].filter(Boolean).filter((key) => {
     const vector = known.get(key);
     if (vector) out.set(key, vector);
     return !vector;
   });
   if (missing.length === 0) return out;
+  const byId = new Map(missing.map((key) => [titleId(key), key]));
   const rows = await db
-    .select({ key: titleVectors.key, vec: titleVectors.vec })
-    .from(titleVectors)
-    .where(inArray(titleVectors.key, missing));
+    .select({ id: titles.id, code: titles.code })
+    .from(titles)
+    .where(and(inArray(titles.id, [...byId.keys()]), isNotNull(titles.code)));
   if (known.size + rows.length > KNOWN_MAX) known.clear();
   for (const row of rows) {
-    const vector = vectorFrom(row.vec);
-    if (!vector) continue;
-    out.set(row.key, vector);
-    known.set(row.key, vector);
+    const key = byId.get(row.id);
+    const vector = titleCodeFrom(row.code);
+    if (!key || !vector) continue;
+    out.set(key, vector);
+    known.set(key, vector);
   }
   return out;
 }
@@ -110,7 +87,7 @@ export async function readTitleVectors(
 export type TitleVectorRow = [string, string, string[], number[]];
 
 export const TITLE_VECTOR_LIMITS = {
-  // Keys a person chose or a job carried, kept this long after the last of them.
+  // Keys a person chose, kept this long after they last chose them; a job's are kept while it's open.
   keepMs: 30 * DAY_MS,
   writeChunk: 500,
   occupations: 3,
@@ -121,7 +98,7 @@ const chunked = <T>(items: readonly T[], size: number): T[][] =>
     items.slice(i * size, (i + 1) * size),
   );
 
-// Titles to embed, newest first; a person's chosen role is touched again so it isn't pruned.
+// A person's chosen role, waiting to be embedded; choosing it again keeps it from being pruned.
 export async function noteTitles(
   db: Db,
   keys: readonly string[],
@@ -131,104 +108,107 @@ export async function noteTitles(
   const unique = [...new Set(keys.map((key) => key.slice(0, TITLE_KEY_CHARS)))].filter(Boolean);
   let added = 0;
   for (const part of chunked(unique, TITLE_VECTOR_LIMITS.writeChunk)) {
-    const insert = db.insert(titleVectors).values(part.map((key) => ({ key, seenAt: now })));
+    const insert = db
+      .insert(titles)
+      .values(part.map((key) => ({ id: titleId(key), text: key, seen: today(now) })));
     const rows = await (
       touch
-        ? insert.onConflictDoUpdate({ target: titleVectors.key, set: { seenAt: now } })
+        ? insert.onConflictDoUpdate({ target: titles.id, set: { seen: today(now) } })
         : insert.onConflictDoNothing()
-    ).returning({ key: titleVectors.key });
+    ).returning({ id: titles.id });
     added += rows.length;
   }
   return added;
 }
 
+// The keys still waiting for a code, newest first.
 export async function waitingTitles(db: Db, limit: number): Promise<string[]> {
   const rows = await db
-    .select({ key: titleVectors.key })
-    .from(titleVectors)
-    .where(isNull(titleVectors.vec))
-    .orderBy(desc(titleVectors.seenAt), titleVectors.key)
+    .select({ text: titles.text })
+    .from(titles)
+    .where(isNull(titles.code))
+    .orderBy(desc(titles.seen), titles.id)
     .limit(limit);
-  return rows.map((row) => row.key);
+  return [...new Set(rows.map((row) => titleVectorKey(row.text)))].filter(Boolean);
 }
 
 const similarity = (value: unknown) => Math.max(-1, Math.min(1, Number(value) || 0));
-const pgArray = (values: readonly (string | number)[]) => `{${values.join(",")}}`;
 
 // Only keys already waiting are filled, so a caller can't add titles nobody asked for.
-export async function saveTitleVectors(
-  db: Db,
-  rows: readonly TitleVectorRow[],
-  now: number,
-): Promise<number> {
+export async function saveTitleVectors(db: Db, rows: readonly TitleVectorRow[]): Promise<number> {
   const valid = rows.flatMap(([key, encoded, occs, sims]) => {
-    const vector = fromBase64(encoded);
-    const codes = occs.filter((code) => OCCUPATION_CODE.test(code));
-    if (!vector || codes.length !== occs.length) return [];
+    const code = fromBase64(encoded);
+    if (!code || !occs.every((occ) => OCCUPATION_CODE.test(occ))) return [];
+    const occ = packOccupation(occs[0]);
     return [
       {
-        key,
-        vec: Buffer.from(vector.buffer, vector.byteOffset, vector.length),
-        occs: codes.slice(0, TITLE_VECTOR_LIMITS.occupations),
-        sims: sims.slice(0, TITLE_VECTOR_LIMITS.occupations).map(similarity),
+        id: titleId(key),
+        code: Buffer.from(code.buffer, code.byteOffset, code.length),
+        occ: occ || null,
+        sim: occ ? Math.round(similarity(sims[0]) * 10_000) : null,
       },
     ];
   });
   let saved = 0;
   for (const part of chunked(valid, TITLE_VECTOR_LIMITS.writeChunk)) {
     const updated = await db
-      .update(titleVectors)
-      .set({
-        vec: sql`v.vec`,
-        occs: sql`v.occs`,
-        sims: sql`v.sims`,
-        embeddedAt: now,
-      })
+      .update(titles)
+      .set({ code: sql`v.code`, occ: sql`v.occ`, sim: sql`v.sim` })
       .from(
         sql`(values ${sql.join(
           part.map(
             (row) =>
-              sql`(${row.key}::text, ${row.vec}::bytea, ${pgArray(row.occs)}::text[], ${pgArray(row.sims)}::real[])`,
+              sql`(${row.id}::bigint, ${row.code}::bytea, ${row.occ}::integer, ${row.sim}::smallint)`,
           ),
           sql`, `,
-        )}) as v(key, vec, occs, sims)`,
+        )}) as v(id, code, occ, sim)`,
       )
-      .where(sql`${titleVectors.key} = v.key`)
-      .returning({ key: titleVectors.key });
+      .where(sql`${titles.id} = v.id`)
+      .returning({ id: titles.id });
     saved += updated.length;
   }
   return saved;
 }
 
-export type TitleKind = { occs: string[]; sims: number[] };
-
-// Every stored key, with the nearest occupations of those already embedded.
-export async function readTitleKinds(db: Db): Promise<Map<string, TitleKind>> {
+// Vectors kept from title_vectors (256 bytes) become 64-byte codes.
+export async function recodeTitles(db: Db): Promise<number> {
   const rows = await db
-    .select({
-      key: titleVectors.key,
-      occs: titleVectors.occs,
-      sims: titleVectors.sims,
-    })
-    .from(titleVectors);
-  return new Map(rows.map(({ key, ...kind }) => [key, kind]));
+    .select({ id: titles.id, code: titles.code })
+    .from(titles)
+    .where(sql`octet_length(${titles.code}) <> ${TITLE_CODE_BYTES}`);
+  let recoded = 0;
+  for (const part of chunked(rows, TITLE_VECTOR_LIMITS.writeChunk)) {
+    const values = part.flatMap((row) => {
+      const code = titleCodeFrom(row.code);
+      return code ? [sql`(${row.id}::bigint, ${Buffer.from(code)}::bytea)`] : [];
+    });
+    if (values.length === 0) continue;
+    const updated = await db
+      .update(titles)
+      .set({ code: sql`v.code` })
+      .from(sql`(values ${sql.join(values, sql`, `)}) as v(id, code)`)
+      .where(sql`${titles.id} = v.id`)
+      .returning({ id: titles.id });
+    recoded += updated.length;
+  }
+  return recoded;
 }
 
-// A title no opening carries and nobody chose for a month goes.
+// A title no listing carries and nobody chose for a month goes.
 export async function pruneTitles(db: Db, now: number): Promise<number> {
   const gone = await db
-    .delete(titleVectors)
+    .delete(titles)
     .where(
       and(
-        lt(titleVectors.seenAt, now - TITLE_VECTOR_LIMITS.keepMs),
+        lt(titles.seen, today(now - TITLE_VECTOR_LIMITS.keepMs)),
         notExists(
           db
             .select({ one: sql`1` })
-            .from(jobMatch)
-            .where(sql`${jobMatch.tkey} = ${titleVectors.key}`),
+            .from(listings)
+            .where(sql`${listings.title} = ${titles.id}`),
         ),
       ),
     )
-    .returning({ key: titleVectors.key });
+    .returning({ id: titles.id });
   return gone.length;
 }

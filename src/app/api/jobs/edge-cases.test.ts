@@ -2,15 +2,7 @@ import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import {
-  jobs,
-  matchCache,
-  matchEvents,
-  rateLimits,
-  savedJobs,
-  users,
-  userSettings,
-} from "@/db/schema";
+import { matchCache, matchEvents, rateLimits, savedJobs, users, userSettings } from "@/db/schema";
 import type {
   ApiErrorBody,
   JobMatchesResponse,
@@ -30,6 +22,7 @@ import { searchOccupations } from "@/lib/job-feed/occupations";
 import type { RawJob } from "@/lib/job-feed/parsers";
 import { refreshSkillWeights, saveJobs, syncBoards } from "@/lib/job-feed/store";
 import { SAVED_JOBS_LIMIT } from "@/lib/job-feed/types";
+import { storedJobIds } from "@/lib/job-feed/test-fixtures";
 import { POST as event } from "./events/route";
 import { PUT as putLookingFor } from "./looking-for/route";
 import { POST as matches } from "./matches/route";
@@ -82,7 +75,7 @@ function raw(id: string, overrides: Partial<RawJob> = {}): RawJob {
 
 async function seedJobs(): Promise<Map<string, string>> {
   const db = await getDb();
-  await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }], Date.now());
+  await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }]);
   await saveJobs(
     db,
     { source: "greenhouse", board: "acme" },
@@ -94,7 +87,7 @@ async function seedJobs(): Promise<Map<string, string>> {
     Date.now(),
     { snapshot: true },
   );
-  const rows = await db.select({ id: jobs.id, externalId: jobs.externalId }).from(jobs);
+  const rows = await storedJobIds(db);
   return new Map(rows.map((row) => [row.externalId, row.id]));
 }
 
@@ -309,20 +302,15 @@ describe("saving and removing a job", () => {
     const ids = await seedJobs();
     const db = await getDb();
     await db.execute(sql`
-      insert into public.jobs (id, source, external_id, board, company, title, posted_at, url,
-        search, dedupe_key, content_hash, first_seen_at, last_seen_at, created_at, updated_at)
-      select gen_random_uuid(), source, external_id || '-copy-' || n, board, company, title,
-        posted_at, url, search, dedupe_key || '-' || n, content_hash, first_seen_at,
-        last_seen_at, created_at, updated_at
-      from public.jobs cross join generate_series(1, ${SAVED_JOBS_LIMIT}) as n
-      where external_id = '1'`);
-    await db.execute(sql`
-      insert into public.saved_jobs (user_id, job_id, saved_at)
-      select ${ada.id}, id, ${NOW} from public.jobs where external_id like '1-copy-%'`);
-    const [copy] = await db
-      .select({ id: jobs.id })
-      .from(jobs)
-      .where(eq(jobs.externalId, "1-copy-1"));
+      insert into public.listings (id, title, dedupe, posted, seen, grp, hash, board, level, ext)
+      select id + n, title, dedupe + n, posted, seen, grp, hash, board, level, ext || '-copy-' || n
+      from public.listings cross join generate_series(1, ${SAVED_JOBS_LIMIT}) as n
+      where ext = '1'`);
+    const copies = (await storedJobIds(db)).filter((row) => row.externalId.startsWith("1-copy-"));
+    await db
+      .insert(savedJobs)
+      .values(copies.map((row) => ({ userId: ada.id, jobId: row.id, savedAt: NOW })));
+    const copy = copies.find((row) => row.externalId === "1-copy-1");
 
     const full = await saveJob(ids.get("2")!);
     expect(full.status).toBe(400);

@@ -1,12 +1,13 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { jobBoards, jobCountsRow, jobMatch, jobs } from "@/db/schema";
+import { companyVisa, jobBoards, jobCountsRow, listings } from "@/db/schema";
 import { resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { fakeNet } from "@/lib/jobs/test-network";
 import { boardUrl, paceKey, runJobsIngest, usajobsUrl, withPlace } from "./ingest";
 import { WORKDAY_LIMITS } from "./workday";
+import { listingRows } from "./records";
 import {
   ASHBY_BOARD,
   GEM_BOARD,
@@ -37,6 +38,13 @@ vi.mock(
   "@/lib/jobs/transport",
   async () => (await import("@/lib/jobs/test-network")).transportMock,
 );
+
+// Every stored job as the pages read it, with its kept post text as description.
+async function storedJobs() {
+  const db = await getDb();
+  const ids = (await db.select({ id: listings.id }).from(listings)).map((row) => row.id);
+  return (await listingRows(db, ids)).map((row) => ({ ...row, description: row.post }));
+}
 
 const SEEDS = [
   { ats: "greenhouse" as const, token: "vercel", company: "Vercel" },
@@ -118,10 +126,7 @@ describe("runJobsIngest", () => {
       added: 14,
       boardsLeft: 0,
     });
-    const db = await getDb();
-    const saved = await db
-      .select({ source: jobs.source, company: jobs.company, description: jobs.description })
-      .from(jobs);
+    const saved = await storedJobs();
     const withText = saved.filter((job) => job.description).map((job) => job.source);
     expect(withText.sort()).toEqual(["himalayas", "remoteok"]);
     expect(saved.map((job) => `${job.source}:${job.company}`).sort()).toEqual([
@@ -144,6 +149,7 @@ describe("runJobsIngest", () => {
       expect(request.url.protocol).toBe("https:");
       expect(request.headers["user-agent"]).toMatch(/^OttoResumeBot/);
     }
+    const db = await getDb();
     const [gone] = await db.select().from(jobBoards).where(eq(jobBoards.token, "gone"));
     expect(gone).toMatchObject({ lastStatus: "not_found", failures: 1 });
     expect(outcome.stats.jobsFileMb).toBeGreaterThanOrEqual(0);
@@ -190,12 +196,13 @@ describe("runJobsIngest", () => {
       expect(boardReadsFirst).toBe(0);
       expect(outcome.stats.boards).toBe(6);
       const db = await getDb();
-      const vercel = await db
-        .select({ ukSponsor: jobMatch.ukSponsor, h1bYear: jobMatch.h1bYear })
-        .from(jobMatch)
-        .where(eq(jobMatch.company, "Vercel"));
-      expect(vercel.length).toBeGreaterThan(0);
-      expect(vercel).toEqual(vercel.map(() => ({ ukSponsor: true, h1bYear: 2023 })));
+      const [vercel] = await db
+        .select({ ukName: companyVisa.ukName, h1bYear: companyVisa.h1bYear })
+        .from(companyVisa)
+        .where(eq(companyVisa.companyKey, "vercel"));
+      expect(vercel).toMatchObject({ h1bYear: 2023 });
+      expect(vercel!.ukName).not.toBeNull();
+      expect((await storedJobs()).some((job) => job.company === "Vercel")).toBe(true);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -304,10 +311,7 @@ describe("runJobsIngest on Gem, Pinpoint and Jobvite boards", () => {
       "https://app.jobvite.com/CompanyJobs/Xml.aspx?c=qKr9VfwZ",
       "https://nypl.pinpointhq.com/postings.json",
     ]);
-    const db = await getDb();
-    const saved = await db
-      .select({ source: jobs.source, description: jobs.description })
-      .from(jobs);
+    const saved = await storedJobs();
     expect(saved.map((job) => job.source).sort()).toEqual([
       "gem",
       "gem",
@@ -383,11 +387,9 @@ describe("runJobsIngest on USAJOBS", () => {
       "user-agent": "jobs@example.com",
       "authorization-key": "key",
     });
-    const db = await getDb();
-    const saved = await db
-      .select({ title: jobs.title, url: jobs.url, description: jobs.description })
-      .from(jobs)
-      .where(eq(jobs.source, "usajobs"));
+    const saved = (await storedJobs())
+      .filter((job) => job.source === "usajobs")
+      .map(({ title, url, description }) => ({ title, url, description }));
     expect(saved).toEqual([
       {
         title: "IT SPECIALIST (INFOSEC/NETWORK)",
@@ -472,11 +474,7 @@ describe("runJobsIngest on a Workday career site", () => {
       true,
     );
     expect(postReads()).toBe(4);
-    const db = await getDb();
-    const saved = await db
-      .select({ title: jobs.title, location: jobs.location, description: jobs.description })
-      .from(jobs)
-      .where(eq(jobs.source, "workday"));
+    const saved = (await storedJobs()).filter((job) => job.source === "workday");
     expect(saved.map((job) => job.title).sort()).toEqual([
       "AI Natives Sales Account Manager - UK",
       "Senior Technical Trainer and Content Developer, AI Compute Systems",

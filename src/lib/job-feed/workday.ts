@@ -96,7 +96,7 @@ export async function readWorkday(
   board: WorkdayBoard,
   company: string,
   get: WorkdayFetch,
-  storedHashes: (externalIds: string[]) => Promise<Map<string, string>>,
+  storedHashes: (externalIds: string[]) => Promise<Map<string, number>>,
   { readAt, deadline }: { readAt: number; deadline: number },
 ): Promise<WorkdayRead> {
   if (!(await allowed(board, get))) throw new JobReadError("blocked", { detail: "robots" });

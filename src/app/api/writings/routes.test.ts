@@ -10,8 +10,9 @@ import {
 } from "@/lib/auth/test-helpers";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { applications, jobs, users, writings } from "@/db/schema";
+import { applications, users, writings } from "@/db/schema";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
+import { storedJobIds } from "@/lib/job-feed/test-fixtures";
 import type {
   OutreachWritingResponse,
   Writing,
@@ -99,11 +100,7 @@ const SHARED_LINK = "https://careers.example.com/open-roles";
 // A solo posting, and two that a careers page gives the same link.
 async function seedJobs(): Promise<{ solo: string; designer: string; engineer: string }> {
   const db = await getDb();
-  await syncBoards(
-    db,
-    [{ ats: "greenhouse", token: "northwind", company: "Northwind" }],
-    Date.now(),
-  );
+  await syncBoards(db, [{ ats: "greenhouse", token: "northwind", company: "Northwind" }]);
   const posting = (externalId: string, title: string, url: string) => ({
     externalId,
     company: "Northwind",
@@ -127,7 +124,7 @@ async function seedJobs(): Promise<{ solo: string; designer: string; engineer: s
     Date.now(),
     { snapshot: true },
   );
-  const rows = await db.select({ id: jobs.id, externalId: jobs.externalId }).from(jobs);
+  const rows = await storedJobIds(db);
   const id = (externalId: string) => rows.find((row) => row.externalId === externalId)!.id;
   return { solo: id("7"), designer: id("8"), engineer: id("9") };
 }

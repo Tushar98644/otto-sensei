@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Db } from "@/db/client";
 import { checkEligibility } from "@/lib/eligibility/check";
+import { blockedHint } from "@/lib/eligibility/facts";
 import { isProfileStarted, type WorkProfile, type WorkRegion } from "@/lib/eligibility/profile";
 import { DAY_MS } from "@/lib/time";
 import { jobPlaceTokens } from "./job-places";
@@ -48,7 +49,7 @@ import {
 } from "./order";
 import { gateAllows, roleGate } from "./role-gate";
 import { familyFits } from "./roles";
-import { personRole, sameness, SEMANTIC, titleSimilarities, type PersonRole } from "./semantic";
+import { personRole, roleSimilarity, sameness, SEMANTIC, type PersonRole } from "./semantic";
 import {
   CANDIDATE_POOL,
   DEFAULT_SKILL_WEIGHT,
@@ -78,7 +79,8 @@ const COPIES_CHECKED = 6;
 const PLACES_SHOWN = 2;
 const FREE_POOL = 60;
 
-export const MATCH_VARIANT = "title-vectors-v1";
+// Cached Matches pages carry their variant, so a new one never serves a page built on the old ids.
+export const MATCH_VARIANT = "title-codes-v1";
 
 export function occupationOption(code: string | null): OccupationOption | null {
   const occupation = occupationOf(code);
@@ -95,17 +97,23 @@ export function withOccupation(lookingFor: LookingFor): LookingFor {
   return { ...lookingFor, occupation, family };
 }
 
+// Rows the compact-jobs migration copied hold the old rules text until the next rebuild reads it.
+const LEGACY_FACTS = "\u0001";
+
 function eligibilityOf(
-  row: { location: string; rulesText: string },
+  row: { location: string; facts: string },
   profile: WorkProfile | null,
   options: { now: number; deviceTimeZone: string; sponsors: WorkRegion[] },
 ): EligibilityHint {
-  if (!row.rulesText && !row.location) return { blocked: false, note: null };
-  const findings = checkEligibility({ location: row.location, text: row.rulesText }, profile, {
+  const checkOptions = {
     now: options.now,
     deviceTimeZone: options.deviceTimeZone || undefined,
     sponsorRegions: options.sponsors,
-  });
+  };
+  if (!row.facts.startsWith(LEGACY_FACTS)) return blockedHint(row.facts, profile, checkOptions);
+  const text = row.facts.slice(1);
+  if (!text && !row.location) return { blocked: false, note: null };
+  const findings = checkEligibility({ location: row.location, text }, profile, checkOptions);
   const blocked = findings.find((finding) => finding.verdict === "blocked");
   return { blocked: Boolean(blocked), note: blocked?.note ?? null };
 }
@@ -139,10 +147,7 @@ function storedCounts(db: Db, request: RankRequest): Promise<StoredCounts | null
   return request.counts === undefined ? readStoredCounts(db) : Promise.resolve(request.counts);
 }
 
-type Check = (
-  row: { location: string; rulesText: string },
-  visa: VisaFacts | null,
-) => EligibilityHint;
+type Check = (row: { location: string; facts: string }, visa: VisaFacts | null) => EligibilityHint;
 
 function pickCopy(
   opening: PooledOpening,
@@ -296,19 +301,10 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       },
       gate,
       interns,
-      similar: role ? (keys) => titleSimilarities(db, role, keys) : undefined,
     },
     counts,
     now,
   );
-  const similar: ReadonlyMap<string, number> = !role
-    ? new Map()
-    : (pool.similar ??
-      (await titleSimilarities(
-        db,
-        role,
-        pool.openings.flatMap((opening) => opening.kind?.tkey || []),
-      ).catch(() => new Map<string, number>())));
 
   const scored: Scored[] = [];
   for (const opening of pool.openings) {
@@ -321,7 +317,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     const floor = gate && kindOf(person, read).weight >= KIND.same ? KIND.same : 0;
     const facts = {
       ...read,
-      kind: role ? titleKind(role, row.title, opening.kind, similar, floor) : null,
+      kind: role ? titleKind(role, row.title, opening.kind, floor) : null,
     };
     if (!matchJob(person, facts)) continue;
     const { shown, others, hint } = pickCopy(opening, check, accepted);
@@ -434,16 +430,15 @@ async function withSaved(db: Db, userId: string, result: RankResult): Promise<Ra
   };
 }
 
-// The job's kind of role by title vectors: its own vector when stored, else what the index read.
+// The job's kind of role by title vectors: its title's code when embedded, else what the index read.
 function titleKind(
   role: PersonRole,
   title: string,
   read: PooledOpening["kind"],
-  similar: ReadonlyMap<string, number>,
   floor: number,
 ): Kind | null {
-  const similarity = read?.tkey ? similar.get(read.tkey) : undefined;
-  if (similarity === undefined) return null;
+  if (!read?.code) return null;
+  const similarity = roleSimilarity(role, read.code);
   const weight = Math.max(floor, sameness(similarity));
   const jobRole = roleTitle(title);
   const differs = role.title && !titleFits(title, role.title) && !titleFits(role.title, jobRole);

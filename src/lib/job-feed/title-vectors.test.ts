@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { titleVectors } from "@/db/schema";
+import { titles } from "@/db/schema";
 import { resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { GET, POST } from "@/app/api/cron/title-vectors/route";
+import rawVectors from "./occupations/vectors.json";
 import { occupationVectors } from "./semantic";
 import {
-  blend,
-  cosine,
+  blendSimilarity,
+  codeSimilarity,
+  encodeTitleVector,
+  TITLE_CODE_BYTES,
+  titleCodeFrom,
+} from "./title-code";
+import {
   noteTitles,
   readTitleVectors,
   saveTitleVectors,
@@ -17,14 +23,19 @@ import {
 } from "./title-vectors";
 
 const NOW = Date.UTC(2026, 10, 23, 6);
+const DAY = 24 * 60 * 60 * 1_000;
 const SECRET = "cron-secret-for-tests-0123456789";
 const SOFTWARE = "15-1252.00";
 const SUPPORT = "15-1232.00";
 
-function encoded(code: string): string {
-  const vector = occupationVectors().get(code)!;
-  return Buffer.from(vector.buffer, vector.byteOffset, vector.length).toString("base64");
+// An occupation's 256 int8 values, as scripts/title-vectors.py sends a title's.
+function int8(code: string): Int8Array {
+  const file = rawVectors as { codes: string[]; vectors: string };
+  const at = file.codes.indexOf(code) * 256;
+  return new Int8Array(Buffer.from(file.vectors, "base64").subarray(at, at + 256));
 }
+
+const encoded = (code: string) => Buffer.from(int8(code)).toString("base64");
 
 const row = (key: string, code: string): TitleVectorRow => [key, encoded(code), [code], [0.9]];
 
@@ -39,44 +50,66 @@ describe("title vectors", () => {
     expect(titleVectorKey("x".repeat(300))).toHaveLength(120);
   });
 
-  it("reads the shipped occupation vectors and compares them", () => {
+  it("reads the shipped occupation vectors as codes and compares them", () => {
     const software = occupationVectors().get(SOFTWARE)!;
     const support = occupationVectors().get(SUPPORT)!;
     const nurse = occupationVectors().get("29-1141.00")!;
     expect(occupationVectors().size).toBeGreaterThan(1_000);
-    expect(cosine(software, software)).toBeCloseTo(1, 5);
-    expect(cosine(software, support)).toBeGreaterThan(cosine(software, nurse));
-    const mixed = blend([
-      { vector: software, weight: 1 },
-      { vector: nurse, weight: 0.3 },
-    ])!;
-    expect(cosine(mixed, software)).toBeGreaterThan(cosine(mixed, nurse));
+    expect(software).toHaveLength(TITLE_CODE_BYTES);
+    expect(codeSimilarity(software, software)).toBeCloseTo(1, 5);
+    expect(codeSimilarity(software, support)).toBeGreaterThan(codeSimilarity(software, nurse));
+    const mixed = [
+      { code: software, weight: 1 },
+      { code: nurse, weight: 0.3 },
+    ];
+    expect(blendSimilarity(mixed, software)).toBeGreaterThan(blendSimilarity(mixed, nurse));
+  });
+
+  it("keeps a code's similarity close to the full vectors' cosine", () => {
+    const cosine = (a: Int8Array, b: Int8Array) => {
+      let dot = 0;
+      let x = 0;
+      let y = 0;
+      for (let i = 0; i < a.length; i++) {
+        dot += a[i]! * b[i]!;
+        x += a[i]! ** 2;
+        y += b[i]! ** 2;
+      }
+      return dot / Math.sqrt(x * y);
+    };
+    const codes = [SOFTWARE, SUPPORT, "29-1141.00", "13-2011.00", "41-3091.00", "27-1024.00"];
+    for (const a of codes) {
+      for (const b of codes) {
+        const full = cosine(int8(a), int8(b));
+        const kept = codeSimilarity(encodeTitleVector(int8(a))!, encodeTitleVector(int8(b))!);
+        expect(Math.abs(kept - full)).toBeLessThan(0.12);
+      }
+    }
+    // A 256-byte vector stored before codes reads as the same code.
+    const legacy = new Uint8Array(int8(SOFTWARE).buffer);
+    expect(titleCodeFrom(legacy)).toEqual(encodeTitleVector(int8(SOFTWARE)));
   });
 
   it("fills only titles waiting for a vector, newest first", async () => {
     const db = await getDb();
     expect(await noteTitles(db, ["backend engineer", "support engineer"], NOW)).toBe(2);
-    expect(await noteTitles(db, ["backend engineer"], NOW + 1)).toBe(0);
-    await noteTitles(db, ["registered nurse"], NOW + 2);
-    expect(await waitingTitles(db, 10)).toEqual([
-      "registered nurse",
-      "backend engineer",
-      "support engineer",
+    expect(await noteTitles(db, ["backend engineer"], NOW + DAY)).toBe(0);
+    await noteTitles(db, ["registered nurse"], NOW + 2 * DAY);
+    const waiting = await waitingTitles(db, 10);
+    expect(waiting[0]).toBe("registered nurse");
+    expect(waiting.slice(1).sort()).toEqual(["backend engineer", "support engineer"]);
+    const saved = await saveTitleVectors(db, [
+      row("backend engineer", SOFTWARE),
+      row("never asked for", SOFTWARE),
     ]);
-    const saved = await saveTitleVectors(
-      db,
-      [row("backend engineer", SOFTWARE), row("never asked for", SOFTWARE)],
-      NOW + 3,
-    );
     expect(saved).toBe(1);
     expect(await waitingTitles(db, 10)).toEqual(["registered nurse", "support engineer"]);
     const stored = await readTitleVectors(db, ["backend engineer", "support engineer"]);
     expect([...stored.keys()]).toEqual(["backend engineer"]);
-    expect(cosine(stored.get("backend engineer")!, occupationVectors().get(SOFTWARE)!)).toBeCloseTo(
-      1,
-      5,
-    );
-    expect(await db.select().from(titleVectors)).toHaveLength(3);
+    expect(
+      codeSimilarity(stored.get("backend engineer")!, occupationVectors().get(SOFTWARE)!),
+    ).toBeCloseTo(1, 5);
+    expect(await db.select().from(titles)).toHaveLength(3);
   });
 
   it("serves the workflow only with the cron secret", async () => {

@@ -1,8 +1,9 @@
 // What each matching step keeps per persona: OTTO_PGLITE_DIR=<copy> bun scripts/match-funnel.ts [--set india|global|v2] [--rebuild] [--json out.json]
 import { writeFileSync } from "node:fs";
-import { and, isNotNull, isNull, eq, sql } from "drizzle-orm";
-import { jobMatch, jobs, skills } from "@/db/schema";
+import { isNotNull, sql } from "drizzle-orm";
+import { listings, skills } from "@/db/schema";
 import { emptyWorkProfile, type WorkProfile } from "@/lib/eligibility/profile";
+import { familyOf, FLAG, fromMinutes, unpackOccupation } from "@/lib/job-feed/codes";
 import { acceptedPlaces, lookingForOf, placeFit } from "@/lib/job-feed/looking-for";
 import { KIND, kindOf, personFrom } from "@/lib/job-feed/match";
 import { OCCUPATIONS } from "@/lib/job-feed/occupations";
@@ -159,12 +160,28 @@ async function main() {
   const fresh = Number(records.FRESH_FOR_MS ?? records.EVERGREEN_AFTER_MS);
   const counts = await readStoredCounts(db);
   const [open] = await db
-    .select({
-      n: sql<number>`count(distinct coalesce(nullif(${jobs.groupKey}, ''), ${jobs.id}::text))::int`,
-    })
-    .from(jobs)
-    .where(and(isNull(jobs.closedAt), eq(jobs.evergreen, false)));
-  const rows = await db.select().from(jobMatch);
+    .select({ n: sql<number>`count(distinct (${listings.board}, ${listings.grp}))::int` })
+    .from(listings)
+    .where(sql`(${listings.flags} & ${FLAG.evergreen}) = 0`);
+  // The openings the last rebuild marked, as the index query reads them.
+  const rows = (
+    await db
+      .select()
+      .from(listings)
+      .where(sql`(${listings.flags} & ${FLAG.lead}) <> 0`)
+  ).map((row) => {
+    const occ = unpackOccupation(row.occ);
+    return {
+      seenAt: fromMinutes(Math.min(row.posted, row.seen)),
+      places: (row.oplaces || row.places).split(" ").filter(Boolean),
+      remote: (row.flags & FLAG.openingRemote) !== 0,
+      sids: row.skills,
+      family: familyOf(row.family),
+      occ,
+      occMinor: occ?.slice(0, 4) ?? null,
+      level: row.level,
+    };
+  });
   const sidSkill = new Map(
     (
       await db

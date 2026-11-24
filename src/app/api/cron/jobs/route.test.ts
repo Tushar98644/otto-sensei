@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { jobs } from "@/db/schema";
+import { listings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { resetDb } from "@/lib/auth/test-helpers";
 import type { CronResponse } from "@/lib/cron/run";
@@ -13,7 +13,10 @@ import { GET, POST } from "./route";
 vi.mock("node:dns", async (importOriginal) =>
   (await import("@/lib/jobs/test-network")).dnsMock(await importOriginal()),
 );
-vi.mock("@/lib/jobs/transport", async () => (await import("@/lib/jobs/test-network")).transportMock);
+vi.mock(
+  "@/lib/jobs/transport",
+  async () => (await import("@/lib/jobs/test-network")).transportMock,
+);
 vi.mock("@/lib/job-feed/seeds", () => ({
   BOARD_SEEDS: [{ ats: "greenhouse", token: "vercel", company: "Vercel" }],
 }));
@@ -59,13 +62,18 @@ describe("/api/cron/jobs", () => {
     const res = await GET(call(`Bearer ${SECRET}`));
     expect(res.status).toBe(500);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await (await getDb()).select({ id: jobs.id }).from(jobs)).toHaveLength(2);
+    expect(await (await getDb()).select({ id: listings.id }).from(listings)).toHaveLength(2);
 
     const before = fakeNet.requests.length;
     const again = await POST(call(`Bearer ${SECRET}`, "POST"));
     expect(again.status).toBe(200);
     const body = (await again.json()) as CronResponse;
-    expect(body).toMatchObject({ ok: true, job: "jobs", complete: true, stats: { feeds: 0, boards: 0 } });
+    expect(body).toMatchObject({
+      ok: true,
+      job: "jobs",
+      complete: true,
+      stats: { feeds: 0, boards: 0 },
+    });
     expect(fakeNet.requests.length).toBe(before);
   });
 });

@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { companyVisa, jobs, matchCache, skills } from "@/db/schema";
+import { companyVisa, listings, matchCache, skills } from "@/db/schema";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import {
@@ -12,7 +12,7 @@ import {
 } from "./match-index";
 import type { RawJob } from "./parsers";
 import { rankJobs } from "./rank";
-import { occupationVectors } from "./semantic";
+import rawVectors from "./occupations/vectors.json";
 import { refreshSkillWeights, saveJobs, syncBoards } from "./store";
 import {
   saveTitleVectors,
@@ -61,14 +61,14 @@ async function ingest(list: RawJob[]) {
 describe("match index", () => {
   beforeEach(async () => {
     await resetDb();
-    await syncBoards(await getDb(), [{ ats: "greenhouse", token: "acme", company: "Acme" }], NOW);
+    await syncBoards(await getDb(), [{ ats: "greenhouse", token: "acme", company: "Acme" }]);
   });
 
   it("rewrites only the rows that changed, and drops openings that closed", async () => {
     const db = await getDb();
     expect(await ingest([raw("1"), raw("2"), raw("3", { title: "Account Executive" })])).toBe(3);
     const versions = async () => {
-      const result = await db.execute(sql`select id, xmin::text as v from job_match`);
+      const result = await db.execute(sql`select id::text, xmin::text as v from listings`);
       const { rows } = result as unknown as { rows: { id: string; v: string }[] };
       return new Map(rows.map((row) => [row.id, row.v]));
     };
@@ -85,7 +85,7 @@ describe("match index", () => {
     for (const [id, version] of after) expect(version).toBe(first.get(id));
   });
 
-  it("gives a skill its id when an indexed post first names it, never changes it, and drops only the weight once no open post names it", async () => {
+  it("gives a skill its id when a post first names it, never changes it, and drops only the weight once no open post names it", async () => {
     const db = await getDb();
     const table = async () =>
       new Map(
@@ -101,8 +101,7 @@ describe("match index", () => {
     expect(new Set([ids.get("Go"), ids.get("PostgreSQL"), ids.get("Kubernetes")])).toEqual(
       new Set([1, 2, 3]),
     );
-    // Too old for Matches, so only weighed.
-    expect(first.get("Elixir")).toEqual({ sid: null, openJobs: 1, weighted: true });
+    expect(first.get("Elixir")).toEqual({ sid: 4, openJobs: 1, weighted: true });
     expect(first.get("Go")).toMatchObject({ openJobs: 2, weighted: true });
 
     const python = raw("2", { text: "Build services in Python and Elixir." });
@@ -117,38 +116,38 @@ describe("match index", () => {
       openJobs: 0,
       weighted: false,
     });
-    expect(new Set([later.get("Python")?.sid, later.get("Elixir")?.sid])).toEqual(new Set([4, 5]));
-    const result = await db.execute(sql`select sids from job_match`);
-    const { rows } = result as unknown as { rows: { sids: number[] }[] };
-    const named = [later.get("Python")?.sid, later.get("Elixir")?.sid].flatMap((sid) => sid ?? []);
-    expect(rows).toEqual([{ sids: named.sort((a, b) => a - b) }]);
+    expect(later.get("Elixir")?.sid).toBe(4);
+    expect(later.get("Python")?.sid).toBe(5);
+    const result = await db.execute(sql`select skills from listings where ext = '2'`);
+    const { rows } = result as unknown as { rows: { skills: number[] }[] };
+    expect(rows).toEqual([{ skills: [5, 4] }]);
   });
 
-  it("ranks from jobs until an ingest has built it, then from job_match, with the same openings", async () => {
+  it("ranks every fresh job until a rebuild has marked the openings, then each opening", async () => {
     const db = await getDb();
     await saveJobs(
       db,
       ACME,
       [raw("1"), raw("2"), raw("3", { title: "Account Executive", text: "Salesforce." })],
       NOW,
-      {
-        snapshot: true,
-      },
+      { snapshot: true },
     );
     expect(await readStoredCounts(db)).toBeNull();
     const before = await poolOpenings(db, QUERY, null, NOW);
-    expect(before.source).toBe("jobs");
 
     await refreshSkillWeights(db, NOW);
     expect(await rebuildMatchIndex(db, NOW)).toBe(3);
     const counts = await readStoredCounts(db);
     expect(counts).toMatchObject({ openJobs: 3, matchable: 3, builtAt: NOW });
     const after = await poolOpenings(db, QUERY, counts, NOW);
-    expect(after.source).toBe("index");
-    expect(after.openings.map((item) => item.row.title).sort()).toEqual(
-      before.openings.map((item) => item.row.title).sort(),
+    expect(after.openings.map((item) => item.row.title).sort()).toEqual([
+      "Backend Engineer 1",
+      "Backend Engineer 2",
+    ]);
+    expect(after.groups).toBe(2);
+    expect(before.openings.map((item) => item.row.title).sort()).toEqual(
+      after.openings.map((item) => item.row.title).sort(),
     );
-    expect(after.groups).toBe(before.groups);
   });
 
   it("keeps one row per opening with every copy's place, and filters on any copy", async () => {
@@ -210,7 +209,6 @@ describe("match index", () => {
     expect(await shown({ q: "london" })).toEqual(["London, United Kingdom"]);
     expect(await shown({ place: "united states" })).toEqual(["Remote · United States"]);
     expect(await shown({ q: "berlin" })).toEqual([]);
-    expect(await shown({ q: "london" }, null)).toEqual(await shown({ q: "london" }));
   });
 
   it("keeps only openings someone in the chosen place can take, and counts a far level but ranks it last", async () => {
@@ -317,14 +315,13 @@ describe("match index", () => {
     await ingest([raw("seed")]);
     const db = await getDb();
     await db.execute(sql`
-      insert into public.jobs (id, source, external_id, board, company, title, location, remote,
-        seniority, family, occupation, posted_at, url, rules_text, keywords, search, dedupe_key,
-        group_key, content_hash, first_seen_at, last_seen_at, created_at, updated_at)
-      select gen_random_uuid(), source, 'copy-' || n, board, company || ' ' || n, title, location,
-        remote, seniority, family, occupation, posted_at - n * 1000, url || '?n=' || n, rules_text,
-        keywords, search, dedupe_key || n, group_key || n, content_hash, first_seen_at,
-        last_seen_at, created_at, updated_at
-      from public.jobs cross join generate_series(1, 329) as n`);
+      insert into public.listings (id, title, dedupe, posted, seen, valid, grp, hash, occ, board,
+        level, family, min_years, flags, missed, ext, title_text, location, places, company, url,
+        facts, skills)
+      select id + n, title, dedupe + n, posted - n, seen, valid, grp + n, hash, occ, board, level,
+        family, min_years, flags, missed, 'copy-' || n, title_text, location, places, 'Acme ' || n,
+        url, facts, skills
+      from public.listings cross join generate_series(1, 329) as n`);
     await rebuildMatchIndex(db, NOW);
     const user = await createUser("ada@example.com");
     const page = (n: number) =>
@@ -386,30 +383,23 @@ describe("match index", () => {
       raw("nurse", { title: "Registered Nurse", text: "Patient care." }),
     ]);
     const db = await getDb();
-    // Each test title gets its occupation's vector.
+    // Each test title gets its occupation's vector, as scripts/title-vectors.py sends one.
+    const file = rawVectors as { codes: string[]; vectors: string };
+    const all = Buffer.from(file.vectors, "base64");
     const row = (title: string, code: string): TitleVectorRow => {
-      const vector = occupationVectors().get(code)!;
-      return [
-        titleVectorKey(title),
-        Buffer.from(vector.buffer, vector.byteOffset, vector.length).toString("base64"),
-        [code],
-        [0.9],
-      ];
+      const at = file.codes.indexOf(code) * 256;
+      return [titleVectorKey(title), all.subarray(at, at + 256).toString("base64"), [code], [0.9]];
     };
     expect((await waitingTitles(db, 10)).sort()).toEqual([
       "associate linux support engineer",
       "backend developer",
       "registered nurse",
     ]);
-    await saveTitleVectors(
-      db,
-      [
-        row("Backend Developer", "15-1252.00"),
-        row("Associate Linux Support Engineer", "15-1232.00"),
-        row("Registered Nurse", "29-1141.00"),
-      ],
-      NOW,
-    );
+    await saveTitleVectors(db, [
+      row("Backend Developer", "15-1252.00"),
+      row("Associate Linux Support Engineer", "15-1232.00"),
+      row("Registered Nurse", "29-1141.00"),
+    ]);
     expect(await rebuildMatchIndex(db, NOW)).toBe(3);
     const user = await createUser("ada@example.com");
     const result = await rankJobs(db, {
@@ -455,10 +445,7 @@ describe("match index", () => {
     expect(first.jobs).toHaveLength(2);
     expect(first.lookingFor).toMatchObject({ family: "engineering", place: "g:eu" });
     expect(await db.select().from(matchCache)).toHaveLength(1);
-    await db
-      .update(jobs)
-      .set({ closedAt: NOW, closeReason: "gone" })
-      .where(eq(jobs.externalId, "2"));
+    await db.delete(listings).where(eq(listings.ext, "2"));
     const again = await rankJobs(db, { ...request, now: NOW + 60_000 });
     expect(again.jobs.map((job) => job.id)).toEqual(first.jobs.map((job) => job.id));
     const other = await rankJobs(db, {
@@ -497,7 +484,7 @@ describe("match index", () => {
     expect(first.jobs).toHaveLength(20);
     expect(await db.select().from(matchCache)).toHaveLength(2);
 
-    await db.update(jobs).set({ closedAt: NOW, closeReason: "gone" });
+    await db.delete(listings);
     const second = await rankJobs(db, { ...request, page: 2 });
     expect(second).toMatchObject({ page: 2, total: 25 });
     expect(second.jobs.map((job) => job.position)).toEqual([21, 22, 23, 24, 25]);
@@ -505,7 +492,7 @@ describe("match index", () => {
     expect(await db.select().from(matchCache)).toHaveLength(2);
 
     const free = await createUser("grace@example.com");
-    await db.update(jobs).set({ closedAt: null, closeReason: null });
+    await ingest(Array.from({ length: 25 }, (_, i) => raw(String(i))));
     await rankJobs(db, { ...request, userId: free.id, free: true });
     const kept = await db.select().from(matchCache).where(eq(matchCache.userId, free.id));
     expect(kept).toHaveLength(1);
@@ -540,10 +527,7 @@ describe("match index", () => {
     await ingest([raw("1"), raw("2")]);
     const db = await getDb();
     const user = await createUser("ada@example.com");
-    await db
-      .update(jobs)
-      .set({ closedAt: NOW, closeReason: "gone" })
-      .where(eq(jobs.externalId, "2"));
+    await db.delete(listings).where(eq(listings.ext, "2"));
     const saved = await rankJobs(db, {
       userId: user.id,
       view: "saved",

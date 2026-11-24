@@ -4,10 +4,8 @@ import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import {
   applications,
-  jobs,
   portfolios,
   resumes,
-  savedJobs,
   savedPosts,
   shares,
   users,
@@ -20,6 +18,7 @@ import type { SessionUser } from "@/lib/auth/types";
 import { readWorkProfile } from "@/lib/eligibility/records";
 import { lookingForOf } from "@/lib/job-feed/looking-for";
 import { readStoredCounts } from "@/lib/job-feed/match-index";
+import { savedCandidates } from "@/lib/job-feed/records";
 import { matchProfileOf } from "@/lib/job-feed/profile";
 import { rankJobs } from "@/lib/job-feed/rank";
 import { DEFAULT_FILTERS } from "@/lib/job-feed/types";
@@ -101,20 +100,7 @@ async function loadFacts(
       .from(resumes)
       .where(eq(resumes.userId, user.id))
       .limit(LIST_LIMIT),
-    db
-      .select({
-        savedAt: savedJobs.savedAt,
-        jobId: savedJobs.jobId,
-        company: jobs.company,
-        title: jobs.title,
-        url: jobs.url,
-        closedAt: jobs.closedAt,
-      })
-      .from(savedJobs)
-      .leftJoin(jobs, eq(jobs.id, savedJobs.jobId))
-      .where(eq(savedJobs.userId, user.id))
-      .orderBy(desc(savedJobs.savedAt))
-      .limit(LIST_LIMIT),
+    savedCandidates(db, user.id).then((rows) => rows.slice(0, LIST_LIMIT)),
     db
       .select({
         savedAt: savedPosts.savedAt,
@@ -164,11 +150,11 @@ async function loadFacts(
     saved: [
       ...saved.map((row) => ({
         savedAt: row.savedAt,
-        jobId: row.jobId,
-        company: row.company ?? "",
-        title: row.title ?? "",
-        url: row.url ?? "",
-        open: row.company !== null && row.closedAt === null,
+        jobId: row.id,
+        company: row.company,
+        title: row.title,
+        url: row.url,
+        open: !row.closed,
       })),
       ...posts.map((row) => ({ ...row, jobId: null, open: true })),
     ],

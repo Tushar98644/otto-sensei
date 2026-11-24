@@ -7,6 +7,7 @@ import {
   NOT_REMOTE,
   NO_RELOCATION,
   ON_SITE,
+  PERMANENT_RESIDENT,
   RELOCATION,
   REMOTE,
   asksCitizenship,
@@ -17,10 +18,11 @@ import {
   restrictedPlaces,
   saysOnSite,
   saysWorldwide,
+  visaRegionIn,
 } from "./cues";
 import { findPlaces, type FoundPlace, type Place } from "./places";
-import type { WorkProfile } from "./profile";
-import { findTimeRule } from "./time";
+import type { WorkProfile, WorkRegion } from "./profile";
+import { findTimeRule, type TimeRule } from "./time";
 import type { EligibilityFinding, EligibilityRule, EligibilityVerdict } from "./types";
 import {
   homeName,
@@ -115,33 +117,55 @@ function clip(text: string): string {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), MAX_QUOTE - 20)).trimEnd()}…`;
 }
 
-export function checkEligibility(
-  post: PostInput,
-  profile: WorkProfile | null,
-  options: CheckOptions,
-): EligibilityFinding[] {
+// What the rules read from a post, before any profile: checkEligibility judges it, and the jobs
+// index keeps a compact copy (facts.ts) so a stored job is judged without its text.
+export type ParsedUnit = {
+  quote: string;
+  time: TimeRule | null;
+  citizenship: boolean;
+  authorization: boolean;
+  noSponsor: boolean;
+  offer: boolean;
+  places: Place[];
+  home: boolean;
+  visa: WorkRegion | null;
+  permanent: boolean;
+  fullTime: boolean;
+  contract: boolean;
+};
+
+export type ParsedPost = {
+  locationPlaces: Place[];
+  sponsorOffered: boolean;
+  relocation: boolean;
+  remote: boolean;
+  onSite: boolean;
+  homeRights: boolean;
+  restricted: Claim[];
+  field: Claim | null;
+  anywhere: Claim | null;
+  units: ParsedUnit[];
+};
+
+const moves = (quote: string) => RELOCATION.test(quote) && !NO_RELOCATION.test(quote);
+
+export function parsePost(post: PostInput): ParsedPost {
   const units = unitsOf(post.text);
   const locationUnit = post.location.trim()
     ? null
     : (units.find((unit) => LOCATION_LINE.test(unit.text)) ?? null);
   const location =
     post.location.trim() || (LOCATION_LINE.exec(locationUnit?.text ?? "")?.[1] ?? "").trim();
+  const fieldQuote = locationUnit?.quote ?? clip(location);
   const fieldClaim = {
-    quote: locationUnit?.quote ?? clip(location),
+    quote: fieldQuote,
     source: (locationUnit ? "post" : "location") as Source,
+    moves: moves(fieldQuote),
   };
   const all = `${location}\n${post.text}`;
   const notRemote = NOT_REMOTE.test(all);
   const fieldSpots = location ? findPlaces(location) : [];
-  const context: Context = {
-    profile,
-    locationPlaces: fieldSpots.map((spot) => spot.place),
-    sponsorOffered: units.some((unit) => offersSponsorship(unit.text)),
-    relocation: units.some((unit) => RELOCATION.test(unit.text) && !NO_RELOCATION.test(unit.text)),
-    remote: REMOTE.test(all) && !notRemote,
-    onSite: notRemote || ON_SITE.test(location) || units.some((unit) => saysOnSite(unit.text)),
-    sponsorRegions: options.sponsorRegions,
-  };
+  const locationPlaces = fieldSpots.map((spot) => spot.place);
 
   const restricted: Claim[] = [];
   let field: Claim | null = null;
@@ -154,55 +178,101 @@ export function checkEligibility(
         ? cued
         : remoteCountries(location, fieldSpots);
     if (limited.length > 0) restricted.push({ ...fieldClaim, places: limited });
-    else if (fieldSpots.length > 0) field = { ...fieldClaim, places: context.locationPlaces };
+    else if (fieldSpots.length > 0) field = { ...fieldClaim, places: locationPlaces };
     else if (remoteField && fieldSaysWorldwide(location)) anywhere = { ...fieldClaim, places: [] };
   }
+  const remote = REMOTE.test(all) && !notRemote;
 
-  const parsed = units.map((unit) => {
+  const parsed: ParsedUnit[] = [];
+  for (const unit of units) {
     const timeRule = describesTeamOnly(unit.text) ? null : findTimeRule(unit.text);
     const line = unit.text.replace(TIME_ZONE_PHRASE, " ");
     const spots = findPlaces(line);
-    return { unit, timeRule, line, spots, places: spots.map((spot) => spot.place) };
-  });
-  for (const { unit, timeRule, line, spots, places } of parsed) {
-    if (unit === locationUnit) continue;
-    const limited = restrictedPlaces(line, spots);
-    if (limited.length > 0) restricted.push({ places: limited, quote: unit.quote, source: "post" });
-    else if (
-      !anywhere &&
-      places.length === 0 &&
-      context.remote &&
-      !timeRule &&
-      saysWorldwide(unit.text)
-    ) {
-      anywhere = { places: [], quote: unit.quote, source: "post" };
+    const places = spots.map((spot) => spot.place);
+    if (unit !== locationUnit) {
+      const limited = restrictedPlaces(line, spots);
+      if (limited.length > 0)
+        restricted.push({
+          places: limited,
+          quote: unit.quote,
+          source: "post",
+          moves: moves(unit.quote),
+        });
+      else if (
+        !anywhere &&
+        places.length === 0 &&
+        remote &&
+        !timeRule &&
+        saysWorldwide(unit.text)
+      ) {
+        anywhere = { places: [], quote: unit.quote, source: "post", moves: moves(unit.quote) };
+      }
     }
+    const noSponsor = refusesSponsorship(unit.text);
+    const citizenship = asksCitizenship(unit.text);
+    parsed.push({
+      quote: unit.quote,
+      time: timeRule,
+      citizenship,
+      authorization: !citizenship && AUTHORIZATION.test(unit.text) && !noSponsor,
+      noSponsor,
+      offer: !noSponsor && offersSponsorship(unit.text),
+      places,
+      home: HOME_COUNTRY.test(unit.text),
+      visa: visaRegionIn(unit.text),
+      permanent: PERMANENT_RESIDENT.test(unit.text),
+      fullTime: FULL_TIME.test(unit.text),
+      contract: CONTRACT.test(unit.text),
+    });
   }
-  if (context.locationPlaces.length === 0) {
-    context.locationPlaces = restricted.flatMap((claim) => claim.places);
-  }
-  const where = locationFinding(restricted, field, anywhere, context);
+  return {
+    locationPlaces:
+      locationPlaces.length > 0 ? locationPlaces : restricted.flatMap((claim) => claim.places),
+    sponsorOffered: units.some((unit) => offersSponsorship(unit.text)),
+    relocation: units.some((unit) => RELOCATION.test(unit.text) && !NO_RELOCATION.test(unit.text)),
+    remote,
+    onSite: notRemote || ON_SITE.test(location) || units.some((unit) => saysOnSite(unit.text)),
+    homeRights: units.some((unit) => HOME_COUNTRY.test(unit.text) && AUTHORIZATION.test(unit.text)),
+    restricted,
+    field,
+    anywhere,
+    units: parsed,
+  };
+}
+
+export function judgePost(
+  post: ParsedPost,
+  profile: WorkProfile | null,
+  options: CheckOptions,
+): EligibilityFinding[] {
+  const context: Context = {
+    profile,
+    locationPlaces: post.locationPlaces,
+    sponsorOffered: post.sponsorOffered,
+    relocation: post.relocation,
+    remote: post.remote,
+    onSite: post.onSite,
+    sponsorRegions: options.sponsorRegions,
+  };
+  const where = locationFinding(post.restricted, post.field, post.anywhere, context);
   const found: EligibilityFinding[] = where ? [where] : [];
-  const homeRights = units.some(
-    (unit) => HOME_COUNTRY.test(unit.text) && AUTHORIZATION.test(unit.text),
-  );
-  const worksAtHome = (where?.verdict === "ok" && context.remote && !context.onSite) || homeRights;
+  const worksAtHome =
+    (where?.verdict === "ok" && context.remote && !context.onSite) || post.homeRights;
   if (worksAtHome && where?.verdict !== "blocked" && profile?.country) {
     context.worksFromHome = homeName(profile.country);
   }
 
-  let fullTimeAt: Unit | null = null;
-  let contractAt: Unit | null = null;
-  for (const { unit, timeRule, places } of parsed) {
-    if (timeRule) found.push(timeVerdict(timeRule, unit.quote, profile, options));
-    const noSponsor = refusesSponsorship(unit.text);
-    if (asksCitizenship(unit.text)) found.push(rightsVerdict("citizenship", unit, places, context));
-    else if (AUTHORIZATION.test(unit.text) && !noSponsor)
-      found.push(rightsVerdict("authorization", unit, places, context));
-    if (noSponsor) found.push(rightsVerdict("sponsorship", unit, places, context));
-    else if (offersSponsorship(unit.text)) found.push(sponsorOfferVerdict(unit, places, context));
-    if (!fullTimeAt && FULL_TIME.test(unit.text)) fullTimeAt = unit;
-    if (!contractAt && CONTRACT.test(unit.text)) contractAt = unit;
+  let fullTimeAt: ParsedUnit | null = null;
+  let contractAt: ParsedUnit | null = null;
+  for (const unit of post.units) {
+    if (unit.time) found.push(timeVerdict(unit.time, unit.quote, profile, options));
+    if (unit.citizenship) found.push(rightsVerdict("citizenship", unit, unit.places, context));
+    else if (unit.authorization)
+      found.push(rightsVerdict("authorization", unit, unit.places, context));
+    if (unit.noSponsor) found.push(rightsVerdict("sponsorship", unit, unit.places, context));
+    else if (unit.offer) found.push(sponsorOfferVerdict(unit, unit.places, context));
+    if (!fullTimeAt && unit.fullTime) fullTimeAt = unit;
+    if (!contractAt && unit.contract) contractAt = unit;
   }
   const typeQuote = fullTimeAt ?? contractAt;
   if (profile && typeQuote)
@@ -214,6 +284,14 @@ export function checkEligibility(
     if (!current || SEVERITY[item.verdict] > SEVERITY[current.verdict]) best.set(item.rule, item);
   }
   return RULES.flatMap((rule) => best.get(rule) ?? []);
+}
+
+export function checkEligibility(
+  post: PostInput,
+  profile: WorkProfile | null,
+  options: CheckOptions,
+): EligibilityFinding[] {
+  return judgePost(parsePost(post), profile, options);
 }
 
 export function worstVerdict(findings: EligibilityFinding[]): EligibilityVerdict | null {

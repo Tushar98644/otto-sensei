@@ -38,11 +38,13 @@ import {
   dueAgain,
   FEED_TOKEN,
   jobsFileStats,
+  openDedupeKeys,
   refreshSkillWeights,
   saveJobs,
   storedHashes,
   syncBoards,
   tidyJobs,
+  type DedupeKeys,
   type SaveStats,
 } from "./store";
 import {
@@ -275,7 +277,7 @@ async function readBoard(
         json: (url, body) => getJson(url, pace, deadline, body),
         text: (url) => getText(url, "text", pace, deadline),
       },
-      (ids) => storedHashes(db, "workday", ids),
+      (ids) => storedHashes(db, { source: "workday", board: token }, ids),
       { readAt: Date.now(), deadline },
     );
   }
@@ -326,7 +328,6 @@ function add(totals: Totals, stats: SaveStats) {
   totals.seen += stats.seen;
   totals.duplicates += stats.duplicates;
   totals.closed += stats.closed;
-  totals.reopened += stats.reopened;
 }
 
 // A post that names no place is in the employer's one country, so it shows only to people who can work there.
@@ -428,6 +429,7 @@ async function readFeeds(
   himalayasPages: number,
   totals: Totals,
   failed: string[],
+  dedupe: DedupeKeys,
 ): Promise<void> {
   const due = await db
     .select({ source: jobBoards.source, lastFetchedAt: jobBoards.lastFetchedAt })
@@ -441,7 +443,10 @@ async function readFeeds(
     const source = feed.source as FeedSource;
     try {
       const raws = await readFeed(source, feed.lastFetchedAt, pace, deadline, himalayasPages);
-      add(totals, await saveJobs(db, { source, board: "" }, raws, Date.now(), { snapshot: false }));
+      add(
+        totals,
+        await saveJobs(db, { source, board: "" }, raws, Date.now(), { snapshot: false, dedupe }),
+      );
       totals.feeds += 1;
     } catch (error) {
       totals.feedsFailed += 1;
@@ -485,7 +490,6 @@ export async function runJobsIngest(
     seen: 0,
     duplicates: 0,
     closed: 0,
-    reopened: 0,
     boards: 0,
     boardsFailed: 0,
     boardsPartial: 0,
@@ -496,7 +500,8 @@ export async function runJobsIngest(
 
   // First, so slow register downloads only shorten the board reads and the closing rebuild has the new facts.
   const visa = options.visa === false ? -1 : await refreshVisaIfDue(db, deadline);
-  totals.closed += await syncBoards(db, seeds, now);
+  totals.closed += await syncBoards(db, seeds);
+  const dedupe = await openDedupeKeys(db);
   const company = new Map(seeds.map((seed) => [`${seed.ats}:${seed.token}`, seed.company]));
   const place = new Map(seeds.map((seed) => [`${seed.ats}:${seed.token}`, seed.place]));
   const queue = (
@@ -528,6 +533,7 @@ export async function runJobsIngest(
           options.himalayasPages ?? INGEST_LIMITS.himalayasPages,
           totals,
           failed,
+          dedupe,
         );
 
   let stopped = false;
@@ -563,6 +569,7 @@ export async function runJobsIngest(
           totals,
           await saveJobs(db, { source, board: board.token }, placed, Date.now(), {
             snapshot: true,
+            dedupe,
           }),
         );
         totals.boards += 1;
@@ -598,10 +605,10 @@ export async function runJobsIngest(
   ]);
 
   const tidy = await tidyJobs(db, Date.now());
-  // A call that added, changed, reopened and closed nothing leaves the weights, the index and cached Matches pages as they are.
+  // A call that added, changed and closed nothing leaves the weights, the index and cached Matches pages as they are.
   const changed =
     visa > 0 ||
-    totals.added + totals.updated + totals.reopened + totals.closed > 0 ||
+    totals.added + totals.updated + totals.closed > 0 ||
     tidy.expired + tidy.aged + tidy.trimmed > 0 ||
     (await readStoredCounts(db)) === null;
   const skills = changed ? await refreshSkillWeights(db, Date.now()) : -1;

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { applications, jobs, writings } from "@/db/schema";
+import { applications, listings, writings } from "@/db/schema";
 import type {
   ApiErrorBody,
   Application,
@@ -14,6 +14,7 @@ import { cookieJar, jsonRequest, resetDb, setPlan, signInAs } from "@/lib/auth/t
 import type { RawJob } from "@/lib/job-feed/parsers";
 import { saveJob } from "@/lib/job-feed/records";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
+import { storedJobIds } from "@/lib/job-feed/test-fixtures";
 import type { WritingResponse } from "@/lib/writings/schema";
 import { GET as listSaved } from "../jobs/saved/route";
 import { POST as saveWriting } from "../writings/route";
@@ -46,7 +47,7 @@ function raw(id: string, overrides: Partial<RawJob> = {}): RawJob {
 
 async function seedJobs(): Promise<Record<string, string>> {
   const db = await getDb();
-  await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }], Date.now());
+  await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }]);
   const shared = "https://acme.example.com/careers/shared";
   await saveJobs(
     db,
@@ -59,7 +60,7 @@ async function seedJobs(): Promise<Record<string, string>> {
     Date.now(),
     { snapshot: true },
   );
-  const rows = await db.select({ id: jobs.id, externalId: jobs.externalId }).from(jobs);
+  const rows = await storedJobIds(db);
   return Object.fromEntries(rows.map((row) => [row.externalId, row.id]));
 }
 
@@ -168,12 +169,13 @@ describe("the opening an application is for", () => {
       context(application.id),
     );
     const db = await getDb();
-    await db.delete(jobs).where(eq(jobs.id, ids["1"]!));
+    await db.delete(listings);
     const [row] = await db
-      .select({ jobId: applications.jobId, company: applications.company })
+      .select({ jobId: applications.jobId, company: applications.company, job: applications.job })
       .from(applications)
       .where(eq(applications.id, application.id));
-    expect(row).toEqual({ jobId: null, company: "Acme" });
+    // The job is gone, so the application keeps the link and shows the job as it was.
+    expect(row).toMatchObject({ jobId: ids["1"], company: "Acme", job: { url: URL_1 } });
   });
 });
 

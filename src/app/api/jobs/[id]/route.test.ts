@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { jobs } from "@/db/schema";
 import type { JobPostResponse } from "@/lib/api/types";
 import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
+import { storedJobIds } from "@/lib/job-feed/test-fixtures";
 import { GREENHOUSE_JOB } from "@/lib/jobs/test-fixtures";
 import { fakeNet } from "@/lib/jobs/test-network";
 import { HOUR_MS, MINUTE_MS } from "@/lib/time";
@@ -40,7 +40,7 @@ const NOW = Date.UTC(2026, 10, 21, 12, 30, 0);
 
 async function seedJob(): Promise<string> {
   const db = await getDb();
-  await syncBoards(db, [{ ats: "greenhouse", token: "gitlab", company: "GitLab" }], Date.now());
+  await syncBoards(db, [{ ats: "greenhouse", token: "gitlab", company: "GitLab" }]);
   await saveJobs(
     db,
     { source: "greenhouse", board: "gitlab" },
@@ -61,7 +61,7 @@ async function seedJob(): Promise<string> {
     Date.now(),
     { snapshot: true },
   );
-  const [row] = await db.select({ id: jobs.id }).from(jobs);
+  const [row] = await storedJobIds(db);
   return row!.id;
 }
 

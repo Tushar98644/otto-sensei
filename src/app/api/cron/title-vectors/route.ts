@@ -61,7 +61,7 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const db = await getDb();
     const now = Date.now();
-    const saved = await saveTitleVectors(db, body.data.vectors, now);
+    const saved = await saveTitleVectors(db, body.data.vectors);
     const indexed = body.data.rebuild ? await rebuildMatchIndex(db, now) : null;
     log.info("cron.title_vectors.done", { saved, indexed: indexed ?? -1 });
     return ok({ saved, indexed }, { headers: NO_STORE });

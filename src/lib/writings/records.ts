@@ -1,7 +1,9 @@
 import { and, count, desc, eq, isNotNull, isNull, or, type SQL } from "drizzle-orm";
 import { getDb, type Db } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, jobs, writings } from "@/db/schema";
+import { applications, writings } from "@/db/schema";
+import { listingIdOf } from "@/lib/job-feed/codes";
+import { listingRows } from "@/lib/job-feed/records";
 import { applicationForWriting, resolveJobId } from "@/lib/applications/links";
 import {
   textLimit,
@@ -206,7 +208,8 @@ async function forApplication(
 async function forJob(db: Db, jobId: string | null): Promise<SQL | undefined> {
   if (!jobId) return undefined;
   const byId = eq(writings.jobId, jobId);
-  const [job] = await db.select({ url: jobs.url }).from(jobs).where(eq(jobs.id, jobId)).limit(1);
+  const listing = listingIdOf(jobId);
+  const [job] = listing === null ? [] : await listingRows(db, [listing]);
   if (!job?.url || (await resolveJobId(db, null, job.url)) !== jobId) return byId;
   return or(byId, and(isNull(writings.jobId), eq(writings.jobUrl, job.url)));
 }

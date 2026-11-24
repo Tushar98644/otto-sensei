@@ -2,13 +2,12 @@ import type { Db } from "@/db/client";
 import { readTitle } from "./occupations";
 import rawVectors from "./occupations/vectors.json";
 import {
-  blend,
-  cosine,
-  readTitleVectors,
-  TITLE_DIMS,
-  titleVectorKey,
-  type TitleVector,
-} from "./title-vectors";
+  blendSimilarity,
+  encodeTitleVector,
+  type TitleCode,
+  type WeightedCode,
+} from "./title-code";
+import { readTitleVectors, TITLE_DIMS, titleVectorKey, type TitleVector } from "./title-vectors";
 import type { LookingFor, MatchProfile } from "./types";
 
 // Title and occupation similarity from JobBERT-v2 vectors (docs/matching.md). Nothing here runs the model:
@@ -20,9 +19,8 @@ type VectorFile = { dims: number; codes: string[]; vectors: string };
 function rows(encoded: string, count: number): TitleVector[] {
   const bytes = Buffer.from(encoded, "base64");
   if (bytes.length !== count * TITLE_DIMS) return [];
-  return Array.from(
-    { length: count },
-    (_, i) => new Int8Array(bytes.buffer, bytes.byteOffset + i * TITLE_DIMS, TITLE_DIMS),
+  return Array.from({ length: count }, (_, i) =>
+    encodeTitleVector(new Int8Array(bytes.buffer, bytes.byteOffset + i * TITLE_DIMS, TITLE_DIMS))!,
   );
 }
 
@@ -46,7 +44,7 @@ export const SEMANTIC = {
   pastWeight: 0.3,
 } as const;
 
-export type PersonRole = { vector: TitleVector; title: string };
+export type PersonRole = { parts: WeightedCode[]; title: string };
 
 // What a title means, as a vector: the stored one, else the occupation its words name.
 function titleMeaning(
@@ -67,22 +65,21 @@ export async function personRole(
 ): Promise<PersonRole | null> {
   const titles = [...new Set([lookingFor.title, ...profile.titles].filter(Boolean))];
   const stored = await readTitleVectors(db, titles.map(titleVectorKey));
-  const parts: { vector: TitleVector; weight: number }[] = [];
+  const parts: WeightedCode[] = [];
   const lead = lookingFor.title
     ? titleMeaning(lookingFor.title, stored, lookingFor.occupation)
     : lookingFor.occupation
       ? (occupationVectors().get(lookingFor.occupation) ?? null)
       : null;
-  if (lead) parts.push({ vector: lead, weight: 1 });
+  if (lead) parts.push({ code: lead, weight: 1 });
   for (const title of profile.titles) {
     if (title === lookingFor.title) continue;
     const vector = titleMeaning(title, stored);
-    if (vector) parts.push({ vector, weight: parts.length === 0 ? 1 : SEMANTIC.pastWeight });
+    if (vector) parts.push({ code: vector, weight: parts.length === 0 ? 1 : SEMANTIC.pastWeight });
   }
   // With no role chosen and no title read, there's nothing to compare: the rules decide alone.
   if (!lookingFor.title && !lookingFor.occupation && parts.length === 0) return null;
-  const vector = blend(parts);
-  return vector ? { vector, title: lookingFor.title || profile.titles[0] || "" } : null;
+  return parts.length > 0 ? { parts, title: lookingFor.title || profile.titles[0] || "" } : null;
 }
 
 // 0 below the floor, 1 at "same role", straight in between.
@@ -90,11 +87,6 @@ export function sameness(similarity: number): number {
   return Math.max(0, Math.min(1, (similarity - SEMANTIC.floor) / (SEMANTIC.same - SEMANTIC.floor)));
 }
 
-export async function titleSimilarities(
-  db: Db,
-  role: PersonRole,
-  keys: readonly string[],
-): Promise<Map<string, number>> {
-  const stored = await readTitleVectors(db, keys);
-  return new Map([...stored].map(([key, vector]) => [key, cosine(role.vector, vector)]));
+export function roleSimilarity(role: PersonRole, code: TitleCode): number {
+  return blendSimilarity(role.parts, code);
 }

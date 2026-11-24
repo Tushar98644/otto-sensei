@@ -29,8 +29,11 @@ describe("normalizeJob", () => {
       postedAt: Date.parse("2026-10-22T11:22:01-04:00"),
     });
     expect(job.keywords).toEqual(["React", "Next.js", "TypeScript", "Node.js", "Go", "AWS"]);
-    expect(job.rulesText).toBe("This role is remote, open to candidates in Germany.");
-    expect(job.searchText).toContain("senior software engineer dashboard vercel remote germany");
+    expect(job).toMatchObject({
+      titleKey: "senior software engineer, dashboard",
+      places: "DE",
+      facts: "PDE;!m;R0DE;R0DE",
+    });
   });
 
   it("takes a feed's level when the title has none, and never a future date", () => {

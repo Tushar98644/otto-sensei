@@ -1,4 +1,3 @@
-import { HOME_COUNTRY, NO_RELOCATION, PERMANENT_RESIDENT, RELOCATION, visaRegionIn } from "./cues";
 import { placeContains, placeName, rightsRegionOf, type Place } from "./places";
 import { REGION_NAMES, type WorkProfile, type WorkRegion } from "./profile";
 import {
@@ -13,7 +12,15 @@ import type { EligibilityFinding, EligibilityRule, EligibilityVerdict, ProfileGa
 
 export type Source = "post" | "location";
 export type Unit = { text: string; quote: string };
-export type Claim = { places: Place[]; quote: string; source: Source };
+// moves: the claim's own words offer relocation.
+export type Claim = { places: Place[]; quote: string; source: Source; moves: boolean };
+// What a rights line says besides its places: where you live, a visa's country, permanent residence.
+export type RightsUnit = {
+  quote: string;
+  home: boolean;
+  visa: WorkRegion | null;
+  permanent: boolean;
+};
 
 export type Context = {
   profile: WorkProfile | null;
@@ -90,7 +97,7 @@ function locationVerdict(
   const home = homeName(country);
   const where = listPlaces(places);
   if (mode === "restricted") {
-    return RELOCATION.test(quote) && !NO_RELOCATION.test(quote)
+    return claim.moves
       ? finding(
           "location",
           "check",
@@ -226,13 +233,13 @@ type RightsRule = "authorization" | "sponsorship" | "citizenship";
 
 export function rightsVerdict(
   kind: RightsRule,
-  unit: Unit,
+  unit: RightsUnit,
   places: Place[],
   context: Context,
 ): EligibilityFinding {
   const rule = kind === "sponsorship" ? "sponsorship" : "authorization";
   const { quote } = unit;
-  if (kind !== "citizenship" && places.length === 0 && HOME_COUNTRY.test(unit.text)) {
+  if (kind !== "citizenship" && places.length === 0 && unit.home) {
     const country = context.profile?.country ?? "";
     const home = country ? homeName(country) : "";
     const note =
@@ -245,10 +252,8 @@ export function rightsVerdict(
           gap: "country",
         });
   }
-  const { regions, named } = regionsFor(places, visaRegionIn(unit.text), context);
-  const what = PERMANENT_RESIDENT.test(unit.text)
-    ? "citizenship or permanent residence"
-    : "citizenship";
+  const { regions, named } = regionsFor(places, unit.visa, context);
+  const what = unit.permanent ? "citizenship or permanent residence" : "citizenship";
   const [first] = regions;
   if (!first && context.worksFromHome && kind !== "citizenship") {
     const home = context.worksFromHome;
@@ -343,11 +348,11 @@ export function rightsVerdict(
 }
 
 export function sponsorOfferVerdict(
-  unit: Unit,
+  unit: RightsUnit,
   places: Place[],
   context: Context,
 ): EligibilityFinding {
-  const { regions } = regionsFor(places, visaRegionIn(unit.text), context);
+  const { regions } = regionsFor(places, unit.visa, context);
   const needs = regions.find((region) => context.profile?.rights[region] === "sponsorship");
   const note = needs
     ? `They sponsor visas, and you said you'd need one for ${REGION_NAMES[needs]}.`

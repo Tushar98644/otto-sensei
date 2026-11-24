@@ -107,7 +107,7 @@ describe("matches for a developer", () => {
 
   it("shows only software jobs at entry level, however many skills the others share", async () => {
     const db = await getDb();
-    await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }], NOW);
+    await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }]);
     const titles = [
       "Software Engineer",
       "Junior Backend Engineer",

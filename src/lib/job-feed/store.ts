@@ -1,20 +1,17 @@
-import {
-  and,
-  count,
-  eq,
-  gt,
-  inArray,
-  isNull,
-  lt,
-  notInArray,
-  or,
-  sql,
-  type SQL,
-} from "drizzle-orm";
-import type { PgInsertValue, PgUpdateSetSource } from "drizzle-orm/pg-core";
+import { and, count, eq, gt, inArray, notInArray, sql, type SQL } from "drizzle-orm";
 import type { Db, Tx } from "@/db/client";
-import { applications, jobBoards, jobs, savedJobs, skills } from "@/db/schema";
+import { jobBoards, listings, skills, titles } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
+import {
+  boardRange,
+  familyCode,
+  levelCode,
+  listingId,
+  packOccupation,
+  readFlags,
+  REBUILD_FLAGS,
+  toMinutes,
+} from "./codes";
 import {
   boilerplateLines,
   contentHash,
@@ -25,6 +22,7 @@ import {
 import type { RawJob } from "./parsers";
 import { rowsOf } from "./records";
 import { SOURCE_INFO } from "./sources";
+import { titleId, today } from "./title-vectors";
 import { BOARD_SOURCES, FEED_SOURCES, type BoardSeed, type JobSourceId } from "./types";
 
 export const STORE_LIMITS = {
@@ -32,9 +30,7 @@ export const STORE_LIMITS = {
   missedRunsToClose: 2,
   notFoundToClose: 2,
   feedMaxAgeMs: 30 * DAY_MS,
-  closedRetentionMs: 7 * DAY_MS,
-  referencedRetentionMs: 30 * DAY_MS,
-  // About 18 MB per 10k rows with their match rows (VACUUM FULL, 2026-11-22): ~270 MB, plus ~50 MB for the rest, of Supabase Free's 500 MB.
+  // About 250 bytes a listing with its titles (2026-11-24): ~45 MB at the cap, of Supabase Free's 500 MB.
   maxRows: 150_000,
   writeChunk: 200,
 } as const;
@@ -64,7 +60,6 @@ export type SaveStats = {
   seen: number;
   duplicates: number;
   closed: number;
-  reopened: number;
 };
 
 function chunks<T>(items: readonly T[], size: number = STORE_LIMITS.writeChunk): T[][] {
@@ -73,82 +68,206 @@ function chunks<T>(items: readonly T[], size: number = STORE_LIMITS.writeChunk):
   return out;
 }
 
-const tsvector = (words: string) => sql`to_tsvector('simple', ${words})`;
+export type Board = {
+  id: number;
+  source: JobSourceId;
+  token: string;
+  company: string;
+  urlTemplate: string;
+};
 
-function contentColumns(job: NormalizedJob) {
+const BOARD_COLUMNS = {
+  id: jobBoards.id,
+  source: jobBoards.source,
+  token: jobBoards.token,
+  company: jobBoards.company,
+  urlTemplate: jobBoards.urlTemplate,
+};
+
+// The board's row, made when a read comes before the seed list has it.
+export async function boardOf(db: Db | Tx, source: JobSourceId, token: string): Promise<Board> {
+  const [found] = await db
+    .select(BOARD_COLUMNS)
+    .from(jobBoards)
+    .where(and(eq(jobBoards.source, source), eq(jobBoards.token, token)))
+    .limit(1);
+  if (found) return found;
+  await db.insert(jobBoards).values({ source, token }).onConflictDoNothing();
+  return boardOf(db, source, token);
+}
+
+// A Workday id is "{tenant}/{site}{path}", and its board is that site: the listing keeps the path.
+export function listingExt(source: JobSourceId, token: string, externalId: string): string {
+  if (source !== "workday") return externalId;
+  const [host = "", site = ""] = token.split("/");
+  const prefix = `${host.split(".")[0]}/${site}`;
+  return externalId.startsWith(prefix) ? externalId.slice(prefix.length) : externalId;
+}
+
+// The board's links as one pattern, kept once found, so a listing stores its link only when it differs.
+function templateOf(board: Board, pairs: readonly { ext: string; url: string }[]): string {
+  if (board.urlTemplate) return board.urlTemplate;
+  const counts = new Map<string, number>();
+  for (const { ext, url } of pairs) {
+    if (!ext || !url.includes(ext)) continue;
+    const template = url.replaceAll(ext, "{id}");
+    counts.set(template, (counts.get(template) ?? 0) + 1);
+  }
+  let best = "";
+  let most = 0;
+  for (const [template, n] of counts) {
+    if (n > most || (n === most && template < best)) [best, most] = [template, n];
+  }
+  return best.length <= 2_048 ? best : "";
+}
+
+// Ids stay small (ranking sends one weight per id) and never change, since listings.skills holds them.
+export async function skillIds(
+  db: Db,
+  named: Iterable<string>,
+  now: number,
+): Promise<Map<string, number>> {
+  const read = async (from: Db | Tx) =>
+    new Map(
+      (
+        await from
+          .select({ skill: skills.skill, sid: skills.sid })
+          .from(skills)
+          .where(sql`${skills.sid} is not null`)
+      ).map((row) => [row.skill, row.sid!]),
+    );
+  const ids = await read(db);
+  const missing = [...new Set(named)].filter((skill) => !ids.has(skill));
+  if (missing.length === 0) return ids;
+  return db.transaction(async (tx) => {
+    await lockSkills(tx);
+    const settled = await read(tx);
+    let next = Math.max(0, ...settled.values()) + 1;
+    const added = missing
+      .filter((skill) => !settled.has(skill))
+      .map((skill) => ({ skill, sid: next++, updatedAt: now }));
+    for (const part of chunks(added, 1_000)) {
+      await tx
+        .insert(skills)
+        .values(part)
+        .onConflictDoUpdate({
+          target: skills.skill,
+          set: { sid: sql.raw(`excluded.${skills.sid.name}`) },
+        });
+    }
+    for (const { skill, sid } of added) settled.set(skill, sid);
+    return settled;
+  });
+}
+
+// The open duplicate keys, read once a run and kept in memory: an index over them would cost ~25 bytes a job.
+export type DedupeKeys = Map<number, { id: number; priority: number }>;
+
+export async function openDedupeKeys(db: Db, keys?: readonly number[]): Promise<DedupeKeys> {
+  const out: DedupeKeys = new Map();
+  const read = async (where: SQL | undefined) => {
+    const rows = await db
+      .select({ id: listings.id, dedupe: listings.dedupe, source: jobBoards.source })
+      .from(listings)
+      .innerJoin(jobBoards, eq(jobBoards.id, listings.board))
+      .where(where);
+    for (const row of rows)
+      out.set(row.dedupe, { id: row.id, priority: SOURCE_PRIORITY[row.source] });
+  };
+  if (!keys) await read(undefined);
+  else for (const part of chunks(keys, 500)) await read(inArray(listings.dedupe, part));
+  return out;
+}
+
+type Prepared = { id: number; ext: string; job: NormalizedJob };
+
+type Row = Omit<
+  typeof listings.$inferInsert,
+  "id" | "ext" | "seen" | "missed" | "board" | "oplaces"
+>;
+
+function rowOf(
+  job: NormalizedJob,
+  board: Board,
+  ext: string,
+  template: string,
+  sids: ReadonlyMap<string, number>,
+  canonical: ReadonlyMap<number, string>,
+): Row {
+  const title = titleId(job.titleKey);
   return {
-    company: job.company,
-    title: job.title,
+    title,
+    dedupe: job.dedupeKey,
+    posted: toMinutes(job.postedAt),
+    valid: job.validThrough === null ? 0 : Math.max(0, toMinutes(job.validThrough)),
+    grp: job.groupKey,
+    hash: job.contentHash,
+    occ: packOccupation(job.occupation),
+    level: levelCode(job.seniority),
+    family: familyCode(job.family),
+    minYears: job.minYears ?? 0,
+    flags: readFlags(job),
+    titleText: canonical.get(title) === job.title ? "" : job.title,
     location: job.location,
-    remote: job.remote,
-    employmentType: job.employmentType,
-    seniority: job.seniority,
-    family: job.family,
-    occupation: job.occupation,
-    minYears: job.minYears,
-    postedAt: job.postedAt,
-    validThrough: job.validThrough,
-    url: job.url,
-    description: job.description,
-    rulesText: job.rulesText,
-    keywords: job.keywords,
-    search: tsvector(job.searchText),
-    dedupeKey: job.dedupeKey,
-    groupKey: job.groupKey,
-    evergreen: job.evergreen,
-    contentHash: job.contentHash,
+    places: job.places,
+    company: job.company === board.company ? "" : job.company,
+    url: template && template.replaceAll("{id}", ext) === job.url ? "" : job.url,
+    facts: job.facts,
+    skills: job.keywords.flatMap((skill) => sids.get(skill) ?? []),
+    post: job.description,
   };
 }
 
-// The type each content column is sent as when a changed job is rewritten; search comes from searchText.
+// The type each rewritten column is sent as.
 const REWRITE_TYPES = {
-  company: "text",
-  title: "text",
+  title: "bigint",
+  dedupe: "bigint",
+  posted: "integer",
+  valid: "integer",
+  grp: "integer",
+  hash: "integer",
+  occ: "integer",
+  level: "smallint",
+  family: "smallint",
+  minYears: "smallint",
+  flags: "smallint",
+  titleText: "text",
   location: "text",
-  remote: "boolean",
-  employmentType: "text",
-  seniority: "text",
-  family: "text",
-  occupation: "text",
-  minYears: "integer",
-  postedAt: "bigint",
-  validThrough: "bigint",
+  places: "text",
+  company: "text",
   url: "text",
-  description: "text",
-  rulesText: "text",
-  keywords: "text[]",
-  dedupeKey: "text",
-  groupKey: "text",
-  evergreen: "boolean",
-  contentHash: "text",
-} as const satisfies Record<Exclude<keyof NormalizedJob, "externalId" | "searchText">, string>;
+  facts: "text",
+  skills: "smallint[]",
+  post: "text",
+} as const satisfies Record<keyof Row, string>;
 
 const REWRITE_KEYS = Object.keys(REWRITE_TYPES) as (keyof typeof REWRITE_TYPES)[];
 
-const REWRITE_COLUMNS = sql.join(
-  ["id", "search_text", ...REWRITE_KEYS.map((key) => jobs[key].name)].map((name) =>
-    sql.identifier(name),
-  ),
-  sql`, `,
-);
-
-const REWRITE_SET: PgUpdateSetSource<typeof jobs> = {
-  ...Object.fromEntries(REWRITE_KEYS.map((key) => [key, sql`v.${sql.identifier(jobs[key].name)}`])),
-  search: sql`to_tsvector('simple', v.search_text)`,
-};
-
-function rewriteRow({ id, job }: { id: string; job: NormalizedJob }): SQL {
-  const cells = REWRITE_KEYS.map(
-    (key) => sql`${sql.param(job[key], jobs[key])}::${sql.raw(REWRITE_TYPES[key])}`,
-  );
-  return sql`(${id}::uuid, ${job.searchText}::text, ${sql.join(cells, sql`, `)})`;
+function rewriteSet(): Record<string, SQL> {
+  const set: Record<string, SQL> = {};
+  for (const key of REWRITE_KEYS) {
+    const name = sql.identifier(listings[key].name);
+    set[key] =
+      key === "flags" ? sql`(${listings.flags} & ${REBUILD_FLAGS}) | v.${name}` : sql`v.${name}`;
+  }
+  return set;
 }
 
-export async function syncBoards(
-  db: Db,
-  seeds: readonly BoardSeed[],
-  now: number,
-): Promise<number> {
+function rewriteValues(part: { id: number; row: Row }[]): SQL {
+  const rows = part.map(({ id, row }) => {
+    const cells = REWRITE_KEYS.map(
+      (key) => sql`${sql.param(row[key], listings[key])}::${sql.raw(REWRITE_TYPES[key])}`,
+    );
+    return sql`(${id}::bigint, ${sql.join(cells, sql`, `)})`;
+  });
+  const names = sql.join(
+    ["id", ...REWRITE_KEYS.map((key) => listings[key].name)].map((name) => sql.identifier(name)),
+    sql`, `,
+  );
+  return sql`(values ${sql.join(rows, sql`, `)}) as v(${names})`;
+}
+
+export async function syncBoards(db: Db, seeds: readonly BoardSeed[]): Promise<number> {
   const rows = [
     ...seeds.map((seed) => ({ source: seed.ats, token: seed.token, company: seed.company })),
     ...FEED_SOURCES.map((source) => ({ source, token: FEED_TOKEN, company: "" })),
@@ -167,218 +286,254 @@ export async function syncBoards(
   for (const source of BOARD_SOURCES) {
     const tokens = seeds.filter((seed) => seed.ats === source).map((seed) => seed.token);
     const gone = await db
-      .delete(jobBoards)
+      .select({ id: jobBoards.id })
+      .from(jobBoards)
       .where(
         tokens.length > 0
           ? and(eq(jobBoards.source, source), notInArray(jobBoards.token, tokens))
           : eq(jobBoards.source, source),
-      )
-      .returning({ token: jobBoards.token });
-    for (const board of gone)
-      dropped += await closeBoard(db, source, board.token, now, "board_gone");
+      );
+    for (const board of gone) {
+      dropped += await closeBoard(db, board.id);
+      await db.delete(jobBoards).where(eq(jobBoards.id, board.id));
+    }
   }
   return dropped;
 }
 
-async function closeBoard(
-  db: Db,
-  source: JobSourceId,
-  board: string,
-  now: number,
-  reason: "board_gone" | "gone",
-): Promise<number> {
-  const closed = await db
-    .update(jobs)
-    .set({ closedAt: now, closeReason: reason, updatedAt: now })
-    .where(and(eq(jobs.source, source), eq(jobs.board, board), isNull(jobs.closedAt)))
-    .returning({ id: jobs.id });
+const inBoard = (board: number) => {
+  const [low, high] = boardRange(board);
+  return sql`${listings.id} between ${low} and ${high}`;
+};
+
+// A closed job is deleted at once: saved jobs and applications keep their own snapshot of it.
+async function closeBoard(db: Db | Tx, board: number): Promise<number> {
+  const closed = await db.delete(listings).where(inBoard(board)).returning({ id: listings.id });
   return closed.length;
 }
+
+export type SaveOptions = { snapshot: boolean; dedupe?: DedupeKeys };
 
 export async function saveJobs(
   db: Db,
   scope: { source: JobSourceId; board: string },
   raws: readonly RawJob[],
   now: number,
-  { snapshot }: { snapshot: boolean },
+  { snapshot, dedupe }: SaveOptions,
 ): Promise<SaveStats> {
-  const stats: SaveStats = { added: 0, updated: 0, seen: 0, duplicates: 0, closed: 0, reopened: 0 };
+  const stats: SaveStats = { added: 0, updated: 0, seen: 0, duplicates: 0, closed: 0 };
+  const board = await boardOf(db, scope.source, scope.board || FEED_TOKEN);
   const byId = new Map<string, RawJob>();
   for (const raw of [...raws].sort((a, b) => (b.postedAt ?? now) - (a.postedAt ?? now))) {
-    if (!byId.has(raw.externalId)) byId.set(raw.externalId, raw);
+    if (raw.title.trim() && !byId.has(raw.externalId)) byId.set(raw.externalId, raw);
   }
   const batch = [...byId.values()].slice(0, snapshot ? STORE_LIMITS.perBoard : byId.size);
   const feedCutoff = now - STORE_LIMITS.feedMaxAgeMs;
-  const fresh = snapshot
-    ? batch
-    : batch.filter(
-        (raw) => (raw.postedAt ?? now) >= feedCutoff && (raw.validThrough ?? now) >= now,
-      );
+  const fresh = (
+    snapshot
+      ? batch
+      : batch.filter(
+          (raw) => (raw.postedAt ?? now) >= feedCutoff && (raw.validThrough ?? now) >= now,
+        )
+  ).map((raw) => {
+    const ext = listingExt(scope.source, board.token, raw.externalId);
+    return { raw, ext, id: listingId(board.id, ext) };
+  });
 
-  const read = fresh.filter((raw) => !raw.listingOnly).map((raw) => raw.text);
+  const read = fresh.filter(({ raw }) => !raw.listingOnly).map(({ raw }) => raw.text);
   const boilerplate = snapshot ? boilerplateLines(read) : new Set<string>();
   const textChars = SOURCE_INFO[scope.source].liveText ? 0 : JOB_LIMITS.feedDescriptionChars;
+  const template = templateOf(
+    board,
+    fresh.map(({ raw, ext }) => ({ ext, url: raw.url })),
+  );
+  if (template !== board.urlTemplate) {
+    await db.update(jobBoards).set({ urlTemplate: template }).where(eq(jobBoards.id, board.id));
+  }
+
+  const existing = new Map<number, number>();
+  for (const part of chunks(
+    fresh.map(({ id }) => id),
+    500,
+  )) {
+    const rows = await db
+      .select({ id: listings.id, hash: listings.hash })
+      .from(listings)
+      .where(inArray(listings.id, part));
+    for (const row of rows) existing.set(row.id, row.hash);
+  }
+
+  const seenIds: number[] = [];
+  const additions: Prepared[] = [];
+  const changed: Prepared[] = [];
+  for (const { raw, ext, id } of fresh) {
+    const known = existing.get(id);
+    if (known === undefined) {
+      if (!raw.listingOnly)
+        additions.push({ id, ext, job: normalizeJob(raw, now, boilerplate, textChars) });
+      continue;
+    }
+    seenIds.push(id);
+    if (raw.listingOnly || known === contentHash(raw)) continue;
+    changed.push({ id, ext, job: normalizeJob(raw, now, boilerplate, textChars) });
+  }
+  const written = [...additions, ...changed];
+  const sids = await skillIds(
+    db,
+    written.flatMap(({ job }) => job.keywords),
+    now,
+  );
+  const canonical = await noteJobTitles(db, written, now);
+
+  // Earlier boards and feeds win a tie; a feed's copy of a board's job is dropped either way.
+  const keys =
+    dedupe ?? (await openDedupeKeys(db, [...new Set(additions.map(({ job }) => job.dedupeKey))]));
+  const mine = SOURCE_PRIORITY[scope.source];
+  const inserts: (typeof listings.$inferInsert)[] = [];
+  const displaced: number[] = [];
+  for (const { id, ext, job } of additions) {
+    const other = keys.get(job.dedupeKey);
+    if (other && other.id !== id && other.priority <= mine) {
+      stats.duplicates += 1;
+      continue;
+    }
+    if (other && other.id !== id) displaced.push(other.id);
+    keys.set(job.dedupeKey, { id, priority: mine });
+    inserts.push({
+      id,
+      board: board.id,
+      ext,
+      seen: toMinutes(now),
+      ...rowOf(job, board, ext, template, sids, canonical),
+    });
+  }
 
   await db.transaction(async (tx) => {
-    const existing = new Map<string, { id: string; hash: string; closeReason: string | null }>();
-    for (const part of chunks(
-      fresh.map((raw) => raw.externalId),
-      500,
-    )) {
-      const rows = await tx
-        .select({
-          id: jobs.id,
-          externalId: jobs.externalId,
-          hash: jobs.contentHash,
-          closeReason: jobs.closeReason,
-        })
-        .from(jobs)
-        .where(and(eq(jobs.source, scope.source), inArray(jobs.externalId, part)));
-      for (const row of rows) existing.set(row.externalId, row);
-    }
-
-    const seenIds: string[] = [];
-    const additions: NormalizedJob[] = [];
-    const changed: { id: string; job: NormalizedJob }[] = [];
-    for (const raw of fresh) {
-      const known = existing.get(raw.externalId);
-      if (!known) {
-        if (!raw.listingOnly) additions.push(normalizeJob(raw, now, boilerplate, textChars));
-        continue;
-      }
-      seenIds.push(known.id);
-      if (known.closeReason === "gone" || known.closeReason === "board_gone") stats.reopened += 1;
-      if (raw.listingOnly || known.hash === contentHash(raw)) continue;
-      changed.push({ id: known.id, job: normalizeJob(raw, now, boilerplate, textChars) });
-    }
     for (const part of chunks(changed)) {
       const rewritten = await tx
-        .update(jobs)
-        .set({ ...REWRITE_SET, board: scope.board, lastSeenAt: now, updatedAt: now })
-        .from(sql`(values ${sql.join(part.map(rewriteRow), sql`, `)}) as v(${REWRITE_COLUMNS})`)
-        .where(sql`${jobs.id} = v.id`)
-        .returning({ id: jobs.id });
+        .update(listings)
+        .set(rewriteSet())
+        .from(
+          rewriteValues(
+            part.map(({ id, ext, job }) => ({
+              id,
+              row: rowOf(job, board, ext, template, sids, canonical),
+            })),
+          ),
+        )
+        .where(sql`${listings.id} = v.id`)
+        .returning({ id: listings.id });
       stats.updated += rewritten.length;
     }
 
     for (const part of chunks(seenIds, 500)) {
       await tx
-        .update(jobs)
-        .set({
-          lastSeenAt: now,
-          missedRuns: 0,
-          closedAt: sql`case when ${jobs.closeReason} in ('gone', 'board_gone') then null else ${jobs.closedAt} end`,
-          closeReason: sql`case when ${jobs.closeReason} in ('gone', 'board_gone') then null else ${jobs.closeReason} end`,
-        })
-        .where(
-          and(
-            inArray(jobs.id, part),
-            or(gt(jobs.missedRuns, 0), inArray(jobs.closeReason, ["gone", "board_gone"])),
-          ),
-        );
+        .update(listings)
+        .set({ missed: 0 })
+        .where(and(inArray(listings.id, part), gt(listings.missed, 0)));
     }
     stats.seen = seenIds.length;
 
-    const keys = [...new Set(additions.map((job) => job.dedupeKey))];
-    const open = new Map<string, { id: string; source: JobSourceId }>();
-    for (const part of chunks(keys, 500)) {
-      const rows = await tx
-        .select({ id: jobs.id, source: jobs.source, key: jobs.dedupeKey })
-        .from(jobs)
-        .where(and(inArray(jobs.dedupeKey, part), isNull(jobs.closedAt)));
-      for (const row of rows) open.set(row.key, row);
-    }
-    const mine = SOURCE_PRIORITY[scope.source];
-    const inserts: PgInsertValue<typeof jobs>[] = [];
-    const displaced: string[] = [];
-    for (const job of additions) {
-      const other = open.get(job.dedupeKey);
-      if (other && SOURCE_PRIORITY[other.source] <= mine) {
-        stats.duplicates += 1;
-        continue;
-      }
-      if (other) displaced.push(other.id);
-      const id = crypto.randomUUID();
-      open.set(job.dedupeKey, { id, source: scope.source });
-      inserts.push({
-        id,
-        source: scope.source,
-        externalId: job.externalId,
-        board: scope.board,
-        ...contentColumns(job),
-        firstSeenAt: now,
-        lastSeenAt: now,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
     for (const part of chunks(displaced, 500)) {
-      const closed = await tx
-        .update(jobs)
-        .set({ closedAt: now, closeReason: "duplicate", updatedAt: now })
-        .where(and(inArray(jobs.id, part), isNull(jobs.closedAt)))
-        .returning({ id: jobs.id });
-      stats.closed += closed.length;
+      const gone = await tx
+        .delete(listings)
+        .where(inArray(listings.id, part))
+        .returning({ id: listings.id });
+      stats.closed += gone.length;
     }
     for (const part of chunks(inserts)) {
-      // A racing run with the same id just skips.
+      // A racing run with the same job just skips it.
       const added = await tx
-        .insert(jobs)
+        .insert(listings)
         .values(part)
-        .onConflictDoNothing({ target: [jobs.source, jobs.externalId] })
-        .returning({ id: jobs.id });
+        .onConflictDoNothing({ target: listings.id })
+        .returning({ id: listings.id });
       stats.added += added.length;
       for (const row of added) seenIds.push(row.id);
     }
 
     if (snapshot) {
-      const missed = await tx
-        .update(jobs)
-        .set({
-          missedRuns: sql`${jobs.missedRuns} + 1`,
-          closedAt: sql`case when ${jobs.missedRuns} + 1 >= ${STORE_LIMITS.missedRunsToClose} then ${now}::bigint else null end`,
-          closeReason: sql`case when ${jobs.missedRuns} + 1 >= ${STORE_LIMITS.missedRunsToClose} then 'gone' else null end`,
-        })
+      const unseen = seenIds.length > 0 ? notInArray(listings.id, seenIds) : undefined;
+      const gone = await tx
+        .delete(listings)
         .where(
           and(
-            eq(jobs.source, scope.source),
-            eq(jobs.board, scope.board),
-            isNull(jobs.closedAt),
-            notInArray(jobs.id, seenIds),
+            inBoard(board.id),
+            unseen,
+            sql`${listings.missed} + 1 >= ${STORE_LIMITS.missedRunsToClose}`,
           ),
         )
-        .returning({ closedAt: jobs.closedAt });
-      stats.closed += missed.filter((row) => row.closedAt !== null).length;
+        .returning({ id: listings.id });
+      stats.closed += gone.length;
+      await tx
+        .update(listings)
+        .set({ missed: sql`${listings.missed} + 1` })
+        .where(and(inBoard(board.id), unseen));
     }
 
-    const [openCount] = await tx
-      .select({ n: count() })
-      .from(jobs)
-      .where(
-        and(eq(jobs.source, scope.source), eq(jobs.board, scope.board), isNull(jobs.closedAt)),
-      );
+    const [open] = await tx.select({ n: count() }).from(listings).where(inBoard(board.id));
     await tx
       .update(jobBoards)
-      .set({ lastFetchedAt: now, lastStatus: "ok", failures: 0, openJobs: openCount?.n ?? 0 })
-      .where(
-        and(eq(jobBoards.source, scope.source), eq(jobBoards.token, scope.board || FEED_TOKEN)),
-      );
+      .set({ lastFetchedAt: now, lastStatus: "ok", failures: 0, openJobs: open?.n ?? 0 })
+      .where(eq(jobBoards.id, board.id));
   });
   return stats;
 }
 
+// Each title is noted once; a job that writes it differently from its first writing keeps its own text.
+async function noteJobTitles(
+  db: Db,
+  jobs: readonly Prepared[],
+  now: number,
+): Promise<Map<number, string>> {
+  const first = new Map<number, string>();
+  for (const { job } of jobs) {
+    const id = titleId(job.titleKey);
+    if (!first.has(id)) first.set(id, job.title);
+  }
+  const canonical = new Map<number, string>();
+  for (const part of chunks([...first], 500)) {
+    await db
+      .insert(titles)
+      .values(part.map(([id, text]) => ({ id, text, seen: today(now) })))
+      .onConflictDoNothing({ target: titles.id });
+    const rows = await db
+      .select({ id: titles.id, text: titles.text })
+      .from(titles)
+      .where(
+        inArray(
+          titles.id,
+          part.map(([id]) => id),
+        ),
+      );
+    for (const row of rows) canonical.set(row.id, row.text);
+  }
+  return canonical;
+}
+
+// The content hashes of a Workday site's stored jobs, by the ids its list gives.
 export async function storedHashes(
   db: Db,
-  source: JobSourceId,
+  scope: { source: JobSourceId; board: string },
   externalIds: readonly string[],
-): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  for (const part of chunks(externalIds, 500)) {
+): Promise<Map<string, number>> {
+  const board = await boardOf(db, scope.source, scope.board);
+  const byId = new Map(
+    externalIds.map((externalId) => [
+      listingId(board.id, listingExt(scope.source, board.token, externalId)),
+      externalId,
+    ]),
+  );
+  const out = new Map<string, number>();
+  for (const part of chunks([...byId.keys()], 500)) {
     const rows = await db
-      .select({ externalId: jobs.externalId, hash: jobs.contentHash })
-      .from(jobs)
-      .where(and(eq(jobs.source, source), inArray(jobs.externalId, part)));
-    for (const row of rows) out.set(row.externalId, row.hash);
+      .select({ id: listings.id, hash: listings.hash })
+      .from(listings)
+      .where(inArray(listings.id, part));
+    for (const row of rows) {
+      const externalId = byId.get(row.id);
+      if (externalId !== undefined) out.set(externalId, row.hash);
+    }
   }
   return out;
 }
@@ -410,73 +565,54 @@ export async function boardFailed(
       failures: sql`case when ${jobBoards.lastStatus} = ${status} then ${jobBoards.failures} + 1 else 1 end`,
     })
     .where(and(eq(jobBoards.source, source), eq(jobBoards.token, token)))
-    .returning({ failures: jobBoards.failures });
-  if (status === "not_found" && (row?.failures ?? 0) >= STORE_LIMITS.notFoundToClose) {
-    return closeBoard(db, source, token === FEED_TOKEN ? "" : token, now, "board_gone");
+    .returning({ id: jobBoards.id, failures: jobBoards.failures });
+  if (row && status === "not_found" && row.failures >= STORE_LIMITS.notFoundToClose) {
+    return closeBoard(db, row.id);
   }
   return 0;
 }
 
-export type TidyStats = { expired: number; aged: number; deleted: number; trimmed: number };
+export type TidyStats = { expired: number; aged: number; trimmed: number };
 
 export async function tidyJobs(db: Db, now: number): Promise<TidyStats> {
   const expired = await db
-    .update(jobs)
-    .set({ closedAt: now, closeReason: "expired", updatedAt: now })
-    .where(and(isNull(jobs.closedAt), lt(jobs.validThrough, now)))
-    .returning({ id: jobs.id });
-  const aged = await db
-    .update(jobs)
-    .set({ closedAt: now, closeReason: "aged", updatedAt: now })
-    .where(
-      and(
-        isNull(jobs.closedAt),
-        inArray(jobs.source, [...FEED_SOURCES]),
-        lt(jobs.postedAt, now - STORE_LIMITS.feedMaxAgeMs),
-      ),
-    )
-    .returning({ id: jobs.id });
-
-  let deleted = 0;
-  for (;;) {
-    const stale = db
-      .select({ id: jobs.id })
-      .from(jobs)
+    .delete(listings)
+    .where(sql`${listings.valid} > 0 and ${listings.valid} < ${toMinutes(now)}`)
+    .returning({ id: listings.id });
+  const feeds = await db
+    .select({ id: jobBoards.id })
+    .from(jobBoards)
+    .where(and(inArray(jobBoards.source, [...FEED_SOURCES]), eq(jobBoards.token, FEED_TOKEN)));
+  let aged = 0;
+  for (const feed of feeds) {
+    const gone = await db
+      .delete(listings)
       .where(
-        or(
-          lt(jobs.closedAt, now - STORE_LIMITS.referencedRetentionMs),
-          and(
-            lt(jobs.closedAt, now - STORE_LIMITS.closedRetentionMs),
-            sql`not exists (select 1 from ${savedJobs} where ${savedJobs.jobId} = ${jobs.id})`,
-            sql`not exists (select 1 from ${applications} where ${applications.jobId} = ${jobs.id})`,
-          ),
+        and(
+          inBoard(feed.id),
+          sql`${listings.posted} < ${toMinutes(now - STORE_LIMITS.feedMaxAgeMs)}`,
         ),
       )
-      .limit(1_000);
-    const gone = await db
-      .delete(jobs)
-      .where(sql`${jobs.id} in ${stale}`)
-      .returning({ id: jobs.id });
-    deleted += gone.length;
-    if (gone.length < 1_000) break;
+      .returning({ id: listings.id });
+    aged += gone.length;
   }
 
-  const [total] = await db.select({ n: count() }).from(jobs);
+  const [total] = await db.select({ n: count() }).from(listings);
   const excess = (total?.n ?? 0) - STORE_LIMITS.maxRows;
   let trimmed = 0;
   if (excess > 0) {
     const oldest = db
-      .select({ id: jobs.id })
-      .from(jobs)
-      .orderBy(sql`${jobs.closedAt} is null`, sql`coalesce(${jobs.closedAt}, ${jobs.postedAt})`)
+      .select({ id: listings.id })
+      .from(listings)
+      .orderBy(listings.posted)
       .limit(excess);
     const cut = await db
-      .delete(jobs)
-      .where(sql`${jobs.id} in ${oldest}`)
-      .returning({ id: jobs.id });
+      .delete(listings)
+      .where(sql`${listings.id} in ${oldest}`)
+      .returning({ id: listings.id });
     trimmed = cut.length;
   }
-  return { expired: expired.length, aged: aged.length, deleted, trimmed };
+  return { expired: expired.length, aged, trimmed };
 }
 
 export type JobsFileStats = { jobsFileMb: number; jobsDeadRows: number };
@@ -486,8 +622,8 @@ export async function jobsFileStats(db: Db): Promise<JobsFileStats> {
   try {
     const [row] = rowsOf<{ mb: number; dead: number }>(
       await db.execute(sql`
-        select round(pg_table_size('public.jobs'::regclass) / 1048576.0, 1)::float8 as mb,
-          coalesce((select n_dead_tup from pg_stat_user_tables where relid = 'public.jobs'::regclass), 0)::int as dead`),
+        select round(pg_table_size('public.listings'::regclass) / 1048576.0, 1)::float8 as mb,
+          coalesce((select n_dead_tup from pg_stat_user_tables where relid = 'public.listings'::regclass), 0)::int as dead`),
     );
     return { jobsFileMb: row?.mb ?? -1, jobsDeadRows: row?.dead ?? -1 };
   } catch {
@@ -499,21 +635,35 @@ const MIN_SKILL_WEIGHT = 0.05;
 
 export async function refreshSkillWeights(db: Db, now: number): Promise<number> {
   const counts = await db
-    .select({ skill: sql<string>`k.skill`, n: sql<number>`count(*)::int` })
-    .from(sql`${jobs} cross join lateral unnest(${jobs.keywords}) as k(skill)`)
-    .where(isNull(jobs.closedAt))
-    .groupBy(sql`k.skill`);
-  const [open] = await db.select({ n: count() }).from(jobs).where(isNull(jobs.closedAt));
+    .select({ sid: sql<number>`k.sid`, n: sql<number>`count(*)::int` })
+    .from(sql`${listings} cross join lateral unnest(${listings.skills}) as k(sid)`)
+    .groupBy(sql`k.sid`);
+  const [open] = await db.select({ n: count() }).from(listings);
   const total = open?.n ?? 0;
-  const rows = counts.map((row) => ({
-    skill: row.skill,
-    openJobs: row.n,
-    weight: Math.max(MIN_SKILL_WEIGHT, Math.log(total / row.n)),
-    updatedAt: now,
-  }));
+  const names = new Map(
+    (
+      await db
+        .select({ skill: skills.skill, sid: skills.sid })
+        .from(skills)
+        .where(sql`${skills.sid} is not null`)
+    ).map((row) => [row.sid!, row.skill]),
+  );
+  const rows = counts.flatMap((row) => {
+    const skill = names.get(row.sid);
+    return skill
+      ? [
+          {
+            skill,
+            openJobs: row.n,
+            weight: Math.max(MIN_SKILL_WEIGHT, Math.log(total / row.n)),
+            updatedAt: now,
+          },
+        ]
+      : [];
+  });
   await db.transaction(async (tx) => {
     await lockSkills(tx);
-    // A skill no open post names keeps its match index id and loses its weight.
+    // A skill no open post names keeps its id and loses its weight.
     await tx
       .update(skills)
       .set({ openJobs: 0, weight: null, updatedAt: now })
@@ -543,7 +693,7 @@ export async function refreshSkillWeights(db: Db, now: number): Promise<number> 
   return rows.length;
 }
 
-// Weights and new match index ids are written one run at a time, so two runs never give out one id twice.
+// Weights and new skill ids are written one run at a time, so two runs never give out one id twice.
 export async function lockSkills(tx: Tx): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext('job-feed:skills'))`);
 }

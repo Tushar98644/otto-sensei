@@ -1,11 +1,15 @@
 import { createHash } from "node:crypto";
 import { ruleLines } from "@/lib/eligibility/check";
+import { postFacts } from "@/lib/eligibility/facts";
 import { capText } from "@/lib/jobs/posting";
 import { foldCase } from "@/lib/tailor/tokens";
+import { hash32 } from "./codes";
+import { jobPlaces } from "./job-places";
 import type { RawJob } from "./parsers";
 import { readTitle } from "./occupations";
 import { minYearsOf, seniorityOf } from "./roles";
 import { findSkills } from "./skills";
+import { titleVectorKey } from "./title-vectors";
 import type { EmploymentType, RoleFamily, Seniority } from "./types";
 
 export const JOB_LIMITS = {
@@ -18,11 +22,15 @@ export const JOB_LIMITS = {
   urlChars: 2_048,
 } as const;
 
+// What a listing keeps of a post: the text itself is read once here and dropped (but for feeds).
 export type NormalizedJob = {
   externalId: string;
   company: string;
   title: string;
+  titleKey: string;
   location: string;
+  // The places it can be taken from (job-places.ts), space-separated.
+  places: string;
   remote: boolean;
   employmentType: EmploymentType | null;
   seniority: Seniority;
@@ -33,13 +41,13 @@ export type NormalizedJob = {
   validThrough: number | null;
   url: string;
   description: string;
-  rulesText: string;
+  // The work-rights facts (eligibility/facts.ts).
+  facts: string;
   keywords: string[];
-  searchText: string;
-  dedupeKey: string;
-  groupKey: string;
+  dedupeKey: number;
+  groupKey: number;
   evergreen: boolean;
-  contentHash: string;
+  contentHash: number;
 };
 
 function oneLine(value: string, max: number): string {
@@ -65,7 +73,12 @@ function shortKey(key: string): string {
   return createHash("md5").update(key).digest("hex").slice(0, 16);
 }
 
-export function dedupeKey(company: string, title: string, location: string): string {
+// 53 bits of the old 16-hex-digit key, so the migration could convert stored keys.
+const dedupeNumber = (key: string) => Number(BigInt(`0x${key}`) >> 11n);
+// The first 32 bits, read signed as Postgres does.
+const groupNumber = (key: string) => Number.parseInt(key.slice(0, 8), 16) | 0;
+
+export function dedupeKey(company: string, title: string, location: string): number {
   const name = brandName(company);
   const role = searchWords(title)
     .replace(/\b(?:sr)\b/g, "senior")
@@ -74,16 +87,17 @@ export function dedupeKey(company: string, title: string, location: string): str
     .filter(Boolean)
     .sort()
     .join(" ");
-  return shortKey(`${name}|${role}|${place}`);
+  return dedupeNumber(shortKey(`${name}|${role}|${place}`));
 }
 
 // Bump when normalizing writes something new: every job row is then rewritten (docs/handoff.md §5, database space).
 const NORMALIZE_VERSION = "5";
 
-export function contentHash(job: RawJob): string {
+// 32 bits of sha256: a change missed by a collision is 1 in 4 billion.
+export function contentHash(job: RawJob): number {
   const parts =
     job.hashKey === undefined ? fieldParts(job) : [NORMALIZE_VERSION, job.company, job.hashKey];
-  return createHash("sha256").update(parts.join("\u0000")).digest("base64url").slice(0, 32);
+  return hash32(parts.join("\u0000"));
 }
 
 function fieldParts(job: RawJob): string[] {
@@ -143,7 +157,7 @@ function withoutPlace(words: string, place: ReadonlySet<string>, { numbers = fal
     .join(" ");
 }
 
-export function groupKey(company: string, title: string, location: string, text: string): string {
+export function groupKey(company: string, title: string, location: string, text: string): number {
   const place = placeTokens(location);
   const name = searchWords(company).replace(COMPANY_SUFFIX, " ").replace(/\s+/g, " ").trim();
   const role = withoutPlace(searchWords(title).replace(/\b(?:sr)\b/g, "senior"), place);
@@ -158,7 +172,7 @@ export function groupKey(company: string, title: string, location: string, text:
     .filter(Boolean)
     .join("\n");
   const hash = createHash("sha256").update(body).digest("base64url").slice(0, 16);
-  return shortKey(`${name}|${role}|${hash}`);
+  return groupNumber(shortKey(`${name}|${role}|${hash}`));
 }
 
 const lineKey = (line: string) => line.replace(/\s+/g, " ").trim().toLowerCase();
@@ -202,11 +216,14 @@ export function normalizeJob(
   const fromTitle = seniorityOf(title);
   const kind = readTitle(title);
   const postedAt = job.postedAt !== null && job.postedAt <= now ? job.postedAt : now;
+  const rules = ruleLines(text, JOB_LIMITS.rulesChars);
   return {
     externalId: job.externalId.slice(0, 300),
     company,
     title,
+    titleKey: titleVectorKey(title),
     location,
+    places: jobPlaces(location, rules).join(" "),
     remote: job.remote,
     employmentType: job.employmentType,
     seniority: fromTitle === "mid" && job.seniority ? job.seniority : fromTitle,
@@ -217,9 +234,8 @@ export function normalizeJob(
     validThrough: job.validThrough,
     url: job.url.slice(0, JOB_LIMITS.urlChars),
     description: textChars > 0 ? capText(text, textChars) : "",
-    rulesText: ruleLines(text, JOB_LIMITS.rulesChars),
+    facts: postFacts({ location, text: rules }),
     keywords,
-    searchText: searchWords(`${title} ${company} ${location} ${keywords.join(" ")}`),
     dedupeKey: dedupeKey(company, title, location),
     groupKey: groupKey(company, title, location, text),
     evergreen: isFillerTitle(title),

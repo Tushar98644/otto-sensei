@@ -2,13 +2,14 @@ import { ne } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FREE_JOB_MATCHES } from "@/config/plans";
 import { getDb } from "@/db/client";
-import { jobs, matchEvents } from "@/db/schema";
+import { matchEvents } from "@/db/schema";
 import type { ApiErrorBody, JobMatchesResponse, SavedJobResponse } from "@/lib/api/types";
 import { cookieJar, resetDb, setPlan, signInAs as signInFree } from "@/lib/auth/test-helpers";
 import { saveWorkProfile } from "@/lib/eligibility/records";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import type { RawJob } from "@/lib/job-feed/parsers";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
+import { storedJobIds } from "@/lib/job-feed/test-fixtures";
 import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
 import type { JobMatchesRequestBody } from "@/lib/job-feed/types";
 import { freezeClock } from "@/lib/timing-testing";
@@ -52,7 +53,7 @@ function raw(id: string, overrides: Partial<RawJob> = {}): RawJob {
 
 async function seedJobs() {
   const db = await getDb();
-  await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }], Date.now());
+  await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }]);
   await saveJobs(
     db,
     { source: "greenhouse", board: "acme" },
@@ -74,7 +75,7 @@ async function seedJobs() {
     Date.now(),
     { snapshot: true },
   );
-  return db.select({ id: jobs.id, externalId: jobs.externalId }).from(jobs);
+  return storedJobIds(db);
 }
 
 const PROFILE = {
@@ -210,7 +211,7 @@ describe("the Jobs tab on Free", () => {
   it(`shows Free at most ${FREE_JOB_MATCHES} and counts the rest`, async () => {
     await signInFree();
     const db = await getDb();
-    await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }], Date.now());
+    await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }]);
     await saveJobs(
       db,
       { source: "greenhouse", board: "acme" },
@@ -328,7 +329,7 @@ describe("POST /api/jobs/matches", () => {
     const user = await signInAs();
     await seedJobs();
     const body = await ranked();
-    expect(body).toMatchObject({ variant: "title-vectors-v1", matching: 3 });
+    expect(body).toMatchObject({ variant: "title-codes-v1", matching: 3 });
     expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
     const db = await getDb();
     const shown = await db.select().from(matchEvents).orderBy(matchEvents.position);
@@ -445,7 +446,7 @@ describe("POST /api/jobs/matches", () => {
     const batch = {
       kind: "impressions",
       requestId: crypto.randomUUID(),
-      variant: "title-vectors-v1",
+      variant: "title-codes-v1",
       resumeHash: "abcdefgh12345678",
       jobs: [{ jobId: crypto.randomUUID(), position: 1, label: "good" }],
     };

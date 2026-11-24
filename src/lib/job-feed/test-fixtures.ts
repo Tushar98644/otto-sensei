@@ -1,3 +1,13 @@
+import type { Db } from "@/db/client";
+import { listings } from "@/db/schema";
+import { publicJobId } from "./codes";
+
+// Each stored job's public id with its source's own id, for tests that pick one by that id.
+export async function storedJobIds(db: Db): Promise<{ id: string; externalId: string }[]> {
+  const rows = await db.select({ id: listings.id, ext: listings.ext }).from(listings);
+  return rows.map((row) => ({ id: publicJobId(row.id), externalId: row.ext }));
+}
+
 const ESCAPED =
   "&lt;div class=&quot;content-intro&quot;&gt;&lt;h2&gt;About Vercel:&lt;/h2&gt;&lt;p&gt;Vercel gives developers the tools to build and scale the web.&lt;/p&gt;&lt;/div&gt;" +
   "&lt;h3&gt;What you will do&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Build our dashboard in React, Next.js and TypeScript.&lt;/li&gt;" +
