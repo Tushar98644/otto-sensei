@@ -40,7 +40,7 @@ export const LEVEL_NAMES: Record<Seniority, string> = {
 };
 
 // "Data and AI" reads as "data and AI" inside a sentence.
-const familyWords = (family: RoleFamily) =>
+export const familyWords = (family: RoleFamily) =>
   ROLE_LABELS[family].charAt(0).toLowerCase() + ROLE_LABELS[family].slice(1);
 
 // The role the line shows: a job picked from the list, else the standard job the resume's title reads as, never the title itself.

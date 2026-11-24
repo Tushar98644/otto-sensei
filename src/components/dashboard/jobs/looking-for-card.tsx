@@ -3,13 +3,18 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
-import { LEVEL_NAMES, placeLabel, placeLine, roleName } from "@/lib/job-feed/looking-for";
+import {
+  familyWords,
+  LEVEL_NAMES,
+  placeLabel,
+  placeLine,
+  roleName,
+} from "@/lib/job-feed/looking-for";
 import { familyOfOccupation } from "@/lib/job-feed/roles";
 import {
   LOOKING_FOR_LIMITS,
   PLACE_GROUPS,
   ROLE_FAMILIES,
-  ROLE_LABELS,
   SENIORITIES,
   type LookingFor,
   type LookingForChoice,
@@ -83,7 +88,7 @@ export function LookingForCard({
     },
     "separator" as const,
     ...ROLE_FAMILIES.map((family) => ({
-      label: `Any ${ROLE_LABELS[family].toLowerCase()} role`,
+      label: `Any ${familyWords(family)} role`,
       checked: value.title === "" && value.family === family,
       onSelect: () => onChange({ ...choice, role: { title: "", family, occupation: null } }),
     })),

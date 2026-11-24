@@ -16,7 +16,11 @@ import AtsGuidePage, { generateMetadata as guideMetadata } from "./ats/[system]/
 import { metadata as atsMetadata } from "./ats/page";
 import ComparePage, { generateMetadata as compareMetadata } from "./compare/[competitor]/page";
 import { metadata as compareIndexMetadata } from "./compare/page";
+import CoverLetterPage, { metadata as coverLetterMetadata } from "./cover-letter-generator/page";
+import InterviewPrepPage, { metadata as interviewPrepMetadata } from "./interview-prep/page";
+import TrackerPage, { metadata as trackerMetadata } from "./job-application-tracker/page";
 import JobMatchPage, { metadata as jobMatchMetadata } from "./job-match/page";
+import PortfolioPage, { metadata as portfolioMetadata } from "./portfolio-website-builder/page";
 import { metadata as homeMetadata } from "./page";
 import PricingPage, { generateMetadata as pricingMetadata } from "./pricing/page";
 import { metadata as privacyMetadata } from "./privacy/page";
@@ -109,6 +113,10 @@ describe("FAQ markup", () => {
     ["job match", async () => renderToStaticMarkup(<JobMatchPage />)],
     ["resume templates", async () => renderToStaticMarkup(<ResumeTemplatesPage />)],
     ["resume builder", async () => renderToStaticMarkup(<ResumeBuilderPage />)],
+    ["cover letter generator", async () => renderToStaticMarkup(<CoverLetterPage />)],
+    ["job application tracker", async () => renderToStaticMarkup(<TrackerPage />)],
+    ["interview prep", async () => renderToStaticMarkup(<InterviewPrepPage />)],
+    ["portfolio website builder", async () => renderToStaticMarkup(<PortfolioPage />)],
     ...ROLE_EXAMPLES.map((example): [string, () => Promise<string>] => [
       `the ${example.slug} example`,
       () => exampleHtml(example.slug),
@@ -226,6 +234,10 @@ async function publicMetadata(): Promise<[string, Metadata][]> {
     ["/pricing", pricingMetadata()],
     ["/job-match", jobMatchMetadata],
     ["/resume-builder", builderMetadata],
+    ["/cover-letter-generator", coverLetterMetadata],
+    ["/job-application-tracker", trackerMetadata],
+    ["/interview-prep", interviewPrepMetadata],
+    ["/portfolio-website-builder", portfolioMetadata],
     ["/resume-examples", examplesMetadata],
     ...(await Promise.all(
       ROLE_EXAMPLES.map(async ({ slug }): Promise<[string, Metadata]> => [

@@ -25,11 +25,17 @@ import { LEGAL_LINKS, linkLine, productOverview } from "@/lib/seo-pages/llms";
 import {
   ATS_INDEX_PAGE,
   COMPARE_INDEX_PAGE,
+  COVER_LETTER_PAGE,
   HOME_PAGE,
+  INTERVIEW_PREP_PAGE,
   JOB_MATCH_PAGE,
+  PORTFOLIO_PAGE,
+  RELATED,
   RESUME_BUILDER_PAGE,
   RESUME_EXAMPLES_PAGE,
   RESUME_TEMPLATES_PAGE,
+  type SeoPage,
+  TRACKER_PAGE,
   atsGuidePage,
   calendarDate,
   calendarMonth,
@@ -40,6 +46,11 @@ import {
 import { SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
 import { HOME_FAQ } from "../(marketing)/_components/faq";
 import type { FaqItem } from "../(marketing)/_components/faq-list";
+import type { FeatureContent } from "../(marketing)/_components/feature-page";
+import { LETTERS } from "../(marketing)/cover-letter-generator/content";
+import { INTERVIEW_PREP } from "../(marketing)/interview-prep/content";
+import { TRACKER } from "../(marketing)/job-application-tracker/content";
+import { PORTFOLIO } from "../(marketing)/portfolio-website-builder/content";
 import type { Note } from "../(marketing)/_components/note-rows";
 import { planCopy } from "../(marketing)/_components/plan-features";
 import { JOB_MATCH_FAQ } from "../(marketing)/job-match/faq";
@@ -117,6 +128,30 @@ function builderLines(base: string): string[] {
     "",
     ...faqLines(BUILDER_FAQ),
   ];
+}
+
+const TOOLS: readonly { title: string; page: SeoPage; content: FeatureContent }[] = [
+  { title: RELATED.coverLetters.title, page: COVER_LETTER_PAGE, content: LETTERS },
+  { title: RELATED.tracker.title, page: TRACKER_PAGE, content: TRACKER },
+  { title: RELATED.interviewPrep.title, page: INTERVIEW_PREP_PAGE, content: INTERVIEW_PREP },
+  { title: RELATED.portfolio.title, page: PORTFOLIO_PAGE, content: PORTFOLIO },
+];
+
+function toolLines(base: string): string[] {
+  return TOOLS.flatMap(({ title, page, content }) => [
+    ...pageHeader(title, page.path, base),
+    content.intro,
+    "",
+    `### ${content.featuresTitle}`,
+    "",
+    ...noteLines(content.features),
+    "",
+    "### How it works",
+    "",
+    ...noteLines(content.steps),
+    "",
+    ...faqLines(content.faq),
+  ]);
 }
 
 function exampleLines(example: RoleExample, base: string): string[] {
@@ -267,6 +302,7 @@ export function llmsFullTxt(base: string, offer: BillingOffer): string {
     "",
     ...faqLines(JOB_MATCH_FAQ),
     ...builderLines(base),
+    ...toolLines(base),
     ...examplesLines(base),
     ...templateLines(base),
     ...atsLines(base),

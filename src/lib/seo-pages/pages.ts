@@ -4,6 +4,7 @@ import { BRAND } from "@/config/brand";
 import { FREE_TEMPLATES, PLANS, PRO_TRIAL } from "@/config/plans";
 import { planPrice, trialPrice } from "@/lib/billing/prices";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";
+import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { SEO_LIMITS } from "@/lib/seo/limits";
 import {
@@ -124,6 +125,43 @@ export const RESUME_BUILDER_PAGE: SeoPage = {
   lastModified: PRODUCT_PAGES_UPDATED,
 };
 
+export const COVER_LETTER_PAGE: SeoPage = {
+  path: SEO_PATHS.coverLetterGenerator,
+  ...fitTitle("AI cover letter generator from your resume"),
+  description: `${BRAND.mascotName} writes cover letters, outreach and application answers from your resume and the job post, and flags any line it can't back up. Comes with ${PLANS.pro.name}.`,
+  lastModified: PRODUCT_PAGES_UPDATED,
+};
+
+export const TRACKER_PAGE: SeoPage = {
+  path: SEO_PATHS.applicationTracker,
+  ...fitTitle("Job application tracker with email updates"),
+  description: `Track every job application on one board, with the resume you sent, follow-up reminders and interview dates. On ${PLANS.pro.name}, it updates from your job emails.`,
+  lastModified: PRODUCT_PAGES_UPDATED,
+};
+
+export const INTERVIEW_PREP_PAGE: SeoPage = {
+  path: SEO_PATHS.interviewPrep,
+  ...fitTitle("AI interview prep from your resume and the job"),
+  description:
+    "Prep for each interview with likely questions, stories from your own resume lines and questions to ask. Technical roles also get a technical round.",
+  lastModified: PRODUCT_PAGES_UPDATED,
+};
+
+export const PORTFOLIO_PAGE: SeoPage = {
+  path: SEO_PATHS.portfolioBuilder,
+  ...fitTitle(`Resume to portfolio website in ${PORTFOLIO_TEMPLATE_IDS.length} designs`),
+  description: `Turn your resume into a portfolio website. Pick one of ${PORTFOLIO_TEMPLATE_IDS.length} designs, ${BRAND.mascotName} fills it in from your resume, and we host it at your own link. Comes with ${PLANS.pro.name}.`,
+  lastModified: PRODUCT_PAGES_UPDATED,
+};
+
+// The pages for Otto's tools, in the order the footer and llms.txt list them.
+export const TOOL_PAGES: readonly SeoPage[] = [
+  COVER_LETTER_PAGE,
+  TRACKER_PAGE,
+  INTERVIEW_PREP_PAGE,
+  PORTFOLIO_PAGE,
+];
+
 // The year a searcher sees in a title says the advice is current; it follows the examples' own dates.
 const EXAMPLES_YEAR = latestExampleUpdate().slice(0, 4);
 
@@ -178,6 +216,7 @@ export function comparePage(competitor: Competitor): SeoPage {
 export function seoPages(): SeoPage[] {
   return [
     RESUME_BUILDER_PAGE,
+    ...TOOL_PAGES,
     RESUME_EXAMPLES_PAGE,
     ...ROLE_EXAMPLES.map(examplePage),
     RESUME_TEMPLATES_PAGE,
@@ -191,7 +230,17 @@ export function seoPages(): SeoPage[] {
 export type RelatedLink = { href: string; title: string; text: string };
 
 export const RELATED: Record<
-  "builder" | "examples" | "jobMatch" | "templates" | "ats" | "compare" | "pricing",
+  | "builder"
+  | "examples"
+  | "jobMatch"
+  | "templates"
+  | "ats"
+  | "compare"
+  | "pricing"
+  | "coverLetters"
+  | "tracker"
+  | "interviewPrep"
+  | "portfolio",
   RelatedLink
 > = {
   builder: {
@@ -228,5 +277,25 @@ export const RELATED: Record<
     href: ROUTES.pricing,
     title: "Pricing",
     text: "What's free, and what Pro and Max add.",
+  },
+  coverLetters: {
+    href: COVER_LETTER_PAGE.path,
+    title: "AI cover letter generator",
+    text: "Cover letters, outreach messages and answers to application questions, from your resume and the job post.",
+  },
+  tracker: {
+    href: TRACKER_PAGE.path,
+    title: "Job application tracker",
+    text: "Your applications on one board, with the resume you sent, follow-up reminders and interview dates.",
+  },
+  interviewPrep: {
+    href: INTERVIEW_PREP_PAGE.path,
+    title: "AI interview prep",
+    text: "Likely questions, stories from your own resume lines and questions to ask, for each interview.",
+  },
+  portfolio: {
+    href: PORTFOLIO_PAGE.path,
+    title: "Portfolio website builder",
+    text: `A portfolio site made from your resume in one of ${PORTFOLIO_TEMPLATE_IDS.length} designs, hosted at your own link.`,
   },
 };

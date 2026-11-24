@@ -5,6 +5,7 @@ import { BRAND } from "@/config/brand";
 import { FREE_TEMPLATES, PRICES_USD, PRO_PRICE_COMPARISON } from "@/config/plans";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
 import { TEMPLATE_LIST, isProTemplate } from "@/lib/pdf/templates";
+import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { SEO_LIMITS } from "@/lib/seo/limits";
 import {
   ATS_GUIDES,
@@ -35,9 +36,14 @@ import {
 import { atsGuideJsonLd, breadcrumbJsonLd, compareJsonLd, templateListJsonLd } from "./json-ld";
 import { llmsTxt } from "./llms";
 import {
+  COVER_LETTER_PAGE,
   HOME_PAGE,
+  INTERVIEW_PREP_PAGE,
   JOB_MATCH_PAGE,
+  PORTFOLIO_PAGE,
   RELATED,
+  TOOL_PAGES,
+  TRACKER_PAGE,
   atsGuidePage,
   comparePage,
   pricingPage,
@@ -310,6 +316,32 @@ describe("public SEO pages", () => {
     );
   });
 
+  it("lists the tool pages after the resume builder, each titled with what people search for", () => {
+    expect(pages.slice(0, 1 + TOOL_PAGES.length).map((page) => page.path)).toEqual([
+      SEO_PATHS.resumeBuilder,
+      SEO_PATHS.coverLetterGenerator,
+      SEO_PATHS.applicationTracker,
+      SEO_PATHS.interviewPrep,
+      SEO_PATHS.portfolioBuilder,
+    ]);
+    expect(TOOL_PAGES).toEqual([
+      COVER_LETTER_PAGE,
+      TRACKER_PAGE,
+      INTERVIEW_PREP_PAGE,
+      PORTFOLIO_PAGE,
+    ]);
+    expect(COVER_LETTER_PAGE.title).toMatch(/^AI cover letter generator/);
+    expect(TRACKER_PAGE.title).toMatch(/^Job application tracker/);
+    expect(INTERVIEW_PREP_PAGE.title).toMatch(/^AI interview prep/);
+    expect(PORTFOLIO_PAGE.title).toBe(
+      `Resume to portfolio website in ${PORTFOLIO_TEMPLATE_IDS.length} designs`,
+    );
+    for (const page of TOOL_PAGES) {
+      expect(page.lastModified, page.path).toBe(PRODUCT_PAGES_UPDATED);
+      expect(page.absoluteTitle, page.path).toBeUndefined();
+    }
+  });
+
   it("gives every page a title and description that fit a search result", () => {
     const thin = ATS_GUIDES.filter((guide) => !isIndexed(guide)).map(atsGuidePage);
     const all = [HOME_PAGE, pricingPage(true), pricingPage(false), JOB_MATCH_PAGE, ...pages];
@@ -371,6 +403,7 @@ describe("public SEO pages", () => {
     expect(product.map((link) => link.href)).toEqual([
       SEO_PATHS.resumeBuilder,
       SEO_PATHS.jobMatch,
+      ...TOOL_PAGES.map((page) => page.path),
       "/pricing",
     ]);
     const guides = FOOTER_GROUPS.find((group) => group.title === "Guides")?.links ?? [];

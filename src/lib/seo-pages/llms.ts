@@ -11,9 +11,14 @@ import { ROLE_EXAMPLES } from "./examples";
 import {
   ATS_INDEX_PAGE,
   COMPARE_INDEX_PAGE,
+  COVER_LETTER_PAGE,
+  INTERVIEW_PREP_PAGE,
+  PORTFOLIO_PAGE,
+  RELATED,
   RESUME_BUILDER_PAGE,
   RESUME_EXAMPLES_PAGE,
   RESUME_TEMPLATES_PAGE,
+  TRACKER_PAGE,
   atsGuidePage,
   comparePage,
   examplePage,
@@ -47,6 +52,16 @@ export const LEGAL_LINKS: readonly Link[] = [
   },
 ];
 
+// The cover letter, tracker, interview prep and portfolio pages, named as their related links name them.
+export function toolLinks(): Link[] {
+  return [
+    { page: COVER_LETTER_PAGE, title: RELATED.coverLetters.title },
+    { page: TRACKER_PAGE, title: RELATED.tracker.title },
+    { page: INTERVIEW_PREP_PAGE, title: RELATED.interviewPrep.title },
+    { page: PORTFOLIO_PAGE, title: RELATED.portfolio.title },
+  ].map(({ page, title }) => ({ title, path: page.path, note: page.description }));
+}
+
 export function llmsTxt(base: string): string {
   const main: Link[] = [
     { title: "Home", path: ROUTES.home, note: BRAND.description },
@@ -65,6 +80,7 @@ export function llmsTxt(base: string): string {
       path: SEO_PATHS.jobMatch,
       note: "A free check of which skills and tools in a job post a resume names.",
     },
+    ...toolLinks(),
     {
       title: "Resume templates",
       path: RESUME_TEMPLATES_PAGE.path,

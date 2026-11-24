@@ -74,8 +74,15 @@ const EXAMPLES = [
   "operations-manager",
   "administrative-assistant",
 ];
+const TOOLS = [
+  "/cover-letter-generator",
+  "/job-application-tracker",
+  "/interview-prep",
+  "/portfolio-website-builder",
+];
 const GUIDES = [
   "/resume-builder",
+  ...TOOLS,
   "/resume-examples",
   ...EXAMPLES.map((slug) => `/resume-examples/${slug}`),
   "/resume-templates",
@@ -85,7 +92,7 @@ const GUIDES = [
   ...COMPARISONS.map((slug) => `/compare/${slug}`),
 ];
 const LEGAL = ["/privacy", "/terms", "/refunds", "/acceptable-use"];
-const PRODUCT = ["/", "/pricing", "/job-match", "/resume-builder"];
+const PRODUCT = ["/", "/pricing", "/job-match", "/resume-builder", ...TOOLS];
 const APP = fileURLToPath(new URL(".", import.meta.url));
 
 // The page file Next serves for a path, dynamic segments included.

@@ -50,6 +50,10 @@ export const FOOTER_GROUPS: readonly NavGroup[] = [
     links: [
       { href: SEO_PATHS.resumeBuilder, label: "Resume builder" },
       { href: SEO_PATHS.jobMatch, label: "Job match check" },
+      { href: SEO_PATHS.coverLetterGenerator, label: "Cover letters" },
+      { href: SEO_PATHS.applicationTracker, label: "Application tracker" },
+      { href: SEO_PATHS.interviewPrep, label: "Interview prep" },
+      { href: SEO_PATHS.portfolioBuilder, label: "Portfolio website" },
       { href: ROUTES.pricing, label: "Pricing" },
     ],
   },

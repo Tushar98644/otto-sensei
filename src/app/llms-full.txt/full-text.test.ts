@@ -6,8 +6,13 @@ import { ATS_GUIDES, GENERAL_ADVICE, guideHeadline, isIndexed } from "@/lib/seo-
 import { COMPETITORS, compareTitle, ottoReasons } from "@/lib/seo-pages/compare";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { calendarDate, calendarMonth, exampleHeadline } from "@/lib/seo-pages/pages";
+import { SEO_PATHS } from "@/lib/seo-pages/paths";
 import { HOME_FAQ } from "../(marketing)/_components/faq";
+import { LETTERS } from "../(marketing)/cover-letter-generator/content";
+import { INTERVIEW_PREP } from "../(marketing)/interview-prep/content";
+import { TRACKER } from "../(marketing)/job-application-tracker/content";
 import { JOB_MATCH_FAQ } from "../(marketing)/job-match/faq";
+import { PORTFOLIO } from "../(marketing)/portfolio-website-builder/content";
 import { BILLING_FAQ } from "../(marketing)/pricing/billing-faq";
 import { BUILDER_FAQ, INDIA_NOTES } from "../(marketing)/resume-builder/content";
 import { COMMON, TEMPLATES_FAQ } from "../(marketing)/resume-templates/content";
@@ -15,6 +20,7 @@ import { llmsFullTxt } from "./full-text";
 
 const BASE = "https://www.ottosensei.com";
 const text = llmsFullTxt(BASE, { pro: ["month", "year"], max: ["month"] });
+const TOOLS = [LETTERS, TRACKER, INTERVIEW_PREP, PORTFOLIO];
 
 describe("llms-full.txt", () => {
   it("opens with a title and the same product summary as llms.txt", () => {
@@ -27,9 +33,25 @@ describe("llms-full.txt", () => {
   it("quotes every FAQ the site shows, word for word", () => {
     const examples = ROLE_EXAMPLES.flatMap((example) => example.faq);
     const faqs = [...HOME_FAQ, ...BILLING_FAQ, ...JOB_MATCH_FAQ, ...TEMPLATES_FAQ, ...BUILDER_FAQ];
-    for (const item of [...faqs, ...examples]) {
+    const tools = TOOLS.flatMap((tool) => tool.faq);
+    for (const item of [...faqs, ...examples, ...tools]) {
       expect(text).toContain(item.question);
       expect(text).toContain(nodeText(item.answer));
+    }
+  });
+
+  it("carries each tool page: its page link, intro, features and steps", () => {
+    for (const [path, tool] of [
+      [SEO_PATHS.coverLetterGenerator, LETTERS],
+      [SEO_PATHS.applicationTracker, TRACKER],
+      [SEO_PATHS.interviewPrep, INTERVIEW_PREP],
+      [SEO_PATHS.portfolioBuilder, PORTFOLIO],
+    ] as const) {
+      expect(text).toContain(`Page: ${BASE}${path}\n`);
+      expect(text).toContain(tool.intro);
+      for (const note of [...tool.features, ...tool.steps]) {
+        expect(text).toContain(`- ${note.title}: ${nodeText(note.text)}`);
+      }
     }
   });
 

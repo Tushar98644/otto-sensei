@@ -1,8 +1,12 @@
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
+import { applicationLimit, PLANS } from "@/config/plans";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
+import { ROLE_FOCUSES } from "@/lib/insights/prep-focus";
+import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { ATS_IDS, atsGuide, guideHeadline, topTip } from "@/lib/seo-pages/ats";
 import { COMPETITORS, ottoReasons } from "@/lib/seo-pages/compare";
 import { calendarDate, calendarMonth, seoPages } from "@/lib/seo-pages/pages";
@@ -11,6 +15,10 @@ import { SEO_PATHS, atsPath, examplePath } from "@/lib/seo-pages/paths";
 import { TEMPLATE_LIST } from "@/lib/pdf/templates";
 import ComparePage, { generateMetadata as compareMetadata } from "../compare/[competitor]/page";
 import CompareIndexPage from "../compare/page";
+import CoverLetterPage, { metadata as coverLetterMetadata } from "../cover-letter-generator/page";
+import InterviewPrepPage, { metadata as interviewPrepMetadata } from "../interview-prep/page";
+import TrackerPage, { metadata as trackerMetadata } from "../job-application-tracker/page";
+import PortfolioPage, { metadata as portfolioMetadata } from "../portfolio-website-builder/page";
 import ResumeBuilderPage from "../resume-builder/page";
 import ExamplePage from "../resume-examples/[role]/page";
 import ResumeExamplesPage from "../resume-examples/page";
@@ -36,6 +44,11 @@ const INTERNAL = new Set<string>([
   ROUTES.home,
   ROUTES.studio,
   ROUTES.pricing,
+  ROUTES.privacy,
+  ROUTES.dashboardLetters,
+  ROUTES.dashboardApplications,
+  ROUTES.dashboardInterview,
+  PORTFOLIO_ROUTE,
   SEO_PATHS.jobMatch,
   ...seoPages().map((page) => page.path),
   ...ATS_IDS.map(atsPath),
@@ -166,6 +179,76 @@ describe("ATS guide pages", () => {
     expect(words).not.toContain("1 sourced note");
     expect(words).toContain(`${HIRING_SYSTEMS.greenhouse.notes.length} sourced notes`);
   });
+});
+
+const count = new Intl.NumberFormat("en-US");
+
+const TOOLS = [
+  {
+    name: "cover letter generator",
+    Page: CoverLetterPage,
+    meta: coverLetterMetadata,
+    path: SEO_PATHS.coverLetterGenerator,
+    keyword: "ai cover letter generator",
+    app: ROUTES.dashboardLetters,
+    facts: [`${PLANS.pro.limits.letter} letters`],
+  },
+  {
+    name: "job application tracker",
+    Page: TrackerPage,
+    meta: trackerMetadata,
+    path: SEO_PATHS.applicationTracker,
+    keyword: "job application tracker",
+    app: ROUTES.dashboardApplications,
+    facts: [
+      `tracks ${applicationLimit("free")} application,`,
+      `up to ${count.format(applicationLimit("pro"))}`,
+      `up to ${count.format(applicationLimit("max"))}`,
+    ],
+  },
+  {
+    name: "interview prep",
+    Page: InterviewPrepPage,
+    meta: interviewPrepMetadata,
+    path: SEO_PATHS.interviewPrep,
+    keyword: "ai interview prep",
+    app: ROUTES.dashboardInterview,
+    facts: [`For ${ROLE_FOCUSES.length} kinds of role`],
+  },
+  {
+    name: "portfolio website builder",
+    Page: PortfolioPage,
+    meta: portfolioMetadata,
+    path: SEO_PATHS.portfolioBuilder,
+    keyword: "resume to portfolio website",
+    app: PORTFOLIO_ROUTE,
+    facts: [`one of ${PORTFOLIO_TEMPLATE_IDS.length} designs`],
+  },
+];
+
+describe("tool pages", () => {
+  it.each(TOOLS)(
+    "the $name page has its keyword in one h1, its canonical, JSON-LD and CTAs",
+    ({ Page, meta, path, keyword, app, facts }) => {
+      const html = renderToStaticMarkup(<Page />);
+      checkPage(html);
+      const h1 = text(/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1] ?? "");
+      expect(h1.toLowerCase()).toContain(keyword);
+      expect(meta.alternates?.canonical).toBe(path);
+      expect(meta.openGraph).toMatchObject({ url: path });
+      expect(html).toContain('"@type":"FAQPage"');
+      expect(html.match(new RegExp(`href="${app}"`, "g"))).toHaveLength(2);
+      for (const href of [ROUTES.pricing, SEO_PATHS.jobMatch, ROUTES.studio]) {
+        expect(html, href).toContain(`href="${href}"`);
+      }
+      const related = html.slice(html.indexOf('id="related-title"'));
+      const others = TOOLS.filter((tool) => tool.path !== path).map((tool) => tool.path);
+      for (const href of [...others, SEO_PATHS.resumeExamples]) {
+        expect(related, href).toContain(`href="${href}"`);
+      }
+      for (const fact of facts) expect(text(html)).toContain(fact);
+    },
+  );
 });
 
 describe("resume builder and examples", () => {

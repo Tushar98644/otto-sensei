@@ -7,6 +7,10 @@ export const SEO_PATHS = {
   ats: "/ats",
   compare: "/compare",
   jobMatch: "/job-match",
+  coverLetterGenerator: "/cover-letter-generator",
+  applicationTracker: "/job-application-tracker",
+  interviewPrep: "/interview-prep",
+  portfolioBuilder: "/portfolio-website-builder",
   llms: "/llms.txt",
   llmsFull: "/llms-full.txt",
 } as const;
@@ -17,8 +21,8 @@ export const JOB_MATCH_PARAM = "job";
 // Bump when the guide, template or comparison pages change in substance.
 export const SEO_PAGES_UPDATED = "2026-11-21";
 
-// Bump when the home, pricing, job match or resume builder pages change in substance.
-export const PRODUCT_PAGES_UPDATED = "2026-11-22";
+// Bump when the home, pricing, job match, resume builder or other product pages change in substance.
+export const PRODUCT_PAGES_UPDATED = "2026-11-24";
 
 export function atsPath(id: HiringSystemId): string {
   return `${SEO_PATHS.ats}/${id}`;
