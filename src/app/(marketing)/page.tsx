@@ -15,7 +15,6 @@ import { JobsShowcase } from "./_components/jobs-showcase";
 import { LazySections } from "./_components/lazy-sections";
 import { PortfolioShowcase } from "./_components/portfolio-showcase";
 import { PricingTeaser } from "./_components/pricing-teaser";
-import { SmoothScroll } from "./_components/smooth-scroll";
 import { WebsiteJsonLd } from "./_components/website-json-ld";
 import { WontDo } from "./_components/wont-do";
 
@@ -29,7 +28,6 @@ export default async function HomePage() {
     <>
       <WebsiteJsonLd />
       <TrackView event="landing_viewed" />
-      <SmoothScroll />
       <HomeUpload />
       <Hero jobCounts={jobCounts} />
       <HowItWorks />

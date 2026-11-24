@@ -68,10 +68,23 @@ async function main() {
   const rebuild = !process.argv.includes("--defer-rebuild");
   const db = await getDb();
   const started = Date.now();
+  let last = "starting";
+  const progress = (line: string) => {
+    last = line;
+    console.log(`[${Math.round((Date.now() - started) / 1000)}s] ${line}`);
+  };
+  // Ends a stuck run with its last step named, inside the workflow's own step limit.
+  setTimeout(
+    () => {
+      console.log(`::error::Still running 10 minutes past the time limit. Last step: ${last}`);
+      process.exit(1);
+    },
+    (minutes + 10) * 60_000,
+  ).unref();
   // Three minutes of finishing passes keep a 20-minute read inside the workflow's 35-minute step.
   const outcome = await runJobsIngest(
     { now: started, deadline: started + minutes * 60_000 },
-    { db, workers, finishMs: 3 * 60_000, rebuild },
+    { db, workers, finishMs: 3 * 60_000, rebuild, progress },
   );
   const { openJobs } = await jobStats(db);
   const { stats } = outcome;

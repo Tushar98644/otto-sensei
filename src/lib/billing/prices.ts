@@ -27,7 +27,9 @@ export function planPriceLabel(plan: PaidPlanId, interval: BillingInterval): str
 
 export function yearlySavingsPercent(plan: PaidPlanId): number {
   const monthly = PRICES_USD[plan].month * 12;
-  return monthly > 0 ? Math.max(0, Math.floor((1 - PRICES_USD[plan].year / monthly) * 100)) : 0;
+  // Whole cents, so an exact 20% isn't floored to 19 by floating point.
+  const saved = Math.round((monthly - PRICES_USD[plan].year) * 100);
+  return monthly > 0 ? Math.max(0, Math.floor((saved * 100) / Math.round(monthly * 100))) : 0;
 }
 
 export function perMonth(plan: PaidPlanId): string {

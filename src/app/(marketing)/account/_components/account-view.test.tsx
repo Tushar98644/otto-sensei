@@ -228,7 +228,9 @@ describe("AccountView plan section", () => {
       { cancelScheduled: true },
     );
     expect(body).toContain("Ends Nov 23");
-    expect(body).toContain("Your trial ends on Nov 23 and Pro won't start, so you won't pay anything more.");
+    expect(body).toContain(
+      "Your trial ends on Nov 23 and Pro won't start, so you won't pay anything more.",
+    );
     expect(body).toContain("Resume trial");
     expect(body).not.toMatch(/Cancel trial|Change plan|Pay yearly instead|Need more\?/);
   });
@@ -242,7 +244,7 @@ describe("AccountView plan section", () => {
     );
     expect(body).toContain("Change plan");
     expect(body).toContain("Cancel trial");
-    expect(body).toContain("Pay yearly instead: $120 a year");
+    expect(body).toContain("Pay yearly instead: $144 a year");
     expect(body).toContain("Need more? Max has at least double every Pro limit, for $29 a month.");
     expect(body).toContain("Billed by Dodo Payments, our merchant of record.");
   });

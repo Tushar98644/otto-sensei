@@ -19,8 +19,8 @@ const text = (interval: BillingInterval, offer?: Parameters<typeof PlanPicker>[0
 describe("PlanPicker", () => {
   it("prices each plan for the picked billing option, not a fixed month", () => {
     const yearly = text("year");
-    expect(yearly).toContain("Pro $120/year");
-    expect(yearly).toContain("Max $232/year");
+    expect(yearly).toContain("Pro $144/year");
+    expect(yearly).toContain("Max $278/year");
     expect(yearly).not.toMatch(/month|Reference price/);
   });
 
@@ -33,7 +33,7 @@ describe("PlanPicker", () => {
 
   it("shows monthly for a plan not sold at the picked option", () => {
     const yearly = text("year", { pro: ["month", "year"], max: ["month"] });
-    expect(yearly).toContain("Pro $120/year");
+    expect(yearly).toContain("Pro $144/year");
     expect(yearly).toContain(
       SHOW_REFERENCE_PRICES ? "Max Reference price $60 $29/month" : "Max $29/month",
     );

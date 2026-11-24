@@ -123,6 +123,8 @@ export type IngestOptions = {
   finishMs?: number;
   // False when a later step rebuilds the index anyway: each rebuild reads every open job out of the database.
   rebuild?: boolean;
+  // One line per phase and per board, for a run's log.
+  progress?: (line: string) => void;
 };
 
 const SOURCE_HOSTS: Record<Exclude<BoardSource, "workday">, string> = {
@@ -505,9 +507,12 @@ export async function runJobsIngest(
   const failed: string[] = [];
 
   // First, so slow register downloads only shorten the board reads and the closing rebuild has the new facts.
+  const say = options.progress ?? (() => {});
   const visa = options.visa === false ? -1 : await refreshVisaIfDue(db, deadline);
+  say(`visa registers: ${visa < 0 ? "not due" : `${visa} companies`}`);
   totals.closed += await syncBoards(db, seeds);
   const dedupe = await openDedupeKeys(db);
+  say(`boards synced, ${dedupe.size} open jobs keyed`);
   const company = new Map(seeds.map((seed) => [`${seed.ats}:${seed.token}`, seed.company]));
   const place = new Map(seeds.map((seed) => [`${seed.ats}:${seed.token}`, seed.place]));
   const queue = (
@@ -527,6 +532,7 @@ export async function runJobsIngest(
         now - board.lastFetchedAt >= refreshAfter(board.source as BoardSource),
     )
     .slice(0, options.maxBoards ?? Number.POSITIVE_INFINITY);
+  say(`${queue.length} boards due`);
 
   const feeds =
     options.feeds === false
@@ -561,6 +567,7 @@ export async function runJobsIngest(
       }
       const source = board.source as BoardSource;
       if (source === "workday") workdayBusy += 1;
+      const started = Date.now();
       try {
         const { raws, partial } = await readBoard(
           db,
@@ -579,6 +586,9 @@ export async function runJobsIngest(
           }),
         );
         totals.boards += 1;
+        say(
+          `${source}/${board.token}: ${raws.length} read${partial ? ", partial" : ""}, ${Date.now() - started} ms`,
+        );
         if (partial) {
           totals.boardsPartial += 1;
           await dueAgain(db, source, board.token, Date.now() - refreshAfter(source));
@@ -590,6 +600,7 @@ export async function runJobsIngest(
           continue;
         }
         totals.boardsFailed += 1;
+        say(`${source}/${board.token}: failed after ${Date.now() - started} ms`);
         if (!(error instanceof JobReadError || error instanceof FeedShapeError)) {
           log.error("jobs.board_failed", error, { source, token: board.token });
         }
@@ -606,11 +617,13 @@ export async function runJobsIngest(
     }
   };
   await Promise.all([
-    feeds,
+    feeds.then(() => say("feeds read")),
     ...Array.from({ length: options.workers ?? INGEST_LIMITS.workers }, worker),
   ]);
+  say(`boards read: ${totals.boards}, ${totals.added} added, ${totals.updated} updated`);
 
   const tidy = await tidyJobs(db, Date.now());
+  say(`tidied: ${tidy.expired} expired, ${tidy.aged} aged, ${tidy.trimmed} trimmed`);
   // A call that added, changed and closed nothing leaves the weights, the index and cached Matches pages as they are.
   const changed =
     visa > 0 ||
@@ -618,6 +631,7 @@ export async function runJobsIngest(
     tidy.expired + tidy.aged + tidy.trimmed > 0 ||
     (await readStoredCounts(db)) === null;
   const skills = changed ? await refreshSkillWeights(db, Date.now()) : -1;
+  say("skill weights refreshed");
   // Last, so the match index, stored counts and every cached match list name this run.
   const indexed =
     changed && options.rebuild !== false

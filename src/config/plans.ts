@@ -91,8 +91,8 @@ export function nextPlan(plan: PlanId): PaidPlanId | null {
 export type BillingInterval = "month" | "year";
 export const BILLING_INTERVALS = ["month", "year"] as const satisfies readonly BillingInterval[];
 export const PRICES_USD: Record<PaidPlanId, Record<BillingInterval, number>> = {
-  pro: { month: PLANS.pro.priceUsd, year: 120 },
-  max: { month: PLANS.max.priceUsd, year: 232 },
+  pro: { month: PLANS.pro.priceUsd, year: 144 },
+  max: { month: PLANS.max.priceUsd, year: 278 },
 };
 
 // Off: never-charged reference prices can count as a misleading discount (EU/UK/US rules).

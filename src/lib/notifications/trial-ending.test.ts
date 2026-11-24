@@ -34,7 +34,7 @@ describe("trial-ending notice", () => {
       ottoHeadUrl: "https://otto.test/email/otto-head.png",
     });
     expect(email.subject).toBe("Your Max trial ends on November 17");
-    expect(email.text).toContain("Max costs $232/year");
+    expect(email.text).toContain("Max costs $278/year");
     expect(email.text).toContain("Your account: https://otto.test/account?a=1&b=2");
     expect(email.html).toContain('href="https://otto.test/account?a=1&amp;b=2"');
     expect(email.html).toContain("If you&#39;d like to keep Max");

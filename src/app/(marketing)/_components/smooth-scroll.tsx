@@ -22,6 +22,8 @@ export function startSmoothScroll(load: LoadLenis = () => import("lenis")): () =
       lerp: 0.12,
       autoRaf: true,
       anchors: true,
+      // Every public page uses it now, so a pasted job post's box or a scrolling panel scrolls itself.
+      allowNestedScroll: true,
       prevent: (node) =>
         node.closest("dialog, [popover], [role=menu], [role=listbox], [data-lenis-prevent]") !==
         null,

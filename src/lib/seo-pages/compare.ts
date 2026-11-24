@@ -49,12 +49,12 @@ const maxMonthly = planPrice("max", "month");
 
 const OTTO_SIDE = {
   what: {
-    answer: "Resume checker and builder",
-    detail: `See the text hiring software reads, fix weak lines with Otto and download a clean PDF. Pro adds tailoring to each job, cover letters, outreach messages, interview prep, every format, up to ${applicationLimit("pro").toLocaleString("en-US")} tracked applications and a portfolio site.`,
+    answer: "A full job-hunt pipeline",
+    detail: `Check and build your resume, then find open jobs ranked for it. Pro adds a tailored copy, cover letter and outreach for each job, up to ${applicationLimit("pro").toLocaleString("en-US")} applications that update from your email, interview prep and a portfolio site.`,
   },
   score: {
-    answer: "No overall score",
-    detail: "Each check passes or names the problem, with the reason in plain words.",
+    answer: "No made-up score",
+    detail: "Each check passes or names the problem and how to fix it, in plain words.",
   },
   free: {
     answer: `${pluralize(resumeLimit("free"), "resume")}, no card`,
@@ -83,8 +83,8 @@ const OTTO_SIDE = {
 } as const satisfies Record<string, CompareCell>;
 
 const NO_SCORE: CompareNote = {
-  title: "Reasons instead of a score",
-  text: "Otto gives no overall number. Each check passes or names the problem and why, so you fix the cause.",
+  title: "No made-up score",
+  text: "There's no standard ATS score: each hiring system ranks applicants its own way, and none shows you a number. So Otto doesn't invent one. Each check passes or names the problem and how to fix it.",
 };
 
 const FREE_PDFS: CompareNote = {

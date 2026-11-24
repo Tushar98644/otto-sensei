@@ -56,8 +56,8 @@ describe("plan cards for a visitor", () => {
     const { pro, max } = cardsFor(null, { trial: true, picked: "year" });
     expect(pro.interval).toBe("year");
     expect(pro.cta).toMatchObject({ href: upgradeHref("pro", "year"), label: "Get Pro" });
-    expect(pro.notes).toContain("About $10 a month, instead of $180 a year paid monthly.");
-    expect(max.notes).toContain("About $19.33 a month, instead of $348 a year paid monthly.");
+    expect(pro.notes).toContain("About $12 a month, instead of $180 a year paid monthly.");
+    expect(max.notes).toContain("About $23.17 a month, instead of $348 a year paid monthly.");
   });
 
   it("says when a plan is sold monthly only", () => {

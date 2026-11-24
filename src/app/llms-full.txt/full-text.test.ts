@@ -3,7 +3,7 @@ import { PLANS, PRICES_USD } from "@/config/plans";
 import { TEMPLATE_LIST } from "@/lib/pdf/templates";
 import { nodeText } from "@/lib/seo/node-text";
 import { ATS_GUIDES, GENERAL_ADVICE, guideHeadline, isIndexed } from "@/lib/seo-pages/ats";
-import { COMPETITORS, compareTitle } from "@/lib/seo-pages/compare";
+import { COMPETITORS, compareTitle, ottoReasons } from "@/lib/seo-pages/compare";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { calendarDate, calendarMonth, exampleHeadline } from "@/lib/seo-pages/pages";
 import { HOME_FAQ } from "../(marketing)/_components/faq";
@@ -73,7 +73,7 @@ describe("llms-full.txt", () => {
     }
   });
 
-  it("carries every comparison: both sides, the other product's strengths and its sources", () => {
+  it("carries every comparison: why Otto, both sides of the table and the sources", () => {
     for (const competitor of COMPETITORS) {
       expect(text).toContain(
         competitor.asListed
@@ -81,13 +81,12 @@ describe("llms-full.txt", () => {
           : `Checked on ${calendarDate(competitor.checked)}.`,
       );
       expect(text).toContain(`### ${compareTitle(competitor)}`);
-      expect(text).toContain(competitor.summary);
-      expect(text).toContain(`Pick ${competitor.name} if ${competitor.pickThem}`);
+      expect(text).not.toContain(`Pick ${competitor.name} if`);
+      for (const note of ottoReasons(competitor)) expect(text).toContain(note.text);
       for (const row of competitor.rows) {
         expect(text).toContain(row.them.answer);
         if (row.them.detail) expect(text).toContain(row.them.detail);
       }
-      for (const strength of competitor.strengths) expect(text).toContain(strength);
       for (const source of competitor.sources) expect(text).toContain(source.url);
     }
   });

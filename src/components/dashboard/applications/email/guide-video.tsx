@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 // A real screen recording can replace these three files under the same names.
 export const GMAIL_GUIDE = "/guides/gmail-forwarding";
 export const GMAIL_FILTER_GUIDE = "/guides/gmail-filter";
+// The real Applications board as three hiring emails arrive, for the home page.
+export const EMAIL_BOARD_CLIP = "/guides/email-board";
 
 const REDUCE = "(prefers-reduced-motion: reduce)";
 
@@ -19,7 +21,15 @@ function subscribe(notify: () => void) {
 const reduced = () => window.matchMedia(REDUCE).matches;
 
 // A short silent loop of the Gmail steps: it loads once in view, plays only there, and waits for Play with reduced motion.
-export function GuideVideo({ src = GMAIL_GUIDE }: { src?: string }) {
+export function GuideVideo({
+  src = GMAIL_GUIDE,
+  width = 960,
+  height = 600,
+}: {
+  src?: string;
+  width?: number;
+  height?: number;
+}) {
   const ref = useRef<HTMLVideoElement>(null);
   const still = useSyncExternalStore(subscribe, reduced, () => true);
   const [choice, setChoice] = useState<boolean | null>(null);
@@ -59,9 +69,10 @@ export function GuideVideo({ src = GMAIL_GUIDE }: { src?: string }) {
         playsInline
         preload={seen && playing ? "auto" : "none"}
         poster={`${src}.jpg`}
-        width={960}
-        height={600}
-        className="block aspect-8/5 h-auto w-full"
+        width={width}
+        height={height}
+        style={{ aspectRatio: `${width} / ${height}` }}
+        className="block h-auto w-full"
       >
         {seen ? (
           <>

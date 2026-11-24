@@ -20,8 +20,8 @@ import {
 describe("plan prices", () => {
   it("are the owner's numbers", () => {
     expect(PRICES_USD).toEqual({
-      pro: { month: 15, year: 120 },
-      max: { month: 29, year: 232 },
+      pro: { month: 15, year: 144 },
+      max: { month: 29, year: 278 },
     });
   });
 
@@ -34,17 +34,16 @@ describe("plan prices", () => {
 
   it("states the yearly saving it really gives, rounded down", () => {
     for (const plan of PAID_PLANS) {
-      const expected = Math.floor(
-        (1 - PRICES_USD[plan].year / (PRICES_USD[plan].month * 12)) * 100,
-      );
+      const monthly = PRICES_USD[plan].month * 12;
+      const expected = Math.floor(((monthly - PRICES_USD[plan].year) * 100) / monthly);
       expect(yearlySavingsPercent(plan)).toBe(Math.max(0, expected));
       if (expected > 0) expect(priceSentence(plan, "year")).toContain(`${expected}% less`);
       expect(priceSentence(plan, "month")).toBe(
         `$${PRICES_USD[plan].month} a month. Cancel anytime.`,
       );
     }
-    expect(yearlySavingsPercent("pro")).toBe(33);
-    expect(perMonth("pro")).toBe("$10");
+    expect(yearlySavingsPercent("pro")).toBe(20);
+    expect(perMonth("pro")).toBe("$12");
   });
 });
 
@@ -64,8 +63,8 @@ describe("reference prices and savings", () => {
   });
 
   it("works the yearly saving out from the real prices", () => {
-    expect(yearlySavingsPercent("pro")).toBe(33);
-    expect(yearlySavingsPercent("max")).toBe(33);
+    expect(yearlySavingsPercent("pro")).toBe(20);
+    expect(yearlySavingsPercent("max")).toBe(20);
   });
 
   it("says what buying Max on the Pro trial does, priced for the picked option", () => {
@@ -73,7 +72,7 @@ describe("reference prices and savings", () => {
       "Ends your Pro trial today and starts Max at $29/month.",
     );
     expect(endsTrialSentence("max", "year")).toBe(
-      "Ends your Pro trial today and starts Max at $232/year.",
+      "Ends your Pro trial today and starts Max at $278/year.",
     );
   });
 

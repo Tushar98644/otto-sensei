@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ROUTES } from "@/components/site/routes";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
 import { ATS_IDS, atsGuide, guideHeadline, topTip } from "@/lib/seo-pages/ats";
-import { COMPETITORS } from "@/lib/seo-pages/compare";
+import { COMPETITORS, ottoReasons } from "@/lib/seo-pages/compare";
 import { calendarDate, calendarMonth, seoPages } from "@/lib/seo-pages/pages";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { SEO_PATHS, atsPath, examplePath } from "@/lib/seo-pages/paths";
@@ -217,7 +217,6 @@ describe("comparison pages", () => {
         if (cell.detail) expect(words).toContain(cell.detail);
       }
     }
-    for (const strength of competitor.strengths) expect(words).toContain(strength);
     for (const note of [...competitor.differences, ...competitor.extras]) {
       expect(words).toContain(note.text);
     }
@@ -225,26 +224,30 @@ describe("comparison pages", () => {
     expect(words).toContain(`${competitor.name} is a trademark of its owner`);
   });
 
-  it.each(COMPETITORS.map((c) => c.slug))("%s says why Otto before the details", async (slug) => {
-    const competitor = COMPETITORS.find((c) => c.slug === slug)!;
-    const html = await render(comparison(slug));
-    const words = text(html);
-    const at = (needle: string) => words.indexOf(needle);
-    expect(at(`Pick Otto if ${competitor.pickOtto}`)).toBeGreaterThan(-1);
-    expect(at(`Pick ${competitor.name} if ${competitor.pickThem}`)).toBeGreaterThan(-1);
-    expect(at("Run the free match check")).toBeGreaterThan(-1);
-    expect(at("Run the free match check")).toBeLessThan(at("At a glance"));
-    expect(at("Why pick Otto Sensei")).toBeLessThan(at(`What ${competitor.name} does well`));
-    expect(words).not.toContain("Also in Otto Sensei");
-    const verdict = html.slice(
-      html.indexOf('id="verdict-title"'),
-      html.indexOf('id="glance-title"'),
-    );
-    expect(verdict).toContain(`href="${SEO_PATHS.jobMatch}"`);
-    const pick = html.slice(html.indexOf('id="pick-title"'), html.indexOf('id="sources-title"'));
-    expect(pick).toContain(`href="${SEO_PATHS.jobMatch}"`);
-    expect(pick).toContain(`href="${ROUTES.studio}"`);
-  });
+  it.each(COMPETITORS.map((c) => c.slug))(
+    "%s leads with why Otto, and never argues the other side's case",
+    async (slug) => {
+      const competitor = COMPETITORS.find((c) => c.slug === slug)!;
+      const html = await render(comparison(slug));
+      const words = text(html);
+      const at = (needle: string) => words.indexOf(needle);
+      expect(at("Run the free match check")).toBeGreaterThan(-1);
+      expect(at("Run the free match check")).toBeLessThan(at("Why pick Otto Sensei"));
+      expect(at("Why pick Otto Sensei")).toBeLessThan(
+        at(`Otto and ${competitor.name}, side by side`),
+      );
+      expect(words).not.toContain(`Pick ${competitor.name} if`);
+      expect(words).not.toContain(`What ${competitor.name} does well`);
+      const verdict = html.slice(
+        html.indexOf('id="verdict-title"'),
+        html.indexOf('id="reasons-title"'),
+      );
+      expect(verdict).toContain(`href="${SEO_PATHS.jobMatch}"`);
+      const cta = html.slice(html.indexOf('id="pick-title"'), html.indexOf('id="sources-title"'));
+      expect(cta).toContain(`href="${SEO_PATHS.jobMatch}"`);
+      expect(cta).toContain(`href="${ROUTES.studio}"`);
+    },
+  );
 
   it("refuses a product it hasn't checked", async () => {
     await expect(comparison("resume-worded")).rejects.toThrow();
@@ -257,14 +260,14 @@ describe("comparison pages", () => {
     expect(meta.openGraph?.title).toBe("Rezi alternative: Otto Sensei vs Rezi compared");
   });
 
-  it("links every comparison from the index, with who should pick which", async () => {
+  it("links every comparison from the index, each with Otto's first reason", async () => {
     const html = await render(<CompareIndexPage />);
     checkPage(html);
     const words = text(html);
     for (const competitor of COMPETITORS) {
       expect(html).toContain(`href="/compare/${competitor.slug}"`);
-      expect(words).toContain(`Pick Otto if ${competitor.pickOtto}`);
-      expect(words).toContain(`Pick ${competitor.name} if ${competitor.pickThem}`);
+      expect(words).toContain(ottoReasons(competitor)[0]!.text);
+      expect(words).not.toContain(`Pick ${competitor.name} if`);
     }
   });
 });

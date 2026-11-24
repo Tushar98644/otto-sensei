@@ -86,13 +86,13 @@ the Supabase database. Nothing to click.
 
 ## 3. Copy five values from Supabase
 
-| Variable | Where to find it in the Supabase dashboard |
-|---|---|
-| `DATABASE_URL` | **Connect** (top of the page) → **Connection String** → Method **Transaction pooler** (port **6543**). Copy it and replace `[YOUR-PASSWORD]` with the database password. |
-| `DIRECT_DATABASE_URL` | Same dialog, Method **Session pooler** (port **5432**). Replace `[YOUR-PASSWORD]` again. |
-| `NEXT_PUBLIC_SUPABASE_URL` | **Connect** → **App Frameworks** (pick Next.js) → the `..._SUPABASE_URL` line. Looks like `https://abcdefgh.supabase.co`. |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **Project Settings** → **API Keys** → **Publishable key** (`sb_publishable_...`). |
-| `SUPABASE_SECRET_KEY` | **Project Settings** → **API Keys** → **Secret keys**. Click **Create new secret key** if there is none, then reveal and copy it (`sb_secret_...`). |
+| Variable                               | Where to find it in the Supabase dashboard                                                                                                                               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                         | **Connect** (top of the page) → **Connection String** → Method **Transaction pooler** (port **6543**). Copy it and replace `[YOUR-PASSWORD]` with the database password. |
+| `DIRECT_DATABASE_URL`                  | Same dialog, Method **Session pooler** (port **5432**). Replace `[YOUR-PASSWORD]` again.                                                                                 |
+| `NEXT_PUBLIC_SUPABASE_URL`             | **Connect** → **App Frameworks** (pick Next.js) → the `..._SUPABASE_URL` line. Looks like `https://abcdefgh.supabase.co`.                                                |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **Project Settings** → **API Keys** → **Publishable key** (`sb_publishable_...`).                                                                                        |
+| `SUPABASE_SECRET_KEY`                  | **Project Settings** → **API Keys** → **Secret keys**. Click **Create new secret key** if there is none, then reveal and copy it (`sb_secret_...`).                      |
 
 - Use the **Session pooler**, not "Direct connection", for `DIRECT_DATABASE_URL`: the direct one
   only works over IPv6, which many home networks don't have.
@@ -222,12 +222,22 @@ Your Otto Sensei code: {{ .Token }}
 Body (Source / HTML):
 
 ```html
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px">
-<img src="{{ .SiteURL }}/email/otto-head.png" width="48" height="48" alt="Otto" style="display:block;margin:0 0 16px;border:0">
-<p style="margin:0 0 8px">Your Otto Sensei code is</p>
-<p style="margin:0 0 16px;font-size:32px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>
-<p style="margin:0 0 16px">It expires in 10 minutes.</p>
-<p style="margin:0;color:#475850;font-size:14px">If you didn't ask for this, you can ignore this email.</p>
+<div
+  style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px"
+>
+  <img
+    src="{{ .SiteURL }}/email/otto-head.png"
+    width="48"
+    height="48"
+    alt="Otto"
+    style="display:block;margin:0 0 16px;border:0"
+  />
+  <p style="margin:0 0 8px">Your Otto Sensei code is</p>
+  <p style="margin:0 0 16px;font-size:32px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>
+  <p style="margin:0 0 16px">It expires in 10 minutes.</p>
+  <p style="margin:0;color:#475850;font-size:14px">
+    If you didn't ask for this, you can ignore this email.
+  </p>
 </div>
 ```
 
@@ -428,15 +438,15 @@ the business name; the pricing page tells buyers their statement starts with `DO
 them. Walk this list in test mode now and again in live mode (step 12); `scripts/dodo-setup.ts`
 prints the same list.
 
-| Where | Setting | Why |
-|---|---|---|
-| **Settings** → **Pricing** | **Adaptive Currency** off | Buyers pay the USD price plus tax, as the pricing page says, with no 2-4% currency fee on top. |
-| **Settings** → **Subscriptions** (customer portal) | **Allow Cancellation at Next Billing Date** on. **Allow Immediate Cancellation**, **Allow Subscription Updates** and **Allow Subscription Pause** off | The terms promise the plan lasts to the end of the paid period. Plan changes happen in the app, and the app can't resume a pause. |
-| **Settings** → **Subscriptions** | **Allow Multiple Subscriptions** off | A second subscription fails with `CUSTOMER_HAS_EXISTING_SUBSCRIPTION` instead of charging twice. Checkout links can't be cancelled and stay payable for 24 hours. |
-| **Settings** → **Subscriptions** | **Subscription Grace Period** on, **3 days**, ending in **on hold**; **Payment Retries** on | A failed renewal keeps the plan for 3 days (`past_due`) while Dodo retries. After that the subscription is on hold and the account is on Free until the card is fixed. |
-| **Settings** → **Subscriptions** | **Prevent Trial Misuse** off | The app alone decides who gets the trial (one per person, by email). Dodo's check also strips plus-aliases, so it could charge $15 to someone the app offered $1. |
-| **Settings** → **Communication** → **Email** → **Customer Emails** | **Subscription Trial Ending** off. Keep Payment Succeeded, Subscription Plan Changed, Refund Successful, Subscription Cancelled, Subscription Set to Cancel and Upcoming Renewal Reminder on | For a trial under 7 days Dodo sends "trial ending" the moment the trial starts. The app sends its own reminder 12 to 36 hours before the end (step 10e). |
-| Disputes | **Visa RDR** on (the default, $100 threshold) | Visa disputes of $100 or less (every price we have) are refunded automatically: an $18 fee instead of a $30 chargeback, and the chargeback rate stays under the 0.5% at which Dodo can end the account. They arrive as `dispute.lost` with `is_resolved_by_rdr`, which the app logs. |
+| Where                                                              | Setting                                                                                                                                                                                      | Why                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Settings** → **Pricing**                                         | **Adaptive Currency** off                                                                                                                                                                    | Buyers pay the USD price plus tax, as the pricing page says, with no 2-4% currency fee on top.                                                                                                                                                                                       |
+| **Settings** → **Subscriptions** (customer portal)                 | **Allow Cancellation at Next Billing Date** on. **Allow Immediate Cancellation**, **Allow Subscription Updates** and **Allow Subscription Pause** off                                        | The terms promise the plan lasts to the end of the paid period. Plan changes happen in the app, and the app can't resume a pause.                                                                                                                                                    |
+| **Settings** → **Subscriptions**                                   | **Allow Multiple Subscriptions** off                                                                                                                                                         | A second subscription fails with `CUSTOMER_HAS_EXISTING_SUBSCRIPTION` instead of charging twice. Checkout links can't be cancelled and stay payable for 24 hours.                                                                                                                    |
+| **Settings** → **Subscriptions**                                   | **Subscription Grace Period** on, **3 days**, ending in **on hold**; **Payment Retries** on                                                                                                  | A failed renewal keeps the plan for 3 days (`past_due`) while Dodo retries. After that the subscription is on hold and the account is on Free until the card is fixed.                                                                                                               |
+| **Settings** → **Subscriptions**                                   | **Prevent Trial Misuse** off                                                                                                                                                                 | The app alone decides who gets the trial (one per person, by email). Dodo's check also strips plus-aliases, so it could charge $15 to someone the app offered $1.                                                                                                                    |
+| **Settings** → **Communication** → **Email** → **Customer Emails** | **Subscription Trial Ending** off. Keep Payment Succeeded, Subscription Plan Changed, Refund Successful, Subscription Cancelled, Subscription Set to Cancel and Upcoming Renewal Reminder on | For a trial under 7 days Dodo sends "trial ending" the moment the trial starts. The app sends its own reminder 12 to 36 hours before the end (step 10e).                                                                                                                             |
+| Disputes                                                           | **Visa RDR** on (the default, $100 threshold)                                                                                                                                                | Visa disputes of $100 or less (every price we have) are refunded automatically: an $18 fee instead of a $30 chargeback, and the chargeback rate stays under the 0.5% at which Dodo can end the account. They arrive as `dispute.lost` with `is_resolved_by_rdr`, which the app logs. |
 
 Payment Failed and Subscription Renewal Failed emails are off by default. Turning them on tells
 buyers to fix their card during the grace days; that is the owner's call.
@@ -449,15 +459,15 @@ allowlist empty: Vercel's outgoing addresses change.
   laptop (step 4); never put it in Vercel.
 - `otto-sensei`, the app's key (`DODO_API_KEY`), with only these:
 
-| Resource | Access | Used for |
-|---|---|---|
-| Checkout Sessions | Write | Creating each checkout link |
-| Subscriptions | Write | Finding live subscriptions, plan changes, cancelling on account deletion and for a refused second trial |
-| Refunds | Write | Refunding the $1 of a refused second trial, and the charges of a subscription paid for an account already deleted |
-| Customers | Read | The same-email lookup and the **Manage billing** portal link |
-| Payments | Read | Finding the payments to refund: a refused trial's $1, or a deleted account's charges; the account page's billing history and invoice PDFs (`GET /invoices/payments/{id}`) |
-| Products | Read | The catalog check (step 8) |
-| Disputes | Read | Reading disputes; the app only logs dispute webhooks today |
+| Resource          | Access | Used for                                                                                                                                                                  |
+| ----------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Checkout Sessions | Write  | Creating each checkout link                                                                                                                                               |
+| Subscriptions     | Write  | Finding live subscriptions, plan changes, cancelling on account deletion and for a refused second trial                                                                   |
+| Refunds           | Write  | Refunding the $1 of a refused second trial, and the charges of a subscription paid for an account already deleted                                                         |
+| Customers         | Read   | The same-email lookup and the **Manage billing** portal link                                                                                                              |
+| Payments          | Read   | Finding the payments to refund: a refused trial's $1, or a deleted account's charges; the account page's billing history and invoice PDFs (`GET /invoices/payments/{id}`) |
+| Products          | Read   | The catalog check (step 8)                                                                                                                                                |
+| Disputes          | Read   | Reading disputes; the app only logs dispute webhooks today                                                                                                                |
 
 The portal link is a POST under Customers. If **Manage billing** says "payments aren't set up right
 on our side" (Dodo answered `INSUFFICIENT_PERMISSION`), give Customers **Write** too.
@@ -494,13 +504,13 @@ The products, all in USD with tax added on top (not tax-inclusive), tax category
 purchasing-power pricing, discounts or add-ons, and a 20-year subscription period (Dodo ends a
 subscription when its period runs out, so it gets the longest one):
 
-| Variable | Product | Price | Bills every | Trial |
-|---|---|---|---|---|
-| `DODO_PRO_MONTHLY_PRODUCT_ID` (required) | Otto Sensei Pro (monthly) | $15.00 | 1 month | none |
-| `DODO_PRO_TRIAL_PRODUCT_ID` | Otto Sensei Pro (monthly, 7-day trial) | $15.00 | 1 month | **7 days, $1.00 charged at checkout** (`trial_amount` 100) |
-| `DODO_PRO_YEARLY_PRODUCT_ID` | Otto Sensei Pro (yearly) | $120.00 | 1 year | none |
-| `DODO_MAX_MONTHLY_PRODUCT_ID` | Otto Sensei Max (monthly) | $29.00 | 1 month | none |
-| `DODO_MAX_YEARLY_PRODUCT_ID` | Otto Sensei Max (yearly) | $232.00 | 1 year | none |
+| Variable                                 | Product                                | Price   | Bills every | Trial                                                      |
+| ---------------------------------------- | -------------------------------------- | ------- | ----------- | ---------------------------------------------------------- |
+| `DODO_PRO_MONTHLY_PRODUCT_ID` (required) | Otto Sensei Pro (monthly)              | $15.00  | 1 month     | none                                                       |
+| `DODO_PRO_TRIAL_PRODUCT_ID`              | Otto Sensei Pro (monthly, 7-day trial) | $15.00  | 1 month     | **7 days, $1.00 charged at checkout** (`trial_amount` 100) |
+| `DODO_PRO_YEARLY_PRODUCT_ID`             | Otto Sensei Pro (yearly)               | $144.00 | 1 year      | none                                                       |
+| `DODO_MAX_MONTHLY_PRODUCT_ID`            | Otto Sensei Max (monthly)              | $29.00  | 1 month     | none                                                       |
+| `DODO_MAX_YEARLY_PRODUCT_ID`             | Otto Sensei Max (yearly)               | $278.00 | 1 year      | none                                                       |
 
 - The trial product is the one new accounts check out on. A paid trial always needs a card: Dodo
   charges $1 plus tax at checkout and $15 when the 3 days end, unless the person cancels first.
@@ -559,8 +569,7 @@ still credited.
   every event.
 - Its signing secret (`whsec_...`, on the endpoint's **Overview** tab) is `DODO_WEBHOOK_SECRET`.
   Deliveries follow Standard Webhooks: `webhook-signature` is an HMAC-SHA256 of the `webhook-id`,
-  the `webhook-timestamp` and the body. A wrong signature, or one more than 5 minutes off, gets
-  401. A `webhook-id` already applied gets 200 `duplicate`.
+  the `webhook-timestamp` and the body. A wrong signature, or one more than 5 minutes off, gets 401. A `webhook-id` already applied gets 200 `duplicate`.
 - Dodo retries any answer that isn't 2xx, up to 8 times over about 27 hours. The endpoint's
   **Logs** show each message and our answer, and can replay it.
 - Don't delete and recreate the endpoint: a new one has a new secret. To change the secret, use
@@ -594,14 +603,14 @@ vercel env add DODO_MAX_MONTHLY_PRODUCT_ID production
 vercel env add DODO_MAX_YEARLY_PRODUCT_ID production
 ```
 
-| Variable | Value |
-|---|---|
-| `DODO_ENVIRONMENT` | `test` or `live`. Only `live` (or `live_mode`, `production`) uses Dodo's live API; anything else, or nothing, is test mode, so a typo never takes real money |
-| `DODO_API_KEY` | The `otto-sensei` key (step 3): `dodo_test_...` or `dodo_live_...`, matching `DODO_ENVIRONMENT` |
-| `DODO_WEBHOOK_SECRET` | The endpoint's `whsec_...` secret (step 5) |
-| `BILLING_SIGNING_SECRET` | Step 6 |
-| `DODO_PRO_MONTHLY_PRODUCT_ID` and the other four | The `pdt_...` ids the setup script wrote (step 4); test and live ids differ |
-| `DODO_TOPUP_PRODUCT_ID` | Optional: the credit product's id (step 4). Set it only once the owner wants credit on sale |
+| Variable                                         | Value                                                                                                                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DODO_ENVIRONMENT`                               | `test` or `live`. Only `live` (or `live_mode`, `production`) uses Dodo's live API; anything else, or nothing, is test mode, so a typo never takes real money |
+| `DODO_API_KEY`                                   | The `otto-sensei` key (step 3): `dodo_test_...` or `dodo_live_...`, matching `DODO_ENVIRONMENT`                                                              |
+| `DODO_WEBHOOK_SECRET`                            | The endpoint's `whsec_...` secret (step 5)                                                                                                                   |
+| `BILLING_SIGNING_SECRET`                         | Step 6                                                                                                                                                       |
+| `DODO_PRO_MONTHLY_PRODUCT_ID` and the other four | The `pdt_...` ids the setup script wrote (step 4); test and live ids differ                                                                                  |
+| `DODO_TOPUP_PRODUCT_ID`                          | Optional: the credit product's id (step 4). Set it only once the owner wants credit on sale                                                                  |
 
 They take effect with the next deploy (step 10). Billing turns on (`/api/me` answers
 `billing.mode: "dodo"`) only when `DODO_API_KEY`, `DODO_WEBHOOK_SECRET`, `BILLING_SIGNING_SECRET`
@@ -670,92 +679,92 @@ How:
 Each item says what the code assumes today and where to change it if Dodo does something else.
 
 - [ ] **Id shapes.** The real `sub_`, `cus_`, `pay_`, `pdt_` and `ref_` ids: length and characters.
-  Today: 8 to 64 letters and digits after the prefix, and never a Paddle-shaped `sub_` (26 lowercase
-  letters or digits; the Paddle reset relies on that). Change: `isDodoId` in `dodo-status.ts`,
-  `dodoId` in `dodo-testing.ts`.
+      Today: 8 to 64 letters and digits after the prefix, and never a Paddle-shaped `sub_` (26 lowercase
+      letters or digits; the Paddle reset relies on that). Change: `isDodoId` in `dodo-status.ts`,
+      `dodoId` in `dodo-testing.ts`.
 - [ ] **Key prefixes.** Today: `dodo_test_` and `dodo_live_`; any other key leaves billing off.
-  Change: `dodoKeyMatchesEnvironment` in `dodo.ts`, `keyEnvironment` in `dodo-catalog.ts`.
+      Change: `dodoKeyMatchesEnvironment` in `dodo.ts`, `keyEnvironment` in `dodo-catalog.ts`.
 - [ ] **The $1 trial.** Which events a trial checkout sends, in what order, and the subscription's
-  `previous_billing_date`, `next_billing_date`, `created_at` and `trial_period_days` during the trial
-  and after the first full charge. Does the $1.00 subscription minimum accept `trial_amount` 100 with
-  no tax? Today: a trial is `trial_period_days` above 0 and a first billing period no longer than
-  that (plus an hour), starting no later than that after `created_at` (does a `keep_cycle` plan
-  change move `previous_billing_date`?), it ends at `next_billing_date`, and
-  `billing.trial_not_detected` warns when a trial-product subscription isn't seen as one. Change:
-  `inTrialWindow` and `trialEndOf` in `dodo-status.ts`. If Dodo refuses $1, raise
-  `PRO_TRIAL.priceUsd` and every "$1" in the copy and tests.
+      `previous_billing_date`, `next_billing_date`, `created_at` and `trial_period_days` during the trial
+      and after the first full charge. Does the $1.00 subscription minimum accept `trial_amount` 100 with
+      no tax? Today: a trial is `trial_period_days` above 0 and a first billing period no longer than
+      that (plus an hour), starting no later than that after `created_at` (does a `keep_cycle` plan
+      change move `previous_billing_date`?), it ends at `next_billing_date`, and
+      `billing.trial_not_detected` warns when a trial-product subscription isn't seen as one. Change:
+      `inTrialWindow` and `trialEndOf` in `dodo-status.ts`. If Dodo refuses $1, raise
+      `PRO_TRIAL.priceUsd` and every "$1" in the copy and tests.
 - [ ] **Timestamps.** Today: ISO 8601 with `Z` and microseconds; a time with no zone is read as UTC.
-  Change: `toMs` in `dodo-status.ts` and its copy in `dodo-events.ts`.
+      Change: `toMs` in `dodo-status.ts` and its copy in `dodo-events.ts`.
 - [ ] **The trial's payment.** Today: `payment.succeeded` with `charge_type` `new`, carrying the
-  checkout metadata (`plan`, `interval`, `trial`) as strings; otherwise the `checkout_completed`
-  event never fires (the refused-trial refund doesn't depend on it). A plan change's charge is
-  `plan_change`. Change: `recordPayment` in `webhook.ts`.
+      checkout metadata (`plan`, `interval`, `trial`) as strings; otherwise the `checkout_completed`
+      event never fires (the refused-trial refund doesn't depend on it). A plan change's charge is
+      `plan_change`. Change: `recordPayment` in `webhook.ts`.
 - [ ] **The return address.** Which `status` Dodo adds for a paid trial, a full-price plan, a
-  declined card, 3-D Secure and an abandoned checkout, and whether it joins its own parameters with
-  `&`. Today: `active`, `succeeded`, `pending` and `processing` mean paid, anything else cancelled;
-  `billing.checkout_returned` logs each status seen. Also: must the return address be on the
-  approved domain, and does the checkout ask for a name when only the email is sent? Change:
-  `PAID_STATUSES` in `src/app/api/billing/return/route.ts`.
+      declined card, 3-D Secure and an abandoned checkout, and whether it joins its own parameters with
+      `&`. Today: `active`, `succeeded`, `pending` and `processing` mean paid, anything else cancelled;
+      `billing.checkout_returned` logs each status seen. Also: must the return address be on the
+      approved domain, and does the checkout ask for a name when only the email is sent? Change:
+      `PAID_STATUSES` in `src/app/api/billing/return/route.ts`.
 - [ ] **Multiple subscriptions off.** Open two checkout links before paying either. Does
-  `CUSTOMER_HAS_EXISTING_SUBSCRIPTION` come when the link is made or at payment? Today: it is shown
-  as "You're already on that plan."; if Dodo only refuses at payment, the buyer sees Dodo's own
-  error page. Change: `REASON_BY_CODE` in `dodo.ts`.
+      `CUSTOMER_HAS_EXISTING_SUBSCRIPTION` come when the link is made or at payment? Today: it is shown
+      as "You're already on that plan."; if Dodo only refuses at payment, the buyer sees Dodo's own
+      error page. Change: `REASON_BY_CODE` in `dodo.ts`.
 - [ ] **Plan changes.** Pro monthly to Max monthly with `prorated_immediately_keep_cycle` (expect
-  the prorated difference now and the same renewal date). Trial to Max monthly and to Max yearly
-  with `full_immediately` (expect the trial to end, the full price charged now, the $1 not credited,
-  `subscription.plan_changed` with the dates on the new period, and `trial_period_days` 0). Each
-  charged change should bring one `payment.succeeded` with `charge_type` `plan_change` and no
-  `subscription.renewed` (which would count the charge twice in PostHog). A declined card with
-  `on_payment_failure: prevent_change` (expect the trial unchanged and `payment.failed` with
-  `charge_type` `plan_change`). A plan change while a cancel is scheduled
-  (which refusal code and HTTP status). Does `change-plan` answer 200 with an empty body? Change:
-  `changePlan` in `dodo.ts`, `planChangeRoute` in `index.ts`.
+      the prorated difference now and the same renewal date). Trial to Max monthly and to Max yearly
+      with `full_immediately` (expect the trial to end, the full price charged now, the $1 not credited,
+      `subscription.plan_changed` with the dates on the new period, and `trial_period_days` 0). Each
+      charged change should bring one `payment.succeeded` with `charge_type` `plan_change` and no
+      `subscription.renewed` (which would count the charge twice in PostHog). A declined card with
+      `on_payment_failure: prevent_change` (expect the trial unchanged and `payment.failed` with
+      `charge_type` `plan_change`). A plan change while a cancel is scheduled
+      (which refusal code and HTTP status). Does `change-plan` answer 200 with an empty body? Change:
+      `changePlan` in `dodo.ts`, `planChangeRoute` in `index.ts`.
 - [ ] **Cancel at the period end.** Set `cancel_at_next_billing_date` true, then false: which events
-  come (expected: `subscription.updated`), and is the period end `cancelled` or `expired`? Can the
-  portal resume a scheduled cancel, update the card and show invoices, and does a card update bring
-  an `on_hold` subscription back? Today: a scheduled cancel is `scheduled_cancel`; the account page
-  and upgrade dialog say "Your trial is set to end. Resume it in Manage billing, then start Max." and
-  their button opens the portal. If the portal can't resume, change that copy (`resumeFirstNotice`
-  in `trial-upgrade.ts`) and `planChangeRoute`.
+      come (expected: `subscription.updated`), and is the period end `cancelled` or `expired`? Can the
+      portal resume a scheduled cancel, update the card and show invoices, and does a card update bring
+      an `on_hold` subscription back? Today: a scheduled cancel is `scheduled_cancel`; the account page
+      and upgrade dialog say "Your trial is set to end. Resume it in Manage billing, then start Max." and
+      their button opens the portal. If the portal can't resume, change that copy (`resumeFirstNotice`
+      in `trial-upgrade.ts`) and `planChangeRoute`.
 - [ ] **Immediate cancel** (`PATCH` `status: cancelled`, as account deletion does): which events,
-  and which HTTP status and code for an already-cancelled subscription and for a `pending` one.
-  Today: a refused cancel is read back, and an ended subscription or one already set to end counts
-  as done; if a pending one can't be cancelled, deleting that account stays blocked until it settles.
-  Change: `cancelSubscription` in `dodo.ts`.
+      and which HTTP status and code for an already-cancelled subscription and for a `pending` one.
+      Today: a refused cancel is read back, and an ended subscription or one already set to end counts
+      as done; if a pending one can't be cancelled, deleting that account stays blocked until it settles.
+      Change: `cancelSubscription` in `dodo.ts`.
 - [ ] **Refund of the $1.** The `refund.succeeded` payload and the code for a second refund. Today:
-  `PAYMENT_ALREADY_REFUNDED`, `PAYMENT_HAS_BEEN_REFUNDED`, `EXISTING_REFUND_REQUEST_PROCESSING` and
-  `NOTHING_TO_REFUND` count as done. Change: `refundPayment` in `dodo.ts`.
+      `PAYMENT_ALREADY_REFUNDED`, `PAYMENT_HAS_BEEN_REFUNDED`, `EXISTING_REFUND_REQUEST_PROCESSING` and
+      `NOTHING_TO_REFUND` count as done. Change: `refundPayment` in `dodo.ts`.
 - [ ] **A failed renewal** with `4000 0000 0000 0341` (the charge when the trial ends is the first
-  one; move `next_billing_date` in test mode if Dodo allows it). Expect `subscription.past_due` and
-  the plan kept for 3 days, then `subscription.on_hold` and Free. Do the dates stay on the trial
-  window during the grace days? Do the grace period and retries cover the first full charge after a
-  trial? Today: past due inside the trial window still counts as an unpaid trial; on hold is Free
-  but still cancelled on account deletion. Change: `internalStatus` in `dodo-status.ts`,
-  `PLAN_BY_STATUS` in `entitlements.ts`.
+      one; move `next_billing_date` in test mode if Dodo allows it). Expect `subscription.past_due` and
+      the plan kept for 3 days, then `subscription.on_hold` and Free. Do the dates stay on the trial
+      window during the grace days? Do the grace period and retries cover the first full charge after a
+      trial? Today: past due inside the trial window still counts as an unpaid trial; on hold is Free
+      but still cancelled on account deletion. Change: `internalStatus` in `dodo-status.ts`,
+      `PLAN_BY_STATUS` in `entitlements.ts`.
 - [ ] **Webhook delivery.** Header names (`webhook-id`, `webhook-timestamp`, `webhook-signature`
-  with space-separated `v1,` entries) and a `whsec_` secret. Does a dashboard replay reuse the
-  `webhook-id`? Do the events of one action share a timestamp? During **Rotate secret**, does Dodo
-  sign with both secrets? Today: dedupe by `webhook-id`, order by the envelope `timestamp`. Change:
-  `verifyWebhook` and `readEnvelope` in `dodo-events.ts`.
+      with space-separated `v1,` entries) and a `whsec_` secret. Does a dashboard replay reuse the
+      `webhook-id`? Do the events of one action share a timestamp? During **Rotate secret**, does Dodo
+      sign with both secrets? Today: dedupe by `webhook-id`, order by the envelope `timestamp`. Change:
+      `verifyWebhook` and `readEnvelope` in `dodo-events.ts`.
 - [ ] **Payload fields.** Every subscription payload (pending and failed ones too) has
-  `subscription_id`, `product_id` and `customer.customer_id`; payments have `payment_id`; refunds
-  `refund_id`, `payment_id`, `status`, `is_partial`; disputes `dispute_id`, `payment_id`,
-  `dispute_status`, `dispute_stage`, `amount`, `currency`. Metadata strings come back unchanged.
-  Today: a payload missing one gets 500 `malformed`, and Dodo retries it for about a day. Change:
-  the schemas in `dodo-status.ts` and `dodo-events.ts`.
+      `subscription_id`, `product_id` and `customer.customer_id`; payments have `payment_id`; refunds
+      `refund_id`, `payment_id`, `status`, `is_partial`; disputes `dispute_id`, `payment_id`,
+      `dispute_status`, `dispute_stage`, `amount`, `currency`. Metadata strings come back unchanged.
+      Today: a payload missing one gets 500 `malformed`, and Dodo retries it for about a day. Change:
+      the schemas in `dodo-status.ts` and `dodo-events.ts`.
 - [ ] **API details.** The error body is `{code, message}`; which HTTP status each refusal uses;
-  lists are `{items}` with `page_size` up to 100; does `page_number` start at 0 or 1; is
-  `GET /customers?email=` an exact match; does `GET /products?archived=true` list only archived
-  products; does `GET /webhooks` accept `limit=100`; the portal link call (`send_email=false`)
-  answers `link`. Change: `dodo.ts`, `dodo-catalog.ts`.
+      lists are `{items}` with `page_size` up to 100; does `page_number` start at 0 or 1; is
+      `GET /customers?email=` an exact match; does `GET /products?archived=true` list only archived
+      products; does `GET /webhooks` accept `limit=100`; the portal link call (`send_email=false`)
+      answers `link`. Change: `dodo.ts`, `dodo-catalog.ts`.
 - [ ] **Products.** Did `POST /products` take `trial_amount` 100 and the 20-year period? Does
-  `PATCH /products` take `addons: []` and `pricing_mode: null`? Change: `productSpec` in
-  `dodo-catalog.ts`, `scripts/dodo-setup.ts`.
+      `PATCH /products` take `addons: []` and `pricing_mode: null`? Change: `productSpec` in
+      `dodo-catalog.ts`, `scripts/dodo-setup.ts`.
 - [ ] **Emails.** What a trialist receives from Dodo with Trial Ending off, and whether Payment
-  Succeeded carries the invoice link the refund page mentions. Change: step 2, or the refund page.
+      Succeeded carries the invoice link the refund page mentions. Change: step 2, or the refund page.
 - [ ] **What Dodo sends about the buyer.** The privacy page says Dodo's notices carry name, email,
-  billing address and card network and last four, and that the app stores none of them. Change:
-  `src/app/(marketing)/privacy/page.tsx`.
+      billing address and card network and last four, and that the app stores none of them. Change:
+      `src/app/(marketing)/privacy/page.tsx`.
 
 **10. Cutover from the Paddle sandbox** (once, with the deploy that brings the Dodo code):
 
@@ -863,6 +872,7 @@ short: until going live, anyone with a public test card can get Pro (the go-live
      Start early enough that the last one goes out before the date.
    - First read the copy (`processorNoticeEmail` in `src/lib/notifications/processor-notice.ts`)
      against the wording Dodo approved. Only the owner runs `--apply`.
+
 7. **Switch to live**, back to back:
    1. Turn on **Live Mode** and walk step 2's settings again (Dodo says settings are shared between
       the modes; check each anyway).
@@ -917,21 +927,21 @@ as soon as the `20261108000200_feedback_referrals.sql` migration has run (step 5
 Everything below step 10 is optional. Leave a variable out and that one feature switches off
 quietly; the rest of the app runs the same.
 
-| Variable | Turns on | Step |
-|---|---|---|
-| `DODO_PRO_TRIAL_PRODUCT_ID` | The $1, 3-day Pro trial for new accounts | 10 |
-| `DODO_PRO_YEARLY_PRODUCT_ID` | Yearly Pro ($120) | 10 |
-| `DODO_MAX_MONTHLY_PRODUCT_ID`, `DODO_MAX_YEARLY_PRODUCT_ID` | The Max plan ($29/month, $232/year) | 10 |
-| `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_TRACES_SAMPLE_RATE`) | Error reports (+ readable stack traces, + the share of server requests traced) | 10b |
-| `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Page views, funnel events and page speed | 10c |
-| `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
-| `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | US federal jobs from USAJOBS in the Jobs tab (both are needed) | 10f |
-| `CRON_SECRET` | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret) | 10e |
-| `DATABASE_URL` as a GitHub secret | The daily job read on GitHub's runner (the Transaction pooler URL, the same database as Vercel's) | 10e |
-| `RESEND_API_KEY`, `EMAIL_FROM` | The trial-ending email and one-time service notices; follow-ups, new matches and views are bell only | 10e |
-| `EMAIL_POSTAL_ADDRESS` | A postal address (a PO box or virtual mailbox is fine) shown in the footer of optional emails. Tip emails stay off until it's set | 10e |
-| `INBOUND_EMAIL_SECRET` (+ optional `INBOUND_ADDRESS_STYLE`, `INBOUND_DOMAIN`) | Applications that track themselves from forwarded job emails, through a Cloudflare Email Worker; addresses are `otto+<handle>@track.ottosensei.com` | inbound-email.md |
-| `OPTIONAL_EMAILS_PER_DAY` | Optional, default 25: the daily allowance for the one-time processor-change notice (step 10.12), kept under Resend's free quota next to sign-in codes. Raise it on a paid Resend plan; 0 stops optional emails | 10e |
+| Variable                                                                                                      | Turns on                                                                                                                                                                                                       | Step             |
+| ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `DODO_PRO_TRIAL_PRODUCT_ID`                                                                                   | The $1, 3-day Pro trial for new accounts                                                                                                                                                                       | 10               |
+| `DODO_PRO_YEARLY_PRODUCT_ID`                                                                                  | Yearly Pro ($144)                                                                                                                                                                                              | 10               |
+| `DODO_MAX_MONTHLY_PRODUCT_ID`, `DODO_MAX_YEARLY_PRODUCT_ID`                                                   | The Max plan ($29/month, $278/year)                                                                                                                                                                            | 10               |
+| `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_TRACES_SAMPLE_RATE`) | Error reports (+ readable stack traces, + the share of server requests traced)                                                                                                                                 | 10b              |
+| `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU)                                               | Page views, funnel events and page speed                                                                                                                                                                       | 10c              |
+| `GITHUB_TOKEN`                                                                                                | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers                                                                                                                                       | 10d              |
+| `USAJOBS_API_KEY`, `USAJOBS_EMAIL`                                                                            | US federal jobs from USAJOBS in the Jobs tab (both are needed)                                                                                                                                                 | 10f              |
+| `CRON_SECRET`                                                                                                 | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret)                                                                                                  | 10e              |
+| `DATABASE_URL` as a GitHub secret                                                                             | The daily job read on GitHub's runner (the Transaction pooler URL, the same database as Vercel's)                                                                                                              | 10e              |
+| `RESEND_API_KEY`, `EMAIL_FROM`                                                                                | The trial-ending email and one-time service notices; follow-ups, new matches and views are bell only                                                                                                           | 10e              |
+| `EMAIL_POSTAL_ADDRESS`                                                                                        | A postal address (a PO box or virtual mailbox is fine) shown in the footer of optional emails. Tip emails stay off until it's set                                                                              | 10e              |
+| `INBOUND_EMAIL_SECRET` (+ optional `INBOUND_ADDRESS_STYLE`, `INBOUND_DOMAIN`)                                 | Applications that track themselves from forwarded job emails, through a Cloudflare Email Worker; addresses are `otto+<handle>@track.ottosensei.com`                                                            | inbound-email.md |
+| `OPTIONAL_EMAILS_PER_DAY`                                                                                     | Optional, default 25: the daily allowance for the one-time processor-change notice (step 10.12), kept under Resend's free quota next to sign-in codes. Raise it on a paid Resend plan; 0 stops optional emails | 10e              |
 
 ---
 
@@ -1205,7 +1215,7 @@ new domain is a new site for Dodo's review, so tell Dodo before checkouts return
       your GitHub name (step 8c).
 - [ ] Fix one line with Otto (proves OpenRouter and the usage counter).
 - [ ] `/api/me` (signed in) answers `billing.mode: "dodo"`, and `bun --env-file=.env.dodo.local
-      scripts/check-dodo-catalog.ts` prints no `problem` line (step 10.8).
+    scripts/check-dodo-catalog.ts` prints no `problem` line (step 10.8).
 - [ ] Run a test-mode trial checkout (card `4242 4242 4242 4242`, any future date, CVC `123`); the
       account shows the Pro trial and its end date within a few seconds (proves the webhook).
 - [ ] Delete that test account from the account page; it disappears from Supabase
@@ -1253,26 +1263,26 @@ the Supabase dashboard: Vercel project → **Storage** → your database → **O
 
 ## When something doesn't work
 
-| What you see | What it means |
-|---|---|
-| "Sign-in isn't set up yet" | That deployment has no `NEXT_PUBLIC_SUPABASE_URL` or publishable key. Add them and redeploy. (Never in `bun dev`: it signs in with on-screen codes.) |
-| `bun dev` won't start the database, or acts strangely after a crash | Stop `bun dev`, delete the `.pglite/` folder, start again. |
-| "We couldn't send the email" | Supabase couldn't mail the code: custom SMTP is off or wrong (step 6b), or the Resend domain isn't verified. Supabase → **Logs** → **Auth** shows the reason. |
-| The email has a link, not a code | The template still uses `{{ .ConfirmationURL }}` (step 6e). Fix both templates. |
-| Google sends you to the home page, signed out | The return address isn't in **Redirect URLs** (step 7). |
-| Google says `redirect_uri_mismatch` | The Google client's redirect URI isn't exactly the Supabase callback URL (step 8a.6). |
-| "Connecting GitHub isn't set up yet" | The GitHub provider or **Allow manual linking** is off in Supabase (step 8c-2). |
-| GitHub says "The redirect_uri is not associated with this application" | The OAuth App's callback URL isn't exactly the Supabase callback URL (step 8c-1.3). |
-| "GitHub didn't connect" after approving | Supabase couldn't finish the link. Supabase → **Logs** → **Auth** shows why. |
-| "Account deletion isn't available right now" | `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) is missing in Vercel. |
-| "Payments aren't live yet" in production | Billing is off: `DODO_API_KEY`, `DODO_WEBHOOK_SECRET`, `BILLING_SIGNING_SECRET` or `DODO_PRO_MONTHLY_PRODUCT_ID` is missing, or the key is from the other mode than `DODO_ENVIRONMENT` (the log says `billing.key_environment_mismatch`). Fix it and redeploy (step 10.7). |
-| Paid, but the plan never changes | The webhook isn't arriving or is refused. Dodo → **Developer** → **Webhooks** → the endpoint → **Logs** shows each delivery and our answer: 401 (`billing.webhook_invalid`) means the wrong `DODO_WEBHOOK_SECRET` (test and live differ) or a value changed without a redeploy; 503 (`billing.webhook_not_configured`) means the webhook or signing secret is missing or unreadable. Replay the message once it's fixed. |
-| "We couldn't open billing: payments aren't set up right on our side" | Dodo refused the app's key (`INSUFFICIENT_PERMISSION`, or an IP allowlist). Check the key's permissions (step 10.3). |
-| "We couldn't cancel your subscription, so your account wasn't deleted" | Dodo didn't confirm the cancel, so the account was kept; trying again usually works. A 404 (`billing.cancel_not_found`) usually means a test-mode id meeting the live key: the go-live reset (step 10.12) clears those. "We can't cancel your subscription right now" means `DODO_API_KEY` is missing in production. |
-| `/api/health` answers 503 | `DATABASE_URL` is missing or wrong, or the project is paused. |
-| `migrate.ts`: `password authentication failed` | Wrong password in the URL, or special characters not URL-encoded. |
-| `migrate.ts`: `getaddrinfo ENOTFOUND db.<ref>.supabase.co` | That's the IPv6-only direct URL. Use the **Session pooler** string (step 3). |
-| `migrate.ts`: `... needs a session connection (port 5432), not the transaction pooler` | The build only has the 6543 pooler URL, and a `-- no-transaction` file needs a session. Add `POSTGRES_URL_NON_POOLING` (the **Session pooler** string, port 5432) to Vercel production and redeploy. |
-| `migrate.ts`: `a lock it needs was still taken after 6 tries` | Something held that table for about 2 minutes (a long query, or a `vacuum full` in the SQL editor). Nothing from that file was applied. Deploy again. |
-| `migrate.ts`: `canceling statement due to statement timeout` | A statement in the first file not marked `done` ran over 2 minutes, and nothing from that file was applied. Start that file with `set local statement_timeout = '10min';` and deploy again. |
-| `migrate.ts`: `left an unusable index` | An earlier `create index concurrently` stopped part-way. Run the `drop index concurrently public.<name>;` it names in the SQL editor, then deploy again. |
+| What you see                                                                           | What it means                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| "Sign-in isn't set up yet"                                                             | That deployment has no `NEXT_PUBLIC_SUPABASE_URL` or publishable key. Add them and redeploy. (Never in `bun dev`: it signs in with on-screen codes.)                                                                                                                                                                                                                                                                     |
+| `bun dev` won't start the database, or acts strangely after a crash                    | Stop `bun dev`, delete the `.pglite/` folder, start again.                                                                                                                                                                                                                                                                                                                                                               |
+| "We couldn't send the email"                                                           | Supabase couldn't mail the code: custom SMTP is off or wrong (step 6b), or the Resend domain isn't verified. Supabase → **Logs** → **Auth** shows the reason.                                                                                                                                                                                                                                                            |
+| The email has a link, not a code                                                       | The template still uses `{{ .ConfirmationURL }}` (step 6e). Fix both templates.                                                                                                                                                                                                                                                                                                                                          |
+| Google sends you to the home page, signed out                                          | The return address isn't in **Redirect URLs** (step 7).                                                                                                                                                                                                                                                                                                                                                                  |
+| Google says `redirect_uri_mismatch`                                                    | The Google client's redirect URI isn't exactly the Supabase callback URL (step 8a.6).                                                                                                                                                                                                                                                                                                                                    |
+| "Connecting GitHub isn't set up yet"                                                   | The GitHub provider or **Allow manual linking** is off in Supabase (step 8c-2).                                                                                                                                                                                                                                                                                                                                          |
+| GitHub says "The redirect_uri is not associated with this application"                 | The OAuth App's callback URL isn't exactly the Supabase callback URL (step 8c-1.3).                                                                                                                                                                                                                                                                                                                                      |
+| "GitHub didn't connect" after approving                                                | Supabase couldn't finish the link. Supabase → **Logs** → **Auth** shows why.                                                                                                                                                                                                                                                                                                                                             |
+| "Account deletion isn't available right now"                                           | `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) is missing in Vercel.                                                                                                                                                                                                                                                                                                                                             |
+| "Payments aren't live yet" in production                                               | Billing is off: `DODO_API_KEY`, `DODO_WEBHOOK_SECRET`, `BILLING_SIGNING_SECRET` or `DODO_PRO_MONTHLY_PRODUCT_ID` is missing, or the key is from the other mode than `DODO_ENVIRONMENT` (the log says `billing.key_environment_mismatch`). Fix it and redeploy (step 10.7).                                                                                                                                               |
+| Paid, but the plan never changes                                                       | The webhook isn't arriving or is refused. Dodo → **Developer** → **Webhooks** → the endpoint → **Logs** shows each delivery and our answer: 401 (`billing.webhook_invalid`) means the wrong `DODO_WEBHOOK_SECRET` (test and live differ) or a value changed without a redeploy; 503 (`billing.webhook_not_configured`) means the webhook or signing secret is missing or unreadable. Replay the message once it's fixed. |
+| "We couldn't open billing: payments aren't set up right on our side"                   | Dodo refused the app's key (`INSUFFICIENT_PERMISSION`, or an IP allowlist). Check the key's permissions (step 10.3).                                                                                                                                                                                                                                                                                                     |
+| "We couldn't cancel your subscription, so your account wasn't deleted"                 | Dodo didn't confirm the cancel, so the account was kept; trying again usually works. A 404 (`billing.cancel_not_found`) usually means a test-mode id meeting the live key: the go-live reset (step 10.12) clears those. "We can't cancel your subscription right now" means `DODO_API_KEY` is missing in production.                                                                                                     |
+| `/api/health` answers 503                                                              | `DATABASE_URL` is missing or wrong, or the project is paused.                                                                                                                                                                                                                                                                                                                                                            |
+| `migrate.ts`: `password authentication failed`                                         | Wrong password in the URL, or special characters not URL-encoded.                                                                                                                                                                                                                                                                                                                                                        |
+| `migrate.ts`: `getaddrinfo ENOTFOUND db.<ref>.supabase.co`                             | That's the IPv6-only direct URL. Use the **Session pooler** string (step 3).                                                                                                                                                                                                                                                                                                                                             |
+| `migrate.ts`: `... needs a session connection (port 5432), not the transaction pooler` | The build only has the 6543 pooler URL, and a `-- no-transaction` file needs a session. Add `POSTGRES_URL_NON_POOLING` (the **Session pooler** string, port 5432) to Vercel production and redeploy.                                                                                                                                                                                                                     |
+| `migrate.ts`: `a lock it needs was still taken after 6 tries`                          | Something held that table for about 2 minutes (a long query, or a `vacuum full` in the SQL editor). Nothing from that file was applied. Deploy again.                                                                                                                                                                                                                                                                    |
+| `migrate.ts`: `canceling statement due to statement timeout`                           | A statement in the first file not marked `done` ran over 2 minutes, and nothing from that file was applied. Start that file with `set local statement_timeout = '10min';` and deploy again.                                                                                                                                                                                                                              |
+| `migrate.ts`: `left an unusable index`                                                 | An earlier `create index concurrently` stopped part-way. Run the `drop index concurrently public.<name>;` it names in the SQL editor, then deploy again.                                                                                                                                                                                                                                                                 |

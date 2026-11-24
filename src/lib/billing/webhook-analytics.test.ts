@@ -185,7 +185,7 @@ describe("subscription_renewed", () => {
     await deliverTwice(
       event("subscription.renewed", { ...yearly, currency: "EUR" } as SubscriptionFields),
     );
-    expect((await sent()).map((call) => call.properties.usd)).toEqual([232, 232]);
+    expect((await sent()).map((call) => call.properties.usd)).toEqual([278, 278]);
   });
 
   it("counts the trial's first full charge as a renewal", async () => {
