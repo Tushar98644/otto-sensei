@@ -9,24 +9,24 @@ export const digitalMarketing: RoleExample = {
     "Digital Marketing Executive",
     "Performance Marketing Manager",
   ],
-  updated: "2026-11-22",
+  updated: "2026-11-24",
   card: "Budget, channel and result together, for paid, search and email.",
   description:
     "A digital marketing resume example with SEO, ads and email lines that show spend, leads and return, plus the skills and tools marketing posts ask for.",
   intro:
-    "Digital marketing is measured to the rupee, the click and the lead, so a resume without numbers stands out for the wrong reason. This example shows budget, channel and result in each line, the way a marketing head reads them.",
+    "Digital marketing is measured to the dollar, the click and the lead, so a resume without numbers stands out for the wrong reason. This example shows budget, channel and result in each line, the way a marketing head reads them.",
   person:
-    "Kavya is made up: a digital marketer with 4 years in direct-to-consumer brands and edtech, working from Kochi. Names, companies and numbers are invented.",
+    "Rachel is made up: a digital marketer with 4 years in direct-to-consumer brands and edtech, working from Los Angeles. Names, companies and numbers are invented.",
   resume: {
     title: "Digital marketing resume",
     template: "classic",
     basics: {
-      name: "Kavya Nair",
+      name: "Rachel Kim",
       headline: "Digital Marketing Manager",
-      email: "kavya.nair@example.com",
-      phone: "+91 50000 82146",
-      location: "Kochi, India",
-      links: [{ label: "Portfolio", url: "kavya-nair.example.com" }],
+      email: "rachel.kim@example.com",
+      phone: "+1 213 555 0182",
+      location: "Los Angeles, CA",
+      links: [{ label: "Portfolio", url: "rachel-kim.example.com" }],
     },
     summary:
       "Digital marketer with 4 years running paid, search and email for consumer brands. Owns budgets, reports in plain numbers, and cuts what doesn't pay back.",
@@ -34,11 +34,11 @@ export const digitalMarketing: RoleExample = {
       {
         company: "Saffronbyte Skincare",
         title: "Digital Marketing Manager",
-        location: "Kochi",
+        location: "Los Angeles, CA",
         startDate: "Jan 2024",
         endDate: "Present",
         bullets: [
-          "Ran Google Ads and Meta campaigns on a monthly budget of 18 lakh, raising return on ad spend from 2.1 to 3.4 in 9 months.",
+          "Ran Google Ads and Meta campaigns on a monthly budget of $21,000, raising return on ad spend from 2.1 to 3.4 in 9 months.",
           "Grew organic traffic from 40,000 to 110,000 visits a month with an SEO plan built on 60 product and how-to pages.",
           "Set up abandoned-cart emails in HubSpot that now recover 9% of carts, about 1,200 orders a month.",
           "Moved weekly reporting from screenshots to a Looker Studio dashboard, saving 4 hours of manual work each week.",
@@ -47,11 +47,11 @@ export const digitalMarketing: RoleExample = {
       {
         company: "Larkspur Learning",
         title: "Digital Marketing Executive",
-        location: "Bengaluru",
+        location: "San Diego, CA",
         startDate: "Jun 2022",
         endDate: "Dec 2023",
         bullets: [
-          "Cut cost per lead for course sign-ups from 410 to 260 rupees by rebuilding landing pages and pausing 30 weak keywords.",
+          "Cut cost per lead for course sign-ups from $4.80 to $3.00 by rebuilding landing pages and pausing 30 weak keywords.",
           "Planned 3 Instagram and YouTube creator campaigns that brought 14,000 free trial sign-ups.",
           "Wrote and tested 50 ad variants a month, keeping the top 10% for the next round.",
         ],
@@ -59,10 +59,10 @@ export const digitalMarketing: RoleExample = {
     ],
     education: [
       {
-        school: "Lakeside School of Management",
+        school: "Lakeside University",
         degree: "BBA",
         field: "Marketing",
-        startDate: "2019",
+        startDate: "2018",
         endDate: "2022",
       },
     ],
@@ -79,7 +79,7 @@ export const digitalMarketing: RoleExample = {
     {
       weak: "Managed social media and paid campaigns.",
       strong:
-        "Ran Google Ads and Meta campaigns on a monthly budget of 18 lakh, raising return on ad spend from 2.1 to 3.4 in 9 months.",
+        "Ran Google Ads and Meta campaigns on a monthly budget of $21,000, raising return on ad spend from 2.1 to 3.4 in 9 months.",
     },
     {
       weak: "Handled SEO for the company website.",

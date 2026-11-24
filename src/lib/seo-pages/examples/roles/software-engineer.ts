@@ -10,24 +10,24 @@ export const softwareEngineer: RoleExample = {
     "Associate Software Engineer",
     "Full Stack Developer",
   ],
-  updated: "2026-11-22",
+  updated: "2026-11-24",
   card: "Four years on payment systems, with the stack and a number in every line.",
   description:
-    "A complete software engineer resume example with lines that show impact, the skills job posts name, title tips for India and abroad, and mistakes to skip.",
+    "A complete software engineer resume example with lines that show impact, the skills job posts name, title tips for any market, and mistakes to skip.",
   intro:
     "Hiring managers read a software engineer resume for three things: what you shipped, how big it was, and the stack you did it in. This example puts all three in each line, so both people and hiring software find them.",
   person:
-    "Priya is made up: a backend-leaning engineer with 4 years on payment systems in Bengaluru. Names, companies and numbers are invented; copy the shape, not the facts.",
+    "Imani is made up: a backend-leaning engineer with 4 years on payment systems in New York. Names, companies and numbers are invented; copy the shape, not the facts.",
   resume: {
     title: "Software engineer resume",
     template: "developer",
     basics: {
-      name: "Priya Raman",
+      name: "Imani Robinson",
       headline: "Software Engineer",
-      email: "priya.raman@example.com",
-      phone: "+91 50000 41827",
-      location: "Bengaluru, India",
-      links: [{ label: "Portfolio", url: "priya-raman.example.com" }],
+      email: "imani.robinson@example.com",
+      phone: "+1 212 555 0134",
+      location: "New York, NY",
+      links: [{ label: "Portfolio", url: "imani-robinson.example.com" }],
     },
     summary:
       "Software engineer with 4 years on payment systems in Java, Go and AWS. Owns services from design review to on-call, and measures them after launch.",
@@ -35,11 +35,11 @@ export const softwareEngineer: RoleExample = {
       {
         company: "Paysprout",
         title: "Software Engineer II",
-        location: "Bengaluru",
+        location: "New York, NY",
         startDate: "Apr 2024",
         endDate: "Present",
         bullets: [
-          "Built an idempotency layer for UPI payment callbacks in Go, cutting duplicate refunds from 0.4% of payouts to under 0.05%.",
+          "Built an idempotency layer for ACH payment callbacks in Go, cutting duplicate refunds from 0.4% of payouts to under 0.05%.",
           "Moved the settlement report from a nightly batch job to Kafka streams, so merchants see settled amounts within 10 minutes.",
           "Led the move of 14 services from EC2 to Kubernetes on AWS with one other engineer, with no customer-facing downtime.",
           "Wrote the on-call runbook and Grafana alert rules, cutting pages per week from 22 to 6 over two quarters.",
@@ -48,7 +48,7 @@ export const softwareEngineer: RoleExample = {
       {
         company: "Quillstack",
         title: "Software Engineer",
-        location: "Pune",
+        location: "Philadelphia, PA",
         startDate: "Jul 2021",
         endDate: "Mar 2024",
         bullets: [
@@ -62,7 +62,7 @@ export const softwareEngineer: RoleExample = {
       {
         name: "ledgerlite",
         tech: "Go, PostgreSQL",
-        link: "priya-raman.example.com/ledgerlite",
+        link: "imani-robinson.example.com/ledgerlite",
         bullets: [
           "Published an open-source double-entry ledger library that 3 teams at Paysprout now use for wallet balances.",
         ],
@@ -70,9 +70,9 @@ export const softwareEngineer: RoleExample = {
     ],
     education: [
       {
-        school: "Kaveri Institute of Technology",
-        degree: "B.Tech",
-        field: "Computer Science and Engineering",
+        school: "Oakmont State University",
+        degree: "B.S.",
+        field: "Computer Science",
         startDate: "2017",
         endDate: "2021",
       },

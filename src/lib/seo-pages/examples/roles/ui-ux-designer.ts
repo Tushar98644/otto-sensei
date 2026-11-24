@@ -5,24 +5,24 @@ export const uiUxDesigner: RoleExample = {
   role: "UI/UX designer",
   occupation: "15-1255.00",
   titles: ["Product Designer", "UX Designer", "UI Designer", "Interaction Designer"],
-  updated: "2026-11-22",
+  updated: "2026-11-24",
   card: "Plain text that links the portfolio, with research and results in each line.",
   description:
     "A UI/UX designer resume example in plain text that hiring software can read, with lines that show research and results, the skills posts name and tips.",
   intro:
     "Designers are tempted to make the resume a showpiece, but hiring software reads a designed layout as scrambled text. The fix is a plain resume that links to your portfolio, with lines that show the research behind each design and what changed after it shipped.",
   person:
-    "Ananya is made up: a product designer with 4 years in edtech and fintech in Gurugram. Names, companies and numbers are invented.",
+    "Hannah is made up: a product designer with 4 years in edtech and fintech in Denver. Names, companies and numbers are invented.",
   resume: {
     title: "UI/UX designer resume",
     template: "modern",
     basics: {
-      name: "Ananya Bose",
+      name: "Hannah Larson",
       headline: "Product Designer (UI/UX)",
-      email: "ananya.bose@example.com",
-      phone: "+91 50000 64072",
-      location: "Gurugram, India",
-      links: [{ label: "Portfolio", url: "ananyabose.example.com" }],
+      email: "hannah.larson@example.com",
+      phone: "+1 303 555 0164",
+      location: "Denver, CO",
+      links: [{ label: "Portfolio", url: "hannah-larson.example.com" }],
     },
     summary:
       "Product designer with 4 years designing learning and payment apps used on low-cost Android phones. Starts with research, designs in Figma, and checks the numbers after launch.",
@@ -30,32 +30,32 @@ export const uiUxDesigner: RoleExample = {
       {
         company: "Larkspur Learning",
         title: "Product Designer",
-        location: "Gurugram",
+        location: "Denver, CO",
         startDate: "Mar 2024",
         endDate: "Present",
         bullets: [
           "Redesigned the course player after 18 usability tests with students in 3 cities, raising lesson completion from 42% to 55%.",
           "Built a design system in Figma with 90 components and dark mode, cutting design-to-build time for new screens by about half.",
-          "Designed a Hindi and English onboarding flow that lifted day-7 retention for new learners from 21% to 27%.",
+          "Designed a Spanish and English onboarding flow that lifted day-7 retention for new learners from 21% to 27%.",
         ],
       },
       {
         company: "Coralbay Banking",
         title: "UI/UX Designer",
-        location: "Noida",
+        location: "Boulder, CO",
         startDate: "Jul 2022",
         endDate: "Feb 2024",
         bullets: [
           "Redesigned the bill payment flow from 7 screens to 4, which cut support calls about failed payments by 30%.",
           "Ran 2 rounds of card sorting with 40 customers to rebuild the app menu, then tested it with a clickable prototype.",
-          "Wrote accessibility guidelines for colour contrast and touch targets that the 3 app teams now follow.",
+          "Wrote accessibility guidelines for color contrast and touch targets that the 3 app teams now follow.",
         ],
       },
     ],
     education: [
       {
         school: "Riverside Institute of Design",
-        degree: "B.Des.",
+        degree: "B.F.A.",
         field: "Interaction Design",
         startDate: "2018",
         endDate: "2022",

@@ -5,14 +5,14 @@ export const frontendDeveloper: RoleExample = {
   role: "Frontend developer",
   occupation: "15-1252.00",
   titles: ["Front End Engineer", "Frontend Engineer", "Full Stack Developer", "Software Engineer"],
-  updated: "2026-11-22",
+  updated: "2026-11-24",
   card: "React and TypeScript, with speed and accessibility in numbers.",
   description:
     "A frontend developer resume example with React and TypeScript lines that show results, the skills posts ask for, and how to show speed and accessibility.",
   intro:
     "A frontend resume has to prove two things in a few seconds: that you build interfaces people use, and that you care how fast and accessible they are. This example shows both with numbers a hiring manager can check.",
   person:
-    "Daniel is made up: a frontend developer with 5 years at product companies, working remotely from Toronto. Names, companies and numbers are invented.",
+    "Daniel is made up: a frontend developer with 5 years at product companies, working remotely from Minneapolis. Names, companies and numbers are invented.",
   resume: {
     title: "Frontend developer resume",
     template: "modern",
@@ -20,8 +20,8 @@ export const frontendDeveloper: RoleExample = {
       name: "Daniel Okafor",
       headline: "Frontend Developer",
       email: "daniel.okafor@example.com",
-      phone: "+1 416 555 0142",
-      location: "Toronto, Canada (remote)",
+      phone: "+1 612 555 0142",
+      location: "Minneapolis, MN (remote)",
       links: [{ label: "Portfolio", url: "danielokafor.example.com" }],
     },
     summary:
@@ -43,7 +43,7 @@ export const frontendDeveloper: RoleExample = {
       {
         company: "Cobaltwave",
         title: "Frontend Developer",
-        location: "Toronto",
+        location: "Minneapolis, MN",
         startDate: "Jun 2020",
         endDate: "Jan 2023",
         bullets: [
@@ -55,11 +55,11 @@ export const frontendDeveloper: RoleExample = {
     ],
     projects: [
       {
-        name: "Colour contrast checker",
+        name: "Color contrast checker",
         tech: "TypeScript, Vite",
         link: "danielokafor.example.com/contrast",
         bullets: [
-          "Made a free browser tool that checks text colours against WCAG contrast ratios, with 2,000 monthly visitors.",
+          "Made a free browser tool that checks text colors against WCAG contrast ratios, with 2,000 monthly visitors.",
         ],
       },
     ],

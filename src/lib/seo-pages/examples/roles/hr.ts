@@ -5,24 +5,24 @@ export const hr: RoleExample = {
   role: "HR",
   occupation: "13-1071.00",
   titles: ["HR Generalist", "HR Executive", "Talent Acquisition Specialist", "HR Business Partner"],
-  updated: "2026-11-22",
+  updated: "2026-11-24",
   card: "Recruiting and generalist work in numbers: time to hire, retention, cases closed.",
   description:
     "An HR resume example for generalist and recruiting roles, with lines that show hiring speed, retention and process, plus the HR skills and tools to list.",
   intro:
     "HR people read resumes all day, so they notice a vague one at once. Theirs needs the same things they look for in others: numbers for hiring and retention, the systems they ran, and the problems they fixed. This example covers recruiting and generalist work.",
   person:
-    "Fatima is made up: an HR generalist with 5 years in IT services and retail in Hyderabad, with a recruiting background. Names, companies and numbers are invented.",
+    "Nadia is made up: an HR generalist with 5 years in IT services and retail in Phoenix, with a recruiting background. Names, companies and numbers are invented.",
   resume: {
     title: "HR resume",
     template: "classic",
     basics: {
-      name: "Fatima Sheikh",
+      name: "Nadia Khoury",
       headline: "HR Generalist",
-      email: "fatima.sheikh@example.com",
-      phone: "+91 50000 35791",
-      location: "Hyderabad, India",
-      links: [{ label: "Portfolio", url: "fatima-sheikh.example.com" }],
+      email: "nadia.khoury@example.com",
+      phone: "+1 602 555 0179",
+      location: "Phoenix, AZ",
+      links: [{ label: "Portfolio", url: "nadia-khoury.example.com" }],
     },
     summary:
       "HR generalist with 5 years in recruiting, onboarding and employee relations for teams of 300 to 1,200 people. Fixes slow processes with simple tools and clear policies.",
@@ -30,32 +30,32 @@ export const hr: RoleExample = {
       {
         company: "Quillstack",
         title: "HR Generalist",
-        location: "Hyderabad",
+        location: "Phoenix, AZ",
         startDate: "Mar 2023",
         endDate: "Present",
         bullets: [
           "Cut time to hire for engineering roles from 52 to 34 days by adding structured interviews and a 48-hour feedback rule.",
           "Rebuilt onboarding for 220 new hires a year, raising 90-day retention from 81% to 90%.",
-          "Moved leave, attendance and payroll inputs into one HRIS, ending 3 spreadsheets and monthly payroll errors.",
+          "Moved PTO, attendance and payroll inputs into one HRIS, ending 3 spreadsheets and monthly payroll errors.",
           "Investigated and closed 40 employee relations cases a year, each with written findings.",
         ],
       },
       {
         company: "Sunbird Retail",
-        title: "Talent Acquisition Executive",
-        location: "Hyderabad",
+        title: "Talent Acquisition Specialist",
+        location: "Phoenix, AZ",
         startDate: "Jun 2021",
         endDate: "Feb 2023",
         bullets: [
-          "Hired 180 store staff and 25 managers in 2022 across 30 stores, mostly through referrals and campus drives.",
+          "Hired 180 store staff and 25 managers in 2022 across 30 stores, mostly through referrals and campus recruiting.",
           "Started an employee referral bonus that brought 35% of hires, at a third of the agency cost per hire.",
-          "Ran 6 campus drives a year at colleges in Telangana and Andhra Pradesh, filling 60 trainee roles.",
+          "Ran 6 campus hiring events a year at colleges in Arizona and New Mexico, filling 60 trainee roles.",
         ],
       },
     ],
     education: [
       {
-        school: "Lakeside School of Management",
+        school: "Lakeside University",
         degree: "MBA",
         field: "Human Resources",
         startDate: "2019",
@@ -90,7 +90,7 @@ export const hr: RoleExample = {
     {
       weak: "Hardworking HR professional with attention to detail.",
       strong:
-        "Moved leave, attendance and payroll inputs into one HRIS, ending 3 spreadsheets and monthly payroll errors.",
+        "Moved PTO, attendance and payroll inputs into one HRIS, ending 3 spreadsheets and monthly payroll errors.",
     },
   ],
   skills: [

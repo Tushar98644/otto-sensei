@@ -5,24 +5,24 @@ export const productManager: RoleExample = {
   role: "Product manager",
   occupation: "11-X101.00",
   titles: ["Associate Product Manager", "Product Owner", "Senior Product Manager"],
-  updated: "2026-11-22",
+  updated: "2026-11-24",
   card: "Outcomes first, with the research and experiments behind them.",
   description:
     "A product manager resume example with lines that show the outcome, how you found it and who you led, plus the skills product posts ask for and mistakes.",
   intro:
     "A product manager doesn't write the code or draw the screens, so the resume has to show what changed because of their decisions. This example leads each line with an outcome and backs it with how the team got there.",
   person:
-    "Rohan is made up: a product manager with 6 years, moving from engineering into product at a travel company in Bengaluru. Names, companies and numbers are invented.",
+    "David is made up: a product manager with 6 years, moving from engineering into product at a travel company in Seattle. Names, companies and numbers are invented.",
   resume: {
     title: "Product manager resume",
     template: "executive",
     basics: {
-      name: "Rohan Iyer",
+      name: "David Kowalski",
       headline: "Product Manager",
-      email: "rohan.iyer@example.com",
-      phone: "+91 50000 58304",
-      location: "Bengaluru, India",
-      links: [{ label: "Portfolio", url: "rohan-iyer.example.com" }],
+      email: "david.kowalski@example.com",
+      phone: "+1 206 555 0158",
+      location: "Seattle, WA",
+      links: [{ label: "Portfolio", url: "david-kowalski.example.com" }],
     },
     summary:
       "Product manager with 3 years in product and 3 in engineering, working on booking and payments for a travel app. Ships small, measures honestly, and writes things down.",
@@ -30,20 +30,20 @@ export const productManager: RoleExample = {
       {
         company: "Kiteway Travel",
         title: "Product Manager",
-        location: "Bengaluru",
+        location: "Seattle, WA",
         startDate: "Jun 2023",
         endDate: "Present",
         bullets: [
           "Led a team of 7 to rebuild hotel checkout, lifting booking completion from 61% to 70% in two quarters.",
-          "Found through 30 user interviews that people dropped off at the GST invoice step, and cut it to one optional field.",
+          "Found through 30 user interviews that people dropped off at the business invoice step, and cut it to one optional field.",
           "Set up weekly product reviews in Amplitude with design and engineering, so a broken funnel step shows up within 7 days instead of 30.",
-          "Wrote the roadmap for split payments with UPI and cards, launched to 2 million users with a 0.2% failure rate.",
+          "Wrote the roadmap for split payments with Apple Pay and cards, launched to 2 million users with a 0.2% failure rate.",
         ],
       },
       {
         company: "Kiteway Travel",
         title: "Associate Product Manager",
-        location: "Bengaluru",
+        location: "Seattle, WA",
         startDate: "Jan 2023",
         endDate: "May 2023",
         bullets: [
@@ -53,7 +53,7 @@ export const productManager: RoleExample = {
       {
         company: "Skyquill",
         title: "Software Engineer",
-        location: "Chennai",
+        location: "Portland, OR",
         startDate: "Jul 2019",
         endDate: "Dec 2022",
         bullets: [
@@ -64,9 +64,9 @@ export const productManager: RoleExample = {
     ],
     education: [
       {
-        school: "Kaveri Institute of Technology",
-        degree: "B.Tech",
-        field: "Electronics and Communication",
+        school: "Oakmont State University",
+        degree: "B.S.",
+        field: "Electrical and Computer Engineering",
         startDate: "2015",
         endDate: "2019",
       },
@@ -88,12 +88,12 @@ export const productManager: RoleExample = {
     {
       weak: "Conducted user research.",
       strong:
-        "Found through 30 user interviews that people dropped off at the GST invoice step, and cut it to one optional field.",
+        "Found through 30 user interviews that people dropped off at the business invoice step, and cut it to one optional field.",
     },
     {
       weak: "Collaborated with cross-functional teams to deliver features.",
       strong:
-        "Wrote the roadmap for split payments with UPI and cards, launched to 2 million users with a 0.2% failure rate.",
+        "Wrote the roadmap for split payments with Apple Pay and cards, launched to 2 million users with a 0.2% failure rate.",
     },
   ],
   skills: [

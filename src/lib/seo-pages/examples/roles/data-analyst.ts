@@ -5,24 +5,24 @@ export const dataAnalyst: RoleExample = {
   role: "Data analyst",
   occupation: "15-2051.01",
   titles: ["Business Intelligence Analyst", "BI Analyst", "Reporting Analyst"],
-  updated: "2026-11-22",
+  updated: "2026-11-24",
   card: "SQL, Python and Power BI work that ends in a decision someone made.",
   description:
     "A data analyst resume example with SQL, Excel and Power BI lines that show the decision each analysis changed, plus the skills posts ask for and tips.",
   intro:
     "Every data analyst knows SQL and a dashboard tool, so that alone won't set you apart. What does is the decision your work changed: a price, a budget, a process. This example ends each line with one.",
   person:
-    "Sneha is made up: a data analyst with 3 years in retail and food delivery in Hyderabad. Names, companies and numbers are invented.",
+    "Emily is made up: a data analyst with 3 years in retail and food delivery in Houston. Names, companies and numbers are invented.",
   resume: {
     title: "Data analyst resume",
     template: "classic",
     basics: {
-      name: "Sneha Kulkarni",
+      name: "Emily Nguyen",
       headline: "Data Analyst",
-      email: "sneha.kulkarni@example.com",
-      phone: "+91 50000 26458",
-      location: "Hyderabad, India",
-      links: [{ label: "Portfolio", url: "sneha-kulkarni.example.com" }],
+      email: "emily.nguyen@example.com",
+      phone: "+1 713 555 0147",
+      location: "Houston, TX",
+      links: [{ label: "Portfolio", url: "emily-nguyen.example.com" }],
     },
     summary:
       "Data analyst with 3 years turning sales and delivery data into decisions for operations and marketing teams. Works mostly in SQL, Python and Power BI.",
@@ -30,20 +30,20 @@ export const dataAnalyst: RoleExample = {
       {
         company: "Zestly Foods",
         title: "Data Analyst",
-        location: "Hyderabad",
+        location: "Houston, TX",
         startDate: "May 2024",
         endDate: "Present",
         bullets: [
           "Built a Power BI dashboard of delivery times by area that 30 city managers use in their weekly review.",
-          "Found that 18% of late orders came from 4 kitchens with one shared rider pool, which led to a staffing change that cut late orders by a third.",
+          "Found that 18% of late orders came from 4 kitchens with one shared driver pool, which led to a staffing change that cut late orders by a third.",
           "Wrote SQL models in BigQuery for daily order metrics, replacing 12 manual Excel reports and saving the team 10 hours a week.",
           "Ran an A/B test on delivery-fee messaging across 200,000 orders, which kept a change that raised repeat orders by 4%.",
         ],
       },
       {
         company: "Juniper Lane Apparel",
-        title: "MIS Executive",
-        location: "Hyderabad",
+        title: "MIS Analyst",
+        location: "Houston, TX",
         startDate: "Jun 2022",
         endDate: "Apr 2024",
         bullets: [
@@ -56,7 +56,7 @@ export const dataAnalyst: RoleExample = {
       {
         name: "City rainfall and orders",
         tech: "Python, Tableau",
-        link: "sneha-kulkarni.example.com/rain",
+        link: "emily-nguyen.example.com/rain",
         bullets: [
           "Joined public rainfall data with 2 years of orders to show how rain shifts demand by hour, published as a Tableau story.",
         ],
@@ -64,10 +64,10 @@ export const dataAnalyst: RoleExample = {
     ],
     education: [
       {
-        school: "Lakeside College of Commerce",
-        degree: "B.Sc.",
+        school: "Cedar Ridge University",
+        degree: "B.S.",
         field: "Statistics",
-        startDate: "2019",
+        startDate: "2018",
         endDate: "2022",
       },
     ],
@@ -95,7 +95,7 @@ export const dataAnalyst: RoleExample = {
     {
       weak: "Analyzed data to find insights.",
       strong:
-        "Found that 18% of late orders came from 4 kitchens with one shared rider pool, which led to a staffing change that cut late orders by a third.",
+        "Found that 18% of late orders came from 4 kitchens with one shared driver pool, which led to a staffing change that cut late orders by a third.",
     },
     {
       weak: "Responsible for weekly Excel reports.",

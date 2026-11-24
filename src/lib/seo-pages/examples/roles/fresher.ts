@@ -5,52 +5,52 @@ export const fresher: RoleExample = {
   role: "Fresher",
   occupation: "15-1252.00",
   titles: ["Trainee Software Engineer", "Associate Software Engineer", "Software Engineer Trainee"],
-  updated: "2026-11-22",
-  card: "A B.Tech graduate with one internship and two projects, on one page.",
+  updated: "2026-11-24",
+  card: "A computer science graduate with one internship and two projects, on one page.",
   description:
-    "A one-page fresher resume example for B.Tech and other graduates, with projects, internships and CGPA done right, the skills to list, and mistakes to skip.",
+    "A one-page fresher resume example for college graduates, with projects, internships and GPA done right, the skills to list, and mistakes to skip.",
   intro:
-    "With no full-time job yet, a fresher resume runs on projects, internships, marks and proof that you finish things. This example is a B.Tech graduate applying for trainee and associate engineer roles, and the same shape works for any graduate.",
+    "With no full-time job yet, a fresher resume runs on projects, internships, grades and proof that you finish things. This example is a computer science graduate applying for trainee and associate engineer roles, and the same shape works for any graduate.",
   person:
-    "Aditya is made up: a 2026 B.Tech graduate in computer science from Chennai, with one internship and two projects. Names, colleges, companies and numbers are invented.",
+    "Noah is made up: a 2026 computer science graduate from Raleigh, with one internship and two projects. Names, colleges, companies and numbers are invented.",
   resume: {
     title: "Fresher resume",
     template: "compact",
     sectionOrder: ["summary", "education", "experience", "projects", "skills", "certifications"],
     basics: {
-      name: "Aditya Sharma",
+      name: "Noah Patterson",
       headline: "Computer Science Graduate",
-      email: "aditya.sharma@example.com",
-      phone: "+91 50000 47128",
-      location: "Chennai, India",
-      links: [{ label: "Portfolio", url: "aditya-sharma.example.com" }],
+      email: "noah.patterson@example.com",
+      phone: "+1 919 555 0171",
+      location: "Raleigh, NC",
+      links: [{ label: "Portfolio", url: "noah-patterson.example.com" }],
     },
     summary:
       "Computer science graduate (2026) looking for a trainee or associate software engineer role. Has built and shipped two full-stack projects and spent a summer fixing real bugs at a startup.",
     education: [
       {
-        school: "Kaveri Institute of Technology",
-        degree: "B.Tech",
-        field: "Computer Science and Engineering",
-        location: "Chennai",
+        school: "Oakmont State University",
+        degree: "B.S.",
+        field: "Computer Science",
+        location: "Raleigh, NC",
         startDate: "2022",
         endDate: "2026",
-        bullets: ["CGPA 8.4/10. Final-year project: campus bus tracker (below)."],
+        bullets: ["GPA 3.7/4.0. Senior project: campus bus tracker (below)."],
       },
       {
-        school: "Greenfield Higher Secondary School",
-        degree: "Class XII (CBSE)",
-        field: "Science",
-        location: "Chennai",
+        school: "Greenfield High School",
+        degree: "High School Diploma",
+        field: "",
+        location: "Raleigh, NC",
         endDate: "2022",
-        bullets: ["91.2%"],
+        bullets: ["GPA 3.9/4.0"],
       },
     ],
     experience: [
       {
         company: "Orbitly",
         title: "Software Engineering Intern",
-        location: "Chennai",
+        location: "Durham, NC",
         startDate: "May 2025",
         endDate: "Jul 2025",
         bullets: [
@@ -63,18 +63,18 @@ export const fresher: RoleExample = {
       {
         name: "Campus bus tracker",
         tech: "React, Node.js, MongoDB",
-        link: "aditya-sharma.example.com/bus",
+        link: "noah-patterson.example.com/bus",
         bullets: [
-          "Built a live bus tracker for 6 college buses with a team of 3, now used by about 900 students each morning.",
+          "Built a live bus tracker for 6 campus buses with a team of 3, now used by about 900 students each morning.",
           "Cut map updates from every 30 seconds to every 5 by sending GPS points over WebSockets instead of polling.",
         ],
       },
       {
         name: "Expense splitter",
         tech: "Python, Django, PostgreSQL",
-        link: "aditya-sharma.example.com/split",
+        link: "noah-patterson.example.com/split",
         bullets: [
-          "Made a web app to split hostel and trip expenses, with UPI payment links, used by 120 friends and classmates.",
+          "Made a web app to split dorm and trip expenses, with Venmo payment links, used by 120 friends and classmates.",
         ],
       },
     ],
@@ -85,8 +85,8 @@ export const fresher: RoleExample = {
     ],
     certifications: [
       {
-        name: "NPTEL: Data Structures and Algorithms using Java (Elite)",
-        issuer: "NPTEL",
+        name: "freeCodeCamp: JavaScript Algorithms and Data Structures",
+        issuer: "freeCodeCamp",
         date: "2024",
       },
     ],
@@ -95,7 +95,7 @@ export const fresher: RoleExample = {
     {
       weak: "Did a project on bus tracking.",
       strong:
-        "Built a live bus tracker for 6 college buses with a team of 3, now used by about 900 students each morning.",
+        "Built a live bus tracker for 6 campus buses with a team of 3, now used by about 900 students each morning.",
     },
     {
       weak: "Hardworking and passionate fresher eager to learn.",
@@ -116,7 +116,7 @@ export const fresher: RoleExample = {
   tips: [
     {
       title: "Education goes first",
-      text: "Until you have a full-time job, your degree, college and CGPA are the strongest facts you have. Put Education above Experience, and keep Class XII marks while campus posts still ask for them.",
+      text: "Until you have a full-time job, your degree, college and GPA are the strongest facts you have. Put Education above Experience, and keep your high school results while campus posts still ask for them.",
     },
     {
       title: "Treat projects like jobs",
@@ -150,7 +150,7 @@ export const fresher: RoleExample = {
     {
       question: "Should a fresher put CGPA on the resume?",
       answer:
-        "Yes, if it helps you. Many campus and trainee posts set a cut-off, so leaving it out can look like hiding it. Write it as the college does, such as 8.4/10.",
+        "Yes, if it helps you. Many campus and trainee posts set a cut-off, so leaving it out can look like hiding it. Write it as your college does, such as 3.7/4.0 or 8.4/10.",
     },
     {
       question: "Can I make a fresher resume with no internship?",

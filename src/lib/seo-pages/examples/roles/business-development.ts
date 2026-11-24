@@ -11,24 +11,24 @@ export const businessDevelopment: RoleExample = {
     "Account Executive",
     "Inside Sales Representative",
   ],
-  updated: "2026-11-22",
+  updated: "2026-11-24",
   card: "Quota, pipeline and deal size, the way sales managers read them.",
   description:
     "A business development and sales resume example with lines that show quota, pipeline and deal size, plus the CRM skills sales posts ask for and mistakes.",
   intro:
     "Sales is the easiest job to put in numbers and the most common place to leave them out. A sales manager wants your quota, how often you hit it, your deal size and how you found the deals. This example gives all four.",
   person:
-    "Vikram is made up: a business development manager with 5 years selling software to mid-size companies, based in New Delhi. Names, companies and numbers are invented.",
+    "Andre is made up: a business development manager with 5 years selling software to mid-size companies, based in Atlanta. Names, companies and numbers are invented.",
   resume: {
     title: "Business development resume",
     template: "compact",
     basics: {
-      name: "Vikram Singh",
+      name: "Andre Mitchell",
       headline: "Business Development Manager",
-      email: "vikram.singh@example.com",
-      phone: "+91 50000 19357",
-      location: "New Delhi, India",
-      links: [{ label: "Portfolio", url: "vikram-singh.example.com" }],
+      email: "andre.mitchell@example.com",
+      phone: "+1 404 555 0128",
+      location: "Atlanta, GA",
+      links: [{ label: "Portfolio", url: "andre-mitchell.example.com" }],
     },
     summary:
       "Business development manager with 5 years selling HR and payroll software to companies with 50 to 1,000 staff. Builds pipeline from cold outreach and closes with finance and HR heads.",
@@ -36,11 +36,11 @@ export const businessDevelopment: RoleExample = {
       {
         company: "Wagewise HR",
         title: "Business Development Manager",
-        location: "New Delhi",
+        location: "Atlanta, GA",
         startDate: "Apr 2023",
         endDate: "Present",
         bullets: [
-          "Closed 128% of a yearly new-business quota in FY 2024-25, with 31 new accounts at an average deal of 9 lakh a year.",
+          "Closed 128% of a yearly new-business quota in FY 2025, with 31 new accounts at an average deal of $10,500 a year.",
           "Sourced 60% of the pipeline through LinkedIn and cold calling, with 2 SDRs booking demos from a shared target list.",
           "Cut the sales cycle for mid-size deals from 74 to 52 days by adding a payroll trial with the customer's own data.",
           "Kept Salesforce notes and next steps current, so forecast calls moved from 45 minutes to 20.",
@@ -49,11 +49,11 @@ export const businessDevelopment: RoleExample = {
       {
         company: "Fernway Logistics",
         title: "Business Development Executive",
-        location: "Gurugram",
+        location: "Alpharetta, GA",
         startDate: "Jul 2020",
         endDate: "Mar 2023",
         bullets: [
-          "Signed 22 new shipper accounts in 2022, bringing in 3.1 crore of yearly freight revenue.",
+          "Signed 22 new shipper accounts in 2022, bringing in $360,000 of yearly freight revenue.",
           "Made 60 calls a day to new shippers and converted 8% of first meetings into trials.",
           "Won back 9 lost accounts by offering a 30-day service review with their operations team.",
         ],
@@ -61,7 +61,7 @@ export const businessDevelopment: RoleExample = {
     ],
     education: [
       {
-        school: "Lakeside School of Management",
+        school: "Lakeside University",
         degree: "MBA",
         field: "Marketing",
         startDate: "2018",
@@ -69,9 +69,9 @@ export const businessDevelopment: RoleExample = {
       },
       {
         school: "Harborview University",
-        degree: "B.Com.",
-        field: "Commerce",
-        startDate: "2015",
+        degree: "B.S.",
+        field: "Business Administration",
+        startDate: "2014",
         endDate: "2018",
       },
     ],
@@ -93,7 +93,7 @@ export const businessDevelopment: RoleExample = {
     {
       weak: "Generated leads and closed deals.",
       strong:
-        "Closed 128% of a yearly new-business quota in FY 2024-25, with 31 new accounts at an average deal of 9 lakh a year.",
+        "Closed 128% of a yearly new-business quota in FY 2025, with 31 new accounts at an average deal of $10,500 a year.",
     },
     {
       weak: "Excellent communication skills and a proven track record in sales.",

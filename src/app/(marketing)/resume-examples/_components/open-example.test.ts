@@ -11,7 +11,7 @@ describe("openExampleInStudio", () => {
     expect(await openExampleInStudio("data-analyst")).toBe(true);
     const state = useStudioStore.getState();
     const resume = state.activeId ? state.resumes[state.activeId] : undefined;
-    expect(resume?.basics.name).toBe("Sneha Kulkarni");
+    expect(resume?.basics.name).toBe("Emily Nguyen");
     expect(resume?.source).toBe("scratch");
     expect(resume?.template).toBe("classic");
     expect(state.step).toBe("fix");

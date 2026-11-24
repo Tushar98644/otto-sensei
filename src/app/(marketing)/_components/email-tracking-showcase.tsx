@@ -135,7 +135,10 @@ export function EmailTrackingShowcase() {
             <InboxMock />
           </div>
         </div>
-        <ArrowRight aria-hidden className="mx-auto size-6 self-center text-subtle max-lg:rotate-90 lg:mt-8" />
+        <ArrowRight
+          aria-hidden
+          className="mx-auto size-6 self-center text-subtle max-lg:rotate-90 lg:mt-8"
+        />
         <div>
           <Eyebrow>On your board</Eyebrow>
           <div className="mt-3">

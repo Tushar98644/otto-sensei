@@ -5,14 +5,14 @@ export const dataScientist: RoleExample = {
   role: "Data scientist",
   occupation: "15-2051.00",
   titles: ["Machine Learning Engineer", "Applied Scientist", "Data Scientist II"],
-  updated: "2026-11-22",
+  updated: "2026-11-24",
   card: "Models tied to a business result, and how each reached production.",
   description:
     "A data scientist resume example with machine learning lines that show the business result and how the model got to production, plus the skills posts name.",
   intro:
     "Data science resumes often read like course lists: models, libraries, metrics. Hiring managers want to know which model reached production and what it changed. This example ties every model to a result someone outside the team would care about.",
   person:
-    "Maya is made up: a data scientist with 4 years in insurance and fintech in London. Names, companies and numbers are invented.",
+    "Maya is made up: a data scientist with 4 years in insurance and fintech in Boston. Names, companies and numbers are invented.",
   resume: {
     title: "Data scientist resume",
     template: "developer",
@@ -20,8 +20,8 @@ export const dataScientist: RoleExample = {
       name: "Maya Chen",
       headline: "Data Scientist",
       email: "maya.chen@example.com",
-      phone: "+44 7700 900461",
-      location: "London, UK",
+      phone: "+1 617 555 0146",
+      location: "Boston, MA",
       links: [{ label: "Portfolio", url: "mayachen.example.com" }],
     },
     summary:
@@ -30,7 +30,7 @@ export const dataScientist: RoleExample = {
       {
         company: "Hollowbrook Insurance",
         title: "Senior Data Scientist",
-        location: "London",
+        location: "Boston, MA",
         startDate: "Jan 2024",
         endDate: "Present",
         bullets: [
@@ -42,7 +42,7 @@ export const dataScientist: RoleExample = {
       {
         company: "Ledgerloop",
         title: "Data Scientist",
-        location: "London",
+        location: "Boston, MA",
         startDate: "Sep 2021",
         endDate: "Dec 2023",
         bullets: [
@@ -65,23 +65,23 @@ export const dataScientist: RoleExample = {
     education: [
       {
         school: "Harborview University",
-        degree: "MSc",
+        degree: "M.S.",
         field: "Statistics",
         startDate: "2020",
         endDate: "2021",
       },
       {
         school: "Harborview University",
-        degree: "BSc",
+        degree: "B.S.",
         field: "Mathematics",
-        startDate: "2017",
+        startDate: "2016",
         endDate: "2020",
       },
     ],
     skills: [
       { label: "Languages", items: ["Python", "SQL", "R"] },
       {
-        label: "Modelling",
+        label: "Modeling",
         items: ["scikit-learn", "PyTorch", "Machine learning", "Statistics", "A/B testing"],
       },
       { label: "Data and deployment", items: ["Spark", "Airflow", "AWS", "Docker", "MLOps"] },
@@ -107,7 +107,7 @@ export const dataScientist: RoleExample = {
   skills: [
     { label: "Code", items: ["Python", "SQL", "NumPy", "Jupyter"] },
     {
-      label: "Modelling",
+      label: "Modeling",
       items: [
         "Machine learning",
         "Deep learning",

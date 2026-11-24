@@ -9,24 +9,24 @@ export const customerSupport: RoleExample = {
     "Customer Support Executive",
     "Customer Service Representative",
   ],
-  updated: "2026-11-22",
-  card: "Volume, response time and CSAT, from executive to team lead.",
+  updated: "2026-11-24",
+  card: "Volume, response time and CSAT, from specialist to team lead.",
   description:
     "A customer support resume example with lines that show resolution time, CSAT and volume, plus the help desk tools and skills support posts ask for.",
   intro:
     "Support teams run on numbers: tickets a day, first response time, CSAT, escalations. A support resume that uses them reads like someone who already knows the job. This example moves from voice support to a team lead role.",
   person:
-    "Rahul is made up: a customer support team lead with 5 years in voice and chat support for an online store, based in Noida. Names, companies and numbers are invented.",
+    "Luis is made up: a customer support team lead with 5 years in voice and chat support for an online store, based in San Antonio. Names, companies and numbers are invented.",
   resume: {
     title: "Customer support resume",
     template: "classic",
     basics: {
-      name: "Rahul Verma",
+      name: "Luis Ortega",
       headline: "Customer Support Team Lead",
-      email: "rahul.verma@example.com",
-      phone: "+91 50000 90264",
-      location: "Noida, India",
-      links: [{ label: "Portfolio", url: "rahul-verma.example.com" }],
+      email: "luis.ortega@example.com",
+      phone: "+1 210 555 0163",
+      location: "San Antonio, TX",
+      links: [{ label: "Portfolio", url: "luis-ortega.example.com" }],
     },
     summary:
       "Customer support lead with 5 years in voice, chat and email support for an online store with 2 million customers. Keeps queues short, answers kind, and fixes the causes behind repeat tickets.",
@@ -34,25 +34,25 @@ export const customerSupport: RoleExample = {
       {
         company: "Brightkart",
         title: "Customer Support Team Lead",
-        location: "Noida",
+        location: "San Antonio, TX",
         startDate: "Jan 2024",
         endDate: "Present",
         bullets: [
-          "Lead a team of 12 on chat and email, keeping first response under 2 minutes and CSAT at 92% through the festival sale.",
+          "Lead a team of 12 on chat and email, keeping first response under 2 minutes and CSAT at 92% through the holiday sale.",
           "Wrote 45 help articles in Zendesk for the top refund and delivery questions, cutting those tickets by 25%.",
-          "Set up a weekly review of repeat tickets with the delivery team, which fixed a pin-code bug behind 1,500 tickets a month.",
+          "Set up a weekly review of repeat tickets with the delivery team, which fixed a ZIP code bug behind 1,500 tickets a month.",
         ],
       },
       {
         company: "Brightkart",
-        title: "Customer Support Executive",
-        location: "Noida",
+        title: "Customer Support Specialist",
+        location: "San Antonio, TX",
         startDate: "Aug 2021",
         endDate: "Dec 2023",
         bullets: [
-          "Answered 70 to 90 chats and calls a day in Hindi and English, with a CSAT of 94% over 2 years.",
-          "Trained 20 new joiners on refunds and escalations, cutting their time to full workload from 6 weeks to 4.",
-          "Won the quarterly quality award twice out of 80 executives for call audits and resolution time.",
+          "Answered 70 to 90 chats and calls a day in Spanish and English, with a CSAT of 94% over 2 years.",
+          "Trained 20 new hires on refunds and escalations, cutting their time to full workload from 6 weeks to 4.",
+          "Won the quarterly quality award twice out of 80 agents for call audits and resolution time.",
         ],
       },
     ],
@@ -61,7 +61,7 @@ export const customerSupport: RoleExample = {
         school: "Harborview University",
         degree: "B.A.",
         field: "English",
-        startDate: "2018",
+        startDate: "2017",
         endDate: "2021",
       },
     ],
@@ -71,24 +71,24 @@ export const customerSupport: RoleExample = {
         items: ["Customer support", "Customer service", "Help desk", "Escalation handling"],
       },
       { label: "Tools", items: ["Zendesk", "Freshdesk", "Google Sheets", "Excel"] },
-      { label: "Languages", items: ["Hindi", "English"] },
+      { label: "Languages", items: ["Spanish", "English"] },
     ],
   },
   lines: [
     {
       weak: "Handled customer queries over chat and phone.",
       strong:
-        "Answered 70 to 90 chats and calls a day in Hindi and English, with a CSAT of 94% over 2 years.",
+        "Answered 70 to 90 chats and calls a day in Spanish and English, with a CSAT of 94% over 2 years.",
     },
     {
       weak: "Team player who thrives in a fast-paced environment.",
       strong:
-        "Lead a team of 12 on chat and email, keeping first response under 2 minutes and CSAT at 92% through the festival sale.",
+        "Lead a team of 12 on chat and email, keeping first response under 2 minutes and CSAT at 92% through the holiday sale.",
     },
     {
-      weak: "Helped new joiners learn the process.",
+      weak: "Helped new hires learn the process.",
       strong:
-        "Trained 20 new joiners on refunds and escalations, cutting their time to full workload from 6 weeks to 4.",
+        "Trained 20 new hires on refunds and escalations, cutting their time to full workload from 6 weeks to 4.",
     },
   ],
   skills: [
@@ -106,7 +106,7 @@ export const customerSupport: RoleExample = {
     },
     {
       title: "Show you fix causes, not only tickets",
-      text: "Help articles that cut a ticket type, a bug you got fixed, a process you changed. That is what moves you from executive to lead.",
+      text: "Help articles that cut a ticket type, a bug you got fixed, a process you changed. That is what moves you from specialist to lead.",
     },
     {
       title: "List your languages",
