@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, max, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, inArray, lte, max, sql, type SQL } from "drizzle-orm";
 import type { Db, Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { applications, jobBoards, listings, savedJobs, skills, titles } from "@/db/schema";
@@ -17,6 +17,7 @@ import {
 } from "./codes";
 import { searchWords } from "./normalize";
 import { readTitle } from "./occupations";
+import { minYearsOf } from "./roles";
 import { titleCodeFrom, type TitleCode } from "./title-code";
 import {
   SAVED_JOBS_LIMIT,
@@ -485,6 +486,17 @@ export async function jobById(db: Db, id: string): Promise<JobDetail | null> {
   const listing = listingIdOf(id);
   const [row] = listing === null ? [] : await listingRows(db, [listing]);
   return row ? detailOf(row) : null;
+}
+
+// A board's list may not say the years a post asks for; its full text, read when someone opens it, does.
+export async function noteYearsAsked(db: Db, id: string, text: string): Promise<void> {
+  const listing = listingIdOf(id);
+  const years = minYearsOf(text);
+  if (listing === null || years === null) return;
+  await db
+    .update(listings)
+    .set({ minYears: years })
+    .where(and(eq(listings.id, listing), lte(listings.minYears, 0)));
 }
 
 // A job that's gone, as the account's saved job or application kept it.

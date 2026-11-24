@@ -510,6 +510,8 @@ async function scoredOpenings(
     );
   }
   if (query.interns === false) conditions.push(sql`l.level <> 0`);
+  const maxYears = query.seniority ? LEVEL_MAX_YEARS[query.seniority] : null;
+  if (maxYears !== null) conditions.push(sql`l.min_years <= ${maxYears}::int`);
   if (filters.remote)
     conditions.push(sql`(l.flags & ${built ? FLAG.openingRemote : FLAG.remote}) <> 0`);
   if (filters.role) conditions.push(sql`l.family = ${familyCode(filters.role)}`);
@@ -560,6 +562,16 @@ async function scoredOpenings(
     `),
   ).map((row) => ({ ...row, id: Number(row.id) }));
 }
+
+// The most years a post may ask for at each level; past it the post isn't that level, whatever its title says.
+export const LEVEL_MAX_YEARS: Record<Seniority, number | null> = {
+  intern: 1,
+  junior: 2,
+  mid: 6,
+  senior: null,
+  lead: null,
+  director: null,
+};
 
 const order = (a: Scored, b: Scored) =>
   Number(b.near) - Number(a.near) || b.score - a.score || b.posted - a.posted || a.id - b.id;

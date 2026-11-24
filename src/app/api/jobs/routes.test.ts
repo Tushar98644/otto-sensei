@@ -329,7 +329,7 @@ describe("POST /api/jobs/matches", () => {
     const user = await signInAs();
     await seedJobs();
     const body = await ranked();
-    expect(body).toMatchObject({ variant: "title-codes-v1", matching: 3 });
+    expect(body).toMatchObject({ variant: "level-years-v1", matching: 3 });
     expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
     const db = await getDb();
     const shown = await db.select().from(matchEvents).orderBy(matchEvents.position);
@@ -446,7 +446,7 @@ describe("POST /api/jobs/matches", () => {
     const batch = {
       kind: "impressions",
       requestId: crypto.randomUUID(),
-      variant: "title-codes-v1",
+      variant: "level-years-v1",
       resumeHash: "abcdefgh12345678",
       jobs: [{ jobId: crypto.randomUUID(), position: 1, label: "good" }],
     };

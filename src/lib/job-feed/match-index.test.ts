@@ -284,6 +284,32 @@ describe("match index", () => {
     expect(result.total).toBe(4);
   });
 
+  it("leaves out posts asking for more years than the chosen level allows, wherever the title puts them", async () => {
+    await ingest([
+      raw("new", {
+        title: "Backend Engineer",
+        text: "Go, PostgreSQL, Kubernetes. 1+ years of experience.",
+      }),
+      raw("five", {
+        title: "Backend Engineer II",
+        text: "Go, PostgreSQL, Kubernetes. 5+ years of experience.",
+      }),
+      raw("open", { title: "Backend Developer", text: "Go, PostgreSQL, Kubernetes." }),
+    ]);
+    const db = await getDb();
+    const counts = await readStoredCounts(db);
+    const titles = async (seniority: "junior" | "senior") =>
+      (await poolOpenings(db, { ...QUERY, seniority }, counts, NOW)).openings
+        .map((item) => item.row.title)
+        .sort();
+    expect(await titles("junior")).toEqual(["Backend Developer", "Backend Engineer"]);
+    expect(await titles("senior")).toEqual([
+      "Backend Developer",
+      "Backend Engineer",
+      "Backend Engineer II",
+    ]);
+  });
+
   it("ranks levels two steps away after every nearer one instead of dropping them", async () => {
     await ingest([
       raw("mid", { title: "Backend Engineer" }),

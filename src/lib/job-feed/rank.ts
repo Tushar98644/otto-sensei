@@ -80,7 +80,7 @@ const PLACES_SHOWN = 2;
 const FREE_POOL = 60;
 
 // Cached Matches pages carry their variant, so a new one never serves a page built on the old ids.
-export const MATCH_VARIANT = "title-codes-v1";
+export const MATCH_VARIANT = "level-years-v1";
 
 export function occupationOption(code: string | null): OccupationOption | null {
   const occupation = occupationOf(code);

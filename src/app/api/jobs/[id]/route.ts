@@ -4,7 +4,7 @@ import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readFullPost, readsLive } from "@/lib/job-feed/full-post";
 import { cachedForDay } from "@/lib/job-feed/public-cache";
-import { jobById, keptJob } from "@/lib/job-feed/records";
+import { jobById, keptJob, noteYearsAsked } from "@/lib/job-feed/records";
 import type { JobPostResponse } from "@/lib/job-feed/types";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
@@ -61,6 +61,10 @@ const dailyPost = cachedForDay("jobs-full-post-v2", async (id: string) => {
     throw new BoardMissed({ job: rest, text: description, posting: null });
   }
   const { text, posting } = await readFullPost({ ...rest, description });
+  if (posting)
+    await noteYearsAsked(await getDb(), id, text).catch((error: unknown) =>
+      log.warn("jobs.years_not_noted", {}, error),
+    );
   const post = { job: rest, text, posting };
   if (!posting && live) {
     noteMiss(id, now);
