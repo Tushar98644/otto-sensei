@@ -19,14 +19,24 @@ describe("pooledDatabaseUrl", () => {
   });
 
   it("never picks a direct-only variable", () => {
-    expect(pooledDatabaseUrl({ DIRECT_DATABASE_URL: DIRECT, POSTGRES_URL_NON_POOLING: DIRECT })).toBeUndefined();
+    expect(
+      pooledDatabaseUrl({ DIRECT_DATABASE_URL: DIRECT, POSTGRES_URL_NON_POOLING: DIRECT }),
+    ).toBeUndefined();
   });
 });
 
 describe("directDatabaseUrl", () => {
   it("prefers the direct connections, then falls back to the pooled ones", () => {
-    expect(directDatabaseUrl({ DIRECT_DATABASE_URL: DIRECT, POSTGRES_URL_NON_POOLING: "b", DATABASE_URL: POOLED })).toBe(DIRECT);
-    expect(directDatabaseUrl({ POSTGRES_URL_NON_POOLING: DIRECT, DATABASE_URL: POOLED })).toBe(DIRECT);
+    expect(
+      directDatabaseUrl({
+        DIRECT_DATABASE_URL: DIRECT,
+        POSTGRES_URL_NON_POOLING: "b",
+        DATABASE_URL: POOLED,
+      }),
+    ).toBe(DIRECT);
+    expect(directDatabaseUrl({ POSTGRES_URL_NON_POOLING: DIRECT, DATABASE_URL: POOLED })).toBe(
+      DIRECT,
+    );
     expect(directDatabaseUrl({ DATABASE_URL: POOLED })).toBe(POOLED);
     expect(directDatabaseUrl({ POSTGRES_URL: POOLED })).toBe(POOLED);
   });
@@ -60,6 +70,14 @@ describe("connectionTarget", () => {
 
 describe("appPoolOptions", () => {
   it("never prepares statements, which the transaction pooler can't keep", () => {
-    expect(appPoolOptions(connectionTarget(POOLED))).toMatchObject({ prepare: false, ssl: "require" });
+    expect(appPoolOptions(connectionTarget(POOLED))).toMatchObject({
+      prepare: false,
+      ssl: "require",
+    });
+  });
+
+  it("keeps the app's 5 connections unless a script asks for its own number", () => {
+    expect(appPoolOptions(connectionTarget(POOLED)).max).toBe(5);
+    expect(appPoolOptions(connectionTarget(POOLED), 17)).toMatchObject({ max: 17, prepare: false });
   });
 });

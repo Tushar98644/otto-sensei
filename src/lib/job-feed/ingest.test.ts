@@ -1,11 +1,23 @@
+import type { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getDb } from "@/db/client";
+import { getDb, type Db } from "@/db/client";
+import { appPoolOptions, connectionTarget } from "@/db/connection";
+import * as schema from "@/db/schema";
 import { companyVisa, jobBoards, jobCountsRow, listings } from "@/db/schema";
 import { resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { fakeNet } from "@/lib/jobs/test-network";
-import { boardUrl, paceKey, runJobsIngest, usajobsUrl, withPlace } from "./ingest";
+import {
+  boardUrl,
+  INGEST_LIMITS,
+  ingestConnections,
+  paceKey,
+  runJobsIngest,
+  usajobsUrl,
+  withPlace,
+} from "./ingest";
 import { WORKDAY_LIMITS } from "./workday";
 import { listingRows } from "./records";
 import {
@@ -266,6 +278,35 @@ describe("runJobsIngest", () => {
   it("reads at most --limit boards for the dev script", async () => {
     const outcome = await runJobsIngest(context(), { ...OPTIONS, maxBoards: 1, feeds: false });
     expect((outcome.stats.boards ?? 0) + (outcome.stats.boardsFailed ?? 0)).toBe(1);
+  });
+
+  it("needs no more connections at once than ingestConnections, so the pool never pipelines", async () => {
+    const client = ((await getDb()) as unknown as { $client: PGlite }).$client;
+    let open = 0;
+    let most = 0;
+    const counted = async <T>(run: () => Promise<T>): Promise<T> => {
+      most = Math.max(most, ++open);
+      try {
+        return await run();
+      } finally {
+        open -= 1;
+      }
+    };
+    // A transaction's own queries run on its connection, so only top-level calls count.
+    const pool = {
+      query: (...args: Parameters<PGlite["query"]>) => counted(() => client.query(...args)),
+      transaction: (...args: Parameters<PGlite["transaction"]>) =>
+        counted(() => client.transaction(...args)),
+    } as unknown as PGlite;
+    const db: Db = drizzle({ client: pool, schema });
+    const workers = 3;
+    const outcome = await runJobsIngest(context(), { ...OPTIONS, db, workers });
+    expect(outcome.stats.boards).toBe(6);
+    expect(most).toBeGreaterThan(1);
+    expect(most).toBeLessThanOrEqual(ingestConnections(workers));
+    // The site's cron call runs the default workers on the app's own pool.
+    const appPool = appPoolOptions(connectionTarget("postgres://me@localhost/otto")).max!;
+    expect(ingestConnections(INGEST_LIMITS.workers)).toBeLessThanOrEqual(appPool);
   });
 
   it("refuses boards whose address resolves to a private network", async () => {

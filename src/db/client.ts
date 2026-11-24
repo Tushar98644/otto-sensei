@@ -8,7 +8,11 @@ import { appPoolOptions, connectionTarget, pooledDatabaseUrl } from "./connectio
 import * as schema from "./schema";
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
-export type Tx = PgTransaction<PgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;
+export type Tx = PgTransaction<
+  PgQueryResultHKT,
+  typeof schema,
+  ExtractTablesWithRelations<typeof schema>
+>;
 
 let db: Db | null = null;
 
@@ -22,9 +26,20 @@ export async function getDb(): Promise<Db> {
     return openLocalDb();
   }
   if (!url) throw new Error("Database is not configured: set DATABASE_URL (or POSTGRES_URL)");
-  const target = connectionTarget(url);
-  db = drizzle(postgres(target.url, appPoolOptions(target)), { schema });
+  db = openPool(url);
   return db;
+}
+
+function openPool(url: string, max?: number): Db {
+  const target = connectionTarget(url);
+  return drizzle(postgres(target.url, appPoolOptions(target, max)), { schema });
+}
+
+// Its own pool, for a script that runs more queries at once than the app's 5 connections.
+export function openDb(max: number): Db {
+  const url = pooledDatabaseUrl();
+  if (!url) throw new Error("Database is not configured: set DATABASE_URL (or POSTGRES_URL)");
+  return openPool(url, max);
 }
 
 export { schema };

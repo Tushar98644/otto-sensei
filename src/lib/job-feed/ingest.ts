@@ -73,6 +73,9 @@ export const INGEST_LIMITS = {
   finishMs: 15_000,
 } as const;
 
+// One connection per worker and the feed reader, or postgres.js pipelines queries and the pooler loses replies.
+export const ingestConnections = (workers: number) => workers + 1;
+
 // Lever's robots.txt asks for 1 s and Himalayas allows 60/min; the rest get a gentle pace.
 export const HOST_SPACING_MS: Record<string, number> = {
   "boards-api.greenhouse.io": 300,

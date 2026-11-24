@@ -23,8 +23,8 @@ bun.plugin({
   },
 });
 
-const { getDb } = await import("@/db/client");
-const { runJobsIngest } = await import("@/lib/job-feed/ingest");
+const { openDb } = await import("@/db/client");
+const { ingestConnections, runJobsIngest } = await import("@/lib/job-feed/ingest");
 const { jobStats } = await import("@/lib/job-feed/records");
 
 function flag(name: string): string | null {
@@ -66,7 +66,7 @@ async function main() {
 
   // The daily workflow rebuilds the index once, after the new titles' codes are in.
   const rebuild = !process.argv.includes("--defer-rebuild");
-  const db = await getDb();
+  const db = openDb(ingestConnections(workers));
   const started = Date.now();
   let last = "starting";
   const progress = (line: string) => {

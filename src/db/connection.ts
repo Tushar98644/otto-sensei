@@ -53,11 +53,14 @@ export function connectionTarget(rawUrl: string): ConnectionTarget {
 }
 
 // prepare: false: the transaction pooler may switch server connections between transactions.
-export function appPoolOptions(target: ConnectionTarget): postgres.Options<Record<string, never>> {
+export function appPoolOptions(
+  target: ConnectionTarget,
+  max = 5,
+): postgres.Options<Record<string, never>> {
   return {
     ssl: target.ssl,
     prepare: false,
-    max: 5,
+    max,
     idle_timeout: 20,
     connect_timeout: 10,
     connection: { application_name: "otto-resume" },

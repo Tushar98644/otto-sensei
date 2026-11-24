@@ -124,10 +124,13 @@ export const RESUME_BUILDER_PAGE: SeoPage = {
   lastModified: PRODUCT_PAGES_UPDATED,
 };
 
+// The year a searcher sees in a title says the advice is current; it follows the examples' own dates.
+const EXAMPLES_YEAR = latestExampleUpdate().slice(0, 4);
+
 export const RESUME_EXAMPLES_PAGE: SeoPage = {
   path: SEO_PATHS.resumeExamples,
-  title: `Resume examples for ${ROLE_EXAMPLES.length} jobs, freshers included`,
-  description: `${ROLE_EXAMPLES.length} full resume examples, from software engineer and data analyst to HR, sales and freshers, each with stronger lines, skills to list and mistakes.`,
+  title: `${ROLE_EXAMPLES.length} resume examples for ${EXAMPLES_YEAR}, by job`,
+  description: `${ROLE_EXAMPLES.length} full resume examples, from software engineer and data analyst to sales, marketing and entry-level roles, each with stronger lines, skills and mistakes.`,
   lastModified: latestExampleUpdate(),
 };
 
@@ -136,10 +139,12 @@ export function exampleHeadline(example: Pick<RoleExample, "role">): string {
 }
 
 export function examplePage(example: RoleExample): SeoPage {
-  const long = `${exampleHeadline(example)}, skills and tips`;
+  const long = `${exampleHeadline(example)} (${EXAMPLES_YEAR}): skills and tips`;
   return {
     path: examplePath(example.slug),
-    ...fitTitle(long.length <= SEO_LIMITS.title ? long : `${exampleHeadline(example)} and tips`),
+    ...fitTitle(
+      long.length <= SEO_LIMITS.title ? long : `${exampleHeadline(example)} (${EXAMPLES_YEAR})`,
+    ),
     description: example.description,
     lastModified: example.updated,
   };

@@ -61,6 +61,18 @@ const EXAMPLES = [
   "business-development",
   "hr",
   "customer-support",
+  "data-engineer",
+  "devops-engineer",
+  "qa-engineer",
+  "account-executive",
+  "marketing-manager",
+  "graphic-designer",
+  "project-manager",
+  "business-analyst",
+  "financial-analyst",
+  "accountant",
+  "operations-manager",
+  "administrative-assistant",
 ];
 const GUIDES = [
   "/resume-builder",

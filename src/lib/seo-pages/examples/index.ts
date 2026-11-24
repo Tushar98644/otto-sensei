@@ -1,15 +1,27 @@
 import type { Resume } from "@/lib/resume/schema";
 import { buildResume } from "./build";
+import { accountExecutive } from "./roles/account-executive";
+import { accountant } from "./roles/accountant";
+import { administrativeAssistant } from "./roles/administrative-assistant";
 import { backendDeveloper } from "./roles/backend-developer";
+import { businessAnalyst } from "./roles/business-analyst";
 import { businessDevelopment } from "./roles/business-development";
 import { customerSupport } from "./roles/customer-support";
 import { dataAnalyst } from "./roles/data-analyst";
+import { dataEngineer } from "./roles/data-engineer";
 import { dataScientist } from "./roles/data-scientist";
+import { devopsEngineer } from "./roles/devops-engineer";
 import { digitalMarketing } from "./roles/digital-marketing";
+import { financialAnalyst } from "./roles/financial-analyst";
 import { fresher } from "./roles/fresher";
 import { frontendDeveloper } from "./roles/frontend-developer";
+import { graphicDesigner } from "./roles/graphic-designer";
 import { hr } from "./roles/hr";
+import { marketingManager } from "./roles/marketing-manager";
+import { operationsManager } from "./roles/operations-manager";
 import { productManager } from "./roles/product-manager";
+import { projectManager } from "./roles/project-manager";
+import { qaEngineer } from "./roles/qa-engineer";
 import { softwareEngineer } from "./roles/software-engineer";
 import { uiUxDesigner } from "./roles/ui-ux-designer";
 import type { RoleExample } from "./types";
@@ -36,6 +48,18 @@ export const ROLE_EXAMPLES: readonly RoleExample[] = [
   businessDevelopment,
   hr,
   customerSupport,
+  dataEngineer,
+  devopsEngineer,
+  qaEngineer,
+  accountExecutive,
+  marketingManager,
+  graphicDesigner,
+  projectManager,
+  businessAnalyst,
+  financialAnalyst,
+  accountant,
+  operationsManager,
+  administrativeAssistant,
 ];
 
 export function exampleBySlug(slug: string): RoleExample | undefined {
