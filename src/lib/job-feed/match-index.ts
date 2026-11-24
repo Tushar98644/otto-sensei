@@ -156,7 +156,31 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
     if (missingTable(error)) return null;
     throw error;
   }
+  const visa = await readVisaFacts(db);
+  // One transaction, so this read of every open job may run past the app role's 15 s statement limit.
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set local statement_timeout = '120s'`);
+    return buildMatchIndex(tx, now, visa);
+  });
+}
 
+async function readVisaFacts(db: Db): Promise<Map<string, VisaFacts>> {
+  const visa = new Map<string, VisaFacts>();
+  try {
+    for (const row of await db.select().from(companyVisa)) {
+      visa.set(row.companyKey, { ukSponsor: row.ukName !== null, h1bYear: row.h1bYear });
+    }
+  } catch (error) {
+    if (!missingTable(error)) throw error;
+  }
+  return visa;
+}
+
+async function buildMatchIndex(
+  db: Db,
+  now: number,
+  visa: ReadonlyMap<string, VisaFacts>,
+): Promise<number> {
   const rows = await db
     .select({
       id: jobs.id,
@@ -180,15 +204,6 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
     rows.flatMap((row) => row.keywords),
     now,
   );
-
-  const visa = new Map<string, VisaFacts>();
-  try {
-    for (const row of await db.select().from(companyVisa)) {
-      visa.set(row.companyKey, { ukSponsor: row.ukName !== null, h1bYear: row.h1bYear });
-    }
-  } catch (error) {
-    if (!missingTable(error)) throw error;
-  }
 
   // Post text is read only where the location names no place: most rows never need it.
   const unplaced = rows.filter(
