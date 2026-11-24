@@ -9,6 +9,10 @@ export const GMAIL_GUIDE = "/guides/gmail-forwarding";
 export const GMAIL_FILTER_GUIDE = "/guides/gmail-filter";
 // The real Applications board as three hiring emails arrive, for the home page.
 export const EMAIL_BOARD_CLIP = "/guides/email-board";
+// The real Jobs page as a new role reloads the matches, for the home page.
+export const JOBS_CLIP = "/guides/jobs-board";
+// A real Interview prep pack: questions, a story, the craft round and practice, for the home page.
+export const INTERVIEW_CLIP = "/guides/interview-prep";
 
 const REDUCE = "(prefers-reduced-motion: reduce)";
 
@@ -76,8 +80,8 @@ export function GuideVideo({
       >
         {seen ? (
           <>
-            <source src={`${src}.webm`} type="video/webm" />
             <source src={`${src}.mp4`} type="video/mp4" />
+            <source src={`${src}.webm`} type="video/webm" />
           </>
         ) : null}
       </video>

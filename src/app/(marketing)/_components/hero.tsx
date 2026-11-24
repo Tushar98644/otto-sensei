@@ -24,7 +24,7 @@ export function heroFeatures(open: string | null): HeroFeature[] {
     { href: "#how", label: "Resume checker", icon: FileText },
     { href: "#jobs", label: open ? `${open} open jobs` : "Open jobs", icon: Search },
     { href: "#email-tracking", label: "Email tracking", icon: Inbox },
-    { href: "#features", label: "Interview prep", icon: MessagesSquare },
+    { href: "#interview-prep", label: "Interview prep", icon: MessagesSquare },
     { href: "#portfolio", label: "Portfolio site", icon: Globe },
     {
       href: "#chrome-extension",

@@ -312,7 +312,7 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
               <div className="flex items-center gap-2">
                 <Button variant="secondary" onClick={() => mark("again")}>
                   <RotateCcw aria-hidden />
-                  Practise again
+                  Practice again
                 </Button>
                 <Button onClick={() => mark("got")}>
                   <Check aria-hidden />
@@ -373,7 +373,7 @@ function Summary({
       </div>
 
       {done ? null : (
-        <section aria-label="Questions to practise again" className="flex flex-col gap-3">
+        <section aria-label="Questions to practice again" className="flex flex-col gap-3">
           <ul className="flex flex-col gap-2">
             {left.map((item) => (
               <li key={item.question}>
@@ -403,7 +403,7 @@ function Summary({
           <div className="flex flex-wrap gap-2">
             <Button onClick={onAgain}>
               <RotateCcw aria-hidden />
-              Practise {left.length === 1 ? "that one" : `those ${left.length}`} again
+              Practice {left.length === 1 ? "that one" : `those ${left.length}`} again
             </Button>
             <Button variant="ghost" onClick={onRestart}>
               Start over

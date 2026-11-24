@@ -137,7 +137,7 @@ export function TechnicalCard({
                   className="-mr-1.5 text-muted hover:text-ink"
                 >
                   <Play aria-hidden />
-                  <span className="max-sm:sr-only">Practise</span>
+                  <span className="max-sm:sr-only">Practice</span>
                   <span className="sr-only"> question {number}</span>
                 </Button>
               ) : null}

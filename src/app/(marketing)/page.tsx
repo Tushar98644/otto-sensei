@@ -6,11 +6,11 @@ import { HOME_PAGE } from "@/lib/seo-pages/pages";
 import { EmailTrackingShowcase } from "./_components/email-tracking-showcase";
 import { ExtensionShowcase } from "./_components/extension-showcase";
 import { Faq } from "./_components/faq";
-import { FeaturesOverview } from "./_components/features-overview";
 import { FinalCta } from "./_components/final-cta";
 import { Hero } from "./_components/hero";
 import { HomeUpload } from "./_components/home-upload";
 import { HowItWorks } from "./_components/how-it-works";
+import { InterviewPrepShowcase } from "./_components/interview-prep-showcase";
 import { JobsShowcase } from "./_components/jobs-showcase";
 import { LazySections } from "./_components/lazy-sections";
 import { PortfolioShowcase } from "./_components/portfolio-showcase";
@@ -31,9 +31,9 @@ export default async function HomePage() {
       <HomeUpload />
       <Hero jobCounts={jobCounts} />
       <HowItWorks />
-      <FeaturesOverview />
       <JobsShowcase jobCounts={jobCounts} />
       <EmailTrackingShowcase />
+      <InterviewPrepShowcase />
       <ExtensionShowcase />
       <PortfolioShowcase />
       <WontDo />

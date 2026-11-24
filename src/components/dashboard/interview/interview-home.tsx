@@ -169,7 +169,7 @@ export function InterviewHome() {
               <Invitation
                 art={parts.CueCardsArt}
                 eyebrow="Comes with Pro"
-                title="Practise every interview before it happens"
+                title="Practice every interview before it happens"
                 detail={packs.items.length > 0 ? OTTO.interview.lockedKept : OTTO.interview.locked}
               >
                 <Button onClick={() => setUpgradeOpen(true)} className="max-sm:flex-1">

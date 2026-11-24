@@ -80,7 +80,7 @@ export function interviewEvent(
     alarm:
       when.kind === "time"
         ? { trigger: "-PT1H", description: "Your interview starts in an hour" }
-        : { trigger: "-PT15H", description: "Practise your interview prep" },
+        : { trigger: "-PT15H", description: "Practice your interview prep" },
   };
 }
 

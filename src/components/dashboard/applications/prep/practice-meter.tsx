@@ -2,8 +2,8 @@ import { cn } from "@/lib/utils";
 
 export function practiceLine(got: number, total: number): string {
   const done = Math.min(got, total);
-  if (done === 0) return "Not practised yet";
-  return done === total ? "All practised" : `Practised ${done} of ${total}`;
+  if (done === 0) return "Not practiced yet";
+  return done === total ? "All practiced" : `Practiced ${done} of ${total}`;
 }
 
 export function PracticeMeter({

@@ -1,47 +1,8 @@
+import { GuideVideo, JOBS_CLIP } from "@/components/dashboard/applications/email/guide-video";
 import { ROUTES } from "@/components/site/routes";
-import { Badge } from "@/components/ui/badge";
-import { Panel } from "@/components/ui/panel";
-import { StatusPill } from "@/components/ui/status";
 import { FREE_JOB_MATCHES } from "@/config/plans";
 import { countClaim, type JobCounts } from "@/lib/job-feed/counts";
-import { MATCH_LABELS } from "@/lib/job-feed/types";
 import { Section, SectionHeader, SectionLink } from "./section";
-
-type ExampleJob = {
-  title: string;
-  company: string;
-  where: string;
-  visa?: string;
-  match: "strong" | "good";
-  blocked?: string;
-  reason: string;
-};
-
-const EXAMPLES: readonly ExampleJob[] = [
-  {
-    title: "Senior Product Designer",
-    company: "Northwind",
-    where: "Remote, Europe · 2 days ago",
-    match: "strong",
-    reason: "Found in your resume: Figma, user research, prototyping. Not found: accessibility.",
-  },
-  {
-    title: "Product Designer, Payments",
-    company: "Ledgerly",
-    where: "London, UK · 5 days ago",
-    visa: "Listed as a UK visa sponsor",
-    match: "good",
-    reason: "Found in your resume: Figma, prototyping. Not found: A/B testing.",
-  },
-  {
-    title: "UX Designer",
-    company: "Harbor Health",
-    where: "New York, US · 1 week ago",
-    match: "good",
-    blocked: "You said you'd need a visa to work in the United States.",
-    reason: "Found in your resume: user research, prototyping.",
-  },
-];
 
 type Point = { title: string; text: string };
 
@@ -70,7 +31,7 @@ export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
     <Section
       id="jobs"
       labelledBy="jobs-showcase-title"
-      lazySize="[contain-intrinsic-size:auto_1700px] sm:[contain-intrinsic-size:auto_1440px] lg:[contain-intrinsic-size:auto_1370px]"
+      lazySize="[contain-intrinsic-size:auto_1650px] sm:[contain-intrinsic-size:auto_1480px] lg:[contain-intrinsic-size:auto_1640px]"
     >
       <SectionHeader
         id="jobs-showcase-title"
@@ -83,35 +44,16 @@ export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
         best fit first, with a plain reason for each. Free shows your top {FREE_JOB_MATCHES}; Pro
         matches you against all of them.
       </SectionHeader>
-      <Panel className="mt-12 sm:mt-16">
-        <ul role="list" aria-label="Example matches" className="flex flex-col gap-3 sm:gap-4">
-          {EXAMPLES.map((job) => (
-            <li key={job.title} className="flex flex-col gap-3 rounded-2xl bg-surface p-4 sm:p-6">
-              <div>
-                <h3 className="text-base/6 font-semibold text-pretty text-ink">
-                  {job.title} · {job.company}
-                </h3>
-                <p className="text-sm/6 text-muted">{job.where}</p>
-                {job.visa ? <p className="text-sm/6 text-subtle">{job.visa}</p> : null}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {job.match === "strong" ? (
-                  <StatusPill status="pass">{MATCH_LABELS.strong}</StatusPill>
-                ) : (
-                  <Badge>{MATCH_LABELS[job.match]}</Badge>
-                )}
-                {job.blocked ? <StatusPill status="fail">Likely blocked</StatusPill> : null}
-              </div>
-              <div className="flex flex-col gap-1">
-                <p className="text-sm/6 text-pretty text-ink">{job.reason}</p>
-                {job.blocked ? (
-                  <p className="text-sm/6 text-pretty text-muted">{job.blocked}</p>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </Panel>
+      <figure className="mt-12 sm:mt-16">
+        <div className="overflow-hidden rounded-3xl bg-surface p-2 shadow-card sm:p-3">
+          <GuideVideo src={JOBS_CLIP} width={1440} height={1000} />
+        </div>
+        <figcaption className="mt-4 max-w-3xl text-sm/6 text-pretty text-subtle">
+          The real Jobs page: a sales rep with a digital marketing internship picks Any marketing
+          role, and Otto ranks entry-level marketing jobs by the SEO, Google Ads and HubSpot on
+          their resume.
+        </figcaption>
+      </figure>
       <ul
         role="list"
         className="mt-10 grid gap-x-8 gap-y-8 border-t border-border pt-10 sm:grid-cols-2"

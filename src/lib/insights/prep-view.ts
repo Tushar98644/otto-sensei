@@ -62,7 +62,7 @@ export const ROUND_COPY: Record<PrepRound, { label: string; about: string }> = {
   fit: { label: "Role fit", about: "Why this job, and why you." },
   skills: { label: "Skills", about: "The work itself, built from what the post asks for most." },
   behavioural: {
-    label: "Behavioural",
+    label: "Behavioral",
     about: "Real times from your past: what you did and what changed.",
   },
   closing: { label: "Closing", about: "Wrapping up, just before your questions." },

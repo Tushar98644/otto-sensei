@@ -234,8 +234,8 @@ describe("rounds", () => {
       [1, 1, "Opening"],
       [2, 2, "Technical · Project deep-dive"],
       [3, 2, "Technical · System design"],
-      [4, 3, "Behavioural"],
-      [5, 3, "Behavioural"],
+      [4, 3, "Behavioral"],
+      [5, 3, "Behavioral"],
       [6, 4, "Closing"],
     ]);
   });

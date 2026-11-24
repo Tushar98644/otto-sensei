@@ -191,7 +191,7 @@ function Contents({
           <PracticeMeter got={got} total={total} barClassName="flex-1" className="w-full" />
           <Button variant="secondary" size="sm" onClick={onPractise}>
             <Play aria-hidden />
-            {got === 0 ? "Start practising" : got >= total ? "Practise again" : "Keep practising"}
+            {got === 0 ? "Start practicing" : got >= total ? "Practice again" : "Keep practicing"}
           </Button>
         </div>
       ) : null}
@@ -217,7 +217,7 @@ export function PrepPack({
     (step) => record.marks[step.item.question] === "got",
   ).length;
   const startLabel =
-    got === 0 ? "Start practising" : got >= total ? "Practise again" : "Keep practising";
+    got === 0 ? "Start practicing" : got >= total ? "Practice again" : "Keep practicing";
 
   function linked(index: number | null): LinkedStory | null {
     const story = index === null ? undefined : prep.stories[index];

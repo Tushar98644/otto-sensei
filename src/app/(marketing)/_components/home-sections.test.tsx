@@ -12,19 +12,16 @@ import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
 import { PORTFOLIO_PICKS, PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { suggestedFileName } from "@/lib/resume/ops";
-import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
 import { createSampleResume } from "@/lib/resume/sample";
-import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { EmailTrackingShowcase } from "./email-tracking-showcase";
 import { ExtensionShowcase } from "./extension-showcase";
 import { Faq } from "./faq";
-import { FEATURES, FeaturesOverview } from "./features-overview";
-import { FEATURE_PREVIEWS } from "./features-previews";
 import { FinalCta } from "./final-cta";
 import { Hero } from "./hero";
 import { HeroCta } from "./hero-cta";
 import { HeroDemo } from "./hero-demo";
 import { HowItWorks } from "./how-it-works";
+import { InterviewPrepShowcase } from "./interview-prep-showcase";
 import { JobsShowcase } from "./jobs-showcase";
 import { PortfolioShowcase } from "./portfolio-showcase";
 import { PricingTeaser } from "./pricing-teaser";
@@ -142,8 +139,23 @@ describe("the home page's sections", () => {
     );
   });
 
-  it("keep the features lead about the features", () => {
-    expect(renderToStaticMarkup(<FeaturesOverview />)).not.toMatch(/microphone/i);
+  it("give Interview prep its own section, which the hero's button jumps to", () => {
+    const hero = renderToStaticMarkup(<Hero jobCounts={JOB_COUNTS_FALLBACK} />);
+    expect(hero).toMatch(/href="#interview-prep"[^>]*>.*Interview prep/);
+    expect(hero).not.toContain('href="#features"');
+    const html = renderToStaticMarkup(<InterviewPrepShowcase />);
+    expect(html).toContain('id="interview-prep"');
+    expect(html).toMatch(
+      /<h2 id="interview-prep-title"[^>]*>Know what they&#x27;ll ask,.*and what you&#x27;ll say\.<\/em><\/h2>/,
+    );
+    expect(text(html)).toContain("Interview prep · Pro");
+    expect(html).toContain('poster="/guides/interview-prep.jpg"');
+    expect(html).toContain('width="3840" height="2880"');
+  });
+
+  it("leave What's inside off the page", () => {
+    const page = readFileSync(fileURLToPath(new URL("../page.tsx", import.meta.url)), "utf8");
+    expect(page).not.toMatch(/FeaturesOverview|features-overview/);
   });
 });
 
@@ -169,29 +181,29 @@ describe("the home page's copy", () => {
     expect(text(html)).toContain(`Pick one of ${PORTFOLIO_TEMPLATE_IDS.length} designs`);
   });
 
-  it("describes what the app does today in What's inside", () => {
-    const features = [
-      text(renderToStaticMarkup(<FeaturesOverview />)),
-      ...Object.values(FEATURES).map((feature) => feature.text),
-    ].join(" ");
-    expect(features).toContain(`in ${TEMPLATE_IDS.length} clean formats hiring software reads`);
-    expect(features).toContain("Cover letters, outreach messages and answers");
-    expect(features).toContain(
-      "Open jobs in your line of work from company boards around the world",
+  it("says what interview prep makes: questions, stories from the resume, a craft round and practice", () => {
+    const html = renderToStaticMarkup(<InterviewPrepShowcase />);
+    const prep = text(html);
+    expect(html.match(/<h3 /g)).toHaveLength(3);
+    expect(prep).toContain("Then come questions for you to ask them.");
+    expect(prep).toContain("Each story starts from a line on your resume");
+    expect(prep).toContain(
+      "Technical roles get a technical round on your projects, core concepts and system design.",
     );
-    expect(features).toContain(
-      "Technical roles also get a technical round on your projects, core concepts and system design, and a practice mode.",
-    );
-    expect(features).not.toMatch(/every application|every job you apply/i);
+    expect(prep).toContain("Then Otto plays the interviewer, one question at a time.");
+    expect(prep).not.toMatch(/microphone|every application|every job you apply/i);
   });
 
-  it("lists the career log in What's inside, free on every plan, with its preview", () => {
-    const html = renderToStaticMarkup(<FeaturesOverview />);
-    expect(text(html)).toContain("Career log");
-    expect(FEATURES[CAREER_LOG_ROUTE]?.text).toBe(
-      "A one-minute note on your work each month, free on every plan, so your next resume starts from facts. On Pro, Otto turns the notes into resume lines with your own numbers.",
+  it("keeps Letters and the career log on the page, beside interview prep", () => {
+    const html = renderToStaticMarkup(<InterviewPrepShowcase />);
+    const also = text(html.slice(html.indexOf('id="also-in-otto"')));
+    expect(also).toContain("Also in Otto");
+    expect(also).toContain(
+      "Letters Pro Cover letters, outreach messages and answers to application questions, written only from your resume and the job post.",
     );
-    expect(FEATURE_PREVIEWS[CAREER_LOG_ROUTE]).toBeTypeOf("function");
+    expect(also).toContain(
+      "Career log A one-minute note on your work each month, free on every plan. On Pro, Otto turns the notes into resume lines with your own numbers.",
+    );
   });
 
   it("says jobs are of the person's own kind of work, read for meaning, from boards worldwide", () => {
@@ -208,9 +220,9 @@ describe("the home page's copy", () => {
     const hero = text(renderToStaticMarkup(<Hero jobCounts={JOB_COUNTS_FALLBACK} />));
     const others = [
       <HowItWorks key="how" />,
-      <FeaturesOverview key="features" />,
       <JobsShowcase key="jobs" jobCounts={JOB_COUNTS_FALLBACK} />,
       <EmailTrackingShowcase key="email" />,
+      <InterviewPrepShowcase key="interview" />,
       <PortfolioShowcase key="portfolio" />,
       <WontDo key="wont" />,
       <PricingTeaser key="pricing" />,
@@ -239,10 +251,10 @@ const plansWith = (tool: "tailor" | "fill") =>
   );
 
 describe("Otto for Chrome on the home page", () => {
-  it("sits after the Jobs section and email tracking, before the portfolio", () => {
+  it("sits after the Jobs section, email tracking and interview prep, before the portfolio", () => {
     const page = readFileSync(fileURLToPath(new URL("../page.tsx", import.meta.url)), "utf8");
     expect(page).toMatch(
-      /<JobsShowcase [^>]*\/>\s*<EmailTrackingShowcase \/>\s*<ExtensionShowcase \/>\s*<PortfolioShowcase \/>/,
+      /<JobsShowcase [^>]*\/>\s*<EmailTrackingShowcase \/>\s*<InterviewPrepShowcase \/>\s*<ExtensionShowcase \/>\s*<PortfolioShowcase \/>/,
     );
   });
 

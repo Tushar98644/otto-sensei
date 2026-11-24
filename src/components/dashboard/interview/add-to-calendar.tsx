@@ -22,7 +22,7 @@ export function AddToCalendar({
       toast({
         title: "Calendar file ready",
         description:
-          "Open it to add the interview day, with a reminder to practise the morning before.",
+          "Open it to add the interview day, with a reminder to practice the morning before.",
       });
     } catch {
       toast({

@@ -1,12 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
+import { EmailTrackingShowcase } from "./email-tracking-showcase";
 import { ExtensionShowcase } from "./extension-showcase";
 import { Faq } from "./faq";
-import { FeaturesOverview } from "./features-overview";
 import { FinalCta } from "./final-cta";
 import { Hero } from "./hero";
 import { HowItWorks } from "./how-it-works";
+import { InterviewPrepShowcase } from "./interview-prep-showcase";
 import { JobsShowcase } from "./jobs-showcase";
 import { PortfolioShowcase } from "./portfolio-showcase";
 import { PricingTeaser } from "./pricing-teaser";
@@ -23,8 +24,9 @@ const classes = (tag: string) => (/class="([^"]*)"/.exec(tag)?.[1] ?? "").split(
 describe("home sections below the fold", () => {
   const lazy = [
     <HowItWorks key="how" />,
-    <FeaturesOverview key="features" />,
     <JobsShowcase key="jobs" jobCounts={JOB_COUNTS_FALLBACK} />,
+    <EmailTrackingShowcase key="email" />,
+    <InterviewPrepShowcase key="interview" />,
     <ExtensionShowcase key="extension" />,
     <PortfolioShowcase key="portfolio" />,
     <WontDo key="wont-do" />,

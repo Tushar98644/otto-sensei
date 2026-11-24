@@ -37,16 +37,19 @@ describe("Garamond's italic", () => {
   });
 
   it("is declared once, for the marketing headings, and set on each heading's italic phrase", async () => {
-    const [{ Hero }, { PortfolioShowcase }, { PricingTeaser }] = await Promise.all([
-      import("./hero"),
-      import("./portfolio-showcase"),
-      import("./pricing-teaser"),
-    ]);
+    const [{ Hero }, { InterviewPrepShowcase }, { PortfolioShowcase }, { PricingTeaser }] =
+      await Promise.all([
+        import("./hero"),
+        import("./interview-prep-showcase"),
+        import("./portfolio-showcase"),
+        import("./pricing-teaser"),
+      ]);
     const italic = calls.filter((call) => styles(call).includes("italic"));
     expect(italic).toHaveLength(1);
     expect(styles(italic[0])).toEqual(["italic"]);
     for (const node of [
       <Hero key="hero" jobCounts={JOB_COUNTS_FALLBACK} />,
+      <InterviewPrepShowcase key="interview" />,
       <PortfolioShowcase key="portfolio" />,
       <PricingTeaser key="pricing" />,
     ]) {
