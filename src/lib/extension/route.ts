@@ -9,8 +9,8 @@ import { bearerToken, verifyExtensionToken, type TokenAuth } from "./tokens";
 
 // The unpacked dev build's id, fixed by the public key in extension/manifest.ts.
 export const DEV_EXTENSION_ID = "noofbknlfdjpiihgeghjeoalkjlfafeb";
-// Filled in once the Chrome Web Store gives the extension its id (or set OTTO_EXTENSION_IDS).
-export const STORE_EXTENSION_IDS: readonly string[] = [];
+// Otto for Chrome's Chrome Web Store id (more can come from OTTO_EXTENSION_IDS).
+export const STORE_EXTENSION_IDS: readonly string[] = ["mbndcajinpcaohjpphabgkmadkhccoeo"];
 
 const EXTENSION_ID = /^[a-p]{32}$/;
 

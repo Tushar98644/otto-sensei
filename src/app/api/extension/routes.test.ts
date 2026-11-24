@@ -6,7 +6,7 @@ import { extensionTokens, savedPosts } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import { saveWorkProfile } from "@/lib/eligibility/records";
-import { DEV_EXTENSION_ID } from "@/lib/extension/route";
+import { DEV_EXTENSION_ID, STORE_EXTENSION_IDS } from "@/lib/extension/route";
 import {
   deleteExpiredExtensionTokens,
   hashToken,
@@ -144,6 +144,12 @@ describe("token routes", () => {
     const ok = await profile(bearer("GET", "/api/extension/profile", token));
     expect(ok.status).toBe(200);
     expect(ok.headers.get("access-control-allow-origin")).toBe(ORIGIN);
+    const store = `chrome-extension://${STORE_EXTENSION_IDS[0]}`;
+    const published = await profile(
+      bearer("GET", "/api/extension/profile", token, undefined, store),
+    );
+    expect(published.status).toBe(200);
+    expect(published.headers.get("access-control-allow-origin")).toBe(store);
   });
 
   it("answers preflights for the extension only", async () => {
