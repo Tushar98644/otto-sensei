@@ -33,7 +33,7 @@ export function manifest(target: BuildTarget, version: string, origin = ORIGINS[
     short_name: "Otto",
     version,
     description:
-      "See how your resume matches a job post, and whether you can take the job, right on LinkedIn, Naukri and company career pages.",
+      "See how your resume matches a job post, and whether you can take the job, right on the page where you read it.",
     ...(target === "dev" ? { key: DEV_KEY } : {}),
     minimum_chrome_version: "116",
     icons: {

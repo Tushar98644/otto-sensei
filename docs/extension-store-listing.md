@@ -2,7 +2,7 @@
 
 **Name:** Otto for Chrome
 
-**Summary** (132 characters at most): See how your resume matches a job post, and whether you can take the job, right on LinkedIn, Naukri and company career pages.
+**Summary** (132 characters at most): See how your resume matches a job post, and whether you can take the job, right on the page where you read it.
 
 **Category:** Productivity › Workflow & Planning. **Language:** English.
 
