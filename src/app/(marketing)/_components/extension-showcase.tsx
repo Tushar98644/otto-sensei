@@ -251,10 +251,11 @@ export function ExtensionShowcase() {
       <SectionHeader
         id="extension-showcase-title"
         eyebrow={CHROME_STORE_URL ? "Otto for Chrome" : "Otto for Chrome · coming soon"}
-        title="Your match, right on the job post"
+        title="Apply faster, right from the job post"
       >
-        Otto for Chrome checks job posts against your resume on the pages where you read them, and
-        saves the ones you want to your board.
+        See how well you match before you read the whole post, save it to your board in one click,
+        and let Otto fill long application forms from your resume. You check every answer and press
+        Submit.
       </SectionHeader>
       <Panel className="mt-12 grid items-start gap-8 sm:mt-16 lg:grid-cols-2 lg:gap-10">
         <div>

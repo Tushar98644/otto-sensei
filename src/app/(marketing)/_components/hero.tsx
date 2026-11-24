@@ -23,7 +23,7 @@ export function heroFeatures(open: string | null): HeroFeature[] {
   return [
     { href: "#how", label: "Resume checker", icon: FileText },
     { href: "#jobs", label: open ? `${open} open jobs` : "Open jobs", icon: Search },
-    { href: "#features", label: "Email tracking", icon: Inbox },
+    { href: "#email-tracking", label: "Email tracking", icon: Inbox },
     { href: "#features", label: "Interview prep", icon: MessagesSquare },
     { href: "#portfolio", label: "Portfolio site", icon: Globe },
     {

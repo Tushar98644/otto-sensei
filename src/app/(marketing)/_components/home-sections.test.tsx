@@ -15,6 +15,7 @@ import { suggestedFileName } from "@/lib/resume/ops";
 import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
 import { createSampleResume } from "@/lib/resume/sample";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
+import { EmailTrackingShowcase } from "./email-tracking-showcase";
 import { ExtensionShowcase } from "./extension-showcase";
 import { Faq } from "./faq";
 import { FEATURES, FeaturesOverview } from "./features-overview";
@@ -209,6 +210,7 @@ describe("the home page's copy", () => {
       <HowItWorks key="how" />,
       <FeaturesOverview key="features" />,
       <JobsShowcase key="jobs" jobCounts={JOB_COUNTS_FALLBACK} />,
+      <EmailTrackingShowcase key="email" />,
       <PortfolioShowcase key="portfolio" />,
       <WontDo key="wont" />,
       <PricingTeaser key="pricing" />,
@@ -237,10 +239,10 @@ const plansWith = (tool: "tailor" | "fill") =>
   );
 
 describe("Otto for Chrome on the home page", () => {
-  it("sits right after the Jobs section", () => {
+  it("sits after the Jobs section and email tracking, before the portfolio", () => {
     const page = readFileSync(fileURLToPath(new URL("../page.tsx", import.meta.url)), "utf8");
     expect(page).toMatch(
-      /<JobsShowcase [^>]*\/>\s*<ExtensionShowcase \/>\s*<PortfolioShowcase \/>/,
+      /<JobsShowcase [^>]*\/>\s*<EmailTrackingShowcase \/>\s*<ExtensionShowcase \/>\s*<PortfolioShowcase \/>/,
     );
   });
 
@@ -249,11 +251,11 @@ describe("Otto for Chrome on the home page", () => {
     const copy = text(html);
     expect(html).toContain('aria-labelledby="extension-showcase-title"');
     expect(html).toMatch(
-      /<h2 id="extension-showcase-title"[^>]*>Your match, right on the job post<\/h2>/,
+      /<h2 id="extension-showcase-title"[^>]*>Apply faster, right from the job post<\/h2>/,
     );
     expect(html.match(/<h3 /g)).toHaveLength(4);
     expect(copy).toContain(
-      "Otto for Chrome checks job posts against your resume on the pages where you read them, and saves the ones you want to your board.",
+      "See how well you match before you read the whole post, save it to your board in one click, and let Otto fill long application forms from your resume. You check every answer and press Submit.",
     );
     expect(copy).toContain(
       "On LinkedIn, Naukri and company career pages, Otto's badge shows which of the post's skills your resume has and which it's missing. The check runs in your browser and never sends the post anywhere.",

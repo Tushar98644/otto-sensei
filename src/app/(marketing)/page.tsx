@@ -3,6 +3,7 @@ import { pageMetadata } from "@/components/site/page-metadata";
 import { TrackView } from "@/lib/analytics/track-view";
 import { loadJobCounts } from "@/lib/job-feed/live-counts";
 import { HOME_PAGE } from "@/lib/seo-pages/pages";
+import { EmailTrackingShowcase } from "./_components/email-tracking-showcase";
 import { ExtensionShowcase } from "./_components/extension-showcase";
 import { Faq } from "./_components/faq";
 import { FeaturesOverview } from "./_components/features-overview";
@@ -34,6 +35,7 @@ export default async function HomePage() {
       <HowItWorks />
       <FeaturesOverview />
       <JobsShowcase jobCounts={jobCounts} />
+      <EmailTrackingShowcase />
       <ExtensionShowcase />
       <PortfolioShowcase />
       <WontDo />
