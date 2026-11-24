@@ -13,6 +13,8 @@ type Page = {
   idle: Array<() => void>;
   store: Map<string, string>;
   hide: () => void;
+  close: () => void;
+  restore: () => void;
   answer: { identified: boolean };
   location: { search: string; href: string; hostname: string };
 };
@@ -27,6 +29,10 @@ function stubBrowser({
   const store = new Map<string, string>();
   const idle: Array<() => void> = [];
   const listeners: Array<() => void> = [];
+  const windowListeners = new Map<string, Array<(event: { persisted: boolean }) => void>>();
+  const fire = (type: string, persisted: boolean) => {
+    for (const listener of windowListeners.get(type) ?? []) listener({ persisted });
+  };
   const page: Page = {
     sent: [],
     idle,
@@ -37,6 +43,8 @@ function stubBrowser({
       document.visibilityState = "hidden";
       for (const listener of listeners) listener();
     },
+    close: () => fire("pagehide", false),
+    restore: () => fire("pageshow", true),
   };
   const storage = {
     getItem: (key: string) => {
@@ -70,6 +78,8 @@ function stubBrowser({
       },
     },
     requestIdleCallback: (run: () => void) => idle.push(run),
+    addEventListener: (type: string, listener: (event: { persisted: boolean }) => void) =>
+      windowListeners.set(type, [...(windowListeners.get(type) ?? []), listener]),
   });
   vi.stubGlobal(
     "fetch",
@@ -173,7 +183,7 @@ describe("page views", () => {
     runIdle(page);
     client.trackPageView("/pricing", "/pricing");
     runIdle(page);
-    expect(page.sent.map((beacon) => beacon.items[0])).toEqual([
+    expect(page.sent.map((beacon) => beacon.items.find((item) => item.type === "view"))).toEqual([
       { type: "view", route: "/", device: "Desktop", referrer: "news.ycombinator.com" },
       { type: "view", route: "/pricing", device: "Desktop" },
     ]);
@@ -201,6 +211,54 @@ describe("page views", () => {
       email: { campaign: "weekly_jobs", link: "tailor" },
     });
     expect(page.location.search).toBe("");
+  });
+});
+
+describe("leaving a page", () => {
+  it("notes how long the last page was open, just before the next page's view", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 25, 9));
+    const page = stubBrowser();
+    const client = await loadClient();
+    client.trackPageView("/", "/");
+    runIdle(page);
+    vi.setSystemTime(Date.UTC(2026, 10, 25, 9, 0, 42));
+    client.trackPageView("/pricing", "/pricing");
+    runIdle(page);
+    expect(page.sent[1]?.items).toEqual([
+      { type: "leave", route: "/", seconds: 42 },
+      { type: "view", route: "/pricing", device: "Desktop" },
+    ]);
+  });
+
+  it("sends the leave at once when the tab closes, and only once", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 25, 9));
+    const page = stubBrowser();
+    const client = await loadClient();
+    client.trackPageView("/pricing", "/pricing");
+    runIdle(page);
+    vi.setSystemTime(Date.UTC(2026, 10, 25, 9, 0, 7));
+    page.close();
+    page.close();
+    expect(page.sent.slice(1).map((beacon) => beacon.items)).toEqual([
+      [{ type: "leave", route: "/pricing", seconds: 7 }],
+    ]);
+  });
+
+  it("counts again from when the page comes back from the browser's cache", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 25, 9));
+    const page = stubBrowser();
+    const client = await loadClient();
+    client.trackPageView("/", "/");
+    runIdle(page);
+    page.close();
+    vi.setSystemTime(Date.UTC(2026, 10, 25, 10));
+    page.restore();
+    vi.setSystemTime(Date.UTC(2026, 10, 25, 10, 0, 5));
+    page.close();
+    expect(page.sent.at(-1)?.items).toEqual([{ type: "leave", route: "/", seconds: 5 }]);
   });
 });
 

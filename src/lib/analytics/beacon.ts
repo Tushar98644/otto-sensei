@@ -68,12 +68,19 @@ const Vitals = z.strictObject({
   ),
 });
 
+// Seconds on the page, so PostHog can tell a bounce from a read.
+const Leave = z.strictObject({
+  type: z.literal("leave"),
+  route: Route,
+  seconds: z.number().int().min(0).max(86_400),
+});
+
 export const BeaconSchema = z.strictObject({
   visitor: Id.optional(),
   linked: z.boolean().optional(),
   session: Id.optional(),
   items: z
-    .array(z.discriminatedUnion("type", [View, Event, Vitals]))
+    .array(z.discriminatedUnion("type", [View, Leave, Event, Vitals]))
     .min(1)
     .max(20),
 });
@@ -115,6 +122,16 @@ export function beaconEvent(item: ParsedItem, context: BeaconContext): BatchEven
             ? { $referrer: `https://${item.referrer}`, $referring_domain: item.referrer }
             : { $referrer: "$direct", $referring_domain: "$direct" }),
           ...item.utm,
+        },
+      };
+    case "leave":
+      return {
+        ...base,
+        event: "$pageleave",
+        properties: {
+          ...page,
+          $prev_pageview_pathname: item.route,
+          $prev_pageview_duration: item.seconds,
         },
       };
     case "event":

@@ -13,12 +13,15 @@ const SESSION_IDLE_MS = 30 * 60_000;
 const MAX_ITEMS = 20;
 
 type Visitor = { id: string; linked: boolean; session: string; seenAt: number };
+type OpenPage = { route: string; start: number; left: boolean };
 
 let queue: BeaconItem[] = [];
 let scheduled = false;
 let listening = false;
 let firstView = true;
 let currentRoute = "/";
+let openPage: OpenPage | null = null;
+let watchingLeave = false;
 // Kept here as well, so a browser that blocks storage still has one id for the whole visit.
 let memory: Visitor | null = null;
 
@@ -165,6 +168,24 @@ function takeEmailLanding() {
   return landing;
 }
 
+// Once per page, on moving to the next one or closing the tab.
+function leavePage(now: number): void {
+  if (!openPage || openPage.left) return;
+  openPage.left = true;
+  const seconds = Math.min(Math.max(Math.round((now - openPage.start) / 1000), 0), 86_400);
+  enqueue({ type: "leave", route: openPage.route, seconds });
+}
+
+function onPageHide(): void {
+  leavePage(Date.now());
+  flushBeacon();
+}
+
+// Back from the browser's page cache: the same page, open again.
+function onPageShow(event: PageTransitionEvent): void {
+  if (event.persisted && openPage) openPage = { ...openPage, start: Date.now(), left: false };
+}
+
 // Set before the page's own effects run, so the events they send name the right page.
 export function setPageRoute(route: string): void {
   currentRoute = route;
@@ -172,6 +193,14 @@ export function setPageRoute(route: string): void {
 
 export function trackPageView(route: string, pathname: string): void {
   if (!analyticsEnabled()) return;
+  const now = Date.now();
+  leavePage(now);
+  openPage = { route, start: now, left: false };
+  if (!watchingLeave) {
+    watchingLeave = true;
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onPageShow);
+  }
   const referrer = firstView ? referrerDomain() : undefined;
   firstView = false;
   const utm = utmTags(window.location.search);
@@ -214,4 +243,6 @@ export function resetAnalyticsForTests(): void {
   firstView = true;
   currentRoute = "/";
   memory = null;
+  openPage = null;
+  watchingLeave = false;
 }

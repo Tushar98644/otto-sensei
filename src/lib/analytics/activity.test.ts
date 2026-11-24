@@ -236,6 +236,22 @@ describe("POST /api/activity", () => {
     });
   });
 
+  it("forwards a page leave with the time on the page, for bounce rate and session length", async () => {
+    await post(beacon([{ type: "leave", route: "/pricing", seconds: 42 }]));
+    expect(forwarded()).toMatchObject([
+      {
+        event: "$pageleave",
+        distinctId: VISITOR,
+        properties: {
+          $pathname: "/pricing",
+          $session_id: SESSION,
+          $prev_pageview_pathname: "/pricing",
+          $prev_pageview_duration: 42,
+        },
+      },
+    ]);
+  });
+
   it("notes nothing when the browser asks not to be tracked", async () => {
     await signInAs();
     for (const header of [{ dnt: "1" }, { "sec-gpc": "1" }] as Record<string, string>[]) {
