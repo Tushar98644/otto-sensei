@@ -30,6 +30,8 @@ import {
   queryWords,
   readSkills,
   rowsOf,
+  searchCopyRows,
+  searchRows,
   shownConditions,
   type CandidateRow,
 } from "./records";
@@ -589,17 +591,18 @@ export async function poolOpenings(
       rows.filter((row) => row.flags & FLAG.hasCopies),
     );
   } else {
-    // The search box matches an opening when any copy has every word: scored first, then matched here.
+    // The search box matches an opening when any copy has every word: every match's words are read, whole rows only for the page.
     const all = await scoredOpenings(db, query, table, now, null, counts !== null);
-    const leads = await listingRows(
+    const leads = await searchRows(
       db,
       all.map((item) => item.id),
     );
-    const allCopies = await copyRows(
-      db,
-      leads.filter((row) => row.flags & FLAG.hasCopies),
+    const copiesOf = groupCopies(
+      await searchCopyRows(
+        db,
+        leads.filter((row) => row.flags & FLAG.hasCopies),
+      ),
     );
-    const copiesOf = groupCopies(allCopies);
     const hit = new Set(
       leads
         .filter((row) =>
@@ -614,9 +617,14 @@ export async function poolOpenings(
     const matched = all.filter((item) => hit.has(item.id)).sort(order);
     groups = matched.length;
     scored = matched.slice(offset, offset + limit);
-    const kept = new Set(scored.map((item) => item.id));
-    rows = leads.filter((row) => kept.has(row.listing));
-    copies = allCopies;
+    rows = await listingRows(
+      db,
+      scored.map((item) => item.id),
+    );
+    copies = await copyRows(
+      db,
+      rows.filter((row) => row.flags & FLAG.hasCopies),
+    );
   }
   const byId = new Map(rows.map((row) => [row.listing, row]));
   const byGroup = groupCopies(copies);
@@ -649,8 +657,10 @@ export async function poolOpenings(
 const visaOf = (facts: VisaFacts | undefined) =>
   facts && (facts.ukSponsor || facts.h1bYear !== null) ? facts : null;
 
-function groupCopies(copies: readonly CandidateRow[]): Map<string, CandidateRow[]> {
-  const byGroup = new Map<string, CandidateRow[]>();
+function groupCopies<T extends { board: number; grp: number }>(
+  copies: readonly T[],
+): Map<string, T[]> {
+  const byGroup = new Map<string, T[]>();
   for (const copy of copies) {
     const key = `${copy.board}:${copy.grp}`;
     const list = byGroup.get(key);

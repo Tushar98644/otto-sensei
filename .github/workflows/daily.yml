@@ -1,9 +1,10 @@
 name: Daily
 
 # Every scheduled job, once a day on GitHub's runner (owner decision 2026-11-23); Vercel runs no schedules.
-# 1. Jobs: reads every due board here, writes straight to the database, rebuilds the match index and counts,
-#    then asks the site to drop its cached /jobs pages (/api/cron/jobs-cache).
+# 1. Jobs: reads every due board here and writes straight to the database.
 # 2. Title vectors: embeds the titles still waiting and sends them back (/api/cron/title-vectors).
+# 2b. Match index: rebuilds the index and counts once, after both (each rebuild reads every open job out of
+#    the database), then asks the site to drop its cached /jobs pages (/api/cron/jobs-cache).
 # 3. The light daily jobs, one call each to the site: cleanup, job matches, career check-ins, view alerts,
 #    trial reminders, follow-ups and the interview briefs' safety net (the Cloudflare worker runs those hourly).
 # 4. IndexNow: tells Bing and the other IndexNow engines which sitemap URLs changed.
@@ -56,7 +57,7 @@ jobs:
             exit 0
           fi
           # I/O bound: 16 boards at a time, each host still at its own pace.
-          bun scripts/jobs-ingest-ci.ts --workers 16 --minutes "$MINUTES"
+          bun scripts/jobs-ingest-ci.ts --workers 16 --minutes "$MINUTES" --defer-rebuild
 
       - uses: actions/setup-python@v5
         continue-on-error: true
@@ -102,8 +103,22 @@ jobs:
                 --data-binary @part.json "$base" -o /dev/null
             done
           done
+
+      # Runs even when the steps above failed, so the jobs they did write still reach Matches.
+      - name: Match index
+        id: match_index
+        continue-on-error: true
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$OTTO_APP_URL" ]; then
+            echo "::notice::CRON_SECRET or OTTO_APP_URL not set yet; skipping."
+            exit 0
+          fi
+          base="${OTTO_APP_URL%/}/api/cron"
+          auth="Authorization: Bearer $CRON_SECRET"
           curl -sS --fail --max-time 300 -X POST -H "$auth" -H "Content-Type: application/json" \
-            --data '{"vectors":[],"rebuild":true}' "$base"
+            --data '{"vectors":[],"rebuild":true}' "$base/title-vectors"
+          echo
+          curl -sS --fail --max-time 30 -X POST -H "$auth" "$base/jobs-cache"
 
       # Each route works within its own 45 s budget and its windows allow one run a day at any hour.
       - name: Cleanup
@@ -160,6 +175,7 @@ jobs:
           RESULTS: |
             Jobs|${{ steps.jobs.outcome }}
             Title vectors|${{ steps.titles.outcome }}
+            Match index|${{ steps.match_index.outcome }}
             Cleanup|${{ steps.cleanup.outcome }}
             Job matches|${{ steps.job_matches.outcome }}
             Career check-ins|${{ steps.career_checkins.outcome }}

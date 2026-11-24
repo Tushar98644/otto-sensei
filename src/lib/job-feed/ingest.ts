@@ -121,6 +121,8 @@ export type IngestOptions = {
   visa?: boolean;
   // How long the closing rebuild may spend finishing rows the compact-jobs migration copied.
   finishMs?: number;
+  // False when a later step rebuilds the index anyway: each rebuild reads every open job out of the database.
+  rebuild?: boolean;
 };
 
 const SOURCE_HOSTS: Record<Exclude<BoardSource, "workday">, string> = {
@@ -617,11 +619,12 @@ export async function runJobsIngest(
     (await readStoredCounts(db)) === null;
   const skills = changed ? await refreshSkillWeights(db, Date.now()) : -1;
   // Last, so the match index, stored counts and every cached match list name this run.
-  const indexed = changed
-    ? await rebuildMatchIndex(db, Date.now(), {
-        finishMs: options.finishMs ?? INGEST_LIMITS.finishMs,
-      })
-    : await noteBoardsRead(db);
+  const indexed =
+    changed && options.rebuild !== false
+      ? await rebuildMatchIndex(db, Date.now(), {
+          finishMs: options.finishMs ?? INGEST_LIMITS.finishMs,
+        })
+      : await noteBoardsRead(db);
   return {
     stats: {
       ...totals,
@@ -629,7 +632,7 @@ export async function runJobsIngest(
       skills,
       visa,
       indexed: indexed ?? -1,
-      indexSkipped: changed ? 0 : 1,
+      indexSkipped: changed && options.rebuild !== false ? 0 : 1,
       boardsLeft: queue.length,
       ...(await jobsFileStats(db)),
     },

@@ -194,21 +194,66 @@ async function readRows(db: Db | Tx, where: SQL): Promise<CandidateRow[]> {
   return rows.map((row) => candidateOf(row, names));
 }
 
-export async function listingRows(db: Db | Tx, ids: readonly number[]): Promise<CandidateRow[]> {
+// What the search box reads of a job: its words and its group, not the whole row.
+export type SearchRow = Pick<
+  CandidateRow,
+  "listing" | "board" | "grp" | "flags" | "title" | "company" | "location" | "keywords"
+>;
+
+async function readSearchRows(db: Db | Tx, where: SQL): Promise<SearchRow[]> {
+  const rows = await db
+    .select({
+      id: listings.id,
+      board: listings.board,
+      grp: listings.grp,
+      flags: listings.flags,
+      titleText: listings.titleText,
+      title: titles.text,
+      company: listings.company,
+      boardCompany: jobBoards.company,
+      location: listings.location,
+      skills: listings.skills,
+    })
+    .from(listings)
+    .innerJoin(titles, eq(titles.id, listings.title))
+    .innerJoin(jobBoards, eq(jobBoards.id, listings.board))
+    .where(where);
+  const names = await skillNames(
+    db,
+    rows.flatMap((row) => row.skills),
+  );
+  return rows.map((row) => ({
+    listing: row.id,
+    board: row.board,
+    grp: row.grp,
+    flags: row.flags,
+    title: row.titleText || row.title,
+    company: row.company || row.boardCompany,
+    location: row.location,
+    keywords: row.skills.flatMap((sid) => names.get(sid) ?? []),
+  }));
+}
+
+async function byIds<T>(ids: readonly number[], read: (where: SQL) => Promise<T[]>): Promise<T[]> {
   const unique = [...new Set(ids)];
-  if (unique.length === 0) return [];
-  const out: CandidateRow[] = [];
+  const out: T[] = [];
   for (let i = 0; i < unique.length; i += 1_000)
-    out.push(...(await readRows(db, inArray(listings.id, unique.slice(i, i + 1_000)))));
+    out.push(...(await read(inArray(listings.id, unique.slice(i, i + 1_000)))));
   return out;
 }
 
-// The copies of the given openings that the last rebuild found, by board and group.
-export async function copyRows(
-  db: Db,
-  groups: readonly { board: number; grp: number }[],
-): Promise<CandidateRow[]> {
-  if (groups.length === 0) return [];
+export function listingRows(db: Db | Tx, ids: readonly number[]): Promise<CandidateRow[]> {
+  return byIds(ids, (where) => readRows(db, where));
+}
+
+export function searchRows(db: Db | Tx, ids: readonly number[]): Promise<SearchRow[]> {
+  return byIds(ids, (where) => readSearchRows(db, where));
+}
+
+type Group = { board: number; grp: number };
+
+// The literal matches listings_copies_idx's predicate, so the planner can use it.
+function copiesOf(groups: readonly Group[]): SQL {
   const boards = sql.join(
     groups.map((group) => sql`${group.board}`),
     sql`, `,
@@ -217,12 +262,17 @@ export async function copyRows(
     groups.map((group) => sql`${group.grp}`),
     sql`, `,
   );
-  // The literal matches listings_copies_idx's predicate, so the planner can use it.
-  return readRows(
-    db,
-    sql`(${listings.flags} & ${sql.raw(String(FLAG.copy))}) <> 0 and (${listings.board}, ${listings.grp}) in
-      (select * from unnest(array[${boards}]::smallint[], array[${grps}]::integer[]))`,
-  );
+  return sql`(${listings.flags} & ${sql.raw(String(FLAG.copy))}) <> 0 and (${listings.board}, ${listings.grp}) in
+      (select * from unnest(array[${boards}]::smallint[], array[${grps}]::integer[]))`;
+}
+
+// The copies of the given openings that the last rebuild found, by board and group.
+export async function copyRows(db: Db, groups: readonly Group[]): Promise<CandidateRow[]> {
+  return groups.length === 0 ? [] : readRows(db, copiesOf(groups));
+}
+
+export async function searchCopyRows(db: Db, groups: readonly Group[]): Promise<SearchRow[]> {
+  return groups.length === 0 ? [] : readSearchRows(db, copiesOf(groups));
 }
 
 // A gone job, from what a saved job or application kept of it.

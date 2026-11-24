@@ -64,12 +64,14 @@ async function main() {
     process.exit(1);
   }
 
+  // The daily workflow rebuilds the index once, after the new titles' codes are in.
+  const rebuild = !process.argv.includes("--defer-rebuild");
   const db = await getDb();
   const started = Date.now();
   // Three minutes of finishing passes keep a 20-minute read inside the workflow's 35-minute step.
   const outcome = await runJobsIngest(
     { now: started, deadline: started + minutes * 60_000 },
-    { db, workers, finishMs: 3 * 60_000 },
+    { db, workers, finishMs: 3 * 60_000, rebuild },
   );
   const { openJobs } = await jobStats(db);
   const { stats } = outcome;
@@ -80,9 +82,11 @@ async function main() {
         ? "Every board was read."
         : "Stopped at the time limit; the next run continues."),
   );
-  await dropSiteCache().catch((error: unknown) =>
-    console.log(`Site cache not cleared: ${String(error)}`),
-  );
+  if (rebuild)
+    await dropSiteCache().catch((error: unknown) =>
+      console.log(`Site cache not cleared: ${String(error)}`),
+    );
+  else console.log("Index rebuild deferred to the workflow's Match index step.");
   if (outcome.failed.length > 0) {
     console.log(`::warning::Steps that failed this run: ${outcome.failed.join(", ")}`);
   }
