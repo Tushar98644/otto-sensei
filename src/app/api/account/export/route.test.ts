@@ -13,7 +13,6 @@ import {
   userSettings,
   writings,
 } from "@/db/schema";
-import { execSql } from "@/db/testing";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
@@ -189,14 +188,24 @@ describe("GET /api/account/export", () => {
       createdAt: AT,
       updatedAt: AT,
     });
-    const jobId = crypto.randomUUID();
-    await execSql(
-      `insert into public.jobs (id, source, external_id, company, title, posted_at, url, dedupe_key,
-         content_hash, first_seen_at, last_seen_at, created_at, updated_at)
-       values ($1, 'greenhouse', '1', 'Analytical Engines', 'Engineer', 1, 'https://jobs.example/1', 'd', 'h', 1, 1, 1, 1)`,
-      [jobId],
-    );
-    await db.insert(savedJobs).values({ userId: ada.id, jobId, savedAt: AT });
+    // A saved job that has since closed: the export reads what the save kept of it.
+    await db.insert(savedJobs).values({
+      userId: ada.id,
+      jobId: crypto.randomUUID(),
+      savedAt: AT,
+      job: {
+        source: "greenhouse",
+        company: "Analytical Engines",
+        title: "Engineer",
+        location: "",
+        remote: false,
+        employmentType: null,
+        seniority: "mid",
+        postedAt: 1,
+        url: "https://jobs.example/1",
+        keywords: [],
+      },
+    });
     await db.insert(feedback).values({
       id: crypto.randomUUID(),
       userId: ada.id,
