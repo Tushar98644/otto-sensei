@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import { jobPlaceTokens } from "./job-places";
 import {
+  roleName,
+  searchingLine,
   acceptedPlaces,
   levelOf,
   lookingForOf,
@@ -96,5 +98,35 @@ describe("place fit", () => {
     expect(titleFits("Senior Product Manager, Growth", "Product Manager")).toBe(true);
     expect(titleFits("Product Designer", "Product Manager")).toBe(false);
     expect(titleFits("Anything", "")).toBe(false);
+  });
+});
+
+describe("the role on the Looking for line", () => {
+  const raw = { title: "Portfolio/Tushar", family: "engineering" as const };
+
+  it("never shows a resume's own title, only a standard job or a kind of work", () => {
+    expect(roleName(raw, "Software Developer", false)).toBe("Software Developer");
+    expect(roleName(raw, null, false)).toBe("Any engineering role");
+    expect(roleName({ title: "", family: null }, null, false)).toBe("Any role");
+    expect(roleName({ title: "", family: "data" }, null, true)).toBe("Any data and AI role");
+  });
+
+  it("shows a job picked from the list as picked", () => {
+    expect(roleName({ title: "Accountant", family: "finance" }, null, true)).toBe("Accountant");
+  });
+
+  it("says what Otto is reading while a new choice loads", () => {
+    expect(searchingLine({ ...raw, level: "junior" }, null, false)).toBe(
+      "Looking for entry-level engineering jobs…",
+    );
+    expect(
+      searchingLine({ title: "Accountant", family: "finance", level: "senior" }, null, true),
+    ).toBe("Looking for senior Accountant jobs…");
+    expect(searchingLine({ title: "", family: "data", level: "intern" }, null, true)).toBe(
+      "Looking for data and AI internships…",
+    );
+    expect(searchingLine({ title: "", family: null, level: null }, null, false)).toBe(
+      "Looking for jobs…",
+    );
   });
 });

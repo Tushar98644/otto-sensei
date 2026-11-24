@@ -3,7 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
-import { LEVEL_NAMES, placeLabel, placeLine } from "@/lib/job-feed/looking-for";
+import { LEVEL_NAMES, placeLabel, placeLine, roleName } from "@/lib/job-feed/looking-for";
 import { familyOfOccupation } from "@/lib/job-feed/roles";
 import {
   LOOKING_FOR_LIMITS,
@@ -15,21 +15,13 @@ import {
   type LookingForChoice,
   type OccupationOption,
   type PlaceChoice,
-  type RoleFamily,
 } from "@/lib/job-feed/types";
 import { OccupationSearch } from "./occupation-search";
-
-export type CardRole = {
-  title: string;
-  family: RoleFamily | null;
-  occupation: OccupationOption | null;
-};
 
 export type LookingForCardProps = {
   value: LookingFor;
   occupation: OccupationOption | null;
   choice: LookingForChoice;
-  roles: readonly CardRole[];
   country: string;
   saving: boolean;
   onChange: (next: LookingForChoice) => void;
@@ -54,22 +46,10 @@ const COMMON_PLACES: readonly PlaceChoice[] = [
   ...PLACE_GROUPS.map((group) => `g:${group}` as const),
 ];
 
-function roleName(value: Pick<LookingFor, "title" | "family">, occupation: string | null): string {
-  if (value.title) return value.title;
-  if (occupation) return occupation;
-  return value.family ? `Any ${ROLE_LABELS[value.family].toLowerCase()} role` : "Any role";
-}
-
-function occupationNote(title: string, occupation: OccupationOption | null): string | null {
-  if (!occupation || occupation.name.toLowerCase() === title.toLowerCase()) return null;
-  return occupation.name;
-}
-
 export function LookingForCard({
   value,
   occupation,
   choice,
-  roles,
   country,
   saving,
   onChange,
@@ -94,22 +74,8 @@ export function LookingForCard({
         ]),
   ];
 
+  // Only jobs from the list and the kinds of work: a resume's titles can be anything, like a program or a site.
   const roleItems: MenuEntry[] = [
-    ...roles.map((role) => ({
-      label: role.title,
-      description: role.occupation?.name ?? (role.family ? ROLE_LABELS[role.family] : undefined),
-      checked: value.title.toLowerCase() === role.title.toLowerCase(),
-      onSelect: () =>
-        onChange({
-          ...choice,
-          role: {
-            title: role.title,
-            family: role.family,
-            occupation: role.occupation?.code ?? null,
-          },
-        }),
-    })),
-    ...(roles.length > 0 ? ["separator" as const] : []),
     {
       label: "Any other job…",
       description: "Search every kind of work by name",
@@ -126,15 +92,14 @@ export function LookingForCard({
       : [
           "separator" as const,
           {
-            label: "Go back to my latest job title",
+            label: "Go back to my resume's role",
             onSelect: () => onChange({ ...choice, role: null }),
           },
         ]),
   ];
 
   const trigger = tone === "inset" ? CHIP : TRIGGER;
-  const role = roleName(value, occupation?.name ?? null);
-  const note = value.title ? occupationNote(value.title, occupation) : null;
+  const role = roleName(value, occupation?.name ?? null, choice.role !== null);
 
   const own: PlaceChoice | null =
     country && !COMMON_PLACES.includes(`c:${country}`) ? `c:${country}` : null;
@@ -209,14 +174,11 @@ export function LookingForCard({
         />
         <Menu
           label="Role"
-          triggerLabel={`Role: ${role}${note ? `, read as ${note}` : ""}. Change it`}
+          triggerLabel={`Role: ${role}. Change it`}
           triggerClassName={trigger}
           trigger={
             <>
-              <span>
-                {role}
-                {note ? <span className="font-normal text-muted"> ({note})</span> : null}
-              </span>
+              <span>{role}</span>
               <ChevronDown aria-hidden className="size-3.5 text-subtle" />
             </>
           }

@@ -11,6 +11,7 @@ import { roleFamily, SENIORITY_RANK, seniorityForYears, seniorityOf, skillsFamil
 import {
   NO_CHOICE,
   PLACE_GROUPS,
+  ROLE_LABELS,
   type LookingFor,
   type LookingForChoice,
   type MatchProfile,
@@ -37,6 +38,43 @@ export const LEVEL_NAMES: Record<Seniority, string> = {
   lead: "Lead or staff",
   director: "Director and up",
 };
+
+// "Data and AI" reads as "data and AI" inside a sentence.
+const familyWords = (family: RoleFamily) =>
+  ROLE_LABELS[family].charAt(0).toLowerCase() + ROLE_LABELS[family].slice(1);
+
+// The role the line shows: a job picked from the list, else the standard job the resume's title reads as, never the title itself.
+export function roleName(
+  value: Pick<LookingFor, "title" | "family">,
+  occupation: string | null,
+  picked: boolean,
+): string {
+  if (picked && value.title) return value.title;
+  if (occupation) return occupation;
+  return value.family ? `Any ${familyWords(value.family)} role` : "Any role";
+}
+
+const SEARCH_LEVEL: Record<Seniority, string> = {
+  intern: "",
+  junior: "entry-level",
+  mid: "mid-level",
+  senior: "senior",
+  lead: "lead",
+  director: "director-level",
+};
+
+// What Otto says while a new choice's matches load, like "Looking for entry-level finance jobs…".
+export function searchingLine(
+  value: Pick<LookingFor, "title" | "family" | "level">,
+  occupation: string | null,
+  picked: boolean,
+): string {
+  const role =
+    (picked && value.title) || occupation || (value.family ? familyWords(value.family) : "");
+  if (value.level === "intern") return `Looking for ${role ? `${role} ` : ""}internships…`;
+  const level = value.level ? SEARCH_LEVEL[value.level] : "";
+  return `Looking for ${[level, role, "jobs"].filter(Boolean).join(" ")}…`;
+}
 
 const GROUP_LABELS: Record<(typeof PLACE_GROUPS)[number], string> = {
   north_america: "North America",

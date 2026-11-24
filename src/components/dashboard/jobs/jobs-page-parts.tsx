@@ -9,6 +9,7 @@ import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { BRAND } from "@/config/brand";
 import { cn } from "@/lib/utils";
 import { NewResumeMenu } from "../new-resume-menu";
@@ -50,6 +51,7 @@ export function JobsSummary({
   message,
   meta,
   loading,
+  busy = false,
   className,
   children,
 }: {
@@ -57,6 +59,7 @@ export function JobsSummary({
   message: string | null;
   meta: string | null;
   loading: boolean;
+  busy?: boolean;
   className?: string;
   children?: ReactNode;
 }) {
@@ -85,6 +88,7 @@ export function JobsSummary({
           <div aria-live="polite" aria-atomic className="max-w-xl">
             {message ? (
               <p className="text-lg/7 text-pretty text-ink sm:text-xl/8">
+                {busy ? <Spinner className="mr-2 inline-block size-4 align-[-0.125em]" /> : null}
                 <Figures text={lead} />
                 {rest ? (
                   <span className="mt-1 block text-base/7 text-muted">

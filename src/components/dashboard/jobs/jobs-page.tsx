@@ -15,9 +15,10 @@ import { Button } from "@/components/ui/button";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import type { JobMatchesResponse, MatchedJob } from "@/lib/api/types";
 import { isProfileStarted } from "@/lib/eligibility/profile";
-import { roleOptions } from "@/lib/job-feed/looking-for";
+import { searchingLine } from "@/lib/job-feed/looking-for";
 import { MAX_JOB_PAGE, NO_CHOICE, type LookingForChoice } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import { jobsWorkPromptShows } from "@/lib/setup/checklist";
@@ -169,6 +170,12 @@ export function JobsPage() {
   if (data && locked && data.openJobs > 0) {
     message = OTTO.jobs.found(data.matching, data.jobs.length, 0, 0);
   }
+  // A new choice, filter or page keeps the last list up while it loads, so Otto says what it's reading.
+  const refreshing = state.status === "loading" && data !== null && view === "matches";
+  const occupation =
+    data?.lookingFor?.title === lookingFor?.title ? (data?.occupation?.name ?? null) : null;
+  if (refreshing && lookingFor)
+    message = searchingLine(lookingFor, occupation, choice.role !== null);
   const checked = data ? checkedLabel(data.checkedAt, now) : null;
   const meta = data
     ? [`${count.format(data.openJobs)} open jobs`, checked ? `checked ${checked}` : null]
@@ -188,9 +195,10 @@ export function JobsPage() {
       <LookingForCard
         tone="inset"
         value={lookingFor}
-        occupation={data?.lookingFor?.title === lookingFor.title ? (data.occupation ?? null) : null}
+        occupation={
+          data?.lookingFor?.title === lookingFor.title ? (data?.occupation ?? null) : null
+        }
         choice={choice}
-        roles={data?.roles ?? roleOptions(profile).map((role) => ({ ...role, occupation: null }))}
         country={work.status === "ready" ? work.profile.country : ""}
         saving={savingChoice}
         onChange={(next) => void changeLookingFor(next)}
@@ -208,6 +216,7 @@ export function JobsPage() {
           message={message}
           meta={meta}
           loading={waiting}
+          busy={refreshing}
           className={waiting ? "max-sm:hidden" : undefined}
         >
           {lookingForLine ?? (waiting && view === "matches" ? <LookingForSkeleton /> : null)}
@@ -300,7 +309,13 @@ export function JobsPage() {
         ) : (
           <>
             <h2 className="sr-only">{view === "saved" ? "Saved jobs" : "Your matches"}</h2>
-            <ul aria-busy={state.status === "loading"} className="flex flex-col gap-4">
+            <ul
+              aria-busy={state.status === "loading"}
+              className={cn(
+                "flex flex-col gap-4 motion-safe:transition-opacity",
+                refreshing && "pointer-events-none opacity-50",
+              )}
+            >
               {data.jobs.map((job, index) => {
                 const label = labels.get(job.id);
                 return (

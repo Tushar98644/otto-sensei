@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
-import { lookingForOf, roleOptions } from "@/lib/job-feed/looking-for";
+import { lookingForOf } from "@/lib/job-feed/looking-for";
 import { matchProfileOf } from "@/lib/job-feed/profile";
 import type { LookingForChoice, MatchProfile } from "@/lib/job-feed/types";
 import { ownResumes } from "@/lib/setup/checklist";
@@ -27,16 +27,15 @@ export function LookingForSettingsCard() {
   const titleId = useId();
   const resumes = useResumeList();
   const own = useMemo(() => ownResumes(resumes), [resumes]);
-  const base = useMemo(() => own.find((resume) => resume.id === defaultResumeId(own)) ?? null, [own]);
+  const base = useMemo(
+    () => own.find((resume) => resume.id === defaultResumeId(own)) ?? null,
+    [own],
+  );
   const now = useNow();
   const day = now === 0 ? 0 : Math.floor(now / DAY_MS);
   const match = useMemo(
     () => (base && day > 0 ? matchProfileOf(base, day * DAY_MS) : NO_MATCH),
     [base, day],
-  );
-  const roles = useMemo(
-    () => roleOptions(match).map((role) => ({ ...role, occupation: null })),
-    [match],
   );
   const [saving, setSaving] = useState(false);
   if (work.status === "unknown" || work.status === "signed_out") return null;
@@ -87,7 +86,6 @@ export function LookingForSettingsCard() {
           value={lookingForOf(match, work.profile, work.lookingFor)}
           occupation={null}
           choice={work.lookingFor}
-          roles={roles}
           country={work.profile.country}
           saving={saving}
           onChange={(next) => void change(work.userId, next)}
