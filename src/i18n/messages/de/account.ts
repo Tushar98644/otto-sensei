@@ -33,7 +33,7 @@ export default {
   },
   tabs: {
     label: "Konto",
-    plan: "Tarif & Abrechnung",
+    plan: "Tarif & Zahlung",
     preferences: "Einstellungen",
     profile: "Profil",
   },

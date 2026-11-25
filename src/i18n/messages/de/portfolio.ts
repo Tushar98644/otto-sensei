@@ -64,7 +64,7 @@ export default {
     undo: "Rückgängig",
     failed: "Etwas ist schiefgelaufen. Versuch es noch einmal.",
   },
-  tabs: { design: "Design", content: "Inhalt", sections: "Abschnitte", settings: "Einstellungen" },
+  tabs: { design: "Design", content: "Inhalt", sections: "Bereiche", settings: "Optionen" },
   editLabel: "Dein Portfolio bearbeiten",
   offer: {
     title: "Stattdessen „{name}“ zeigen?",

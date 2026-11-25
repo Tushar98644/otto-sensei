@@ -33,7 +33,7 @@ export default {
   },
   tabs: {
     label: "Compte",
-    plan: "Forfait et facturation",
+    plan: "Abonnement",
     preferences: "Préférences",
     profile: "Profil",
   },
