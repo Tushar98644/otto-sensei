@@ -4,6 +4,8 @@ import type { Translation } from "../../types";
 // Words shared by every page, in Brazilian Portuguese.
 export default {
   skipToContent: "Pular para o conteúdo",
+  otto: "Otto, a lontra",
+  video: { play: "Reproduzir", pause: "Pausar" },
   brand: {
     tagline: "Toda a sua busca de emprego, em um só lugar.",
     description:

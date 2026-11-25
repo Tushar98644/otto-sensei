@@ -17,6 +17,8 @@ export type DialogProps = {
   footer?: ReactNode;
   illustration?: ReactNode;
   size?: DialogSize;
+  // The close button's name; English unless the page passes its language's.
+  closeLabel?: string;
   className?: string;
 };
 
@@ -35,6 +37,7 @@ export function Dialog({
   footer,
   illustration,
   size = "md",
+  closeLabel = "Close",
   className,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -137,7 +140,7 @@ export function Dialog({
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Close"
+            aria-label={closeLabel}
             onClick={() => onOpenChange(false)}
             className="absolute top-3 right-3 text-muted hover:text-ink sm:top-4 sm:right-4"
           >

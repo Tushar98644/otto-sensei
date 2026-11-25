@@ -28,6 +28,8 @@ export type FormatImageProps = {
   sizes: string;
   decoding?: "async" | "sync";
   loading?: "lazy" | "eager";
+  // The page's own words for the picture; English by default.
+  alt?: string;
   className?: string;
 };
 
@@ -36,6 +38,7 @@ export function FormatImage({
   sizes,
   decoding = "async",
   loading,
+  alt,
   className,
 }: FormatImageProps) {
   return (
@@ -48,7 +51,7 @@ export function FormatImage({
       height={HEIGHT}
       decoding={decoding}
       loading={loading}
-      alt={`Page 1 of a sample resume in the ${info.name} format`}
+      alt={alt ?? `Page 1 of a sample resume in the ${info.name} format`}
       className={cn("h-auto w-full bg-surface", className)}
     />
   );

@@ -1,12 +1,16 @@
+import { fmt } from "@/i18n/format";
+import type ENGLISH from "@/i18n/messages/en/ats";
+import type { Translation } from "@/i18n/types";
 import { hiringSystemOf } from "@/lib/ats/detect";
 import type { HiringSystemId } from "@/lib/ats/types";
 
 export type JobLinkRead =
-  | { kind: "empty" }
-  | { kind: "unknown" }
-  | { kind: "system"; id: HiringSystemId };
+  { kind: "empty" } | { kind: "unknown" } | { kind: "system"; id: HiringSystemId };
 
 export type SystemNames = Readonly<Record<HiringSystemId, string>>;
+
+// The job link check's words: the ats namespace in the page's language.
+export type JobLinkWords = Translation<typeof ENGLISH.jobLink>;
 
 const LOOKS_LIKE_LINK = /^\S+\.[a-z]{2,}(?:[/?#:]\S*)?$/i;
 
@@ -18,12 +22,15 @@ export function readJobLink(value: string): JobLinkRead {
   return LOOKS_LIKE_LINK.test(text) ? { kind: "unknown" } : { kind: "empty" };
 }
 
-export function jobLinkLine(read: JobLinkRead, guide: HiringSystemId, names: SystemNames): string {
+export function jobLinkLine(
+  read: JobLinkRead,
+  guide: HiringSystemId,
+  names: SystemNames,
+  t: JobLinkWords,
+): string {
   const name = names[guide];
-  if (read.kind === "empty") return `Paste a job link and I'll tell you if the job uses ${name}.`;
-  if (read.kind === "unknown") {
-    return "I can't tell the hiring system from this link. The general advice below still applies.";
-  }
-  if (read.id === guide) return `This job uses ${name}, so the notes on this page apply to it.`;
-  return `This job uses ${names[read.id]}, not ${name}. Its own guide has the notes for it.`;
+  if (read.kind === "empty") return fmt(t.empty, { name });
+  if (read.kind === "unknown") return t.unknown;
+  if (read.id === guide) return fmt(t.same, { name });
+  return fmt(t.other, { name, other: names[read.id] });
 }

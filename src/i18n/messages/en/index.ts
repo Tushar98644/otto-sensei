@@ -3,7 +3,9 @@ import accountMenu from "./account-menu";
 import api from "./api";
 import app from "./app";
 import applications from "./applications";
+import ats from "./ats";
 import common from "./common";
+import compare from "./compare";
 import dashboard from "./dashboard";
 import email from "./email";
 import emails from "./emails";
@@ -22,6 +24,8 @@ import portfolio from "./portfolio";
 import prep from "./prep";
 import pricing from "./pricing";
 import product from "./product";
+import resumeExamples from "./resume-examples";
+import resumeTemplates from "./resume-templates";
 import seo from "./seo";
 import site from "./site";
 import studio from "./studio";
@@ -37,7 +41,9 @@ const en = {
   api,
   app,
   applications,
+  ats,
   common,
+  compare,
   dashboard,
   email,
   emails,
@@ -56,6 +62,8 @@ const en = {
   prep,
   pricing,
   product,
+  resumeExamples,
+  resumeTemplates,
   seo,
   site,
   studio,

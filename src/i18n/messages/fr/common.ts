@@ -4,6 +4,8 @@ import type { Translation } from "../../types";
 // Words shared by every page, in French.
 export default {
   skipToContent: "Aller au contenu",
+  otto: "Otto la loutre",
+  video: { play: "Lecture", pause: "Pause" },
   brand: {
     tagline: "Toute ta recherche d'emploi, au même endroit.",
     description:

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { ProMark } from "@/components/ui/pro-mark";
+import { fmt } from "@/i18n/format";
 import type { TemplateInfo } from "@/lib/pdf/templates";
 import { FormatImage, PREVIEW_SIZES } from "./format-image";
 
@@ -14,6 +15,9 @@ export type FormatPreviewDialogProps = {
   ready: boolean;
   opening?: boolean;
   onUse: (info: TemplateInfo) => void;
+  // A page in another language passes its own; the image's takes {name}.
+  closeLabel?: string;
+  imageAlt?: string;
 };
 
 export function FormatPreviewDialog({
@@ -24,6 +28,8 @@ export function FormatPreviewDialog({
   ready,
   opening = false,
   onUse,
+  closeLabel = "Close",
+  imageAlt,
 }: FormatPreviewDialogProps) {
   return (
     <Dialog
@@ -32,6 +38,7 @@ export function FormatPreviewDialog({
         if (!open) onClose();
       }}
       size="lg"
+      closeLabel={closeLabel}
       title={
         <span className="flex items-center gap-2">
           {info?.name}
@@ -43,7 +50,7 @@ export function FormatPreviewDialog({
         info ? (
           <>
             <Button variant="ghost" onClick={onClose}>
-              Close
+              {closeLabel}
             </Button>
             <Button onClick={() => onUse(info)} disabled={!ready} loading={opening} data-autofocus>
               {actionLabel}
@@ -58,6 +65,7 @@ export function FormatPreviewDialog({
             info={info}
             sizes={PREVIEW_SIZES}
             decoding="sync"
+            alt={imageAlt ? fmt(imageAlt, { name: info.name }) : undefined}
             className="mx-auto max-h-[65dvh] w-auto max-w-full shadow-page"
           />
         </div>

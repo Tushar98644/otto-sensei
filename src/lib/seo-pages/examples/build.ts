@@ -1,3 +1,4 @@
+import type { ContentLang } from "@/lib/i18n/languages";
 import {
   DEFAULT_SECTION_ORDER,
   newBullet,
@@ -40,6 +41,8 @@ export type ResumeInput = {
   certifications?: readonly Omit<Certification, "id">[];
   sectionOrder?: readonly SectionKey[];
   template: TemplateId;
+  // Set on a translated example; an English one is detected as English, as before.
+  lang?: ContentLang;
 };
 
 const bullets = (lines: readonly string[] = []) => lines.map((text) => newBullet(text));
@@ -85,6 +88,7 @@ export function buildResume(input: ResumeInput, now = Date.now()): Resume {
     tailor: null,
     template: input.template,
     extras: [],
+    ...(input.lang ? { lang: input.lang } : {}),
     createdAt: now,
     updatedAt: now,
   };

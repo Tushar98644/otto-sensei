@@ -1,6 +1,6 @@
 import type { RoleExample } from "../types";
 
-export const qaEngineer: RoleExample = {
+export const qaEngineer = {
   slug: "qa-engineer",
   role: "QA engineer",
   occupation: "15-1253.00",
@@ -153,4 +153,4 @@ export const qaEngineer: RoleExample = {
     },
   ],
   related: ["software-engineer", "devops-engineer", "frontend-developer"],
-};
+} as const satisfies RoleExample;
