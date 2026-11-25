@@ -202,6 +202,7 @@ const EN_US_ALLOWED = [
   "src/components/dashboard/applications/view.ts",
   "src/lib/analytics/**",
   "src/lib/calendar/zones.ts",
+  "src/lib/career-log/schedule.ts",
   "src/lib/eligibility/profile.ts",
   "src/lib/eligibility/time.ts",
   "src/lib/portfolio/places.ts",
@@ -215,11 +216,9 @@ const EN_US_ALLOWED = [
   "src/lib/seo-pages/**",
   // Still English: the leftover sweep didn't reach these yet (docs/i18n.md, Known gaps).
   "src/components/account/pro-perks.tsx",
-  "src/components/dashboard/letters/letter-paper.tsx",
   "src/components/portfolio/templates/**",
   "src/components/recap/**",
   "src/lib/recap/**",
-  "src/lib/career-log/**",
 ];
 
 const UNFILTERED = ":not(MemberExpression[property.name=/^(where|from)$/]) >";
