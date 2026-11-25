@@ -71,7 +71,7 @@ function focusAddSection() {
 export const ExtrasArea = memo(function ExtrasArea({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => extrasOf(resume));
   const full = ids.length >= LIST_LIMITS.extraSections;
-  const t = useMessages("studioEditor").extras;
+  const t = useMessages("studioSections").extras;
 
   function add(kind: ExtraKind) {
     const section = newExtraSection(kind);
@@ -140,12 +140,13 @@ const ExtraSectionCard = memo(function ExtraSectionCard({
 }: ExtraSectionCardProps) {
   const meta = useExtraSectionMeta(resumeId, sectionId);
   const editor = useMessages("studioEditor");
+  const extras = useMessages("studioSections").extras;
   const format = useFormat();
   const question = useResumeValue(
     resumeId,
     (resume) => {
       const section = extrasOf(resume).find((item) => item.id === sectionId);
-      return section ? removeSectionQuestion(section, extraForms(editor.extras), format) : null;
+      return section ? removeSectionQuestion(section, extraForms(extras), format) : null;
     },
     null,
   );
@@ -218,7 +219,7 @@ const ExtraItems = memo(function ExtraItems({
     resumeId,
     (resume) => extrasOf(resume).find((section) => section.id === sectionId)?.items ?? [],
   );
-  const form = extraForms(useMessages("studioEditor").extras)[kind];
+  const form = extraForms(useMessages("studioSections").extras)[kind];
   const addId = addButtonId(`extra-${sectionId}`);
 
   function add() {

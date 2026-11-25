@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { createSampleResume } from "@/lib/resume/sample";
-import { DASHBOARD_COPY, dashboardStops, setupStopCopy, STUDIO_COPY, studioStops } from "./stops";
+import { EN, EN_FORMAT } from "@/components/studio/testing";
+import { dashboardStops, setupStopCopy, studioStops } from "./stops";
+
+const copy = EN.onboarding;
 
 const words = (text: string) => text.trim().split(/\s+/).length;
 
 describe("tour copy", () => {
   const all = [
-    ...Object.values(STUDIO_COPY),
-    ...Object.values(DASHBOARD_COPY),
-    ...[1, 3, 4, 5].map(setupStopCopy),
+    ...Object.values(copy.studio),
+    ...Object.values(copy.dashboard).filter((stop) => "body" in stop),
+    ...[null, 1, 3, 4, 5].map((steps) => setupStopCopy(copy, EN_FORMAT, steps)),
   ];
 
   it("keeps Otto's lines short and calm", () => {
@@ -27,6 +30,7 @@ describe("studioStops", () => {
       resume: createSampleResume(),
       hasReport: true,
       setStep: () => {},
+      copy,
     });
     expect(stops?.map((stop) => [stop.id, stop.screen])).toEqual([
       ["read-text", "review"],
@@ -43,6 +47,7 @@ describe("studioStops", () => {
       resume: createSampleResume(),
       hasReport: true,
       setStep: (step) => steps.push(step),
+      copy,
     });
     stops?.[1]?.enter?.();
     stops?.[0]?.enter?.();
@@ -52,7 +57,7 @@ describe("studioStops", () => {
 
 describe("dashboardStops", () => {
   it("covers setup, Home, every main section and the win rate on one screen", () => {
-    const stops = dashboardStops();
+    const stops = dashboardStops({ copy, format: EN_FORMAT });
     expect(stops.map((stop) => stop.id)).toEqual([
       "setup",
       "actions",
@@ -68,11 +73,11 @@ describe("dashboardStops", () => {
 
   it("counts the setup steps the card really shows", () => {
     const body = (setupSteps: number | null) =>
-      dashboardStops({ setupSteps }).find((stop) => stop.id === "setup")?.body;
+      dashboardStops({ setupSteps, copy, format: EN_FORMAT }).find((stop) => stop.id === "setup")?.body;
     expect(body(3)).toContain("Your 3 setup steps tick themselves off.");
     expect(body(4)).toContain("Your 4 setup steps");
     expect(body(1)).toContain("Your 1 setup step ticks itself off.");
     expect(body(null)).not.toMatch(/\d|five/i);
-    expect(dashboardStops().find((stop) => stop.id === "setup")?.body).toBe(body(null));
+    expect(dashboardStops({ copy, format: EN_FORMAT }).find((stop) => stop.id === "setup")?.body).toBe(body(null));
   });
 });

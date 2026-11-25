@@ -60,7 +60,7 @@ export function setSectionHidden(resume: Resume, key: SectionKey, hidden: boolea
   return { ...resume, hiddenSections: next.length > 0 ? next : undefined };
 }
 
-type Counts = { t: Messages["studioEditor"]; format: Format };
+type Counts = { t: Messages["studioSections"]; format: Format };
 
 function countOf({ t, format }: Counts, count: number, forms: PluralForms, hidden = 0): string {
   if (count === 0) return t.extras.noneYet;

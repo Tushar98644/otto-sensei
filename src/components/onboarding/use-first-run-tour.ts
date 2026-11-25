@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent } from "react";
 import { loadingScreenUp } from "@/components/mascot/otto-loading-screen";
 import { browserStorage } from "@/lib/browser-storage";
+import type { TourCopy } from "./stops";
 import { hasSeenTour, markTourSeen, replayRequested, tourDue } from "./seen";
 import type { TourName, TourStop } from "./tours";
 
@@ -15,9 +16,11 @@ const replayed = new Set<TourName>();
 export function useFirstRunTour(
   name: TourName,
   eligible: boolean,
+  copy: TourCopy,
   prepare: () => Promise<readonly TourStop[] | null>,
 ): void {
   const prepareStops = useEffectEvent(prepare);
+  const labels = useEffectEvent(() => copy.tip);
 
   useEffect(() => {
     if (!eligible || active) return;
@@ -38,6 +41,7 @@ export function useFirstRunTour(
       let ended = false;
       const stop = runner.startTour({
         stops,
+        labels: labels(),
         onShown: () => {
           replayed.add(name);
           markTourSeen(storage, name);

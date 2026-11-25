@@ -5,14 +5,20 @@ import { createRoot, type Root } from "react-dom/client";
 import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { fitsBand, placeTip, visibleBand, type Placement } from "./place";
 import type { StopShape, TourStop } from "./tours";
 import "./tour.css";
 
 export type TourEnd = { finished: boolean; reached: number; total: number };
 
+// The tip card renders in its own React root, outside any messages provider, so its words come in here.
+export type TourLabels = Messages["onboarding"]["tip"];
+
 export type StartTourOptions = {
   stops: readonly TourStop[];
+  labels: TourLabels;
   onShown: () => void;
   onEnd: (end: TourEnd) => void;
 };
@@ -29,6 +35,7 @@ const RING: Record<StopShape, { padding: number; radius: string }> = {
 
 export function startTour({
   stops: planned,
+  labels,
   onShown,
   onEnd,
 }: StartTourOptions): (() => void) | null {
@@ -127,6 +134,7 @@ export function startTour({
         target={target}
         position={at + 1}
         total={stops.length}
+        labels={labels}
         onBack={at > 0 ? () => void go(at - 1) : null}
         onNext={() => void go(at + 1)}
         onSkip={() => end(false)}
@@ -145,12 +153,13 @@ type TipProps = {
   target: Element;
   position: number;
   total: number;
+  labels: TourLabels;
   onBack: (() => void) | null;
   onNext: () => void;
   onSkip: () => void;
 };
 
-function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps) {
+function Tip({ stop, target, position, total, labels, onBack, onNext, onSkip }: TipProps) {
   const card = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<Placement | null>(null);
   const last = position === total;
@@ -212,8 +221,8 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm/5 text-subtle tabular-nums">
-              <span className="font-medium text-ink">{BRAND.mascotName}</span> · {position} of{" "}
-              {total}
+              <span className="font-medium text-ink">{BRAND.mascotName}</span> ·{" "}
+              {fmt(labels.position, { position, total })}
             </p>
             <p id="otto-tip-title" className="mt-1 text-base/6 font-semibold text-ink">
               {stop.title}
@@ -230,17 +239,17 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {last ? null : (
             <Button variant="ghost" size="sm" onClick={onSkip} className="-ml-3 text-muted">
-              Skip tips
+              {labels.skip}
             </Button>
           )}
           <div className="ml-auto flex gap-2">
             {onBack ? (
               <Button variant="secondary" size="sm" onClick={onBack}>
-                Back
+                {labels.back}
               </Button>
             ) : null}
             <Button size="sm" onClick={onNext}>
-              {last ? "Got it" : "Next"}
+              {last ? labels.done : labels.next}
             </Button>
           </div>
         </div>

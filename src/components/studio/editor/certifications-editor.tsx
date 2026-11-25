@@ -20,7 +20,7 @@ export const CertificationsEditor = memo(function CertificationsEditor({
   resumeId: string;
 }) {
   const ids = useItemIds(resumeId, (resume) => resume.certifications);
-  const t = useMessages("studioEditor").certifications;
+  const t = useMessages("studioSections").certifications;
 
   function add() {
     const certification = newCertification();
@@ -63,7 +63,7 @@ const CertificationEntry = memo(function CertificationEntry({
     (resume) => resume.certifications.find((item) => item.id === entryId),
     undefined,
   );
-  const t = useMessages("studioEditor").certifications;
+  const t = useMessages("studioSections").certifications;
   if (!certification) return null;
 
   const update = (patch: Partial<Omit<Certification, "id" | "hidden">>) =>
@@ -126,7 +126,7 @@ function CertificationFields({
   firstFieldId: string;
   onChange: (patch: Partial<Omit<Certification, "id" | "hidden">>) => void;
 }) {
-  const t = useMessages("studioEditor").certifications;
+  const t = useMessages("studioSections").certifications;
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Field label={t.name} className="sm:col-span-2">

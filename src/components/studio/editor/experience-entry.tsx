@@ -69,8 +69,8 @@ export const ExperienceEntry = memo(function ExperienceEntry({
     (resume) => resume.experience.find((item) => item.id === entryId),
     undefined,
   );
-  const editor = useMessages("studioEditor");
-  const t = editor.experience;
+  const sections = useMessages("studioSections");
+  const t = sections.experience;
   const format = useFormat();
   if (!job) return null;
 
@@ -143,7 +143,7 @@ export const ExperienceEntry = memo(function ExperienceEntry({
         parentId={entryId}
         ownerHeadingId={grouped ? `${headingId} ${companyHeadingId(firstRoleId)}` : headingId}
         bullets={job.bullets}
-        title={editor.whatYouDid}
+        title={sections.whatYouDid}
         actions={
           offerRole ? (
             <AddRoleButton resumeId={resumeId} afterId={entryId} firstRoleId={firstRoleId} />
@@ -172,7 +172,7 @@ function CompanyHeader({
   canMoveUp: boolean;
   canMoveDown: boolean;
 }) {
-  const t = useMessages("studioEditor").experience;
+  const t = useMessages("studioSections").experience;
   const format = useFormat();
   return (
     <div className="group/company flex items-start gap-1 sm:-mr-3">
@@ -214,7 +214,7 @@ function AddRoleButton({
     (resume) => resume.experience.length >= LIST_LIMITS.experience,
     false,
   );
-  const t = useMessages("studioEditor").experience;
+  const t = useMessages("studioSections").experience;
 
   function add() {
     const job = newRole(company);
@@ -249,7 +249,7 @@ function ExperienceFields({
   firstFieldId: string;
   onChange: (patch: ExperiencePatch) => void;
 }) {
-  const t = useMessages("studioEditor").experience;
+  const t = useMessages("studioSections").experience;
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Field label={t.title}>

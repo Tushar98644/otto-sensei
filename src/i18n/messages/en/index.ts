@@ -8,6 +8,7 @@ import jobForm from "./jobForm";
 import jobs from "./jobs";
 import lint from "./lint";
 import login from "./login";
+import onboarding from "./onboarding";
 import portfolio from "./portfolio";
 import pricing from "./pricing";
 import product from "./product";
@@ -16,6 +17,7 @@ import site from "./site";
 import studio from "./studio";
 import studioDownload from "./studioDownload";
 import studioEditor from "./studioEditor";
+import studioSections from "./studioSections";
 import studioTailor from "./studioTailor";
 
 // The source of truth: every other locale is checked against these, key by key.
@@ -30,6 +32,7 @@ const en = {
   jobs,
   lint,
   login,
+  onboarding,
   portfolio,
   pricing,
   product,
@@ -38,6 +41,7 @@ const en = {
   studio,
   studioDownload,
   studioEditor,
+  studioSections,
   studioTailor,
 } as const;
 

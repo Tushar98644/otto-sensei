@@ -18,7 +18,7 @@ const ADD_ID = addButtonId("links");
 
 export function LinksEditor({ resumeId, links }: { resumeId: string; links: ResumeLink[] }) {
   const full = links.length >= LIST_LIMITS.links;
-  const t = useMessages("studioEditor").links;
+  const t = useMessages("studioSections").links;
 
   function setLinks(update: (current: ResumeLink[]) => ResumeLink[]) {
     editResume(resumeId, (resume) => ({

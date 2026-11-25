@@ -75,7 +75,7 @@ function FlashAnnouncer() {
 const BasicsCard = memo(function BasicsCard({ resumeId }: { resumeId: string }) {
   const name = useResumeValue(resumeId, (resume) => resume.basics.name.trim(), "");
   const hasEmail = useResumeValue(resumeId, (resume) => resume.basics.email.trim() !== "", false);
-  const t = useMessages("studioEditor");
+  const t = useMessages("studioSections");
   return (
     <SectionCard
       title={t.basics.section}

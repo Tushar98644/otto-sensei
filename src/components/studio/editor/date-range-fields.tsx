@@ -26,7 +26,7 @@ export function DateRangeFields({
 }: DateRangeFieldsProps) {
   const endRef = useRef<HTMLInputElement>(null);
   const present = isPresentDate(endDate);
-  const t = useMessages("studioEditor").dates;
+  const t = useMessages("studioSections").dates;
 
   function togglePresent(checked: boolean) {
     if (checked) {

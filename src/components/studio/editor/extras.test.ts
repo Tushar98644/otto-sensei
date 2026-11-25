@@ -38,7 +38,7 @@ function item(patch: Partial<ExtraItem> = {}): ExtraItem {
   return { ...newExtraItem(), ...patch };
 }
 
-const EXTRA_FORMS = extraForms(EN.studioEditor.extras);
+const EXTRA_FORMS = extraForms(EN.studioSections.extras);
 
 function withSections(...sections: ExtraSection[]): Resume {
   return { ...emptyResume(0), extras: sections };
@@ -48,7 +48,7 @@ describe("extra section copy", () => {
   it("has a form, a description and a starting title for every kind", () => {
     for (const kind of EXTRA_KINDS) {
       expect(EXTRA_FORMS[kind].addLabel).not.toBe("");
-      expect(EN.studioEditor.extras.kinds[kind].description).not.toBe("");
+      expect(EN.studioSections.extras.kinds[kind].description).not.toBe("");
       expect(defaultExtraTitle(kind)).toBe(newExtraSection(kind).title);
     }
     expect(defaultExtraTitle("languages")).toBe("Languages");
@@ -203,9 +203,9 @@ describe("removeSectionQuestion", () => {
 describe("extraCount", () => {
   it("counts items and says how many are hidden", () => {
     const section = newExtraSection("languages");
-    expect(extraCount({ ...section, items: [] }, EN.studioEditor.extras, EN_FORMAT)).toBe("None yet");
-    expect(extraCount({ ...section, items: [item(), item()] }, EN.studioEditor.extras, EN_FORMAT)).toBe("2 languages");
-    expect(extraCount({ ...section, items: [item(), item({ hidden: true })] }, EN.studioEditor.extras, EN_FORMAT)).toBe(
+    expect(extraCount({ ...section, items: [] }, EN.studioSections.extras, EN_FORMAT)).toBe("None yet");
+    expect(extraCount({ ...section, items: [item(), item()] }, EN.studioSections.extras, EN_FORMAT)).toBe("2 languages");
+    expect(extraCount({ ...section, items: [item(), item({ hidden: true })] }, EN.studioSections.extras, EN_FORMAT)).toBe(
       "2 languages · 1 hidden",
     );
   });

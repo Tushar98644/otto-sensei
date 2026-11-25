@@ -31,7 +31,7 @@ export function ChipsInput({
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const hintId = `${id}-hint`;
-  const t = useMessages("studioEditor").chipsInput;
+  const t = useMessages("studioSections").chipsInput;
 
   function commit(text: string) {
     const skills = splitSkills(text);

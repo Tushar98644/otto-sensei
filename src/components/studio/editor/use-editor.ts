@@ -140,7 +140,7 @@ export type SectionMeta = {
 const NO_META: SectionMeta = { title: "", count: null, needWork: 0, hidden: false };
 
 export function useSectionMeta(resumeId: string, key: SectionKey): SectionMeta {
-  const words = { t: useMessages("studioEditor"), format: useFormat() };
+  const words = { t: useMessages("studioSections"), format: useFormat() };
   return useStudioStore(
     useShallow((state) => {
       const resume = pickResume(state, resumeId);
@@ -160,7 +160,7 @@ export type ExtraSectionMeta = SectionMeta & { kind: ExtraKind };
 const NO_EXTRA_META: ExtraSectionMeta = { ...NO_META, kind: "custom" };
 
 export function useExtraSectionMeta(resumeId: string, sectionId: string): ExtraSectionMeta {
-  const t = useMessages("studioEditor").extras;
+  const t = useMessages("studioSections").extras;
   const format = useFormat();
   return useStudioStore(
     useShallow((state) => {

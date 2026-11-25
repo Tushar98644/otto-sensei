@@ -23,7 +23,7 @@ export const ExperienceEditor = memo(function ExperienceEditor({ resumeId }: { r
   );
   const units = useMemo(() => parseRoleLayout(layout), [layout]);
   const total = units.reduce((sum, ids) => sum + ids.length, 0);
-  const t = useMessages("studioEditor").experience;
+  const t = useMessages("studioSections").experience;
 
   function add() {
     const job = newExperience();

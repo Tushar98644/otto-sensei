@@ -47,7 +47,7 @@ export const ExtraItemEntry = memo(function ExtraItemEntry({
     (resume) => itemsOf(resume, sectionId).find((entry) => entry.id === entryId),
     undefined,
   );
-  const t = useMessages("studioEditor").extras;
+  const t = useMessages("studioSections").extras;
   const format = useFormat();
   if (!item) return null;
 
@@ -117,7 +117,7 @@ function ExtraItemFields({
   firstFieldId: string;
   onChange: (patch: ItemPatch) => void;
 }) {
-  const t = useMessages("studioEditor").extras;
+  const t = useMessages("studioSections").extras;
   const date = form.date ?? (item.date.trim() ? { label: t.date, placeholder: "" } : null);
   const detail = form.detail ?? (item.detail.trim() ? { label: t.details, placeholder: "" } : null);
   return (

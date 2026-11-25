@@ -16,7 +16,7 @@ type BasicsText = Partial<Omit<Basics, "links">>;
 export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: string }) {
   const basics = useResumeValue(resumeId, (resume) => resume.basics, undefined);
   const [checkEmail, setCheckEmail] = useState(false);
-  const t = useMessages("studioEditor").basics;
+  const t = useMessages("studioSections").basics;
   if (!basics) return null;
 
   // An email field drops a trailing space, so typing one can change nothing.

@@ -18,7 +18,7 @@ const ADD_ID = addButtonId("education");
 
 export const EducationEditor = memo(function EducationEditor({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => resume.education);
-  const t = useMessages("studioEditor").education;
+  const t = useMessages("studioSections").education;
 
   function add() {
     const school = newEducation();
@@ -73,7 +73,7 @@ const EducationEntry = memo(function EducationEntry({
     (resume) => resume.education.find((item) => item.id === entryId),
     undefined,
   );
-  const t = useMessages("studioEditor").education;
+  const t = useMessages("studioSections").education;
   if (!school) return null;
 
   const headingId = entryFieldId(entryId, "heading");

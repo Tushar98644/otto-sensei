@@ -26,7 +26,7 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
   const ids = useItemIds(resumeId, (resume) => resume.projects);
   const username = useResumeValue(resumeId, usernameFromResume, "");
   const upFront = useResumeValue(resumeId, offersGitHubImport, false);
-  const t = useMessages("studioEditor").projects;
+  const t = useMessages("studioSections").projects;
 
   function add() {
     const project = newProject();
@@ -70,7 +70,7 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
 });
 
 function removeQuestion(
-  t: Messages["studioEditor"]["projects"],
+  t: Messages["studioSections"]["projects"],
   format: Format,
   project: Project,
 ): string | null {
@@ -86,8 +86,8 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
     (resume) => resume.projects.find((item) => item.id === entryId),
     undefined,
   );
-  const editor = useMessages("studioEditor");
-  const t = editor.projects;
+  const sections = useMessages("studioSections");
+  const t = sections.projects;
   const format = useFormat();
   if (!project) return null;
 
@@ -178,7 +178,7 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
         parentId={entryId}
         ownerHeadingId={headingId}
         bullets={project.bullets}
-        title={editor.whatYouDid}
+        title={sections.whatYouDid}
       />
     </EntryShell>
   );

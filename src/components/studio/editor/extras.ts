@@ -19,7 +19,7 @@ import { cleanSectionTitle } from "./sections";
 
 type FieldCopy = { label: string; placeholder: string };
 
-export type ExtrasCopy = Messages["studioEditor"]["extras"];
+export type ExtrasCopy = Messages["studioSections"]["extras"];
 
 export type ExtraForm = {
   addLabel: string;

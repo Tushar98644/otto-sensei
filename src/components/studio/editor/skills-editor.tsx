@@ -20,7 +20,7 @@ const ADD_ID = addButtonId("skills");
 export const SkillsEditor = memo(function SkillsEditor({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => resume.skills);
 
-  const t = useMessages("studioEditor").skills;
+  const t = useMessages("studioSections").skills;
 
   function add() {
     const group = newSkillGroup("");
@@ -63,7 +63,7 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
     (resume) => resume.skills.find((item) => item.id === entryId),
     undefined,
   );
-  const t = useMessages("studioEditor").skills;
+  const t = useMessages("studioSections").skills;
   const format = useFormat();
   if (!group) return null;
 
