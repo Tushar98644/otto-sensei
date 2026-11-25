@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { requirePublished } from "@/i18n/publish";
 import { SEO_PATHS } from "@/lib/seo-pages/paths";
 
-// English until translated (P5): another language's /resume-templates is a 404.
+// Published per language with its namespace (src/i18n/pages.ts); elsewhere /resume-templates is that language's 404.
 export default async function ResumeTemplatesLayout({ children }: { children: ReactNode }) {
   await requirePublished(SEO_PATHS.resumeTemplates);
   return children;

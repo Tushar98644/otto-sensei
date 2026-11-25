@@ -14,7 +14,8 @@ import { rich } from "@/i18n/rich";
 import { getFormat, getLocale, getMessages } from "@/i18n/server";
 import { trialOffered } from "@/lib/billing/intervals";
 import { faqJsonLd } from "@/lib/seo/json-ld";
-import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
+import type { RoleExample } from "@/lib/seo-pages/examples";
+import { examplesIn } from "@/lib/seo-pages/locales/examples";
 import { RESUME_BUILDER_PAGE, RESUME_EXAMPLES_PAGE } from "@/lib/seo-pages/pages";
 import { SEO_PATHS } from "@/lib/seo-pages/paths";
 import { cn } from "@/lib/utils";
@@ -130,8 +131,18 @@ function ClosingPanel({ t, href }: { t: BuilderMessages["closing"]; href: Locali
   );
 }
 
-// English P5 content: shown only where the examples are published.
-function Examples({ t, format, href }: { t: BuilderMessages; format: Format; href: Localize }) {
+// Shown only where the examples are published, in that language.
+function Examples({
+  t,
+  format,
+  href,
+  examples,
+}: {
+  t: BuilderMessages;
+  format: Format;
+  href: Localize;
+  examples: readonly RoleExample[];
+}) {
   const all = (chunk: string) => (
     <TextLink href={href(RESUME_EXAMPLES_PAGE.path)}>{chunk}</TextLink>
   );
@@ -141,9 +152,9 @@ function Examples({ t, format, href }: { t: BuilderMessages; format: Format; hre
         {t.examplesTitle}
       </h2>
       <p className="mt-4 max-w-prose text-base/7 text-pretty text-muted">
-        {rich(t.examplesIntro, { link: all }, { count: format.number(ROLE_EXAMPLES.length) })}
+        {rich(t.examplesIntro, { link: all }, { count: format.number(examples.length) })}
       </p>
-      <ExampleCards examples={ROLE_EXAMPLES.slice(0, SHOWN_EXAMPLES)} className="mt-8" />
+      <ExampleCards examples={examples.slice(0, SHOWN_EXAMPLES)} href={href} className="mt-8" />
     </section>
   );
 }
@@ -228,7 +239,9 @@ export default async function ResumeBuilderPage() {
         <NoteRows notes={content.india} className="mt-8" />
       </section>
 
-      {examples ? <Examples t={page} format={format} href={href} /> : null}
+      {examples ? (
+        <Examples t={page} format={format} href={href} examples={await examplesIn(locale)} />
+      ) : null}
 
       <section
         aria-labelledby="builder-faq-title"

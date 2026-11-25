@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { pageMetadata, type PageMetadataOptions } from "@/components/site/page-metadata";
 import { BRAND } from "@/config/brand";
 import { ENABLED_LOCALES, isEnabledLocale, type Locale } from "./config";
-import { loadMessages, translationsFor } from "./messages";
+import { loadMessages, translationsFor, type Namespace } from "./messages";
 import {
   localizer,
   PAGE_KEYS,
@@ -15,14 +15,19 @@ import {
 } from "./pages";
 import { getLocale } from "./server";
 
+// The pages a set of translated namespaces publishes: those whose namespaces are all in it.
+export function pagesTranslatedIn(translated: ReadonlySet<Namespace>): ReadonlySet<PageKey> {
+  return new Set(
+    PAGE_KEYS.filter((key) => pageNamespaces(key).every((namespace) => translated.has(namespace))),
+  );
+}
+
 // The public pages a locale serves: every one in English, else those whose namespaces are all translated.
 export async function publishedPages(locale: Locale): Promise<ReadonlySet<PageKey>> {
   if (!isEnabledLocale(locale)) return new Set();
   if (locale === "en") return new Set(PAGE_KEYS);
   const translated = await translationsFor(locale);
-  return new Set(
-    PAGE_KEYS.filter((key) => pageNamespaces(key).every((namespace) => namespace in translated)),
-  );
+  return pagesTranslatedIn(new Set(Object.keys(translated) as Namespace[]));
 }
 
 export async function isPublished(locale: Locale, path: string): Promise<boolean> {

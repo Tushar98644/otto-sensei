@@ -9,6 +9,7 @@ import { users } from "@/db/schema";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { createPortfolio, updatePortfolio } from "@/lib/portfolio/records";
 import { sampleResume } from "@/lib/portfolio/testing";
+import { INDEXED_ATS_GUIDES } from "@/lib/seo-pages/ats";
 import { COMPETITORS } from "@/lib/seo-pages/compare";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { PRODUCT_PAGES_UPDATED, SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
@@ -160,15 +161,29 @@ describe("sitemap", () => {
     }
   });
 
-  it("never lists a page in a language it isn't published in", () => {
+  it("lists every indexable page once in each language, the guides (P5) included, and never sign-in", () => {
     const paths = SITEMAP.map((entry) => pathOf(entry.url));
-    for (const path of paths.filter((path) => TRANSLATED.test(path))) {
-      expect(path).not.toMatch(/\/(compare|ats|resume-examples|resume-templates|login)(\/|$)/);
+    expect(new Set(paths).size).toBe(paths.length);
+    for (const prefix of ["/es", "/pt-br", "/fr", "/de"]) {
+      const own = paths.filter((path) => path === prefix || path.startsWith(`${prefix}/`));
+      expect(own, prefix).toHaveLength(entries.length);
+      const area = (name: string) => own.filter((path) => path.startsWith(`${prefix}/${name}`));
+      expect(area("compare/"), prefix).toHaveLength(COMPARISONS.length);
+      expect(area("compare"), prefix).toHaveLength(COMPARISONS.length + 1);
+      expect(area("resume-examples/"), prefix).toHaveLength(ROLE_EXAMPLES.length);
+      expect(area("ats/"), prefix).toHaveLength(INDEXED_ATS_GUIDES.length);
+      expect(area("resume-templates"), prefix).toHaveLength(1);
+      expect(own).not.toContain(`${prefix}/login`);
     }
+    expect(SITEMAP).toHaveLength(entries.length * 5);
     for (const slug of COMPARISONS) {
       expect(
-        SITEMAP.find((entry) => pathOf(entry.url) === `/compare/${slug}`)?.alternates,
-      ).toBeUndefined();
+        SITEMAP.find((entry) => pathOf(entry.url) === `/es/compare/${slug}`)?.alternates?.languages,
+      ).toMatchObject({
+        en: absoluteUrl(`/compare/${slug}`),
+        es: absoluteUrl(`/es/compare/${slug}`),
+        "x-default": absoluteUrl(`/compare/${slug}`),
+      });
     }
   });
 

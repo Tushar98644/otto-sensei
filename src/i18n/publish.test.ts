@@ -4,9 +4,12 @@ import {
   isPublished,
   localizedMetadata,
   publishedLocales,
+  pagesTranslatedIn,
   publishedPages,
   requirePublished,
 } from "./publish";
+import { NAMESPACES, type Namespace } from "./messages";
+import { pageMetadata } from "@/components/site/page-metadata";
 import { setRootLang } from "./testing";
 
 afterEach(() => setRootLang("en"));
@@ -43,23 +46,60 @@ describe("the publishing gate", () => {
     expect(await isPublished("en", "/login/trial")).toBe(true);
   });
 
-  it("keeps the guides and sign-in English-only until their namespaces are translated", async () => {
+  it("publishes the guides (P5) in every language, each section with its whole page tree", async () => {
     for (const locale of ["es", "pt-BR", "fr", "de"] as const) {
-      for (const path of ["/compare/rezi", "/compare", "/ats/workday", "/resume-examples"]) {
-        expect(await isPublished(locale, path), `${locale} ${path}`).toBe(false);
+      for (const path of [
+        "/compare",
+        "/compare/rezi",
+        "/ats",
+        "/ats/workday",
+        "/resume-examples",
+        "/resume-examples/data-analyst",
+        "/resume-templates",
+        "/pricing",
+      ]) {
+        expect(await isPublished(locale, path), `${locale} ${path}`).toBe(true);
       }
-      expect(await isPublished(locale, "/resume-templates")).toBe(false);
-      expect(await isPublished(locale, "/login")).toBe(false);
-      expect(await isPublished(locale, "/pricing")).toBe(true);
     }
-    expect(await publishedLocales("/compare/rezi")).toEqual(["en"]);
+    expect(await publishedLocales("/compare/rezi")).toEqual(ALL);
     expect(await publishedLocales("/pricing")).toEqual(ALL);
     expect(await publishedLocales("/studio")).toEqual([]);
   });
 
-  it("answers an unpublished page with a 404 in that language only", async () => {
+  it("publishes each guide section on its own, once its namespace and the shared ones are translated", () => {
+    const all = new Set<Namespace>(NAMESPACES);
+    const without = (...missing: Namespace[]) =>
+      pagesTranslatedIn(new Set([...all].filter((namespace) => !missing.includes(namespace))));
+    const sections = ["/compare", "/ats", "/resume-examples", "/resume-templates"] as const;
+    const own = {
+      "/compare": "compare",
+      "/ats": "ats",
+      "/resume-examples": "resumeExamples",
+      "/resume-templates": "resumeTemplates",
+    } as const;
+    for (const section of sections) {
+      const published = without(own[section]);
+      expect(published.has(section), section).toBe(false);
+      for (const other of sections)
+        if (other !== section) expect(published.has(other), other).toBe(true);
+    }
+    for (const section of sections) expect(without("seo").has(section), section).toBe(false);
+    expect(without("lint").has("/resume-examples")).toBe(false);
+    expect(without("lint").has("/compare")).toBe(true);
+  });
+
+  it("keeps sign-in unpublished until the app's account namespace is translated", () => {
+    const all = new Set<Namespace>(NAMESPACES);
+    expect(pagesTranslatedIn(all).has("/login")).toBe(true);
+    expect(pagesTranslatedIn(new Set([...all].filter((n) => n !== "account"))).has("/login")).toBe(
+      false,
+    );
+  });
+
+  it("answers a page it doesn't publish with a 404, and serves the published ones", async () => {
     setRootLang("es");
-    await expect(requirePublished("/compare/rezi")).rejects.toThrow();
+    await expect(requirePublished("/nowhere")).rejects.toThrow();
+    await expect(requirePublished("/compare/rezi")).resolves.toBeUndefined();
     await expect(requirePublished("/pricing")).resolves.toBeUndefined();
     setRootLang("en");
     await expect(requirePublished("/compare/rezi")).resolves.toBeUndefined();
@@ -70,8 +110,8 @@ describe("the publishing gate", () => {
     expect(href("/pricing")).toBe("/es/pricing");
     expect(href("/")).toBe("/es");
     expect(href("/#how")).toBe("/es#how");
-    expect(href("/compare")).toBe("/compare");
-    expect(href("/login")).toBe("/login");
+    expect(href("/compare/rezi")).toBe("/es/compare/rezi");
+    expect(href("/resume-examples/hr")).toBe("/es/resume-examples/hr");
     expect(href("/studio")).toBe("/studio");
     expect(href("/dashboard/jobs")).toBe("/dashboard/jobs");
     expect(href("https://example.com/x")).toBe("https://example.com/x");
@@ -112,8 +152,8 @@ describe("page metadata per language", () => {
     expect(meta.openGraph).toMatchObject({ locale: "en_US", url: "/pricing" });
   });
 
-  it("lists no other language for a page that's only in English", async () => {
-    const meta = await localizedMetadata({ ...options, path: "/compare" });
+  it("lists no other language for a page that's only in English", () => {
+    const meta = pageMetadata({ ...options, path: "/compare", locale: "en", locales: ["en"] });
     expect(meta.alternates).toEqual({ canonical: "/compare" });
     expect(meta.openGraph).not.toHaveProperty("alternateLocale");
   });

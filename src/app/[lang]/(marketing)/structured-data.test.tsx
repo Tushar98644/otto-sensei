@@ -11,9 +11,9 @@ import { COMPETITORS } from "@/lib/seo-pages/compare";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { generateMetadata as acceptableUseMetadata } from "./acceptable-use/page";
 import AtsGuidePage, { generateMetadata as guideMetadata } from "./ats/[system]/page";
-import { metadata as atsMetadata } from "./ats/page";
+import { generateMetadata as atsMetadata } from "./ats/page";
 import ComparePage, { generateMetadata as compareMetadata } from "./compare/[competitor]/page";
-import { metadata as compareIndexMetadata } from "./compare/page";
+import { generateMetadata as compareIndexMetadata } from "./compare/page";
 import CoverLetterPage, {
   generateMetadata as coverLetterMetadata,
 } from "./cover-letter-generator/page";
@@ -31,8 +31,10 @@ import { generateMetadata as privacyMetadata } from "./privacy/page";
 import { generateMetadata as refundsMetadata } from "./refunds/page";
 import ResumeBuilderPage, { generateMetadata as builderMetadata } from "./resume-builder/page";
 import ExamplePage, { generateMetadata as exampleMetadata } from "./resume-examples/[role]/page";
-import ResumeExamplesPage, { metadata as examplesMetadata } from "./resume-examples/page";
-import ResumeTemplatesPage, { metadata as templatesMetadata } from "./resume-templates/page";
+import ResumeExamplesPage, { generateMetadata as examplesMetadata } from "./resume-examples/page";
+import ResumeTemplatesPage, {
+  generateMetadata as templatesMetadata,
+} from "./resume-templates/page";
 import { generateMetadata as termsMetadata } from "./terms/page";
 
 vi.mock("next/font/google", () => {
@@ -106,7 +108,7 @@ describe("FAQ markup", () => {
     ["home", async () => renderToStaticMarkup(await HomePage())],
     ["pricing", pricingHtml],
     ["job match", async () => renderToStaticMarkup(await JobMatchPage())],
-    ["resume templates", async () => renderToStaticMarkup(<ResumeTemplatesPage />)],
+    ["resume templates", async () => renderToStaticMarkup(await ResumeTemplatesPage())],
     ["resume builder", async () => renderToStaticMarkup(await ResumeBuilderPage())],
     ["cover letter generator", async () => renderToStaticMarkup(await CoverLetterPage())],
     ["job application tracker", async () => renderToStaticMarkup(await TrackerPage())],
@@ -175,8 +177,8 @@ describe("page JSON-LD", () => {
     },
   );
 
-  it("the examples page lists the examples it shows, in order, at their own pages", () => {
-    const html = renderToStaticMarkup(<ResumeExamplesPage />);
+  it("the examples page lists the examples it shows, in order, at their own pages", async () => {
+    const html = renderToStaticMarkup(await ResumeExamplesPage());
     const [list] = ofType(html, "ItemList");
     const items = list?.itemListElement as { position: number; name: string; url: string }[];
     expect(items.map((item) => item.position)).toEqual(ROLE_EXAMPLES.map((_, index) => index + 1));
@@ -205,8 +207,8 @@ describe("page JSON-LD", () => {
     },
   );
 
-  it("the templates page lists the formats it shows, in order", () => {
-    const html = renderToStaticMarkup(<ResumeTemplatesPage />);
+  it("the templates page lists the formats it shows, in order", async () => {
+    const html = renderToStaticMarkup(await ResumeTemplatesPage());
     const [list] = ofType(html, "ItemList");
     const names = (list?.itemListElement as { item: { name: string; url: string } }[]).map(
       (entry) => entry.item,
@@ -233,22 +235,22 @@ async function publicMetadata(): Promise<[string, Metadata][]> {
     ["/job-application-tracker", await trackerMetadata()],
     ["/interview-prep", await interviewPrepMetadata()],
     ["/portfolio-website-builder", await portfolioMetadata()],
-    ["/resume-examples", examplesMetadata],
+    ["/resume-examples", await examplesMetadata()],
     ...(await Promise.all(
       ROLE_EXAMPLES.map(async ({ slug }): Promise<[string, Metadata]> => [
         `/resume-examples/${slug}`,
         await exampleMetadata({ params: Promise.resolve({ role: slug }) }),
       ]),
     )),
-    ["/resume-templates", templatesMetadata],
-    ["/ats", atsMetadata],
+    ["/resume-templates", await templatesMetadata()],
+    ["/ats", await atsMetadata()],
     ...(await Promise.all(
       ATS_IDS.map(async (system): Promise<[string, Metadata]> => [
         `/ats/${system}`,
         await guideMetadata({ params: Promise.resolve({ system }) }),
       ]),
     )),
-    ["/compare", compareIndexMetadata],
+    ["/compare", await compareIndexMetadata()],
     ...(await Promise.all(
       COMPETITORS.map(async ({ slug }): Promise<[string, Metadata]> => [
         `/compare/${slug}`,

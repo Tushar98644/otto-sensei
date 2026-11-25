@@ -1,15 +1,18 @@
 import { ArrowRight } from "lucide-react";
 import { IntentLink } from "@/components/site/intent-link";
 import { Panel } from "@/components/ui/panel";
+import type { Localize } from "@/i18n/pages";
 import type { RoleExample } from "@/lib/seo-pages/examples";
 import { examplePath } from "@/lib/seo-pages/paths";
 import { cn } from "@/lib/utils";
 
 export function ExampleCards({
   examples,
+  href = (path) => path,
   className,
 }: {
   examples: readonly RoleExample[];
+  href?: Localize;
   className?: string;
 }) {
   return (
@@ -21,7 +24,7 @@ export function ExampleCards({
         {examples.map((example) => (
           <li key={example.slug}>
             <IntentLink
-              href={examplePath(example.slug)}
+              href={href(examplePath(example.slug))}
               className="group flex h-full flex-col gap-1 py-4 sm:gap-2 sm:rounded-2xl sm:bg-surface sm:p-6 sm:transition-colors sm:hover:bg-surface-hover"
             >
               <span className="flex items-center justify-between gap-3">

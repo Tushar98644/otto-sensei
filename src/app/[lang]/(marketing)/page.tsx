@@ -46,7 +46,7 @@ export default async function HomePage() {
     getLocalize(),
     loadJobCounts(),
   ]);
-  const home = { t, format, href };
+  const home = { t, format, href, common };
   const prices = priceCopy(pricing, format);
   const faq = homeFaq(t, format, href, prices);
   return (

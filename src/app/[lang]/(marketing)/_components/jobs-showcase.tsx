@@ -16,8 +16,9 @@ const POINTS: readonly (keyof HomeMessages["jobs"]["points"])[] = [
 export function JobsShowcase({
   t,
   format,
+  common,
   jobCounts,
-}: Pick<HomeProps, "t" | "format"> & { jobCounts: JobCounts }) {
+}: Pick<HomeProps, "t" | "format" | "common"> & { jobCounts: JobCounts }) {
   const jobs = t.jobs;
   const open = countClaimWith((value) => format.number(value), jobCounts.open);
   return (
@@ -35,7 +36,7 @@ export function JobsShowcase({
       </SectionHeader>
       <figure className="mt-12 sm:mt-16">
         <div className="overflow-hidden rounded-3xl bg-surface p-2 shadow-card sm:p-3">
-          <GuideVideo src={JOBS_CLIP} width={1440} height={1000} />
+          <GuideVideo src={JOBS_CLIP} width={1440} height={1000} labels={common?.video} />
         </div>
         <figcaption className="mt-4 max-w-3xl text-sm/6 text-pretty text-subtle">
           {jobs.caption}

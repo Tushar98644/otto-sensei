@@ -20,10 +20,11 @@ export const PAGE_NAMESPACES = {
   "/terms": ["legal"],
   "/refunds": ["legal"],
   "/acceptable-use": ["legal"],
-  "/resume-examples": ["seo"],
-  "/resume-templates": ["seo"],
-  "/ats": ["seo"],
-  "/compare": ["seo"],
+  // The guides (P5): each section publishes on its own, once its namespace is translated.
+  "/resume-examples": ["product", "seo", "resumeExamples", "lint"],
+  "/resume-templates": ["product", "seo", "resumeTemplates"],
+  "/ats": ["product", "seo", "ats"],
+  "/compare": ["product", "seo", "compare"],
 } as const satisfies Record<string, readonly Namespace[]>;
 
 export type PageKey = keyof typeof PAGE_NAMESPACES;

@@ -33,12 +33,12 @@ describe("SiteFooter", () => {
     );
   });
 
-  it("links a translated footer to its own pages, and leaves out guides not in its language", async () => {
+  it("links a translated footer to its own pages, the guides (P5) included", async () => {
     const html = renderToStaticMarkup(await SiteFooter({ locale: "es" }));
     expect(html).toContain('href="/es/pricing"');
     expect(html).toContain('href="/es/privacy"');
     expect(html).toContain('href="/es"');
+    expect(html).toContain('href="/es/compare"');
     expect(html).not.toContain(`href="${SEO_PATHS.compare}"`);
-    expect(html).not.toContain('href="/es/compare"');
   });
 });

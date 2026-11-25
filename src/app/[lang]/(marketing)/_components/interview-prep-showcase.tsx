@@ -32,7 +32,7 @@ const ALSO: readonly {
   { key: "careerLog", icon: NotebookPen, pro: false },
 ];
 
-export function InterviewPrepShowcase({ t }: Pick<HomeProps, "t">) {
+export function InterviewPrepShowcase({ t, common }: Pick<HomeProps, "t" | "common">) {
   const prep = t.interviewPrep;
   return (
     <Section
@@ -54,7 +54,7 @@ export function InterviewPrepShowcase({ t }: Pick<HomeProps, "t">) {
       <figure className="mt-12 sm:mt-16">
         <div className="rounded-3xl bg-linear-to-b from-surface-strong/55 to-surface-muted/50 p-2.5 ring-1 ring-ink/5 ring-inset sm:rounded-4xl sm:p-8 lg:p-12">
           <div className="rounded-xl shadow-float">
-            <GuideVideo src={INTERVIEW_CLIP} width={3840} height={2880} />
+            <GuideVideo src={INTERVIEW_CLIP} width={3840} height={2880} labels={common?.video} />
           </div>
         </div>
         <figcaption className="mt-5 max-w-3xl text-sm/6 text-pretty text-subtle">

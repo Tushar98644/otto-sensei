@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
 import { applicationLimit, PLANS } from "@/config/plans";
@@ -177,7 +177,7 @@ describe("ATS guide pages", () => {
   });
 
   it("links every guide from the index, each with its best tip and no thin counts", async () => {
-    const html = await render(<AtsGuidesPage />);
+    const html = await render(AtsGuidesPage());
     checkPage(html);
     for (const id of Object.keys(HIRING_SYSTEMS)) expect(html).toContain(`href="/ats/${id}"`);
     const words = text(html);
@@ -267,8 +267,8 @@ describe("resume builder and examples", () => {
     }
   });
 
-  it("the examples index links every example", () => {
-    const html = renderToStaticMarkup(<ResumeExamplesPage />);
+  it("the examples index links every example", async () => {
+    const html = renderToStaticMarkup(await ResumeExamplesPage());
     checkPage(html);
     for (const example of ROLE_EXAMPLES) {
       expect(html).toContain(`href="${examplePath(example.slug)}"`);
@@ -351,7 +351,7 @@ describe("comparison pages", () => {
   });
 
   it("links every comparison from the index, each with Otto's first reason", async () => {
-    const html = await render(<CompareIndexPage />);
+    const html = await render(CompareIndexPage());
     checkPage(html);
     const words = text(html);
     for (const competitor of COMPETITORS) {
@@ -363,7 +363,10 @@ describe("comparison pages", () => {
 });
 
 describe("resume templates page", () => {
-  const html = renderToStaticMarkup(<ResumeTemplatesPage />);
+  let html = "";
+  beforeAll(async () => {
+    html = renderToStaticMarkup(await ResumeTemplatesPage());
+  });
 
   it("shows each format, says which are free, and offers each one", () => {
     checkPage(html);

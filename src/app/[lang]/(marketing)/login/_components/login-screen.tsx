@@ -5,14 +5,16 @@ import { SignInFormSkeleton } from "@/components/account/sign-in-form-skeleton";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
-import type { Messages } from "@/i18n/messages";
+import type { Messages, Namespace } from "@/i18n/messages";
 import { localizedMetadata } from "@/i18n/publish";
 import { rich } from "@/i18n/rich";
-import { getMessages } from "@/i18n/server";
+import { getMessages, MessagesFor } from "@/i18n/server";
 import { trialOffered } from "@/lib/billing/intervals";
 import { LoginForm } from "./login-form";
 
 export type LoginMessages = Messages["login"];
+
+const LOGIN_FORM_NAMESPACES = ["account"] as const satisfies readonly Namespace[];
 
 export async function loginMetadata(): Promise<Metadata> {
   const { meta } = await getMessages("login");
@@ -42,9 +44,12 @@ export function LoginScreen({ t, variant }: { t: LoginMessages; variant: LoginVa
         {loginTitle(t.heading, variant, trialOffered())}
       </h1>
       <OttoNote live={false} message={t.otto} />
-      <Suspense fallback={<SignInFormSkeleton />}>
-        <LoginForm googleFailed={t.googleFailed} signingIn={t.signingIn} />
-      </Suspense>
+      {/* The form is the app's (src/components/account): it reads the account namespace, so /login publishes with it. */}
+      <MessagesFor namespaces={LOGIN_FORM_NAMESPACES}>
+        <Suspense fallback={<SignInFormSkeleton />}>
+          <LoginForm googleFailed={t.googleFailed} signingIn={t.signingIn} />
+        </Suspense>
+      </MessagesFor>
       <p className="text-sm text-balance text-muted">{rich(t.studio, { link: studio })}</p>
     </div>
   );

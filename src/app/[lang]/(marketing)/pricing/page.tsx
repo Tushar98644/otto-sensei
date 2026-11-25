@@ -32,7 +32,8 @@ export const revalidate = 3600;
 export default async function PricingPage() {
   await requirePublished(ROUTES.pricing);
   const t = await getMessages("pricing");
-  const { brand } = await getMessages("common");
+  const common = await getMessages("common");
+  const { brand } = common;
   const locale = await getLocale();
   const format = await getFormat();
   const href = await getLocalize();
@@ -69,7 +70,7 @@ export default async function PricingPage() {
         offer={offer}
         trial={trial}
         headingAs="h2"
-        otto={<Otto pose="point" size={96} />}
+        otto={<Otto pose="point" size={96} title={common.otto} />}
         jobCounts={jobCounts}
         className="mx-auto mt-16 max-w-6xl"
       />

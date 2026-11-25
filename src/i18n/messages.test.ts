@@ -10,7 +10,7 @@ import { publishedPages } from "./publish";
 
 const DIR = fileURLToPath(new URL("./messages", import.meta.url));
 
-// The pages P2 translated; the guides (P5) and sign-in (with the app, P3) follow.
+// The pages P2 and P5 translated; sign-in follows with the app (P3).
 const MARKETING_CORE: readonly PageKey[] = [
   "/",
   "/pricing",
@@ -24,6 +24,10 @@ const MARKETING_CORE: readonly PageKey[] = [
   "/terms",
   "/refunds",
   "/acceptable-use",
+  "/resume-examples",
+  "/resume-templates",
+  "/ats",
+  "/compare",
 ];
 const TRANSLATED = LOCALES.filter((locale): locale is Exclude<Locale, "en"> => locale !== "en");
 const en = englishMessages();
@@ -39,6 +43,7 @@ const filesIn = (locale: Locale) =>
 // Words that read the same in English and this language, by path within their namespace.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
   es: new Set([
+    "title",
     "row.quoted",
     "working.general",
     "design.color",
@@ -64,6 +69,7 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "usage.pool",
   ]),
   "pt-BR": new Set([
+    "title",
     "card.via",
     "hub.via",
     "row.quoted",
@@ -91,6 +97,10 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "usage.pool",
   ]),
   fr: new Set([
+    "title",
+    "guide.sourcesTitle",
+    "page.sources",
+    "formatsTitle",
     "meta.portfolio",
     "nav.portfolio",
     "card.via",
@@ -141,6 +151,7 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "usage.pool",
   ]),
   de: new Set([
+    "title",
     "meta.jobs",
     "meta.portfolio",
     "nav.jobs",
@@ -231,7 +242,7 @@ describe.each(TRANSLATED)("%s messages", (locale) => {
     }
   });
 
-  it("publishes the marketing core (P2)", async () => {
+  it("publishes the marketing core and the guides (P2, P5)", async () => {
     const published = await publishedPages(locale);
     expect(MARKETING_CORE.filter((key) => !published.has(key))).toEqual([]);
   });
