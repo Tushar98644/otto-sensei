@@ -161,3 +161,40 @@ vectors use).
 |---|---|---|---|---|
 | JobBERT-v2 | Revision `a480476` (dense "anchor" layer) | TechWolf | MIT | [huggingface.co/TechWolf/JobBERT-v2](https://huggingface.co/TechWolf/JobBERT-v2) |
 | JobBERT-v2 ONNX build (int8, tokenizer) | Revision `c684fd6` | ONNX Community | MIT | [huggingface.co/onnx-community/JobBERT-v2-ONNX](https://huggingface.co/onnx-community/JobBERT-v2-ONNX) |
+
+## City data
+
+The Jobs tab reads the city each job names, and measures distances between cities, with a table
+built by `scripts/geo-cities.ts` into `src/lib/geo/cities.json` from GeoNames' `cities15000.zip`
+(every place of 15,000 people or more). It ships only in server code; the browser gets a city's
+name, country and rounded position in the answers that need one.
+
+| Data | Version | Owner | Licence | Source |
+|---|---|---|---|---|
+| GeoNames `cities15000` | As downloaded 2026-11-25 (34,246 places) | GeoNames | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [download.geonames.org/export/dump](https://download.geonames.org/export/dump/) |
+
+Credit line (shown on the Jobs tab's map): "City data © GeoNames (CC BY 4.0)."
+
+What Otto changed: only the id, name, ASCII name, country, first-level region, population and
+position are kept (alternate names, time zones and the rest are dropped); positions are rounded to
+two decimal places (about 1 km); places are ordered by population. English and local names job posts
+use that GeoNames files under another ("Bangalore", "Cologne", "NYC") are added in
+`src/lib/geo/geocode.ts`.
+
+**Not used: the Y Combinator company list.** The public list at
+[yc-oss/api](https://github.com/yc-oss/api) (checked 2026-11-25) has no licence: the repository
+names none, and its README says it copies Y Combinator's own company search index. With no licence,
+copying it isn't allowed, and Y Combinator's terms forbid copying its site content for commercial use
+(job-sources.md, Hacker News). So Otto shows no YC batch, team size or "YC-backed" filter.
+
+## Map
+
+The Jobs tab's map loads only when someone opens it.
+
+| Part | Version | Owner | Licence | Source |
+|---|---|---|---|---|
+| MapLibre GL JS (`maplibre-gl`) | See `package.json` | MapLibre contributors (and Mapbox for the code before 2020-12) | BSD-3-Clause | [github.com/maplibre/maplibre-gl-js](https://github.com/maplibre/maplibre-gl-js) |
+| OpenFreeMap tiles and the "Positron" style | Live, from `tiles.openfreemap.org` | OpenFreeMap (Zsolt Ero) | Free to use, no key; the map data is © OpenStreetMap contributors under the [ODbL](https://opendatacommons.org/licenses/odbl/), the tile schema © OpenMapTiles | [openfreemap.org](https://openfreemap.org/) |
+
+The map shows the attribution the style carries ("OpenFreeMap © OpenMapTiles Data from
+OpenStreetMap") in its corner, as the ODbL and OpenFreeMap ask.
