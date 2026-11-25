@@ -43,12 +43,12 @@ export function defaultRange(
 
 export type JobChoice = { id: string; label: string; title: string; company: string };
 
-export function jobChoices(resume: Resume): JobChoice[] {
+export function jobChoices(resume: Resume, numbered = "Job {number}"): JobChoice[] {
   return resume.experience.map((job, index) => {
     const label = [job.title.trim(), job.company.trim()].filter(Boolean).join(", ");
     return {
       id: job.id,
-      label: label || `Job ${index + 1}`,
+      label: label || numbered.replace("{number}", String(index + 1)),
       title: job.title,
       company: job.company,
     };

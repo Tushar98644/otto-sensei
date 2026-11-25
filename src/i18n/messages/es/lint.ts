@@ -114,6 +114,7 @@ export default {
     stops: "Puntos finales parejos",
   },
   review: {
+    places: { experience: "Experiencia", project: "Proyecto", education: "Educación" },
     groups: {
       duty: {
         title: {

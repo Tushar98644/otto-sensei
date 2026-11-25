@@ -1,3 +1,6 @@
+import { fmt } from "@/i18n/format";
+import matchCheckEn from "@/i18n/messages/en/match-check";
+import type { Translation } from "@/i18n/types";
 import type { TailorRequirement } from "@/lib/ai/types";
 import { extraSectionTitle, visibleResume } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
@@ -96,14 +99,23 @@ export function summarize(
 }
 
 // Parts of a resume the screener's own lines skip: project tools and names, and extra sections.
-function extraLines(resume: Resume): MatchLine[] {
+// Where a skill shows, in the reader's words.
+export type MatchPlaces = Translation<typeof matchCheckEn.result.places>;
+
+export const ENGLISH_MATCH_PLACES: MatchPlaces = matchCheckEn.result.places;
+
+function extraLines(resume: Resume, places: MatchPlaces): MatchLine[] {
   const lines: MatchLine[] = [];
   const push = (text: string, place: string, shown: boolean) => {
     if (text.trim()) lines.push({ text: text.trim(), place, shown });
   };
   for (const project of resume.projects) {
-    push(project.tech ?? "", `${project.name.trim() || "Project"}, tools`, false);
-    push(project.name, "Projects", false);
+    push(
+      project.tech ?? "",
+      fmt(places.tools, { name: project.name.trim() || places.project }),
+      false,
+    );
+    push(project.name, places.projects, false);
   }
   for (const section of resume.extras ?? []) {
     const title = extraSectionTitle(section);
@@ -112,7 +124,11 @@ function extraLines(resume: Resume): MatchLine[] {
       for (const bullet of item.bullets) {
         if (!bullet.text.trim()) continue;
         position += 1;
-        push(bullet.text, `${joined([title, item.title], ", ")}, line ${position}`, true);
+        const place = fmt(places.line, {
+          place: joined([title, item.title], ", "),
+          number: position,
+        });
+        push(bullet.text, place, true);
       }
       // A languages section is where a recruiter looks for a language, so it counts as shown.
       push(
@@ -125,7 +141,11 @@ function extraLines(resume: Resume): MatchLine[] {
   return lines;
 }
 
-export function matchCheck(resume: Resume, jobText: string): MatchCheck {
+export function matchCheck(
+  resume: Resume,
+  jobText: string,
+  places: MatchPlaces = ENGLISH_MATCH_PLACES,
+): MatchCheck {
   const post = readPost(jobText);
   const visible = visibleResume(resume);
   const requirements = post.terms.map((term, index): TailorRequirement => ({
@@ -137,8 +157,8 @@ export function matchCheck(resume: Resume, jobText: string): MatchCheck {
     quote: "",
     ask: "",
   }));
-  const proofs = screenerRows(visible, requirements);
-  const lines = extraLines(visible);
+  const proofs = screenerRows(visible, requirements, { places });
+  const lines = extraLines(visible, places);
   const shownLines = lines.filter((line) => line.shown);
   return summarize(post, (term, index) => {
     const proof = proofs[index]?.proof;

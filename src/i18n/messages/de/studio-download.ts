@@ -169,6 +169,63 @@ export default {
       other: "{count} als richtig markierte Einträge zeigen",
     },
   },
+  sendItems: {
+    places: {
+      name: "Dein Name",
+      headline: "Berufsbezeichnung",
+      email: "E-Mail",
+      phone: "Telefon",
+      location: "Ort",
+      links: "Links",
+      summary: "Profil",
+      at: "{title} bei {company}",
+      aJob: "Ein Job",
+      aProject: "Ein Projekt",
+      aSchool: "Eine Ausbildung",
+      skills: "Kenntnisse",
+      aCertification: "Ein Zertifikat",
+      extra: "Zusätzlicher Abschnitt",
+      letter: "Anschreiben",
+    },
+    blank: {
+      title: "Platzhalter stehen gelassen",
+      message:
+        "„{blank}“ sieht nach einem Platzhalter aus. Setz das echte Detail ein oder nimm es raus.",
+    },
+    company: {
+      title: "Name einer anderen Firma",
+      message: "Nennt {name}, aber diese Kopie ist für {company}.",
+    },
+    backwards: {
+      title: "Daten in falscher Reihenfolge",
+      message: "{dates} endet, bevor es anfängt. Vielleicht ist eins der Daten ein Tippfehler.",
+    },
+    future: {
+      title: "Datum in der Zukunft",
+      job: "{date} ist noch nicht passiert. Wenn der Job noch läuft, schreib „heute“.",
+      certification:
+        "{date} ist noch nicht passiert. Wenn du noch daran arbeitest, schreib „voraussichtlich“.",
+    },
+    overlap: {
+      title: "Daten überschneiden sich",
+      message:
+        "Überschneidet sich {span} lang mit {place}. Für einen Nebenjob okay, sonst prüf die Daten.",
+    },
+    tool: {
+      title: "Genannt, bevor es das gab",
+      job: "{tool} gibt es erst seit {released}, also nach dem Ende dieses Jobs ({dates}).",
+      course:
+        "{tool} gibt es erst seit {released}, also nach dem Ende dieser Ausbildung ({dates}).",
+    },
+    copied: {
+      title: "Aus der Stellenanzeige kopiert",
+      message:
+        "{count} Wörter am Stück stimmen mit der Anzeige überein. Sag es mit deinen eigenen Worten.",
+    },
+    months: { one: "{count} Monat", other: "{count} Monate" },
+    years: { one: "{count} Jahr", other: "{count} Jahre" },
+    yearsAndMonths: "{years} und {months}",
+  },
   check: {
     checking: "Dein PDF wird geprüft.",
     checkedProblems: {

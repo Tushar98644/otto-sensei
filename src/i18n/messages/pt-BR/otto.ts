@@ -73,4 +73,17 @@ export default {
     resetsOn: "Ele reinicia em {day}.",
     resetsWhenRenews: "Ele reinicia quando seu plano renovar.",
   },
+  warnings: {
+    fillIn: {
+      send: "Preencha {blanks} antes de enviar.",
+      sendNumbers: "Preencha {blanks} antes de enviar. O Otto nunca inventa números.",
+      ownWords: "Preencha {blanks} com suas próprias palavras antes de enviar.",
+      use: "Preencha {blanks} antes de usar.",
+    },
+    number: "Coloque seu número real em [number], ou corte. O Otto nunca inventa números.",
+    verb: "Confira “{verb}”. Seu currículo diz “{line}”.",
+    unbacked: "Confira “{phrase}”: só você sabe se é verdade. Mantenha se for.",
+    cliche: "Troque {phrases} por suas próprias palavras. Recrutadores pulam isso.",
+    quote: "“{text}”",
+  },
 } satisfies Translation<Messages["otto"]>;

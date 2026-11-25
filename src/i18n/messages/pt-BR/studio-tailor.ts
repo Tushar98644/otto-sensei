@@ -270,6 +270,116 @@ export default {
     moveUp: "Vamos subir estas linhas:",
     more: "E mais {count}.",
   },
+  reasons: {
+    places: {
+      at: "{title} em {company}",
+      line: "{place}, linha {number}",
+      experience: "Experiência",
+      project: "Projeto",
+      education: "Formação",
+      jobTitle: "Cargo",
+      certifications: "Certificações",
+      summary: "Resumo",
+      skills: "Habilidades",
+      skillsGroup: "Habilidades: {label}",
+      headline: "Título profissional",
+    },
+    problems: {
+      duty: "parece uma descrição de cargo",
+      "no-result": "não diz o que mudou",
+      "weak-start": "começa fraca",
+      "stock-phrase": "usa um clichê",
+      "first-person": "diz eu ou nós",
+      tense: "está no presente para um emprego que você já deixou",
+    },
+    years: {
+      one: " A vaga pede {asked}+ anos; as datas dos seus empregos somam cerca de {count} ano.",
+      other: " A vaga pede {asked}+ anos; as datas dos seus empregos somam cerca de {count} anos.",
+    },
+    spelled:
+      " A vaga diz “{term}” e a sua linha diz de outro jeito. Alguns sistemas só buscam as palavras exatas, então use “{term}” uma vez também.",
+    added: "Sua linha nova mostra isso. Ela vai para o currículo personalizado.",
+    onlyIn: "Só em {where}. Mostre também em uma linha sobre o que você fez.",
+    onlyInPlaces: {
+      jobTitle: "um cargo",
+      certifications: "suas certificações",
+      education: "sua formação",
+      summary: "seu resumo",
+    },
+    shownOutside: "Aparece {where}, não em um emprego.",
+    outsidePlaces: {
+      project: "no seu projeto {name}",
+      education: "na sua formação",
+      other: "em {name}",
+    },
+    atWork: " Se você usou no trabalho, diga isso nesse emprego.",
+    shownWithProblem: "Aparece em {where}, mas essa linha {problem}.",
+    shownAt: "Aparece em uma linha em {where}.",
+    declined: "Você disse que não tem.",
+    otherForm:
+      "Seu currículo diz “{written}”; a vaga diz “{asked}”. Buscas por palavra-chave só acham a forma digitada, então escreva as duas uma vez: “{both}”.",
+    listed:
+      "Só na sua {list}. Nenhuma linha de emprego mostra você usando isso, e os filtros procuram no que você fez.",
+    lists: {
+      headline: "linha de título profissional",
+      skills: "lista de habilidades",
+      group: "lista de habilidades ({group})",
+    },
+    missingMust: "A vaga pede isso, e nada no seu currículo diz isso ainda.",
+    missingNice: "Um diferencial para esta vaga. Nada no seu currículo diz isso ainda.",
+    lineNote: "Mostra {names} ({kind}). {next}",
+    lineKinds: { must: "um requisito obrigatório", nice: "um requisito desejável" },
+    keepNearTop: "Deixe perto do topo.",
+    fixFirst: {
+      missing: {
+        one: "{count} requisito obrigatório não está no seu currículo: {names}",
+        other: "{count} requisitos obrigatórios não estão no seu currículo: {names}",
+      },
+      missingReason: "Se você já fez, diga onde. Se não, diga não, e nada é adicionado.",
+      listed: {
+        one: "{count} requisito obrigatório só está na sua lista de habilidades: {names}",
+        other: "{count} requisitos obrigatórios só estão na sua lista de habilidades: {names}",
+      },
+      listedReason:
+        "Os filtros procuram isso em uma linha sobre o que você fez. Mostre onde você usou.",
+      spelled: "A vaga diz “{asked}”; seu currículo diz “{written}”",
+      spelledReason:
+        "Buscas por palavra-chave só acham a forma digitada. Escreva as duas uma vez: “{both}”.",
+      weak: {
+        one: "{count} linha que mostra um requisito obrigatório está fraca",
+        other: "{count} linhas que mostram requisitos obrigatórios estão fracas",
+      },
+      title: "Seu título profissional não cita esta vaga",
+      noSummary: "Nenhum resumo no topo",
+      summary: "Seu resumo não fala desta vaga",
+    },
+    headline: {
+      must: "Requisitos obrigatórios comprovados: {proven} de {total}",
+      nice: "Desejáveis: {proven} de {total}",
+      join: " · ",
+    },
+    title: {
+      headline: "Seu título profissional bate com o cargo da vaga, “{title}”.",
+      latest: "Seu último cargo bate com o cargo da vaga, “{title}”.",
+      missing:
+        "O cargo da vaga é “{title}”. Se combina com você, coloque abaixo do seu nome. Recrutadores buscam por cargo.",
+      differs:
+        "O cargo da vaga é “{title}”; seu título profissional diz “{headline}”. Se a vaga combina com você, use esse cargo no título ou no resumo. Nunca mude o cargo de um emprego anterior.",
+    },
+    summary: {
+      missing:
+        "Você não tem resumo. Duas linhas no topo que citem esta vaga e o que você tem de mais parecido ajudam quem lê por cima.",
+      names: "Seu resumo cita {what}.",
+      theTitle: "o cargo",
+      differs: "Seu resumo não cita esta vaga nem os requisitos obrigatórios dela.",
+      suggest: " Você mostra {names} nas suas linhas; diga isso no topo também.",
+    },
+    targets: { aJob: "Um emprego", project: "Projeto: {name}", untitled: "sem nome" },
+    asks: {
+      used: "Você já usou {term}?",
+      experience: "Você tem experiência com {phrase}?",
+    },
+  },
   skip: {
     note: "Sem uma vaga em mente? Baixe como está.",
     action: "Pular para Baixar",

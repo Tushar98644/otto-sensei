@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import { liveWarnings, needsFirstName } from "@/lib/ai/warning-text";
+import { liveWarnings, needsFirstName, warningIn } from "@/lib/ai/warning-text";
 import { WRITING_LIMITS } from "@/lib/writings/schema";
 import type { OutreachField } from "./outreach-saved";
 
@@ -33,11 +33,12 @@ export function OutreachFields({ message, onEdit, onSettle, subjectRef }: Outrea
   const noteOver = message.note.length > NOTE_CHARS;
   const noteValues = { count: format.number(message.note.length), max: format.number(NOTE_CHARS) };
   const firstName = needsFirstName(message.subject, message.email, message.note);
+  const warn = useMessages("otto").warnings;
   const checks = liveWarnings(
     message.warnings,
     [message.subject, message.email, message.note].join("\n"),
     ["[first name]"],
-  );
+  ).map((item) => warningIn(item, warn));
   return (
     <>
       {message.demo ? <DemoNote /> : null}

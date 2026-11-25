@@ -1,0 +1,98 @@
+import type { Messages } from "..";
+import type { Translation } from "../../types";
+
+export default {
+  regions: {
+    us: "Estados Unidos",
+    uk: "Reino Unido",
+    eu: "Unión Europea",
+    ca: "Canadá",
+  },
+  regionNames: {
+    us: "EE. UU.",
+    uk: "el Reino Unido",
+    eu: "la UE",
+    ca: "Canadá",
+  },
+  fields: {
+    country: "País donde vives",
+    chooseCountry: "Elige un país",
+    timeZone: "Zona horaria",
+    chooseZone: "Elige una zona horaria",
+    rightsTitle: "¿Puedes trabajar ahí sin patrocinio de visa?",
+    rightsHint: "Sí, si eres ciudadano o residente, o si tu visa ya te deja trabajar.",
+    openTo: "Abierto a",
+    fullTime: "Empleos de tiempo completo",
+    contract: "Trabajo por contrato",
+    remoteOnly: "Solo empleos remotos",
+  },
+  rights: {
+    yes: "Sí",
+    visa: "Necesito visa",
+    notSet: "Sin definir",
+  },
+  form: {
+    pickType: "Elige tiempo completo, contrato o ambos.",
+    saving: "Guardando…",
+    saved: "Guardado. Solo tú puedes verlo.",
+    failed: "No se guardó: {reason}",
+    failedFallback: "algo salió mal.",
+    idle: "Se guarda a medida que avanzas.",
+    looksRight: "Se ve bien",
+    tryAgain: "Intentar de nuevo",
+  },
+  hints: {
+    resume: "Lo deduje de tu currículum.",
+    device: "Lo deduje de la zona horaria de este dispositivo.",
+    home: "Puse Sí para {region} porque vives ahí. Cámbialo si tu visa dice otra cosa.",
+  },
+  dialog: {
+    title: "Dónde puedes trabajar",
+    description: "Dónde vives, tu zona horaria y tus necesidades de visa. Solo tú puedes verlo.",
+    done: "Listo",
+  },
+  prompt: {
+    guessed:
+      "Otto puso Sí para {region} porque parece que vives ahí. Revísalo y agrega cualquier necesidad de visa.",
+    add: "Agrega dónde puedes trabajar y Empleos marcará las ofertas que dicen que no pueden contratarte.",
+    check: "Revisar dónde puedes trabajar",
+    addButton: "Agregar dónde puedes trabajar",
+  },
+  setupHidden: {
+    title: "Lista de configuración oculta",
+    description: "Todos los ajustes siguen en la página de Cuenta.",
+  },
+  card: {
+    eyebrow: "Antes de postularte",
+    title: "¿Pueden contratarte desde donde estás?",
+    rules: {
+      one: "{count} regla en esta oferta",
+      other: "{count} reglas en esta oferta",
+    },
+    checked: ", revisadas con tu perfil laboral",
+    none: "No encontré reglas sobre dónde vives, visas, horarios o tipo de empleo. Otto solo detecta frases simples, así que revisa la oferta también.",
+    loadFailed: "No se pudo cargar tu perfil laboral, así que esto no se revisó con él.",
+    signedOut: "Inicia sesión y agrega tu perfil laboral para que lo revisemos por ti.",
+    addProfile: "Agrega tu perfil laboral para que lo revisemos por ti.",
+    gaps: "Completa el resto de tu perfil laboral para responder las marcadas como Revisar.",
+    tryAgain: "Intentar de nuevo",
+    signIn: "Iniciar sesión",
+    edit: "Editar perfil laboral",
+    add: "Agregar perfil laboral",
+    signInReason: "Inicia sesión para guardar un perfil laboral. Otto revisa las ofertas con él.",
+    jobLocation: "Ubicación del empleo: {place}",
+    postSays: "La oferta dice: ",
+    verdicts: {
+      ok: "Bien",
+      check: "Revisar",
+      blocked: "Probablemente bloqueado",
+    },
+    ruleLabels: {
+      location: "Dónde vives",
+      authorization: "Permiso de trabajo",
+      sponsorship: "Patrocinio de visa",
+      time_zone: "Zona horaria",
+      work_type: "Tipo de empleo",
+    },
+  },
+} satisfies Translation<Messages["workProfile"]>;

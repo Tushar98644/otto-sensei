@@ -59,12 +59,31 @@ export function isDefaultStyle(style: WritingStyleBody): boolean {
 }
 
 // A short summary for hints, such as "Warm · Shorter · UK English · your notes".
-export function styleSummary(style: WritingStyleBody): string {
-  const parts: string[] = [TONE_CHOICES[style.tone].label];
-  if (style.length !== "standard") parts.push(LENGTH_CHOICES[style.length].label);
-  if (style.spelling !== "us") parts.push(SPELLING_CHOICES[style.spelling].label);
-  if (style.notes.trim()) parts.push("your notes");
-  return parts.join(" · ");
+export type StyleSummaryWords = {
+  tones: Record<WritingTone, string>;
+  lengths: Record<WritingLength, string>;
+  spellings: Record<Spelling, string>;
+  notes: string;
+  join: string;
+};
+
+const ENGLISH_SUMMARY: StyleSummaryWords = {
+  tones: { natural: "Natural", warm: "Warm", direct: "Direct", formal: "Formal" },
+  lengths: { standard: "Standard", shorter: "Shorter" },
+  spellings: { us: "US English", uk: "UK English" },
+  notes: "your notes",
+  join: " · ",
+};
+
+export function styleSummary(
+  style: WritingStyleBody,
+  words: StyleSummaryWords = ENGLISH_SUMMARY,
+): string {
+  const parts: string[] = [words.tones[style.tone]];
+  if (style.length !== "standard") parts.push(words.lengths[style.length]);
+  if (style.spelling !== "us") parts.push(words.spellings[style.spelling]);
+  if (style.notes.trim()) parts.push(words.notes);
+  return parts.join(words.join);
 }
 
 export type WritingStyleResponse = { ok: true; style: WritingStyle };

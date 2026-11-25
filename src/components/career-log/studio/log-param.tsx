@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { Lazy, lazyComponent } from "@/components/ui/lazy";
 import { heldLines, type LinesHandoff } from "@/lib/career-log/handoff";
 import { STUDIO_LOG_PARAM } from "@/lib/career-log/links";
@@ -34,6 +35,7 @@ export function CareerLogParam() {
   const param = useSearchParams().get(STUDIO_LOG_PARAM);
   const hydrated = useStudioHydrated();
   const [handoff, setHandoff] = useState<LinesHandoff | null>(null);
+  const t = useMessages("careerLogLines");
 
   useEffect(() => {
     if (!hydrated || param !== "lines") return;
@@ -48,15 +50,12 @@ export function CareerLogParam() {
       );
       const held = heldLines(Date.now());
       if (!held) {
-        toast({
-          title: "Those lines aren't here any more",
-          description: "Write them again from your career log.",
-        });
+        toast({ title: t.gone, description: t.goneNote });
         return;
       }
       void whenResume(held.resumeId).then((found) => {
         if (!found) {
-          toast({ title: "That resume isn't in your list any more" });
+          toast({ title: t.noResume });
           return;
         }
         const store = useStudioStore.getState();
@@ -66,7 +65,7 @@ export function CareerLogParam() {
       });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [hydrated, param]);
+  }, [hydrated, param, t]);
 
   if (!handoff) return null;
   return <Lazy loader={review} wanted props={{ handoff, onClose: () => setHandoff(null) }} />;

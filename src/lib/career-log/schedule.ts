@@ -1,3 +1,5 @@
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import { addMonths, dateOf, daysInMonth, monthOf, splitDate } from "./month";
 import { LAST_WEEK, type CheckinDay, type LocalDate, type Month } from "./types";
 
@@ -125,7 +127,26 @@ const WEEKDAYS = [
 export const WEEK_NAMES: readonly string[] = WEEKS;
 export const WEEKDAY_NAMES: readonly string[] = WEEKDAYS;
 
-// "the first Monday".
-export function checkinDayLabel(day: CheckinDay): string {
-  return `the ${WEEKS[day.week - 1] ?? "first"} ${WEEKDAYS[day.weekday] ?? "Monday"}`;
+export type CheckinDayWords = {
+  day: string;
+  weeks: Record<(typeof WEEKS)[number], string>;
+};
+
+const ENGLISH_DAY: CheckinDayWords = {
+  day: "the {week} {weekday}",
+  weeks: { first: "first", second: "second", third: "third", fourth: "fourth", last: "last" },
+};
+
+// "the first Monday"; another language names the weekday its own way.
+export function checkinDayLabel(
+  day: CheckinDay,
+  words: CheckinDayWords = ENGLISH_DAY,
+  format?: Format,
+): string {
+  const week = words.weeks[WEEKS[day.week - 1] ?? "first"];
+  const weekday =
+    format && format.locale !== "en"
+      ? format.date(Date.UTC(2023, 0, 1 + day.weekday), { weekday: "long", timeZone: "UTC" })
+      : (WEEKDAYS[day.weekday] ?? "Monday");
+  return fmt(words.day, { week, weekday });
 }

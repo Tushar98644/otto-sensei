@@ -12,6 +12,7 @@ import { ROUTES } from "@/components/site/routes";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
+import { useFormat, useMessages } from "@/i18n/client";
 import { api } from "@/lib/api/client";
 import { holdLines } from "@/lib/career-log/handoff";
 import { STUDIO_LOG_PARAM } from "@/lib/career-log/links";
@@ -39,10 +40,12 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
   const router = useRouter();
   const gate = useAccountGate();
   const ids = useId();
+  const t = useMessages("careerLog").lines.dialog;
+  const format = useFormat();
   const resumes = useResumeList().filter((resume) => resume.source !== "sample");
   const [resumeId, setResumeId] = useState<string | null>(null);
   const resume = resumes.find((item) => item.id === resumeId) ?? resumes[0] ?? null;
-  const jobs = resume ? jobChoices(resume) : [];
+  const jobs = resume ? jobChoices(resume, t.jobNumber) : [];
   const [jobId, setJobId] = useState<string | null>(null);
   const job = jobs.find((item) => item.id === jobId) ?? jobs[0] ?? null;
   const months = entries.map((entry) => entry.month).sort();
@@ -95,64 +98,53 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
   }
 
   const message =
-    status.kind === "empty"
-      ? "I didn't find anything new in those months that your resume doesn't already say."
-      : status.kind === "failed"
-        ? status.message
-        : "Pick the job and the months. I'll only use what you wrote, and leave a blank for any number you didn't give me.";
+    status.kind === "empty" ? t.empty : status.kind === "failed" ? status.message : t.pick;
 
   return (
     <>
       <Dialog
         open={open}
         onOpenChange={(next) => (next ? undefined : close())}
-        title="Turn my log into resume lines"
-        description="Otto writes them; you accept each one in the studio before it goes on your resume."
+        title={t.title}
+        description={t.description}
         size="md"
         footer={
           resume && job ? (
             <>
               <Button variant="ghost" onClick={close} disabled={writing}>
-                Cancel
+                {t.cancel}
               </Button>
               <Button
                 onClick={() => void write()}
                 loading={writing}
                 disabled={inRange.length === 0}
               >
-                Write my lines
+                {t.write}
               </Button>
             </>
           ) : (
             <Button variant="ghost" onClick={close}>
-              Close
+              {t.close}
             </Button>
           )
         }
       >
         {writing ? (
-          <OttoWorking
-            task="draft"
-            size="sm"
-            message={`Reading ${inRange.length} ${inRange.length === 1 ? "month" : "months"} of your notes.`}
-          />
+          <OttoWorking task="draft" size="sm" message={format.plural(t.reading, inRange.length)} />
         ) : !resume ? (
-          <OttoNote
-            live={false}
-            message="Lines go into a resume, so make one first. Then come back here."
-          >
+          <OttoNote live={false} message={t.noResume}>
             <Link
               href={ROUTES.studio}
               className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
-              Make a resume
+              {t.makeResume}
             </Link>
           </OttoNote>
         ) : (
           <div className="flex flex-col gap-5">
             <OttoNote live size="sm" message={message} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field id={`${ids}-resume`} label="Resume" wide>
+              <Field id={`${ids}-resume`} label={t.resume} wide>
                 <Select
                   id={`${ids}-resume`}
                   value={resume.id}
@@ -169,7 +161,7 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
                   ))}
                 </Select>
               </Field>
-              <Field id={`${ids}-job`} label="Job" wide>
+              <Field id={`${ids}-job`} label={t.job} wide>
                 {job ? (
                   <Select
                     id={`${ids}-job`}
@@ -186,12 +178,10 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
                     ))}
                   </Select>
                 ) : (
-                  <p className="text-sm/6 text-muted">
-                    This resume has no jobs yet. Add the job in the studio first.
-                  </p>
+                  <p className="text-sm/6 text-muted">{t.noJobs}</p>
                 )}
               </Field>
-              <Field id={`${ids}-from`} label="From">
+              <Field id={`${ids}-from`} label={t.from}>
                 <Select
                   id={`${ids}-from`}
                   value={from ?? ""}
@@ -199,12 +189,12 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
                 >
                   {months.map((month) => (
                     <option key={month} value={month} disabled={to !== null && month > to}>
-                      {monthLabel(month)}
+                      {monthLabel(month, format)}
                     </option>
                   ))}
                 </Select>
               </Field>
-              <Field id={`${ids}-to`} label="To">
+              <Field id={`${ids}-to`} label={t.to}>
                 <Select
                   id={`${ids}-to`}
                   value={to ?? ""}
@@ -212,16 +202,13 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
                 >
                   {months.map((month) => (
                     <option key={month} value={month} disabled={from !== null && month < from}>
-                      {monthLabel(month)}
+                      {monthLabel(month, format)}
                     </option>
                   ))}
                 </Select>
               </Field>
             </div>
-            <p className="text-sm/6 text-muted">
-              {inRange.length} {inRange.length === 1 ? "month" : "months"} of notes in this range.
-              Uses 1 Build with Otto draft.
-            </p>
+            <p className="text-sm/6 text-muted">{format.plural(t.inRange, inRange.length)}</p>
           </div>
         )}
       </Dialog>

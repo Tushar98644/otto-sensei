@@ -1,8 +1,10 @@
+import type { Locale } from "@/i18n/config";
 import { fmt } from "@/i18n/format";
 import type { TailorRequirement, TailorResult } from "@/lib/ai/types";
 import { droppedSupport, verbsAdded } from "@/lib/ai/writing-guards";
 import type { Resume } from "@/lib/resume/schema";
 import { lintResume } from "@/lib/lint/bullets";
+import type { LintMessages } from "@/lib/lint/i18n";
 import { findTerm } from "@/lib/tailor/keywords";
 import {
   jobLines,
@@ -10,6 +12,7 @@ import {
   tailorFixFirst,
   type FixFirst,
   type JobLine,
+  type ReasonWords,
   type RowReason,
 } from "@/lib/tailor/reasons";
 import {
@@ -42,32 +45,48 @@ export type Screener = {
   fixFirst: FixFirst[];
 };
 
+// The reader's words for the screener; English when left out.
+export type ScreenerWords = { words: ReasonWords; lint: LintMessages; locale: Locale };
+
 export function buildScreener(
   source: Resume,
   result: TailorResult,
   choices: TailorChoices,
   now: number,
+  language?: ScreenerWords,
 ): Screener {
+  const words = language?.words;
+  const locale = language?.locale;
   const resume = screenerResume(source, result, choices);
-  const rows = screenerRows(resume, result.requirements, screenerOptions(choices));
+  const rows = screenerRows(resume, result.requirements, {
+    ...screenerOptions(choices),
+    ...(words ? { places: words.places } : {}),
+  });
   const counts = screenerCounts(rows);
-  const context = { resume, lint: lintResume(resume), now };
+  const context = {
+    resume,
+    lint: lintResume(resume),
+    now,
+    words,
+    lintWords: language?.lint,
+    locale,
+  };
   const reasons = rowReasons(rows, context);
   const { lines, unrelated } = jobLines(rows, context);
-  const title = titleCheck(source, result.job.title);
+  const title = titleCheck(source, result.job.title, words?.title);
   const top =
     choices.useSummary && result.summary ? { ...source, summary: result.summary } : source;
-  const summary = summaryCheck(top, rows, result.job.title);
+  const summary = summaryCheck(top, rows, result.job.title, words?.summary, locale);
   return {
     rows,
     counts,
-    headline: screenerHeadline(counts),
+    headline: screenerHeadline(counts, words?.headline),
     reasons,
     lines,
     unrelated,
     title,
     summary,
-    fixFirst: tailorFixFirst({ rows, reasons, lines, title, summary }),
+    fixFirst: tailorFixFirst({ rows, reasons, lines, title, summary, words, locale }),
   };
 }
 

@@ -5,11 +5,14 @@ import app from "./app";
 import applications from "./applications";
 import ats from "./ats";
 import calendar from "./calendar";
+import careerLog from "./career-log";
+import careerLogLines from "./career-log-lines";
 import common from "./common";
 import compare from "./compare";
 import dashboard from "./dashboard";
 import email from "./email";
 import emails from "./emails";
+import fileChecks from "./file-checks";
 import formats from "./formats";
 import github from "./github";
 import home from "./home";
@@ -46,6 +49,7 @@ import studioSections from "./studio-sections";
 import studioTailor from "./studio-tailor";
 import ui from "./ui";
 import upgrade from "./upgrade";
+import workProfile from "./work-profile";
 
 // The source of truth: every other locale is checked against these, key by key.
 const en = {
@@ -56,11 +60,14 @@ const en = {
   applications,
   ats,
   calendar,
+  careerLog,
+  careerLogLines,
   common,
   compare,
   dashboard,
   email,
   emails,
+  fileChecks,
   formats,
   github,
   home,
@@ -97,6 +104,7 @@ const en = {
   studioTailor,
   ui,
   upgrade,
+  workProfile,
 } as const;
 
 export default en;

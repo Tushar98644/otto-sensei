@@ -7,6 +7,8 @@ import { useSessionUserId } from "@/components/account/session-user";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { rich } from "@/i18n/rich";
 import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
 import { dayLabel } from "@/lib/career-log/month";
 import type { CareerLogSettings } from "@/lib/career-log/types";
@@ -41,6 +43,9 @@ export function CareerLogOffer({ moment, hired = false, job }: CareerLogOfferPro
   const doneRef = useRef<HTMLParagraphElement>(null);
   const titleId = useId();
   const savedJob = useRef(false);
+  const words = useMessages("careerLog");
+  const t = words.offer;
+  const format = useFormat();
 
   // "I got the job" with check-ins already on still files the job, so the log knows it.
   useEffect(() => {
@@ -66,27 +71,25 @@ export function CareerLogOffer({ moment, hired = false, job }: CareerLogOfferPro
       );
       setAnswered({ answer: choice, settings: next });
     } catch (error) {
-      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+      toast({ title: words.couldntSave, description: errorMessage(error), variant: "error" });
     }
   }
 
   if (answered || (hired && settings.checkins)) {
     const on = answered ? answered.settings : settings;
     return (
-      <Done ref={doneRef} title={hired ? "Congrats on the new job!" : "Congrats on the offer!"}>
-        {answered?.answer === "not_now" ? (
-          <>Okay, not now. Start it any time from your </>
-        ) : (
-          <>
-            Your career log is on.
-            {on.nextCheckinOn ? ` Otto will ask on ${dayLabel(on.nextCheckinOn)}.` : ""} Write in it
-            any time from your{" "}
-          </>
+      <Done ref={doneRef} title={hired ? t.hired : t.offered}>
+        {rich(
+          answered?.answer === "not_now" ? t.notNow : on.nextCheckinOn ? t.onNext : t.on,
+          {
+            link: (chunk) => (
+              <Link href={CAREER_LOG_ROUTE} className="font-medium text-ink underline">
+                {chunk}
+              </Link>
+            ),
+          },
+          on.nextCheckinOn ? { day: dayLabel(on.nextCheckinOn, format) } : undefined,
         )}
-        <Link href={CAREER_LOG_ROUTE} className="font-medium text-ink underline">
-          career log
-        </Link>
-        .
       </Done>
     );
   }
@@ -104,23 +107,19 @@ export function CareerLogOffer({ moment, hired = false, job }: CareerLogOfferPro
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <h2 id={titleId} className="font-sans text-base/6 font-medium text-pretty text-ink">
-          {hired ? "Congrats on the new job!" : "Congrats on the offer!"}
+          {hired ? t.hired : t.offered}
         </h2>
         <p className="font-display text-xl/7 text-pretty text-ink sm:text-2xl/8">
-          Want Otto to keep a one-minute work log so{" "}
-          <mark className="highlighter text-ink">your next resume writes itself</mark>?
+          {rich(t.ask, { b: (chunk) => <mark className="highlighter text-ink">{chunk}</mark> })}
         </p>
-        <p className="text-sm/6 text-pretty text-muted">
-          Once a month: three quick questions in the bell and on Home, and one short email. By voice
-          or text, free on every plan. Off until you say yes.
-        </p>
+        <p className="text-sm/6 text-pretty text-muted">{t.body}</p>
       </div>
       <div className="flex shrink-0 gap-2 max-sm:w-full">
         <Button variant="ghost" onClick={() => void answer("not_now")} className="max-sm:flex-1">
-          Not now
+          {t.no}
         </Button>
         <Button onClick={() => void answer("yes")} className="max-sm:flex-1">
-          Yes, keep my log
+          {t.yes}
         </Button>
       </div>
     </section>

@@ -15,7 +15,15 @@ import {
   type HeadingKind,
   type SectionBlock,
 } from "@/lib/resume/sections";
-import type { CheckId, CheckStatus, RecruiterCheck, RecruiterReport } from "./types";
+import type {
+  CheckCopy,
+  CheckFixKey,
+  CheckId,
+  CheckResultKey,
+  CheckStatus,
+  RecruiterCheck,
+  RecruiterReport,
+} from "./types";
 
 const MAX_PAGES = 2;
 const MIN_WORDS = 150;
@@ -83,12 +91,24 @@ function analyze(extraction: Extraction): Context {
   };
 }
 
-function check(id: CheckId, status: CheckStatus, title: string, detail: string, fix: string | null = null): RecruiterCheck {
-  return { id, status, title, detail, fix: status === "pass" ? null : fix };
+function copyOf(key: CheckResultKey, fix: CheckFixKey | null = null, params?: CheckCopy["params"]): CheckCopy {
+  const copy: CheckCopy = { key, fix };
+  return params ? { ...copy, params } : copy;
 }
 
-function notChecked(id: CheckId, title: string, what: string): RecruiterCheck {
-  return check(id, "warn", title, `There's no readable text, so we couldn't check ${what}.`, SCAN_FIX);
+function check(
+  id: CheckId,
+  status: CheckStatus,
+  title: string,
+  detail: string,
+  fix: string | null,
+  copy: CheckCopy,
+): RecruiterCheck {
+  return { id, status, title, detail, fix: status === "pass" ? null : fix, copy };
+}
+
+function notChecked(id: CheckId, title: string, what: string, key: CheckResultKey): RecruiterCheck {
+  return check(id, "warn", title, `There's no readable text, so we couldn't check ${what}.`, SCAN_FIX, copyOf(key, "scan"));
 }
 
 function plural(count: number, one: string, many = `${one}s`): string {
@@ -97,18 +117,35 @@ function plural(count: number, one: string, many = `${one}s`): string {
 
 const textLayer: Check = ({ readable }) =>
   readable
-    ? check("text-layer", "pass", "Text is readable", "Hiring software can pull the text out of this file.")
+    ? check(
+        "text-layer",
+        "pass",
+        "Text is readable",
+        "Hiring software can pull the text out of this file.",
+        null,
+        copyOf("textReadable"),
+      )
     : check(
         "text-layer",
         "fail",
         "No readable text",
         "Hiring software can't read any text in this file. It's probably a scan or an image.",
         SCAN_FIX,
+        copyOf("textMissing", "scan"),
       );
 
 const contactEmail: Check = ({ readable, email, headerEmail }) => {
-  if (!readable) return notChecked("contact-email", "Email not checked", "for an email address");
-  if (email) return check("contact-email", "pass", "Email address found", `We found ${email}, so recruiters can reach you.`);
+  if (!readable) return notChecked("contact-email", "Email not checked", "for an email address", "emailNotChecked");
+  if (email) {
+    return check(
+      "contact-email",
+      "pass",
+      "Email address found",
+      `We found ${email}, so recruiters can reach you.`,
+      null,
+      copyOf("emailFound", null, { email }),
+    );
+  }
   return check(
     "contact-email",
     "fail",
@@ -117,12 +154,15 @@ const contactEmail: Check = ({ readable, email, headerEmail }) => {
     headerEmail
       ? "Move your email out of the page header and into the main text."
       : "Add your email address as plain text near the top of the page.",
+    copyOf("emailMissing", headerEmail ? "moveEmail" : "addEmail"),
   );
 };
 
 const contactPhone: Check = ({ readable, phone, headerPhone }) => {
-  if (!readable) return notChecked("contact-phone", "Phone not checked", "for a phone number");
-  if (phone) return check("contact-phone", "pass", "Phone number found", `We found ${phone}.`);
+  if (!readable) return notChecked("contact-phone", "Phone not checked", "for a phone number", "phoneNotChecked");
+  if (phone) {
+    return check("contact-phone", "pass", "Phone number found", `We found ${phone}.`, null, copyOf("phoneFound", null, { phone }));
+  }
   return check(
     "contact-phone",
     "warn",
@@ -131,6 +171,7 @@ const contactPhone: Check = ({ readable, phone, headerPhone }) => {
     headerPhone
       ? "Move your phone number out of the page header and into the main text."
       : "Add your phone number next to your email.",
+    copyOf("phoneMissing", headerPhone ? "movePhone" : "addPhone"),
   );
 };
 
@@ -141,6 +182,8 @@ const contactInHeader: Check = ({ extraction, email, phone, headerEmail, headerP
       "pass",
       "Nothing hidden in headers",
       "In a PDF, header text is part of the page, so hiring software reads it.",
+      null,
+      copyOf("headerPdf"),
     );
   }
   const hidden = [headerEmail && !email ? "email" : null, headerPhone && !phone ? "phone number" : null].filter(
@@ -152,6 +195,8 @@ const contactInHeader: Check = ({ extraction, email, phone, headerEmail, headerP
       "pass",
       "Nothing hidden in headers",
       "None of your contact details are tucked away in a page header or footer.",
+      null,
+      copyOf("headerClear"),
     );
   }
   const what = hidden.join(" and ");
@@ -161,11 +206,12 @@ const contactInHeader: Check = ({ extraction, email, phone, headerEmail, headerP
     "Contact details in the header",
     `Your ${what} ${hidden.length > 1 ? "are" : "is"} only in the page header or footer. Many systems skip those, so they never see ${hidden.length > 1 ? "them" : "it"}.`,
     "Move your contact details into the main body of the page.",
+    copyOf(hidden.length > 1 ? "headerBoth" : hidden[0] === "email" ? "headerEmail" : "headerPhone", "moveContact"),
   );
 };
 
 const sections: Check = ({ readable, sectionsFound }) => {
-  if (!readable) return notChecked("sections", "Sections not checked", "your section headings");
+  if (!readable) return notChecked("sections", "Sections not checked", "your section headings", "sectionsNotChecked");
   const has = (key: SectionKey) => sectionsFound.includes(key);
   if (!has("experience")) {
     if (has("projects")) {
@@ -175,6 +221,7 @@ const sections: Check = ({ readable, sectionsFound }) => {
         "No work history section",
         "We found Projects but no Experience heading. That's fine early on, but jobs belong under Experience.",
         'If you\'ve had jobs or internships, list them under an "Experience" heading.',
+        copyOf("sectionsProjectsOnly", "addExperience"),
       );
     }
     return check(
@@ -183,6 +230,7 @@ const sections: Check = ({ readable, sectionsFound }) => {
       "No work history section",
       'We couldn\'t find a heading like "Experience" or "Work History". Without one, many systems can\'t tell your jobs apart.',
       'Put your jobs under a clear heading such as "Experience".',
+      copyOf("sectionsNoWork", "nameExperience"),
     );
   }
   const missingSkills = !has("skills");
@@ -194,6 +242,7 @@ const sections: Check = ({ readable, sectionsFound }) => {
       "No Skills or Education section",
       "We couldn't find Skills or Education headings. Many systems use both to match you to jobs.",
       'Add short "Skills" and "Education" sections.',
+      copyOf("sectionsNoSkillsOrEducation", "addSkillsAndEducation"),
     );
   }
   if (missingSkills) {
@@ -203,6 +252,7 @@ const sections: Check = ({ readable, sectionsFound }) => {
       "No Skills section",
       "We couldn't find a Skills heading. Many systems use it to match you to jobs.",
       'Add a "Skills" section that lists the tools you use.',
+      copyOf("sectionsNoSkills", "addSkills"),
     );
   }
   if (missingEducation) {
@@ -212,25 +262,29 @@ const sections: Check = ({ readable, sectionsFound }) => {
       "No Education section",
       "We couldn't find an Education heading. Many systems expect one, even a short one.",
       'Add an "Education" section, even if it\'s one line.',
+      copyOf("sectionsNoEducation", "addEducation"),
     );
   }
-  const names = SECTION_KEYS.filter(has).map((key) => SECTION_LABELS[key]);
+  const keys = SECTION_KEYS.filter(has);
+  const names = keys.map((key) => SECTION_LABELS[key]);
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : (names[0] ?? "");
-  return check("sections", "pass", "Clear section headings", `We found ${list}.`);
+  return check("sections", "pass", "Clear section headings", `We found ${list}.`, null, copyOf("sectionsFound", null, { sections: keys }));
 };
 
 const columns: Check = ({ extraction, readable }) => {
-  if (!readable && extraction.kind === "pdf") return notChecked("columns", "Layout not checked", "the layout");
+  if (!readable && extraction.kind === "pdf") return notChecked("columns", "Layout not checked", "the layout", "layoutNotChecked");
   if (!extraction.signals.columnLayout) {
-    return check("columns", "pass", "Single column", "Your text reads top to bottom in one column.");
+    return check("columns", "pass", "Single column", "Your text reads top to bottom in one column.", null, copyOf("singleColumn"));
   }
-  const what = extraction.kind === "pdf" ? "Your page has side-by-side columns." : "Your document is set up in columns.";
+  const pdf = extraction.kind === "pdf";
+  const what = pdf ? "Your page has side-by-side columns." : "Your document is set up in columns.";
   return check(
     "columns",
     "warn",
     "Two-column layout",
     `${what} Some systems read straight across and mix them together.`,
     "Switch to a single-column layout.",
+    copyOf(pdf ? "columnsPdf" : "columnsDocument", "oneColumn"),
   );
 };
 
@@ -241,16 +295,21 @@ const tables: Check = ({ extraction }) => {
       "pass",
       "No table problems",
       "Tables only trip up hiring software in Word files. In a PDF they're plain text, and the layout check covers them.",
+      null,
+      copyOf("tablesPdf"),
     );
   }
   const count = extraction.signals.tableCount;
-  if (count === 0) return check("tables", "pass", "No tables", "Your text isn't inside tables, which some systems misread.");
+  if (count === 0) {
+    return check("tables", "pass", "No tables", "Your text isn't inside tables, which some systems misread.", null, copyOf("tablesNone"));
+  }
   return check(
     "tables",
     "warn",
     "Tables found",
     `Your file has ${plural(count, "table")}. Some systems read table cells out of order or skip them.`,
     "Replace tables with plain lines of text.",
+    copyOf("tablesFound", "noTables", { count }),
   );
 };
 
@@ -261,24 +320,38 @@ const textBoxes: Check = ({ extraction }) => {
       "pass",
       "No text box problems",
       "In a PDF, text boxes become regular text that hiring software can read.",
+      null,
+      copyOf("textBoxesPdf"),
     );
   }
   const count = extraction.signals.textBoxCount;
-  if (count === 0) return check("text-boxes", "pass", "No text boxes", "All your text sits in the main page.");
+  if (count === 0) {
+    return check("text-boxes", "pass", "No text boxes", "All your text sits in the main page.", null, copyOf("textBoxesNone"));
+  }
   return check(
     "text-boxes",
     "fail",
     "Text boxes found",
     `Your file has ${plural(count, "text box", "text boxes")}. Many systems skip text boxes entirely, so that text may never be read.`,
     "Move the text out of the text boxes and into the main page.",
+    copyOf("textBoxesFound", "noTextBoxes", { count }),
   );
 };
 
 const images: Check = ({ extraction, readable }) => {
   const count = extraction.signals.imageCount;
-  if (count === 0) return check("images", "pass", "No images", "Nothing important is hidden in a picture.");
+  if (count === 0) {
+    return check("images", "pass", "No images", "Nothing important is hidden in a picture.", null, copyOf("imagesNone"));
+  }
   if (!readable) {
-    return check("images", "warn", "Pages are images", "Your pages are pictures. Hiring software can't see what's in them.", SCAN_FIX);
+    return check(
+      "images",
+      "warn",
+      "Pages are images",
+      "Your pages are pictures. Hiring software can't see what's in them.",
+      SCAN_FIX,
+      copyOf("imagePages", "scan"),
+    );
   }
   return check(
     "images",
@@ -286,24 +359,28 @@ const images: Check = ({ extraction, readable }) => {
     "Images found",
     `We found ${plural(count, "image")}. Logos, photos and skill bars are invisible to hiring software.`,
     "Remove the images, or repeat anything important as plain text.",
+    copyOf("imagesFound", "noImages", { count }),
   );
 };
 
 const icons: Check = ({ extraction, readable }) => {
-  if (!readable) return notChecked("icons", "Icons not checked", "for icon characters");
+  if (!readable) return notChecked("icons", "Icons not checked", "for icon characters", "iconsNotChecked");
   const count = extraction.signals.iconGlyphCount;
-  if (count === 0) return check("icons", "pass", "No icon characters", "No symbols that would show up as junk text.");
+  if (count === 0) {
+    return check("icons", "pass", "No icon characters", "No symbols that would show up as junk text.", null, copyOf("iconsNone"));
+  }
   return check(
     "icons",
     "warn",
     "Icon characters found",
     `We found ${plural(count, "icon character")}, like phone or email symbols. Many systems show them as boxes or junk.`,
     'Swap icons for plain words like "Email" and "Phone".',
+    copyOf("iconsFound", "noIcons", { count }),
   );
 };
 
 const dates: Check = ({ extraction, readable, blocks }) => {
-  if (!readable) return notChecked("dates", "Dates not checked", "your dates");
+  if (!readable) return notChecked("dates", "Dates not checked", "your dates", "datesNotChecked");
   const { ranges, fromJobs } = jobDateRanges(blocks, extraction.signals.columnLayout);
   if (ranges.length === 0) {
     return check(
@@ -312,11 +389,19 @@ const dates: Check = ({ extraction, readable, blocks }) => {
       "No dates found",
       "We couldn't find dates for your jobs. Many systems use them to work out your years of experience.",
       'Add start and end dates to each job, like "Jan 2021 - Mar 2023".',
+      copyOf("datesNone", "addDates"),
     );
   }
   const sample = ranges[0] ? `${ranges[0].start} - ${ranges[0].end}` : "";
   if (!fromJobs) {
-    return check("dates", "pass", "Dates found", `We found dates like "${sample}", so systems can work out your experience.`);
+    return check(
+      "dates",
+      "pass",
+      "Dates found",
+      `We found dates like "${sample}", so systems can work out your experience.`,
+      null,
+      copyOf("datesFound", null, { sample }),
+    );
   }
   const examples = new Map<DateStyle, { sample: string; uses: number }>();
   for (const range of ranges) {
@@ -338,9 +423,17 @@ const dates: Check = ({ extraction, readable, blocks }) => {
       "Mixed date formats",
       `Your dates mix styles, like "${main.sample}" and "${other.sample}". Some systems misread mixed formats when they add up your experience.`,
       `Write every date the same way, like "${main.sample}".`,
+      copyOf("datesMixed", "oneDateStyle", { main: main.sample, other: other.sample }),
     );
   }
-  return check("dates", "pass", "Dates look consistent", `Your job dates all use one style, like "${sample}".`);
+  return check(
+    "dates",
+    "pass",
+    "Dates look consistent",
+    `Your job dates all use one style, like "${sample}".`,
+    null,
+    copyOf("datesConsistent", null, { sample }),
+  );
 };
 
 function jobDateRanges(blocks: readonly SectionBlock[], columnLayout: boolean): { ranges: DateRange[]; fromJobs: boolean } {
@@ -359,7 +452,7 @@ function jobDateRanges(blocks: readonly SectionBlock[], columnLayout: boolean): 
 }
 
 const length: Check = ({ extraction, readable }) => {
-  if (!readable) return notChecked("length", "Length not checked", "the length");
+  if (!readable) return notChecked("length", "Length not checked", "the length", "lengthNotChecked");
   const { pageCount, wordCount } = extraction;
   if (wordCount < MIN_WORDS) {
     return check(
@@ -368,6 +461,7 @@ const length: Check = ({ extraction, readable }) => {
       "Very little text",
       `We found only ${plural(wordCount, "word")}. That gives hiring software little to match against a job.`,
       "Add a few bullet points about what you did in each role.",
+      copyOf("lengthShort", "addLines", { count: wordCount }),
     );
   }
   if (pageCount > MAX_PAGES) {
@@ -377,6 +471,7 @@ const length: Check = ({ extraction, readable }) => {
       "Longer than two pages",
       `Your resume is ${plural(pageCount, "page")}. Recruiters skim, and many expect one or two.`,
       "Trim older or less relevant roles to fit two pages.",
+      copyOf("lengthLong", "trim", { count: pageCount }),
     );
   }
   return check(
@@ -384,11 +479,13 @@ const length: Check = ({ extraction, readable }) => {
     "pass",
     "Good length",
     `${plural(pageCount, "page")} and ${plural(wordCount, "word")}: enough to match jobs, short enough to skim.`,
+    null,
+    copyOf("lengthGood", null, { pages: pageCount, words: wordCount }),
   );
 };
 
 const bullets: Check = ({ extraction, readable, blocks }) => {
-  if (!readable) return notChecked("bullets", "Bullets not checked", "your bullet points");
+  if (!readable) return notChecked("bullets", "Bullets not checked", "your bullet points", "bulletsNotChecked");
   const jobLines = blocks.filter((block) => block.kind === "experience").flatMap((block) => block.lines);
   const lines =
     jobLines.length > 0
@@ -408,9 +505,17 @@ const bullets: Check = ({ extraction, readable, blocks }) => {
       "Long paragraphs in your jobs",
       "Your job details are written as long paragraphs. Short bullet points are easier to skim and to match.",
       "Break each job into 3-5 short bullet points that start with a verb.",
+      copyOf("bulletsParagraphs", "bullets"),
     );
   }
-  return check("bullets", "pass", "Easy to skim", "No long paragraphs, so your jobs are quick to scan.");
+  return check(
+    "bullets",
+    "pass",
+    "Easy to skim",
+    "No long paragraphs, so your jobs are quick to scan.",
+    null,
+    copyOf("bulletsGood"),
+  );
 };
 
 function textBlocks(lines: readonly string[], wrapsLines: boolean): { words: number; bulleted: boolean }[] {

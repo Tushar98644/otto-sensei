@@ -11,6 +11,8 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
 import { addMonths, dayLabel, monthLabel, monthName, shortMonth } from "@/lib/career-log/month";
 import { coveredMonth, localDate } from "@/lib/career-log/schedule";
@@ -32,6 +34,7 @@ export function CheckinPage({ month: linked }: { month: Month | null }) {
   const thisMonth = now === 0 ? null : localDate(timeZone, now).slice(0, 7);
   const fallback = now === 0 ? null : coveredMonth(localDate(timeZone, now));
   const month = picked ?? linked ?? fallback;
+  const t = useMessages("careerLog");
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -43,19 +46,19 @@ export function CheckinPage({ month: linked }: { month: Month | null }) {
           aria-hidden
           className="size-4 transition-transform group-hover:-translate-x-0.5"
         />
-        Career log
+        {t.title}
       </Link>
       {query.isError && !query.data ? (
         <Alert
           variant="error"
-          title="Your log didn't load"
+          title={t.checkinPage.loadFailed}
           action={
             <Button variant="secondary" size="sm" onClick={() => void query.refetch()}>
-              Try again
+              {t.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {t.checkConnection}
         </Alert>
       ) : query.data && month && thisMonth ? (
         <Checkin
@@ -92,6 +95,9 @@ function Checkin({
   const draft = useEntryDraft(userId, month, entry);
   const [done, setDone] = useState(false);
   const pickId = useId();
+  const words = useMessages("careerLog");
+  const t = words.checkinPage;
+  const format = useFormat();
   const months = Array.from({ length: MONTHS_BACK }, (_, index) => addMonths(thisMonth, -index));
   if (!months.includes(month)) months.push(month);
 
@@ -109,24 +115,22 @@ function Checkin({
   return (
     <>
       <header className="flex flex-col gap-2">
-        <Eyebrow>One-minute check-in</Eyebrow>
+        <Eyebrow>{t.eyebrow}</Eyebrow>
         <h1 className="font-display text-4xl/10 font-normal tracking-tight text-pretty text-ink sm:text-5xl/13">
-          Your {monthName(month)} check-in
+          {fmt(words.home.title, { month: monthName(month, format) })}
         </h1>
-        <p className="max-w-prose text-base/7 text-pretty text-muted">
-          Answer one, two or all three, in a few words. It saves as you type.
-        </p>
+        <p className="max-w-prose text-base/7 text-pretty text-muted">{t.intro}</p>
       </header>
 
       <section
-        aria-label={`${monthLabel(month)} note`}
+        aria-label={fmt(t.note, { month: monthLabel(month, format) })}
         className="flex flex-col gap-6 rounded-3xl bg-surface p-4 sm:p-8"
       >
         <div className="grid gap-4 sm:grid-cols-[14rem_minmax(0,1fr)] sm:items-center sm:gap-6">
-          <NotebookArt label={shortMonth(month)} className="h-32" />
+          <NotebookArt label={shortMonth(month, format)} className="h-32" />
           <div className="flex flex-col gap-1.5">
             <label htmlFor={pickId} className="text-sm font-medium text-muted">
-              Writing about
+              {t.writingAbout}
             </label>
             <Select
               id={pickId}
@@ -136,13 +140,11 @@ function Checkin({
             >
               {months.map((option) => (
                 <option key={option} value={option}>
-                  {monthLabel(option)}
+                  {monthLabel(option, format)}
                 </option>
               ))}
             </Select>
-            <p className="mt-1 text-sm/6 text-pretty text-subtle">
-              Rough notes are fine. Otto keeps them for your next resume.
-            </p>
+            <p className="mt-1 text-sm/6 text-pretty text-subtle">{t.rough}</p>
           </div>
         </div>
 
@@ -162,7 +164,7 @@ function Checkin({
                 onClick={() => void finish(true)}
                 className="max-sm:w-full"
               >
-                Nothing new this month
+                {t.nothingNew}
               </Button>
             ) : null}
             <Button
@@ -171,16 +173,13 @@ function Checkin({
               className="max-sm:w-full"
             >
               <Check aria-hidden />
-              Done
+              {words.entry.done}
             </Button>
           </div>
         </div>
       </section>
 
-      <p className="text-sm/6 text-pretty text-subtle">
-        Free on every plan, kept as text. When you use the mic, Otto turns it into words and
-        doesn&apos;t keep the recording.
-      </p>
+      <p className="text-sm/6 text-pretty text-subtle">{t.free}</p>
     </>
   );
 }
@@ -196,7 +195,10 @@ function Done({
   next: LocalDate | null;
   onEdit: () => void;
 }) {
-  const again = next ? `Otto will ask again on ${dayLabel(next)}.` : "See you next month.";
+  const words = useMessages("careerLog");
+  const t = words.checkinPage;
+  const format = useFormat();
+  const again = next ? fmt(words.askAgain, { day: dayLabel(next, format) }) : words.seeYou;
   return (
     <section
       aria-labelledby="checkin-done"
@@ -208,17 +210,17 @@ function Done({
         tabIndex={-1}
         className="mt-5 font-display text-3xl/9 font-normal tracking-tight text-pretty text-ink outline-none sm:text-4xl/10"
       >
-        {nothingNew ? "Noted. Nothing new is fine." : `${monthName(month)} is in your log`}
+        {nothingNew ? t.notedNothing : fmt(t.inYourLog, { month: monthName(month, format) })}
       </h1>
       <p role="status" className="mt-2 max-w-sm text-base/7 text-pretty text-muted">
-        {nothingNew ? again : `Saved to your log. ${again}`}
+        {nothingNew ? again : fmt(t.savedAgain, { again })}
       </p>
       <div className="mt-6 flex w-full flex-col justify-center gap-2 sm:w-auto sm:flex-row">
         <Link href={CAREER_LOG_ROUTE} className={buttonClasses({ className: "max-sm:w-full" })}>
-          See your log
+          {t.seeLog}
         </Link>
         <Button variant="ghost" onClick={onEdit} className="max-sm:w-full">
-          Edit this month
+          {t.editMonth}
         </Button>
       </div>
     </section>
@@ -226,10 +228,11 @@ function Done({
 }
 
 function CheckinSkeleton() {
+  const t = useMessages("careerLog").checkinPage;
   return (
     <div aria-busy className="flex flex-col gap-6">
       <span className="sr-only" role="status">
-        Loading your check-in
+        {t.loading}
       </span>
       <div aria-hidden className="flex flex-col gap-3">
         <Skeleton className="h-4 w-36" />

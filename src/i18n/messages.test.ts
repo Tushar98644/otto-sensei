@@ -94,6 +94,8 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "retro.menu.sysinfo",
     "retro.desk.dock",
     "retro.kinds.minutes",
+    "reader.styleParts.tones.natural",
+    "reader.styleParts.tones.formal",
   ]),
   "pt-BR": new Set([
     "families.design",
@@ -165,6 +167,9 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "retro.kinds.minutes",
     "retro.kinds.slides",
     "retro.kinds.milestones.hackathon",
+    "reader.styleParts.tones.natural",
+    "reader.styleParts.tones.formal",
+    "sendItems.places.links",
   ]),
   fr: new Set([
     "families.design",
@@ -291,6 +296,13 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "bubble.say.portfolio",
     "bubble.chapters.contact",
     "bubble.code",
+    "regions.ca",
+    "card.verdicts.ok",
+    "reader.styleParts.tones.direct",
+    "reader.styleParts.lengths.standard",
+    "result.places.certifications",
+    "reasons.places.certifications",
+    "versions.suggested",
   ]),
   de: new Set([
     "levels.senior",
@@ -396,6 +408,14 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "bubble.portfolio",
     "bubble.live",
     "bubble.code",
+    "card.verdicts.ok",
+    "lines.dialog.job",
+    "lines.dialog.jobNumber",
+    "jobNumber",
+    "reader.styleParts.lengths.standard",
+    "sendItems.places.links",
+    "reasons.outsidePlaces.other",
+    "versions.suggested",
   ]),
 };
 

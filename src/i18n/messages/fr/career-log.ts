@@ -1,0 +1,160 @@
+import type { Messages } from "..";
+import type { Translation } from "../../types";
+
+export default {
+  title: "Journal de carrière",
+  couldntSave: "Impossible d’enregistrer",
+  tryAgain: "Réessayer",
+  checkConnection: "Vérifie ta connexion, puis réessaie.",
+  months: { one: "{count} mois", other: "{count} mois" },
+  askAgain: "Otto te redemandera le {day}.",
+  seeYou: "Au mois prochain.",
+  nothingNewMonth: "Rien de nouveau ce mois-ci.",
+  prompts: {
+    shipped: {
+      label: "Qu’as-tu livré ou amélioré ?",
+      hint: "Une fonctionnalité, un correctif, un processus, une vente.",
+      placeholder: "Refait l’inscription pour que les nouvelles équipes démarrent sans appel",
+    },
+    numbers: {
+      label: "Des chiffres ?",
+      hint: "Utilisateurs, %, argent, temps gagné. Une estimation suffit.",
+      placeholder:
+        "Inscriptions en hausse de 18 % en trois semaines, environ 6 heures gagnées par semaine",
+    },
+    learned: {
+      label: "Quelque chose que tu as appris ou mené ?",
+      hint: "Une compétence, un outil, une personne que tu as aidée.",
+      placeholder: "Animé la revue design hebdo et intégré deux nouveaux ingénieurs",
+    },
+  },
+  page: {
+    intro:
+      "Une note d’une minute chaque mois sur ce que tu as livré. Gratuit avec tous les plans, pour que ton prochain CV s’écrive tout seul.",
+    download: "Télécharger",
+    writeThisMonth: "Écrire ce mois-ci",
+    loadFailed: "Ton journal de carrière n’a pas chargé",
+    yourMonths: "Tes mois",
+    empty:
+      "Rien pour l’instant. Écris sur ce mois-ci, ou ajoute un mois passé dont tu te souviens.",
+    writeNote: "Écrire la note de ce mois-ci",
+    deleted: "{month} supprimé",
+    deleteFailed: "Impossible de supprimer",
+    addLabel: "Ajoute un mois dont tu te souviens",
+    add: "Ajouter",
+    loading: "Chargement de ton journal de carrière",
+  },
+  entry: {
+    edit: "Modifier",
+    delete: "Supprimer {month}",
+    done: "Terminé",
+  },
+  save: {
+    saving: "Enregistrement",
+    saved: "Enregistré",
+    notSaved: "Pas encore enregistré.",
+    idle: "S’enregistre pendant que tu écris. Rien n’est obligatoire.",
+  },
+  checkin: {
+    tab: "Bilan mensuel",
+    free: "Gratuit avec tous les plans",
+    next: "Prochain bilan",
+    paused: "En pause jusqu’au {day}. Les bilans d’ici là sont sautés.",
+    asks: "Otto demande {day} de chaque mois, {how}.",
+    how: {
+      email: "dans la cloche, sur l’Accueil et par e-mail",
+      bell: "dans la cloche et sur l’Accueil",
+    },
+    nudge: "Un rappel d’une minute, une fois par mois",
+    offIntro:
+      "Trois questions rapides {day}, dans la cloche et sur l’Accueil. Désactivé tant que tu ne l’actives pas.",
+    offIntroEmail:
+      "Trois questions rapides {day}, dans la cloche et sur l’Accueil, avec un court e-mail. Désactivé tant que tu ne l’actives pas.",
+    change: "Changer le jour ou mettre en pause",
+    off: "Désactivé",
+    turnOn: "Activer les bilans",
+    on: "Les bilans mensuels sont activés.",
+    day: "le {week} {weekday}",
+    weeks: {
+      first: "premier",
+      second: "deuxième",
+      third: "troisième",
+      fourth: "quatrième",
+      last: "dernier",
+    },
+  },
+  home: {
+    noted: "Noté : rien de nouveau en {month}.",
+    eyebrow: "Journal de carrière · une minute",
+    title: "Ton bilan de {month}",
+    body: "Ce que tu as livré, quelques chiffres, et ce que tu as appris ou mené. Quelques mots suffisent.",
+    nothingNew: "Rien de nouveau",
+    write: "Écrire mon bilan",
+  },
+  checkinPage: {
+    loadFailed: "Ton journal n’a pas chargé",
+    eyebrow: "Bilan d’une minute",
+    intro:
+      "Réponds à une, deux ou aux trois, en quelques mots. Ça s’enregistre pendant que tu écris.",
+    note: "Note de {month}",
+    writingAbout: "J’écris sur",
+    rough: "Des notes brutes, c’est très bien. Otto les garde pour ton prochain CV.",
+    nothingNew: "Rien de nouveau ce mois-ci",
+    free: "Gratuit avec tous les plans, gardé en texte. Quand tu utilises le micro, Otto le transforme en mots et ne garde pas l’enregistrement.",
+    notedNothing: "Noté. Rien de nouveau, c’est très bien.",
+    inYourLog: "{month} est dans ton journal",
+    savedAgain: "Enregistré dans ton journal. {again}",
+    seeLog: "Voir ton journal",
+    editMonth: "Modifier ce mois",
+    loading: "Chargement de ton bilan",
+  },
+  offer: {
+    hired: "Félicitations pour le nouveau poste !",
+    offered: "Félicitations pour l’offre !",
+    notNow:
+      "D’accord, pas maintenant. Lance-le quand tu veux depuis ton <link>journal de carrière</link>.",
+    on: "Ton journal de carrière est activé. Écris-y quand tu veux depuis ton <link>journal de carrière</link>.",
+    onNext:
+      "Ton journal de carrière est activé. Otto te demandera le {day}. Écris-y quand tu veux depuis ton <link>journal de carrière</link>.",
+    ask: "Tu veux qu’Otto tienne un journal de travail d’une minute pour que <b>ton prochain CV s’écrive tout seul</b> ?",
+    body: "Une fois par mois : trois questions rapides dans la cloche et sur l’Accueil, et un court e-mail. À l’oral ou à l’écrit, gratuit avec tous les plans. Désactivé tant que tu ne dis pas oui.",
+    no: "Pas maintenant",
+    yes: "Oui, tenir mon journal",
+  },
+  lines: {
+    tab: "Pour ta prochaine recherche",
+    art: "Lignes",
+    notes: { one: "{count} mois de notes", other: "{count} mois de notes" },
+    yourNotes: "Tes notes, tes mots",
+    title: "Transforme ton journal en lignes de CV",
+    body: "Choisis un emploi et les mois. Otto écrit des lignes qui citent tes propres faits et laisse un blanc pour tout chiffre qu’il n’a pas. Tu acceptes chacune dans le studio.",
+    start: "Transformer mon journal en lignes",
+    writeFirst: "Écris d’abord un mois, puis reviens.",
+    dialog: {
+      title: "Transformer mon journal en lignes",
+      description:
+        "Otto les écrit ; tu acceptes chacune dans le studio avant qu’elle aille sur ton CV.",
+      empty: "Je n’ai rien trouvé de nouveau dans ces mois que ton CV ne dise pas déjà.",
+      pick: "Choisis l’emploi et les mois. Je n’utiliserai que ce que tu as écrit, et je laisserai un blanc pour tout chiffre que tu ne m’as pas donné.",
+      cancel: "Annuler",
+      write: "Écrire mes lignes",
+      close: "Fermer",
+      reading: {
+        one: "Je lis {count} mois de tes notes.",
+        other: "Je lis {count} mois de tes notes.",
+      },
+      noResume: "Les lignes vont dans un CV, alors crée-en un d’abord. Puis reviens ici.",
+      makeResume: "Créer un CV",
+      resume: "CV",
+      job: "Emploi",
+      noJobs: "Ce CV n’a pas encore d’emploi. Ajoute l’emploi dans le studio d’abord.",
+      from: "De",
+      to: "À",
+      inRange: {
+        one: "{count} mois de notes sur cette période. Utilise 1 brouillon Créer avec Otto.",
+        other: "{count} mois de notes sur cette période. Utilise 1 brouillon Créer avec Otto.",
+      },
+      jobNumber: "Emploi {number}",
+    },
+  },
+} satisfies Translation<Messages["careerLog"]>;

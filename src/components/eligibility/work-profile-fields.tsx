@@ -5,6 +5,7 @@ import { useId, useMemo, type ReactNode } from "react";
 import { useNow } from "@/components/studio/use-now";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
+import { useLocale, useMessages } from "@/i18n/client";
 import { countryOptions, timeZoneOptions } from "@/lib/eligibility/options";
 import {
   WORK_REGIONS,
@@ -40,7 +41,9 @@ export function WorkProfileFields({
 }: WorkProfileFieldsProps) {
   const all = fields === "all";
   const day = Math.floor(useNow() / DAY_MS) * DAY_MS;
-  const countries = useMemo(() => countryOptions(), []);
+  const t = useMessages("workProfile").fields;
+  const locale = useLocale();
+  const countries = useMemo(() => countryOptions(locale), [locale]);
   const zones = useMemo(
     () => (all ? timeZoneOptions(day, value.timeZone) : []),
     [all, day, value.timeZone],
@@ -53,13 +56,13 @@ export function WorkProfileFields({
   return (
     <>
       <div className={all ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
-        <Field label="Country you live in" hint={countryHint}>
+        <Field label={t.country} hint={countryHint}>
           <Select
             value={value.country}
             onChange={(event) => onChange({ country: event.target.value })}
             data-autofocus={autoFocusCountry || undefined}
           >
-            <option value="">Choose a country</option>
+            <option value="">{t.chooseCountry}</option>
             {countries.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -68,12 +71,12 @@ export function WorkProfileFields({
           </Select>
         </Field>
         {all ? (
-          <Field label="Time zone">
+          <Field label={t.timeZone}>
             <Select
               value={value.timeZone}
               onChange={(event) => onChange({ timeZone: event.target.value })}
             >
-              <option value="">Choose a time zone</option>
+              <option value="">{t.chooseZone}</option>
               {zones.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -86,10 +89,10 @@ export function WorkProfileFields({
 
       <div role="group" aria-labelledby={`${rightsId}-title`} aria-describedby={`${rightsId}-hint`}>
         <p id={`${rightsId}-title`} className="text-sm font-medium text-ink">
-          Can you work there without visa sponsorship?
+          {t.rightsTitle}
         </p>
         <p id={`${rightsId}-hint`} className="mt-1 text-sm text-muted">
-          Yes if you&apos;re a citizen or resident there, or your visa already lets you work.
+          {t.rightsHint}
         </p>
         <div className="mt-4 flex flex-col gap-4">
           {WORK_REGIONS.map((region) => (
@@ -110,7 +113,7 @@ export function WorkProfileFields({
         aria-describedby={typeError ? `${typesId}-error` : undefined}
       >
         <p id={`${typesId}-title`} className={all ? "text-sm font-medium text-ink" : "sr-only"}>
-          Open to
+          {t.openTo}
         </p>
         <div className={all ? "mt-1 flex flex-wrap gap-x-6" : "-mt-2 flex flex-wrap gap-x-6"}>
           {all ? (
@@ -122,7 +125,7 @@ export function WorkProfileFields({
                   onChange={(event) => onChange({ fullTime: event.target.checked })}
                   className="size-4 accent-ink"
                 />
-                Full-time jobs
+                {t.fullTime}
               </label>
               <label className={CHECKBOX}>
                 <input
@@ -131,7 +134,7 @@ export function WorkProfileFields({
                   onChange={(event) => onChange({ contract: event.target.checked })}
                   className="size-4 accent-ink"
                 />
-                Contract work
+                {t.contract}
               </label>
             </>
           ) : null}
@@ -142,7 +145,7 @@ export function WorkProfileFields({
               onChange={(event) => onChange({ remoteOnly: event.target.checked })}
               className="size-4 accent-ink"
             />
-            Remote jobs only
+            {t.remoteOnly}
           </label>
         </div>
         {typeError ? (

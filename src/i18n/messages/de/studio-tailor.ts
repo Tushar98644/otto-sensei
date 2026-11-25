@@ -273,6 +273,117 @@ export default {
     moveUp: "Wir stellen diese Zeilen nach oben:",
     more: "Und {count} weitere.",
   },
+  reasons: {
+    places: {
+      at: "{title} bei {company}",
+      line: "{place}, Zeile {number}",
+      experience: "Berufserfahrung",
+      project: "Projekt",
+      education: "Ausbildung",
+      jobTitle: "Jobtitel",
+      certifications: "Zertifikate",
+      summary: "Profil",
+      skills: "Kenntnisse",
+      skillsGroup: "Kenntnisse: {label}",
+      headline: "Berufsbezeichnung",
+    },
+    problems: {
+      duty: "liest sich wie eine Stellenbeschreibung",
+      "no-result": "sagt nicht, was sich geändert hat",
+      "weak-start": "fängt schwach an",
+      "stock-phrase": "stützt sich auf eine Floskel",
+      "first-person": "sagt ich oder wir",
+      tense: "steht im Präsens, obwohl du den Job nicht mehr hast",
+    },
+    years: {
+      one: " Die Anzeige verlangt {asked}+ Jahre; deine Jobdaten ergeben etwa {count} Jahr.",
+      other: " Die Anzeige verlangt {asked}+ Jahre; deine Jobdaten ergeben etwa {count} Jahre.",
+    },
+    spelled:
+      " Die Anzeige sagt „{term}“, deine Zeile sagt es anders. Manche Systeme suchen nur nach genauen Wörtern, also schreib auch einmal „{term}“.",
+    added: "Deine neue Zeile zeigt es. Sie kommt in den angepassten Lebenslauf.",
+    onlyIn: "Nur in {where}. Zeig es auch in einer Zeile darüber, was du gemacht hast.",
+    onlyInPlaces: {
+      jobTitle: "einem Jobtitel",
+      certifications: "deinen Zertifikaten",
+      education: "deiner Ausbildung",
+      summary: "deinem Profil",
+    },
+    shownOutside: "Gezeigt {where}, nicht in einem Job.",
+    outsidePlaces: {
+      project: "in deinem Projekt {name}",
+      education: "in deiner Ausbildung",
+      other: "in {name}",
+    },
+    atWork: " Wenn du es im Job genutzt hast, schreib das bei diesem Job.",
+    shownWithProblem: "Gezeigt bei {where}, aber diese Zeile {problem}.",
+    shownAt: "Gezeigt in einer Zeile bei {where}.",
+    declined: "Du hast gesagt, dass du es nicht hast.",
+    otherForm:
+      "Dein Lebenslauf sagt „{written}“, die Anzeige sagt „{asked}“. Die Stichwortsuche findet nur die getippte Form, also schreib einmal beide: „{both}“.",
+    listed:
+      "Nur in deiner {list}. Keine Jobzeile zeigt, dass du es genutzt hast, und Filter suchen es in dem, was du gemacht hast.",
+    lists: {
+      headline: "Berufsbezeichnung",
+      skills: "Kenntnisliste",
+      group: "Kenntnisliste ({group})",
+    },
+    missingMust: "Die Anzeige verlangt das, und nichts in deinem Lebenslauf sagt es bisher.",
+    missingNice: "Ein Plus für diesen Job. Nichts in deinem Lebenslauf sagt es bisher.",
+    lineNote: "Zeigt {names} ({kind}). {next}",
+    lineKinds: { must: "eine Muss-Anforderung", nice: "eine Wunsch-Anforderung" },
+    keepNearTop: "Lass sie weit oben.",
+    fixFirst: {
+      missing: {
+        one: "{count} Muss-Anforderung fehlt in deinem Lebenslauf: {names}",
+        other: "{count} Muss-Anforderungen fehlen in deinem Lebenslauf: {names}",
+      },
+      missingReason:
+        "Wenn du es gemacht hast, sag wo. Wenn nicht, sag Nein, dann kommt nichts dazu.",
+      listed: {
+        one: "{count} Muss-Anforderung steht nur in deiner Kenntnisliste: {names}",
+        other: "{count} Muss-Anforderungen stehen nur in deiner Kenntnisliste: {names}",
+      },
+      listedReason:
+        "Filter suchen sie in einer Zeile darüber, was du gemacht hast. Zeig, wo du sie genutzt hast.",
+      spelled: "Die Anzeige sagt „{asked}“, dein Lebenslauf sagt „{written}“",
+      spelledReason:
+        "Die Stichwortsuche findet nur die getippte Form. Schreib einmal beide: „{both}“.",
+      weak: {
+        one: "{count} Zeile mit einer Muss-Anforderung wirkt schwach",
+        other: "{count} Zeilen mit Muss-Anforderungen wirken schwach",
+      },
+      title: "Deine Berufsbezeichnung nennt diesen Job nicht",
+      noSummary: "Kein Profil ganz oben",
+      summary: "Dein Profil geht nicht auf diesen Job ein",
+    },
+    headline: {
+      must: "Belegte Muss-Anforderungen: {proven} von {total}",
+      nice: "Wunsch-Anforderungen: {proven} von {total}",
+      join: " · ",
+    },
+    title: {
+      headline: "Deine Berufsbezeichnung passt zum Titel der Anzeige, „{title}“.",
+      latest: "Dein letzter Jobtitel passt zum Titel der Anzeige, „{title}“.",
+      missing:
+        "Der Titel der Anzeige ist „{title}“. Wenn er zu dir passt, schreib ihn unter deinen Namen. Recruiter suchen nach Jobtiteln.",
+      differs:
+        "Der Titel der Anzeige ist „{title}“, deine Berufsbezeichnung sagt „{headline}“. Wenn der Job zu dir passt, nimm seinen Titel in deine Berufsbezeichnung oder dein Profil. Ändere nie den Titel eines früheren Jobs.",
+    },
+    summary: {
+      missing:
+        "Du hast kein Profil. Zwei Zeilen ganz oben, die diesen Job und deine beste Übereinstimmung nennen, helfen allen, die nur überfliegen.",
+      names: "Dein Profil nennt {what}.",
+      theTitle: "den Jobtitel",
+      differs: "Dein Profil nennt weder diesen Job noch seine Muss-Anforderungen.",
+      suggest: " Du zeigst {names} in deinen Zeilen; schreib es auch oben hin.",
+    },
+    targets: { aJob: "Ein Job", project: "Projekt: {name}", untitled: "ohne Titel" },
+    asks: {
+      used: "Hast du schon mit {term} gearbeitet?",
+      experience: "Hast du Erfahrung mit {phrase}?",
+    },
+  },
   skip: {
     note: "Keinen Job im Kopf? Lade ihn so herunter, wie er ist.",
     action: "Weiter zu Herunterladen",

@@ -338,6 +338,7 @@ export default {
     email: "Check-in-E-Mail",
     emailHint:
       "Eine kurze E-Mail am Tag selbst, nie mehr als eine im Monat. Die Glocke und Start fragen so oder so.",
+    keep: "Überlegst du zu kündigen? <link>Dein Karrieretagebuch bleibt kostenlos</link>: Es bleibt in jedem Tarif, monatliche Check-ins inklusive.",
     open: "Dein Karrieretagebuch öffnen",
     loadFailed: "Die Einstellungen deines Karrieretagebuchs konnten nicht geladen werden",
     on: "An",

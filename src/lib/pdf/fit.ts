@@ -1,3 +1,4 @@
+import { fmt } from "@/i18n/format";
 import { savedTerms } from "@/lib/insights/saved-job";
 import { lintBullet, lintResume } from "@/lib/lint/bullets";
 import type { LintIssue, LintIssueId } from "@/lib/lint/types";
@@ -20,24 +21,43 @@ const SEVERITY_WEIGHT = { high: 3, low: 1 } as const;
 
 type Group = { place: string; bullets: readonly Bullet[] };
 
-function groups(resume: Resume): Group[] {
+// Where a line sits, in the reader's words.
+export type FitPlaces = {
+  at: string;
+  experience: string;
+  project: string;
+  education: string;
+  extra: string;
+};
+
+const ENGLISH_PLACES: FitPlaces = {
+  at: "{title} at {company}",
+  experience: "Experience",
+  project: "Project",
+  education: "Education",
+  extra: "Extra section",
+};
+
+function jobPlace(title: string, company: string, places: FitPlaces): string {
+  if (title && company) return fmt(places.at, { title, company });
+  return title || company || places.experience;
+}
+
+function groups(resume: Resume, places: FitPlaces): Group[] {
   const out: Group[] = [];
   for (const key of resume.sectionOrder) {
     if (key === "experience") {
       for (const job of resume.experience) {
-        out.push({
-          place: [job.title, job.company].filter(Boolean).join(" at ") || "Experience",
-          bullets: job.bullets,
-        });
+        out.push({ place: jobPlace(job.title, job.company, places), bullets: job.bullets });
       }
     } else if (key === "projects") {
       for (const project of resume.projects) {
-        out.push({ place: project.name || "Project", bullets: project.bullets });
+        out.push({ place: project.name || places.project, bullets: project.bullets });
       }
     } else if (key === "education") {
       for (const school of resume.education) {
         out.push({
-          place: [school.degree, school.school].filter(Boolean).join(", ") || "Education",
+          place: [school.degree, school.school].filter(Boolean).join(", ") || places.education,
           bullets: school.bullets,
         });
       }
@@ -45,7 +65,7 @@ function groups(resume: Resume): Group[] {
   }
   for (const section of extrasOf(resume)) {
     for (const item of section.items) {
-      out.push({ place: item.title || section.title || "Extra section", bullets: item.bullets });
+      out.push({ place: item.title || section.title || places.extra, bullets: item.bullets });
     }
   }
   return out;
@@ -59,7 +79,7 @@ function topIssue(issues: readonly LintIssue[]): LintIssueId | null {
   return (issues.find((issue) => issue.severity === "high") ?? issues[0])?.id ?? null;
 }
 
-export function fitCandidates(resume: Resume): FitLine[] {
+export function fitCandidates(resume: Resume, places: FitPlaces = ENGLISH_PLACES): FitLine[] {
   const shown = visibleResume(resume);
   const lint = lintResume(shown).byBullet;
   const terms = shown.tailor
@@ -67,7 +87,7 @@ export function fitCandidates(resume: Resume): FitLine[] {
     : [];
   const ranked: { line: FitLine; weight: number; position: number }[] = [];
   let position = 0;
-  for (const group of groups(shown)) {
+  for (const group of groups(shown, places)) {
     const lines = group.bullets.filter((bullet) => bullet.text.trim() !== "");
     for (const bullet of lines.slice(1)) {
       position += 1;

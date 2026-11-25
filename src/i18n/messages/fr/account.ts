@@ -341,6 +341,7 @@ export default {
     email: "E-mail de bilan",
     emailHint:
       "Un court e-mail le jour même, jamais plus d'un par mois. La cloche et l'Accueil te posent la question de toute façon.",
+    keep: "Tu penses à résilier ? <link>Ton journal de carrière reste gratuit</link> : il reste sur tous les plans, bilans mensuels compris.",
     open: "Ouvrir ton journal de carrière",
     loadFailed: "Les réglages de ton journal de carrière ne se sont pas chargés",
     on: "Activé",

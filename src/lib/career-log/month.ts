@@ -1,3 +1,4 @@
+import { formatFor, type Format } from "@/i18n/intl";
 import type { LocalDate, Month } from "./types";
 
 const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
@@ -50,19 +51,18 @@ export function addDays(date: LocalDate, days: number): LocalDate {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
-const LONG = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-const NAME = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" });
-const SHORT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const DAY = new Intl.DateTimeFormat("en-US", {
+const LONG: Intl.DateTimeFormatOptions = { month: "long", year: "numeric", timeZone: "UTC" };
+const NAME: Intl.DateTimeFormatOptions = { month: "long", timeZone: "UTC" };
+const SHORT: Intl.DateTimeFormatOptions = { month: "short", year: "numeric", timeZone: "UTC" };
+const SHORT_NAME: Intl.DateTimeFormatOptions = { month: "short", timeZone: "UTC" };
+const DAY: Intl.DateTimeFormatOptions = {
   weekday: "short",
   month: "short",
   day: "numeric",
   timeZone: "UTC",
-});
+};
+
+const ENGLISH = formatFor("en");
 
 const utc = (month: Month) => {
   const { year, month: m } = splitMonth(month);
@@ -70,35 +70,36 @@ const utc = (month: Month) => {
 };
 
 // "November 2026".
-export function monthLabel(month: Month): string {
-  return LONG.format(utc(month));
+export function monthLabel(month: Month, format: Format = ENGLISH): string {
+  return format.date(utc(month), LONG);
 }
 
 // "November".
-export function monthName(month: Month): string {
-  return NAME.format(utc(month));
+export function monthName(month: Month, format: Format = ENGLISH): string {
+  return format.date(utc(month), NAME);
 }
 
 // "Nov 2026".
-export function shortMonth(month: Month): string {
-  return SHORT.format(utc(month));
+export function shortMonth(month: Month, format: Format = ENGLISH): string {
+  return format.date(utc(month), SHORT);
 }
 
 // "Mon, Dec 7".
-export function dayLabel(date: LocalDate): string {
+export function dayLabel(date: LocalDate, format: Format = ENGLISH): string {
   const { year, month, day } = splitDate(date);
-  return DAY.format(Date.UTC(year, month - 1, day));
+  return format.date(Date.UTC(year, month - 1, day), DAY);
 }
 
 // "Oct and Nov 2026", "Sep, Oct and Nov 2026", across years "Dec 2025 and Jan 2026".
-export function monthsLabel(months: readonly Month[]): string {
+export function monthsLabel(months: readonly Month[], format: Format = ENGLISH): string {
   const sorted = [...new Set(months)].sort();
   const sameYear = sorted.every((month) => month.slice(0, 4) === sorted[0]?.slice(0, 4));
   const names = sorted.map((month, index) =>
     sameYear && index < sorted.length - 1
-      ? SHORT.format(utc(month)).split(" ")[0]!
-      : shortMonth(month),
+      ? format.date(utc(month), SHORT_NAME)
+      : shortMonth(month, format),
   );
   if (names.length <= 1) return names[0] ?? "";
+  if (format.locale !== "en") return format.list(names);
   return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }

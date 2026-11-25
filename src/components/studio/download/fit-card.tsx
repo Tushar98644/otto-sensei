@@ -91,7 +91,9 @@ export type FitCardProps = {
 export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
   const updateResume = useStudioStore((s) => s.updateResume);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const t = useMessages("studioDownload").fit;
+  const download = useMessages("studioDownload");
+  const t = download.fit;
+  const review = useMessages("lint").review;
   const format = useFormat();
   const pages = pdf.file && pdf.isCurrent ? pdf.file.pages : null;
   const compact = designOf(resume).density === "compact";
@@ -125,7 +127,11 @@ export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
   }
 
   async function findLines() {
-    const lines = fitCandidates(resume);
+    const lines = fitCandidates(resume, {
+      at: review.firstLook.at,
+      ...review.places,
+      extra: download.sendItems.places.extra,
+    });
     if (lines.length === 0) {
       setPhase({ kind: "nothing" });
       return;

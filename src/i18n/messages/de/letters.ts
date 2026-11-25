@@ -172,6 +172,13 @@ export default {
     stylePlain: "Otto schreibt in einem schlichten, natürlichen Stil.",
     changeStyle: "Stil ändern",
     setStyle: "Stil festlegen",
+    styleParts: {
+      tones: { natural: "Natürlich", warm: "Herzlich", direct: "Direkt", formal: "Formell" },
+      lengths: { standard: "Standard", shorter: "Kürzer" },
+      spellings: { us: "US-Englisch", uk: "UK-Englisch" },
+      notes: "deine Notizen",
+      join: " · ",
+    },
     saving: "Wird gespeichert…",
     saved: "Gespeichert",
     failed: "Noch nicht gespeichert",

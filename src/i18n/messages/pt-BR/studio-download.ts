@@ -168,6 +168,60 @@ export default {
       other: "Ver {count} itens marcados como certos",
     },
   },
+  sendItems: {
+    places: {
+      name: "Seu nome",
+      headline: "Título profissional",
+      email: "E-mail",
+      phone: "Telefone",
+      location: "Localização",
+      links: "Links",
+      summary: "Resumo",
+      at: "{title} em {company}",
+      aJob: "Um emprego",
+      aProject: "Um projeto",
+      aSchool: "Uma instituição de ensino",
+      skills: "Habilidades",
+      aCertification: "Uma certificação",
+      extra: "Seção extra",
+      letter: "Carta de apresentação",
+    },
+    blank: {
+      title: "Ficou um espaço em branco",
+      message: "“{blank}” parece um espaço para preencher. Coloque o dado real ou tire.",
+    },
+    company: {
+      title: "O nome de outra empresa",
+      message: "Cita {name}, mas esta cópia é para {company}.",
+    },
+    backwards: {
+      title: "Datas invertidas",
+      message: "{dates} termina antes de começar. Uma das datas pode estar errada.",
+    },
+    future: {
+      title: "Data no futuro",
+      job: "{date} ainda não chegou. Se o emprego continua, use “Atual”.",
+      certification:
+        "{date} ainda não chegou. Se você ainda está cursando, coloque “Em andamento”.",
+    },
+    overlap: {
+      title: "Datas sobrepostas",
+      message:
+        "Sobrepõe {place} em {span}. Tudo bem se era um trabalho paralelo; senão, confira as datas.",
+    },
+    tool: {
+      title: "Citado antes de existir",
+      job: "{tool} saiu em {released}, depois que este emprego terminou ({dates}).",
+      course: "{tool} saiu em {released}, depois que este curso terminou ({dates}).",
+    },
+    copied: {
+      title: "Copiado da vaga",
+      message: "{count} palavras seguidas batem com a vaga. Diga com suas próprias palavras.",
+    },
+    months: { one: "{count} mês", other: "{count} meses" },
+    years: { one: "{count} ano", other: "{count} anos" },
+    yearsAndMonths: "{years} e {months}",
+  },
   check: {
     checking: "Conferindo seu PDF.",
     checkedProblems: {

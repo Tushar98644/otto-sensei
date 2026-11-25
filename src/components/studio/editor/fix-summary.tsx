@@ -4,8 +4,9 @@ import { ChevronDown, Info, ListChecks, TriangleExclamationPoint } from "lucide-
 import { memo, useId, useMemo, useState } from "react";
 import { openTarget, targetLabel } from "@/components/studio/review/open-target";
 import { Button } from "@/components/ui/button";
-import { useFormat, useMessages } from "@/i18n/client";
+import { useFormat, useLocale, useMessages } from "@/i18n/client";
 import { reviewResume, type ReviewItem } from "@/lib/lint/review";
+import { localizeReview } from "@/lib/lint/review-text";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { countText } from "../count";
@@ -33,7 +34,12 @@ const SettledSummary = memo(function SettledSummary({
   const listId = useId();
   const t = useMessages("studioEditor").review;
   const format = useFormat();
-  const review = useMemo(() => reviewResume(resume, resumeLintOf(resume)), [resume]);
+  const lint = useMessages("lint");
+  const locale = useLocale();
+  const review = useMemo(
+    () => localizeReview(reviewResume(resume, resumeLintOf(resume)), lint, locale),
+    [resume, lint, locale],
+  );
   if (review.items.length === 0) return null;
   const items = [...review.top, ...review.items.filter((item) => !review.top.includes(item))];
 

@@ -75,6 +75,15 @@ export default {
     },
   },
   history: {
+    // Undo labels the store writes in English, shown in the studio's language.
+    labels: {
+      fix: "Otto fixed a line",
+      summary: "Otto wrote your summary",
+      tailor: "Otto tailored this copy",
+      format: "Changed the format",
+      renamed: "Renamed the resume",
+      restored: "Restored “{name}”",
+    },
     labelled: "{action}: {label}",
     undo: "Undo",
     redo: "Redo",
@@ -86,6 +95,8 @@ export default {
     menuTrigger: "Redo and versions",
   },
   versions: {
+    conflict: { here: "Edits on this device", elsewhere: "Edits from another device" },
+    suggested: "Version {number}",
     title: "Versions",
     description:
       "Save this resume as it is now, and come back to it any time. Restoring keeps what you have now as a version too.",

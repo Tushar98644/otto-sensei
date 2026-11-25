@@ -111,6 +111,7 @@ export default {
     stops: "Pontos finais iguais",
   },
   review: {
+    places: { experience: "Experiência", project: "Projeto", education: "Formação" },
     groups: {
       duty: {
         title: {

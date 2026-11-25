@@ -106,6 +106,8 @@ export default {
     stops: "Full stops match",
   },
   review: {
+    // Where a line sits when its job, project or school has no name.
+    places: { experience: "Experience", project: "Project", education: "Education" },
     groups: {
       duty: {
         title: {

@@ -74,4 +74,17 @@ export default {
     resetsOn: "Il se renouvelle le {day}.",
     resetsWhenRenews: "Il se renouvelle au renouvellement de ton forfait.",
   },
+  warnings: {
+    fillIn: {
+      send: "Remplis {blanks} avant de l’envoyer.",
+      sendNumbers: "Remplis {blanks} avant de l’envoyer. Otto n’invente jamais de chiffres.",
+      ownWords: "Remplis {blanks} avec tes propres mots avant de l’envoyer.",
+      use: "Remplis {blanks} avant de l’utiliser.",
+    },
+    number: "Mets ton vrai chiffre dans [number], ou retire-le. Otto n’invente jamais de chiffres.",
+    verb: "Vérifie « {verb} ». Ton CV dit « {line} ».",
+    unbacked: "Vérifie « {phrase} » : toi seul le sais. Garde-le si c’est vrai.",
+    cliche: "Remplace {phrases} par tes propres mots. Les recruteurs passent dessus.",
+    quote: "« {text} »",
+  },
 } satisfies Translation<Messages["otto"]>;

@@ -10,7 +10,9 @@ import {
   type SavedRequirement,
 } from "@/lib/resume/schema";
 import type { TailorCopyMeta } from "@/lib/store/resume-store";
-import type { ScreenerOptions } from "@/lib/tailor/requirements";
+import studioTailorEn from "@/i18n/messages/en/studio-tailor";
+import type { ReasonWords } from "@/lib/tailor/reasons";
+import { refPlace, type ScreenerOptions } from "@/lib/tailor/requirements";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
 import type { PluralForms } from "@/i18n/types";
@@ -57,7 +59,15 @@ function isPermutation(current: readonly string[], proposed: readonly string[]):
   return proposed.every((id) => remaining.delete(id)) && remaining.size === 0;
 }
 
-export function reorderPlans(resume: Resume, result: TailorResult): ReorderPlan[] {
+type TargetWords = Pick<ReasonWords, "places" | "targets">;
+
+const ENGLISH_TARGETS: TargetWords = studioTailorEn.reasons;
+
+export function reorderPlans(
+  resume: Resume,
+  result: TailorResult,
+  t: TargetWords = ENGLISH_TARGETS,
+): ReorderPlan[] {
   const plans: ReorderPlan[] = [];
   const seen = new Set<string>();
   for (const order of result.bulletOrder) {
@@ -72,23 +82,31 @@ export function reorderPlans(resume: Resume, result: TailorResult): ReorderPlan[
       .map((id) => byId.get(id))
       .filter((bullet): bullet is Bullet => bullet !== undefined && bullet.text.trim() !== "");
     if (movedUp.length === 0) continue;
-    const label = [job.title, job.company].filter(Boolean).join(" at ") || "Experience";
+    const label = refPlace(
+      { section: "experience", roleTitle: job.title, company: job.company, parentLabel: "" },
+      t.places,
+    );
     plans.push({ experienceId: job.id, label, bulletIds: order.bulletIds, movedUp });
   }
   return plans;
 }
 
-export function lineTargets(resume: Resume): LineTarget[] {
+export function lineTargets(resume: Resume, t: TargetWords = ENGLISH_TARGETS): LineTarget[] {
+  const named = (title: string, company: string) => {
+    const parts = [title, company].filter((part) => part.trim());
+    const [first = "", second] = parts;
+    return second ? fmt(t.places.at, { title: first, company: second }) : first;
+  };
   return [
     ...resume.experience.map((job) => ({
       id: job.id,
       section: "experience" as const,
-      label: [job.title, job.company].filter((part) => part.trim()).join(" at ") || "A job",
+      label: named(job.title, job.company) || t.targets.aJob,
     })),
     ...resume.projects.map((project) => ({
       id: project.id,
       section: "projects" as const,
-      label: `Project: ${project.name.trim() || "untitled"}`,
+      label: fmt(t.targets.project, { name: project.name.trim() || t.targets.untitled }),
     })),
   ];
 }
@@ -180,7 +198,7 @@ export function screenerResume(
   return { ...applyTailorChoices(source, result, choices), summary: source.summary };
 }
 
-export function screenerOptions(choices: TailorChoices): Required<ScreenerOptions> {
+export function screenerOptions(choices: TailorChoices): Required<Omit<ScreenerOptions, "places">> {
   const declined = new Set<string>();
   const linked = new Map<string, string>();
   for (const [id, choice] of Object.entries(choices.requirements)) {

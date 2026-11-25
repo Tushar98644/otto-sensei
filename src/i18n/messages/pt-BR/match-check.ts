@@ -81,6 +81,22 @@ export default {
     },
   },
   result: {
+    places: {
+      at: "{title} em {company}",
+      line: "{place}, linha {number}",
+      experience: "Experiência",
+      project: "Projeto",
+      education: "Formação",
+      jobTitle: "Cargo",
+      certifications: "Certificações",
+      summary: "Resumo",
+      skills: "Habilidades",
+      skillsGroup: "Habilidades: {label}",
+      headline: "Título profissional",
+      tools: "{name}, ferramentas",
+      projects: "Projetos",
+      top: "Topo do seu currículo",
+    },
     eyebrow: "Verificação de palavras grátis",
     headline: {
       one: "O Otto encontrou {found} de {count} habilidade citada na vaga",

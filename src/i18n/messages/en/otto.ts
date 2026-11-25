@@ -72,4 +72,18 @@ export default {
     resetsOn: "It resets on {day}.",
     resetsWhenRenews: "It resets when your plan renews.",
   },
+  // Notes under AI-written text (src/lib/ai/warning-text), written in English on the server and shown in the app's language.
+  warnings: {
+    fillIn: {
+      send: "Fill in {blanks} before you send it.",
+      sendNumbers: "Fill in {blanks} before you send it. Otto never guesses numbers.",
+      ownWords: "Fill in {blanks} with your own words before you send it.",
+      use: "Fill in {blanks} before you use it.",
+    },
+    number: "Put your real figure in [number], or cut it. Otto never guesses numbers.",
+    verb: "Check “{verb}”. Your resume says “{line}”.",
+    unbacked: "Check “{phrase}”: only you know that. Keep it if it's true.",
+    cliche: "Swap {phrases} for your own words. Recruiters skim past it.",
+    quote: "“{text}”",
+  },
 } as const;

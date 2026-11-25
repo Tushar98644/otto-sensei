@@ -4,6 +4,7 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { loadResult } from "@/components/studio/tailor/session";
 import { useNow } from "@/components/studio/use-now";
+import { useFormat, useMessages } from "@/i18n/client";
 import { readJsonItem, writeJsonItem } from "@/lib/browser-storage";
 import { savedJobText } from "@/lib/insights/saved-job";
 import type { Resume } from "@/lib/resume/schema";
@@ -78,9 +79,14 @@ export function useSendCheck(resume: Resume): SendCheck {
     ),
   );
   const jobText = jobTextFor(resume);
+  const words = useMessages("studioDownload").sendItems;
+  const format = useFormat();
   const found = useMemo(
-    () => (now === 0 ? [] : runSendCheck(resume, { now, jobText, otherCompanies: others })),
-    [resume, now, jobText, others],
+    () =>
+      now === 0
+        ? []
+        : runSendCheck(resume, { now, jobText, otherCompanies: others, words, format }),
+    [resume, now, jobText, others, words, format],
   );
   const ok = all[resume.id];
   const okSet = useMemo(() => new Set(ok ?? []), [ok]);

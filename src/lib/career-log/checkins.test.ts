@@ -121,9 +121,9 @@ describe("the monthly check-in", () => {
     const [message] = sender.messages;
     expect(message?.subject).toBe("Ton bilan pour novembre, en une minute");
     expect(message?.text).toContain("Qu'as-tu livré ou amélioré ?");
-    // French isn't live yet, so its links stay unprefixed rather than open a 404.
+    // French is live, so its app links carry /fr: the proxy keeps the reader in French.
     expect(message?.text).toContain(
-      "https://otto.test/dashboard/career-log/check-in?month=2026-11",
+      "https://otto.test/fr/dashboard/career-log/check-in?month=2026-11",
     );
   });
 

@@ -184,10 +184,8 @@ const COPY_ELSEWHERE = [
   // Not rendered anywhere today; translate before using them again.
   "src/components/account/pro-perks.tsx",
   "src/components/account/plan-picker.tsx",
-  // Still English: the leftover sweep didn't reach these yet (docs/i18n.md, Known gaps).
-  "src/components/career-log/**",
+  // Still English: the weekly recap, and the portfolio designs another change translates (docs/i18n.md, Known gaps).
   "src/components/recap/**",
-  "src/components/eligibility/**",
 ];
 
 // Where English formats are meant: English sources and defaults, machine text (time zones, analytics, AI input), and areas other phases own.
@@ -203,6 +201,7 @@ const EN_US_ALLOWED = [
   "src/components/dashboard/applications/view.ts",
   "src/lib/analytics/**",
   "src/lib/calendar/zones.ts",
+  "src/lib/career-log/schedule.ts",
   "src/lib/eligibility/profile.ts",
   "src/lib/eligibility/time.ts",
   "src/lib/portfolio/places.ts",
@@ -218,12 +217,10 @@ const EN_US_ALLOWED = [
   "src/components/portfolio/templates/bento/islands.tsx",
   "src/components/portfolio/templates/cv/islands.tsx",
   "src/components/portfolio/templates/starring/islands.tsx",
-  // Still English: the leftover sweep didn't reach these yet (docs/i18n.md, Known gaps).
+  // Not rendered anywhere today; translate before using it again.
   "src/components/account/pro-perks.tsx",
-  "src/components/dashboard/letters/letter-paper.tsx",
   "src/components/recap/**",
   "src/lib/recap/**",
-  "src/lib/career-log/**",
 ];
 
 const UNFILTERED = ":not(MemberExpression[property.name=/^(where|from)$/]) >";

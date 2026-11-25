@@ -17,9 +17,9 @@ function isProse(text: string): boolean {
   return !/[|@•·]/u.test(text) && text.split(" ").length >= MIN_PROSE_WORDS;
 }
 
-function placeName(heading: string): string {
+function placeName(heading: string, top: string): string {
   const text = heading.replace(/^[\s#*_|=~:•·-]+|[\s#*_|=~:•·-]+$/gu, "").replace(/\s+/g, " ");
-  if (!text) return TOP;
+  if (!text) return top;
   return text === text.toUpperCase() ? text.charAt(0) + text.slice(1).toLowerCase() : text;
 }
 
@@ -39,9 +39,9 @@ function segments(line: string): string[] {
 }
 
 // Pasted or extracted text keeps its own lines, so each match quotes the line as the person wrote it.
-export function resumeTextLines(resumeText: string): MatchLine[] {
+export function resumeTextLines(resumeText: string, top = TOP): MatchLine[] {
   const lines: MatchLine[] = [];
-  let place = TOP;
+  let place = top;
   let listing = false;
   let languages = false;
   for (const raw of resumeText.slice(0, TEXT_LIMITS.resumeChars).split(/\r\n?|\n/)) {
@@ -49,7 +49,7 @@ export function resumeTextLines(resumeText: string): MatchLine[] {
     if (!line) continue;
     const kind = classifyHeading(line);
     if (kind) {
-      place = placeName(line);
+      place = placeName(line, top);
       languages = extraKindOf(line) === "languages";
       listing = kind === "skills" || languages;
       continue;
@@ -62,18 +62,18 @@ export function resumeTextLines(resumeText: string): MatchLine[] {
         const spoken = extraKindOf(`${inline.label}:`) === "languages";
         const inList = inline.kind === "skills" || spoken;
         const shown = !inList || (spoken && namesLanguage(inline.rest));
-        lines.push({ text, place: placeName(inline.label), shown });
+        lines.push({ text, place: placeName(inline.label, top), shown });
         continue;
       }
       // Above the first heading, short lines are the name, headline and contacts.
-      const shown = place === TOP ? isProse(text) : !listing || (languages && namesLanguage(text));
+      const shown = place === top ? isProse(text) : !listing || (languages && namesLanguage(text));
       lines.push({ text, place, shown });
     }
   }
   return lines;
 }
 
-export function matchCheckFromText(resumeText: string, jobText: string): MatchCheck {
-  const lines = resumeTextLines(resumeText);
+export function matchCheckFromText(resumeText: string, jobText: string, top = TOP): MatchCheck {
+  const lines = resumeTextLines(resumeText, top);
   return summarize(readPost(jobText), (term) => findInLines(term.terms, lines));
 }

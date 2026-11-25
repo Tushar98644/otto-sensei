@@ -268,6 +268,117 @@ export default {
     moveUp: "Subiremos estas líneas:",
     more: "Y {count} más.",
   },
+  reasons: {
+    places: {
+      at: "{title} en {company}",
+      line: "{place}, línea {number}",
+      experience: "Experiencia",
+      project: "Proyecto",
+      education: "Educación",
+      jobTitle: "Puesto",
+      certifications: "Certificaciones",
+      summary: "Resumen",
+      skills: "Habilidades",
+      skillsGroup: "Habilidades: {label}",
+      headline: "Título profesional",
+    },
+    problems: {
+      duty: "suena a descripción del puesto",
+      "no-result": "no dice qué cambió",
+      "weak-start": "empieza débil",
+      "stock-phrase": "usa una frase hecha",
+      "first-person": "dice yo o nosotros",
+      tense: "está en presente para un trabajo que ya dejaste",
+    },
+    years: {
+      one: " La oferta pide {asked}+ años; las fechas de tus trabajos suman cerca de {count} año.",
+      other:
+        " La oferta pide {asked}+ años; las fechas de tus trabajos suman cerca de {count} años.",
+    },
+    spelled:
+      " La oferta dice “{term}” y tu línea lo dice de otra forma. Algunos sistemas solo buscan las palabras exactas, así que usa “{term}” una vez también.",
+    added: "Tu línea nueva lo demuestra. Va en el currículum adaptado.",
+    onlyIn: "Solo en {where}. Muéstralo también en una línea sobre lo que hiciste.",
+    onlyInPlaces: {
+      jobTitle: "un puesto",
+      certifications: "tus certificaciones",
+      education: "tu educación",
+      summary: "tu resumen",
+    },
+    shownOutside: "Aparece {where}, no en un trabajo.",
+    outsidePlaces: {
+      project: "en tu proyecto {name}",
+      education: "en tu educación",
+      other: "en {name}",
+    },
+    atWork: " Si lo usaste en el trabajo, dilo en ese trabajo.",
+    shownWithProblem: "Aparece en {where}, pero esa línea {problem}.",
+    shownAt: "Aparece en una línea en {where}.",
+    declined: "Dijiste que no lo tienes.",
+    otherForm:
+      "Tu currículum dice “{written}”; la oferta dice “{asked}”. Las búsquedas por palabra clave solo encuentran la forma escrita, así que escribe las dos una vez: “{both}”.",
+    listed:
+      "Solo en tu {list}. Ninguna línea de trabajo muestra que lo usaste, y los filtros lo buscan en lo que hiciste.",
+    lists: {
+      headline: "título profesional",
+      skills: "lista de habilidades",
+      group: "lista de habilidades ({group})",
+    },
+    missingMust: "La oferta lo pide, y nada en tu currículum lo dice todavía.",
+    missingNice: "Suma puntos para este empleo. Nada en tu currículum lo dice todavía.",
+    lineNote: "Muestra {names} ({kind}). {next}",
+    lineKinds: { must: "un requisito obligatorio", nice: "un requisito deseable" },
+    keepNearTop: "Déjala cerca de arriba.",
+    fixFirst: {
+      missing: {
+        one: "Falta {count} requisito obligatorio en tu currículum: {names}",
+        other: "Faltan {count} requisitos obligatorios en tu currículum: {names}",
+      },
+      missingReason: "Si lo hiciste, di dónde. Si no, di que no, y no se agrega nada.",
+      listed: {
+        one: "{count} requisito obligatorio solo está en tu lista de habilidades: {names}",
+        other: "{count} requisitos obligatorios solo están en tu lista de habilidades: {names}",
+      },
+      listedReason:
+        "Los filtros lo buscan en una línea sobre lo que hiciste. Muestra dónde lo usaste.",
+      spelled: "La oferta dice “{asked}”; tu currículum dice “{written}”",
+      spelledReason:
+        "Las búsquedas por palabra clave solo encuentran la forma escrita. Escribe las dos una vez: “{both}”.",
+      weak: {
+        one: "{count} línea que muestra un requisito obligatorio se lee débil",
+        other: "{count} líneas que muestran requisitos obligatorios se leen débiles",
+      },
+      title: "Tu título profesional no nombra este empleo",
+      noSummary: "No hay resumen arriba",
+      summary: "Tu resumen no habla de este empleo",
+    },
+    headline: {
+      must: "Requisitos obligatorios demostrados: {proven} de {total}",
+      nice: "Deseables: {proven} de {total}",
+      join: " · ",
+    },
+    title: {
+      headline: "Tu título profesional coincide con el puesto de la oferta, “{title}”.",
+      latest: "Tu último puesto coincide con el puesto de la oferta, “{title}”.",
+      missing:
+        "El puesto de la oferta es “{title}”. Si encaja contigo, ponlo debajo de tu nombre. Los reclutadores buscan por puesto.",
+      differs:
+        "El puesto de la oferta es “{title}”; tu título profesional dice “{headline}”. Si el empleo encaja contigo, usa ese puesto en tu título o tu resumen. Nunca cambies el puesto de un trabajo anterior.",
+    },
+    summary: {
+      missing:
+        "No tienes resumen. Dos líneas arriba que nombren este empleo y lo que más se le parece ayudan a quien lee por encima.",
+      names: "Tu resumen nombra {what}.",
+      theTitle: "el puesto",
+      differs: "Tu resumen no nombra este empleo ni sus requisitos obligatorios.",
+      suggest: " Muestras {names} en tus líneas; dilo también arriba.",
+    },
+    targets: { aJob: "Un trabajo", project: "Proyecto: {name}", untitled: "sin nombre" },
+    asks: {
+      used: "¿Has usado {term}?",
+      experience: "¿Tienes experiencia con {phrase}?",
+    },
+  },
   skip: {
     note: "¿No tienes un empleo en mente? Descárgalo como está.",
     action: "Saltar a Descargar",

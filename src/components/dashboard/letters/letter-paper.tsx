@@ -2,16 +2,15 @@
 
 import { useId, type ReactNode } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { intlTagOf, type ContentLang } from "@/lib/i18n/languages";
 import { cn } from "@/lib/utils";
 
-const LONG_DAY = new Intl.DateTimeFormat("en-US", {
-  month: "long",
-  day: "numeric",
-  year: "numeric",
-});
+const LONG_DAY: Intl.DateTimeFormatOptions = { month: "long", day: "numeric", year: "numeric" };
 
-export function longDay(at: number): string {
-  return LONG_DAY.format(at);
+// The letter's date in the letter's own language; English keeps the US form.
+export function longDay(at: number, lang: ContentLang = "en"): string {
+  const tag = lang === "en" ? "en-US" : intlTagOf(lang);
+  return new Intl.DateTimeFormat(tag, LONG_DAY).format(at);
 }
 
 // Set like the page it prints as: serif, generous margins, a second sheet resting under it.

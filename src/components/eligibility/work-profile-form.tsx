@@ -4,6 +4,8 @@ import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "rea
 import { errorMessage } from "@/components/account/errors";
 import { confirmSetupGuess, useSetupGuess } from "@/components/setup/use-account-setup";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api } from "@/lib/api/client";
 import { deviceTimeZone } from "@/lib/eligibility/options";
 import type { WorkProfile, WorkRegion } from "@/lib/eligibility/profile";
@@ -37,6 +39,8 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
   // Undefined until the country changes here; till then the home region is the one Otto guessed.
   const [moved, setMoved] = useState<WorkRegion | null | undefined>(undefined);
   const home = moved === undefined ? guessedRegion(guess, draft) : moved;
+  const words = useMessages("workProfile");
+  const t = words.form;
 
   async function save(profile: WorkProfile) {
     pending.current = null;
@@ -73,7 +77,7 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
     setDraft(profile);
     window.clearTimeout(timer.current);
     if (!profile.fullTime && !profile.contract) {
-      setTypeError("Pick full-time, contract or both.");
+      setTypeError(t.pickType);
       pending.current = null;
       return;
     }
@@ -85,12 +89,12 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
 
   const status =
     saveState === "saving" || saveState === "waiting"
-      ? "Saving…"
+      ? t.saving
       : saveState === "saved"
-        ? "Saved. Only you can see it."
+        ? t.saved
         : saveState === "failed"
-          ? `Not saved: ${failure ?? "something went wrong."}`
-          : "Saves as you go.";
+          ? fmt(t.failed, { reason: failure ?? t.failedFallback })
+          : t.idle;
 
   return (
     <form onSubmit={(event) => event.preventDefault()} noValidate className="flex flex-col gap-6">
@@ -98,14 +102,14 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
         value={draft}
         onChange={patch}
         typeError={typeError}
-        countryHint={countryHint(guess, draft.country)}
+        countryHint={countryHint(guess, draft.country, words.hints)}
         rightsNote={
           home && draft.rights[home] === "authorized" ? (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <p>{homeRegionNote(home)}</p>
+              <p>{homeRegionNote(home, words)}</p>
               {guess && moved === undefined ? (
                 <Button variant="ghost" size="sm" onClick={() => void confirmSetupGuess(userId)}>
-                  Looks right
+                  {t.looksRight}
                 </Button>
               ) : null}
             </div>
@@ -123,7 +127,7 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
         <div className="flex flex-wrap gap-2">
           {saveState === "failed" ? (
             <Button variant="secondary" onClick={() => void save(draft)}>
-              Try again
+              {t.tryAgain}
             </Button>
           ) : null}
           {footer}

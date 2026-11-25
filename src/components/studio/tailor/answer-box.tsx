@@ -11,7 +11,7 @@ import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import { oneLine } from "@/lib/ai/text";
-import { liveWarnings } from "@/lib/ai/warning-text";
+import { liveWarnings, warningIn } from "@/lib/ai/warning-text";
 import { wordCount } from "@/lib/ai/writing-guards";
 import { DemoNote } from "../demo-note";
 import { copyText } from "@/components/ui/copy-text";
@@ -39,7 +39,8 @@ type AnswerItemProps = {
 
 function AnswerItem({ answer, onEdit, onSettle, onRemove }: AnswerItemProps) {
   const labelId = useId();
-  const checks = liveWarnings(answer.warnings, answer.text);
+  const warn = useMessages("otto").warnings;
+  const checks = liveWarnings(answer.warnings, answer.text).map((item) => warningIn(item, warn));
   const t = useMessages("studioTailor").answers;
   const demoNote = useMessages("studio").demoNote;
   return (

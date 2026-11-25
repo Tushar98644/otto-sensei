@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, use, useMemo, type ReactNode } from "react";
+import { createContext, use, useEffect, useMemo, type ReactNode } from "react";
 import { DEFAULT_LOCALE, type Locale } from "./config";
 import { formatFor, type Format } from "./intl";
 import type { Messages, Namespace } from "./messages";
@@ -8,6 +8,13 @@ import type { Messages, Namespace } from "./messages";
 type Provided = { locale: Locale; messages: Partial<Messages> };
 
 const MessagesContext = createContext<Provided | null>(null);
+
+// The providers mounted in the browser, for helpers that run outside React (they share a locale).
+const mounted: Provided[] = [];
+
+export function pageMessages(): Provided | null {
+  return mounted.at(-1) ?? null;
+}
 
 // Rendered by MessagesFor (./server), which passes only the namespaces it names; a nested one adds to its parent's.
 export function MessagesProvider({
@@ -23,6 +30,12 @@ export function MessagesProvider({
     }),
     [locale, messages, parent],
   );
+  useEffect(() => {
+    mounted.push(value);
+    return () => {
+      mounted.splice(mounted.lastIndexOf(value), 1);
+    };
+  }, [value]);
   return <MessagesContext value={value}>{children}</MessagesContext>;
 }
 

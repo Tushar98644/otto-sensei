@@ -26,7 +26,7 @@ import { copyText } from "@/components/ui/copy-text";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
 import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import { liveWarnings, needsFirstName } from "@/lib/ai/warning-text";
+import { liveWarnings, needsFirstName, warningIn } from "@/lib/ai/warning-text";
 import { wordCount } from "@/lib/ai/writing-guards";
 import type { Application } from "@/lib/applications/schema";
 import { applicationHref } from "@/lib/applications/thread";
@@ -37,6 +37,7 @@ import { StatusIcon } from "../applications/status-menu";
 import { outreachChange, type OutreachField, type OutreachFields } from "../jobs/outreach-saved";
 import { OutreachSend } from "../jobs/outreach-send";
 import { fieldsOfEntry, KIND_NAMES, type LetterEntry } from "./entries";
+import { languageOf } from "@/lib/i18n/detect";
 import { longDay, Paper, PaperBody, PaperHead, PaperLine } from "./letter-paper";
 import { asEmail, emailSubject } from "./ready";
 import { useWriteActions } from "./quick-actions";
@@ -140,6 +141,7 @@ export function LetterReader({
   onDismissAgain,
 }: LetterReaderProps) {
   const t = useMessages("letters");
+  const warn = useMessages("otto").warnings;
   const { reader } = t;
   const { statuses } = useMessages("applications");
   const format = useFormat();
@@ -165,7 +167,7 @@ export function LetterReader({
     entry.warnings,
     outreach ? [fields.subject, fields.email, fields.note].join("\n") : text,
     outreach ? ["[first name]"] : [],
-  );
+  ).map((item) => warningIn(item, warn));
   const firstName = outreach && needsFirstName(fields.subject, fields.email, fields.note);
   const title = entry.company || entry.role || t.kinds[kind];
   const role = entry.company ? entry.role : "";
@@ -393,7 +395,7 @@ export function LetterReader({
                   <PaperHead
                     name={name}
                     contact={contactLine(resume)}
-                    day={longDay(entry.createdAt)}
+                    day={longDay(entry.createdAt, languageOf(body))}
                   />
                 ) : entry.question ? (
                   <div className="flex flex-col gap-2 border-l-2 border-otter/40 pl-4">

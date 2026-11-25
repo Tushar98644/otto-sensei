@@ -170,6 +170,61 @@ export default {
       other: "Voir {count} éléments marqués comme corrects",
     },
   },
+  sendItems: {
+    places: {
+      name: "Ton nom",
+      headline: "Titre",
+      email: "E-mail",
+      phone: "Téléphone",
+      location: "Lieu",
+      links: "Liens",
+      summary: "Résumé",
+      at: "{title} chez {company}",
+      aJob: "Un emploi",
+      aProject: "Un projet",
+      aSchool: "Un établissement",
+      skills: "Compétences",
+      aCertification: "Une certification",
+      extra: "Section en plus",
+      letter: "Lettre de motivation",
+    },
+    blank: {
+      title: "Un blanc à remplir",
+      message: "« {blank} » ressemble à un blanc à remplir. Mets la vraie info, ou retire-le.",
+    },
+    company: {
+      title: "Le nom d’une autre entreprise",
+      message: "Cite {name}, mais cette copie est pour {company}.",
+    },
+    backwards: {
+      title: "Dates à l’envers",
+      message:
+        "{dates} se termine avant de commencer. Une des dates est peut-être une faute de frappe.",
+    },
+    future: {
+      title: "Date dans le futur",
+      job: "{date} n’est pas encore arrivé. Si le poste continue, écris « Aujourd’hui ».",
+      certification:
+        "{date} n’est pas encore arrivé. Si tu y travailles encore, écris « En cours ».",
+    },
+    overlap: {
+      title: "Dates qui se chevauchent",
+      message:
+        "Chevauche {place} de {span}. Pas de souci pour un emploi à côté ; sinon, vérifie les dates.",
+    },
+    tool: {
+      title: "Cité avant d’exister",
+      job: "{tool} est sorti en {released}, après la fin de cet emploi ({dates}).",
+      course: "{tool} est sorti en {released}, après la fin de cette formation ({dates}).",
+    },
+    copied: {
+      title: "Copié de l’offre",
+      message: "{count} mots d’affilée reprennent l’offre. Dis-le avec tes propres mots.",
+    },
+    months: { one: "{count} mois", other: "{count} mois" },
+    years: { one: "{count} an", other: "{count} ans" },
+    yearsAndMonths: "{years} et {months}",
+  },
   check: {
     checking: "Vérification de ton PDF.",
     checkedProblems: {

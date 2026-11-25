@@ -169,6 +169,59 @@ export default {
       other: "Ver {count} elementos marcados como correctos",
     },
   },
+  sendItems: {
+    places: {
+      name: "Tu nombre",
+      headline: "Título profesional",
+      email: "Correo",
+      phone: "Teléfono",
+      location: "Ubicación",
+      links: "Enlaces",
+      summary: "Resumen",
+      at: "{title} en {company}",
+      aJob: "Un trabajo",
+      aProject: "Un proyecto",
+      aSchool: "Un centro de estudios",
+      skills: "Habilidades",
+      aCertification: "Una certificación",
+      extra: "Sección extra",
+      letter: "Carta de presentación",
+    },
+    blank: {
+      title: "Quedó un espacio por llenar",
+      message: "“{blank}” parece un espacio por llenar. Pon el dato real o quítalo.",
+    },
+    company: {
+      title: "El nombre de otra empresa",
+      message: "Menciona {name}, pero esta copia es para {company}.",
+    },
+    backwards: {
+      title: "Fechas al revés",
+      message: "{dates} termina antes de empezar. Puede que una de las fechas tenga un error.",
+    },
+    future: {
+      title: "Fecha en el futuro",
+      job: "{date} todavía no llega. Si el trabajo sigue, usa “Actualidad”.",
+      certification: "{date} todavía no llega. Si aún la estás cursando, pon “En curso”.",
+    },
+    overlap: {
+      title: "Fechas que se cruzan",
+      message:
+        "Se cruza con {place} por {span}. Está bien si era un trabajo paralelo; si no, revisa las fechas.",
+    },
+    tool: {
+      title: "Mencionado antes de existir",
+      job: "{tool} salió en {released}, después de que terminó este trabajo ({dates}).",
+      course: "{tool} salió en {released}, después de que terminó este curso ({dates}).",
+    },
+    copied: {
+      title: "Copiado de la oferta",
+      message: "{count} palabras seguidas coinciden con la oferta. Dilo con tus propias palabras.",
+    },
+    months: { one: "{count} mes", other: "{count} meses" },
+    years: { one: "{count} año", other: "{count} años" },
+    yearsAndMonths: "{years} y {months}",
+  },
   check: {
     checking: "Revisando tu PDF.",
     checkedProblems: {

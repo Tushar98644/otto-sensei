@@ -81,6 +81,14 @@ export default {
     },
   },
   history: {
+    labels: {
+      fix: "Otto corrigió una línea",
+      summary: "Otto escribió tu resumen",
+      tailor: "Otto adaptó esta copia",
+      format: "Cambió el formato",
+      renamed: "Cambió el nombre del currículum",
+      restored: "Restauró “{name}”",
+    },
     labelled: "{action}: {label}",
     undo: "Deshacer",
     redo: "Rehacer",
@@ -92,6 +100,8 @@ export default {
     menuTrigger: "Rehacer y versiones",
   },
   versions: {
+    conflict: { here: "Cambios en este dispositivo", elsewhere: "Cambios de otro dispositivo" },
+    suggested: "Versión {number}",
     title: "Versiones",
     description:
       "Guarda este currículum tal como está y vuelve a él cuando quieras. Al restaurar, lo que tienes ahora también queda como versión.",

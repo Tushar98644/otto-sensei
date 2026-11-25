@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { undoToast } from "@/components/ui/undo-toast";
+import { useMessages } from "@/i18n/client";
 import type { Resume } from "@/lib/resume/schema";
 import {
   checklistShows,
@@ -35,6 +36,7 @@ export function useSetupChecklist(): SetupChecklist | null {
   const setup = useAccountSetup();
   const resumes = useResumeList();
   const loadingResumes = useFirstLoadPending();
+  const hidden = useMessages("workProfile").setupHidden;
   const own = useMemo(() => ownResumes(resumes), [resumes]);
   const userId = "userId" in setup ? setup.userId : null;
   const remembered = "weakLine" in setup ? setup.weakLine : null;
@@ -66,8 +68,8 @@ export function useSetupChecklist(): SetupChecklist | null {
     hide: () => {
       void setChecklistHidden(userId, true);
       undoToast({
-        title: "Setup list hidden",
-        description: "Every setting stays on the Account page.",
+        title: hidden.title,
+        description: hidden.description,
         onUndo: () => void setChecklistHidden(userId, false),
       });
     },

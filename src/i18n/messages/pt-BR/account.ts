@@ -335,6 +335,7 @@ export default {
     email: "E-mail de revisão",
     emailHint:
       "Um e-mail curto no dia, nunca mais de um por mês. O sininho e o Início perguntam de qualquer jeito.",
+    keep: "Pensando em cancelar? <link>Seu diário de carreira continua grátis</link>: ele fica em todos os planos, com as revisões mensais incluídas.",
     open: "Abrir seu diário de carreira",
     loadFailed: "Não foi possível carregar os ajustes do seu diário de carreira",
     on: "Ligado",
