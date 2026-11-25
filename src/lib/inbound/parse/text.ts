@@ -18,7 +18,7 @@ export function flat(text: string): string {
 
 export function sentences(text: string): string[] {
   return normalizeText(text)
-    .split(/\n{2,}|(?<=[.!?])\s+(?=[A-Z"'(])|\n(?=[-*•])/)
+    .split(/\n{2,}|(?<=[.!?])\s+(?=[\p{Lu}¿¡"'(])|\n(?=[-*•])/u)
     .map((sentence) => sentence.replace(/\n/g, " ").trim())
     .filter(Boolean);
 }
@@ -60,6 +60,7 @@ export function cleanRole(value: string | undefined): string {
   const role = trimEdges(
     trimEdges(value)
       .replace(/^(?:the|our|a|an|this|your)\s+/i, "")
+      .replace(/\s*\((?:[mwfdhx]|gn)(?:\s*\/\s*(?:[mwfdhx]|gn)){1,3}\)?(?=\s|$)/gi, "")
       .replace(
         /\s*[([](?:job\s*)?(?:id|req(?:uisition)?|ref|number|no\.?|#)?\s*[:#]?\s*[A-Z]{0,4}[-_]?\d{3,}[^)\]]*[)\]]/gi,
         "",
