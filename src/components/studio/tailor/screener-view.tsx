@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useMessages } from "@/i18n/client";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import type { RequirementImportance } from "@/lib/ai/types";
@@ -12,10 +13,7 @@ import type { Writing } from "./use-writing";
 
 const REQUIREMENTS_ID = "tailor-requirements";
 
-const GROUPS: { importance: RequirementImportance; title: string }[] = [
-  { importance: "must", title: "Must-haves" },
-  { importance: "nice", title: "Nice-to-haves" },
-];
+const GROUPS: readonly RequirementImportance[] = ["must", "nice"];
 
 export type ScreenerViewProps = {
   screener: Screener;
@@ -35,6 +33,7 @@ export function ScreenerView({
   onJump,
 }: ScreenerViewProps) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const t = useMessages("studioTailor").screener;
   const { rows, headline } = screener;
   const addedIds = new Set(
     Object.values(choices).flatMap((choice) => (choice.kind === "line" ? [choice.line.id] : [])),
@@ -44,12 +43,9 @@ export function ScreenerView({
     return (
       <Card>
         <CardHeader>
-          <Eyebrow>AI screener view</Eyebrow>
-          <CardTitle as="h2">No clear requirements in this post</CardTitle>
-          <CardDescription>
-            It doesn&apos;t say what a candidate needs. A fuller post, with its requirements, works
-            better.
-          </CardDescription>
+          <Eyebrow>{t.eyebrow}</Eyebrow>
+          <CardTitle as="h2">{t.none}</CardTitle>
+          <CardDescription>{t.noneNote}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -58,18 +54,16 @@ export function ScreenerView({
   return (
     <ResultSection
       id={REQUIREMENTS_ID}
-      title="Requirements, one by one"
+      title={t.title}
       meta={
         <span aria-live="polite" className="tabular-nums">
           {headline}
         </span>
       }
     >
-      <p className="max-w-prose text-sm text-muted">
-        Tools such as HiredScore and Ashby check each requirement on its own. This is that check,
-        done in the open. It isn&apos;t any tool&apos;s exact grade.
-      </p>
-      {GROUPS.map(({ importance, title }) => {
+      <p className="max-w-prose text-sm text-muted">{t.note}</p>
+      {GROUPS.map((importance) => {
+        const title = t.groups[importance];
         const group = rows.filter((row) => row.importance === importance);
         if (group.length === 0) return null;
         return (

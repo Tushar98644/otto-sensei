@@ -5,6 +5,8 @@ import { useId, useState } from "react";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceTextarea } from "@/components/ui/voice-field";
@@ -38,17 +40,19 @@ type AnswerItemProps = {
 function AnswerItem({ answer, onEdit, onSettle, onRemove }: AnswerItemProps) {
   const labelId = useId();
   const checks = liveWarnings(answer.warnings, answer.text);
+  const t = useMessages("studioTailor").answers;
+  const demoNote = useMessages("studio").demoNote;
   return (
     <li className="flex flex-col gap-3 border-t border-border pt-4">
       <div className="flex items-start justify-between gap-3">
         <p id={labelId} className="min-w-0 text-sm/6 font-medium text-ink">
           {answer.question}
         </p>
-        <Button size="icon-sm" variant="ghost" aria-label="Remove this answer" onClick={onRemove}>
+        <Button size="icon-sm" variant="ghost" aria-label={t.remove} onClick={onRemove}>
           <X />
         </Button>
       </div>
-      {answer.demo ? <DemoNote /> : null}
+      {answer.demo ? <DemoNote text={demoNote} /> : null}
       {checks.length ? <Alert variant="warn">{checks.join(" ")}</Alert> : null}
       <Textarea
         aria-labelledby={labelId}
@@ -62,9 +66,11 @@ function AnswerItem({ answer, onEdit, onSettle, onRemove }: AnswerItemProps) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button size="sm" variant="secondary" onClick={() => void copyText(answer.text, "answer")}>
           <Copy />
-          Copy
+          {t.copy}
         </Button>
-        <span className="text-sm text-subtle tabular-nums">{wordCount(answer.text)} words</span>
+        <span className="text-sm text-subtle tabular-nums">
+          {fmt(t.words, { count: wordCount(answer.text) })}
+        </span>
       </div>
     </li>
   );
@@ -76,11 +82,12 @@ export function AnswerBox({ answers, writing, onAsk, onEdit, onSettle, onRemove 
   const [problem, setProblem] = useState<string | null>(null);
   const busy = writing.busy === "answer";
   const failed = writing.error?.task === "answer" ? writing.error.message : null;
+  const t = useMessages("studioTailor").answers;
 
   async function ask() {
     const text = question.trim();
     if (oneLine(text).length < QUESTION_CHARS.min) {
-      setProblem("Paste the whole question from the form, such as “Why do you want to work here?”");
+      setProblem(t.whole);
       return;
     }
     setProblem(null);
@@ -90,11 +97,11 @@ export function AnswerBox({ answers, writing, onAsk, onEdit, onSettle, onRemove 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <h3 id={headingId} className="text-base/6 font-semibold text-ink">
-        Answer an application question
+        {t.title}
       </h3>
       <Field
-        label="The question"
-        hint="From your resume and this job. Check every sentence before you paste it: Otto never submits anything."
+        label={t.question}
+        hint={t.hint}
         error={problem}
       >
         <VoiceTextarea
@@ -103,13 +110,13 @@ export function AnswerBox({ answers, writing, onAsk, onEdit, onSettle, onRemove 
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           onDictate={setQuestion}
-          placeholder="Why do you want to work here?"
+          placeholder={t.placeholder}
         />
       </Field>
       {failed ? <Alert variant="error">{failed}</Alert> : null}
       <Button variant="secondary" loading={busy} onClick={() => void ask()} className="self-start">
         <MessageSquareText />
-        Draft an answer
+        {t.draft}
       </Button>
       {busy ? <OttoWorking task="answer" size="sm" /> : null}
       {answers.length ? (

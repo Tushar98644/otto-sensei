@@ -3,13 +3,14 @@
 import { Lightbulb } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, type ReactNode } from "react";
 import { roomForResume } from "@/components/account/pro-tools";
-import { OTTO } from "@/components/mascot/lines";
 import { toast } from "@/components/ui/toast";
 import type { Resume } from "@/lib/resume/schema";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { keepEdit, keepWriting } from "@/lib/writings/client";
-import { pluralize } from "@/lib/utils";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { countText } from "../count";
 import { DemoNote } from "../demo-note";
 import {
   applyTailorChoices,
@@ -62,6 +63,9 @@ export function TailorResults({
   const copy = useStudioStore((s) => (saved.copyId ? s.resumes[saved.copyId] : undefined));
   const { result, job } = saved;
   const writing = useWriting(source, job);
+  const studio = useMessages("studio");
+  const t = useMessages("studioTailor");
+  const format = useFormat();
   const cardRef = useRef<HTMLDivElement>(null);
   const cardInView = useInView(cardRef);
 
@@ -141,17 +145,13 @@ export function TailorResults({
       applyTailorChoices(fresh, result, choices),
     );
     if (!id || !useStudioStore.getState().resumes[id]) {
-      toast({
-        title: "That resume is gone",
-        description: "Pick another one and try again.",
-        variant: "error",
-      });
+      toast({ title: t.results.gone, description: t.results.goneNote, variant: "error" });
       return;
     }
     onPatch({ copyId: id });
     noteFreshCopy(id);
     toast({
-      title: OTTO.tailor.done,
+      title: t.otto.done,
       description: screener.headline ? `${screener.headline}.` : undefined,
       variant: "success",
       durationMs: 6000,
@@ -171,8 +171,8 @@ export function TailorResults({
   };
 
   return (
-    <section aria-label="Tailoring results" className="flex flex-col gap-6">
-      {saved.demo ? <DemoNote /> : null}
+    <section aria-label={t.results.label} className="flex flex-col gap-6">
+      {saved.demo ? <DemoNote text={studio.demoNote} /> : null}
       <CopyCard ref={cardRef} {...actions} />
       <ResultsOverview screener={screener} onJump={jump} />
       <div className="flex flex-col gap-3">
@@ -203,13 +203,10 @@ export function TailorResults({
 
         {plans.length ? (
           <ResultSection
-            title="Your best lines first"
-            meta={`Lines move up in ${reordered} of ${pluralize(plans.length, "job")}`}
+            title={t.results.bestFirst}
+            meta={countText(format, t.results.movedIn, plans.length, { moved: reordered })}
           >
-            <p className="text-sm text-muted">
-              Lines that prove a must-have go to the top of their job, where screeners and
-              recruiters look first.
-            </p>
+            <p className="text-sm text-muted">{t.results.bestFirstNote}</p>
             <ReorderPreview
               plans={plans}
               reorder={choices.reorder}
@@ -221,7 +218,10 @@ export function TailorResults({
         ) : null}
 
         {result.notes.length ? (
-          <ResultSection title="Tips for this job" meta={pluralize(result.notes.length, "tip")}>
+          <ResultSection
+            title={t.results.tips}
+            meta={countText(format, t.results.tipCount, result.notes.length)}
+          >
             <ul className="flex flex-col gap-3">
               {result.notes.map((note, index) => (
                 <li key={index} className="flex items-start gap-3 text-sm text-ink">

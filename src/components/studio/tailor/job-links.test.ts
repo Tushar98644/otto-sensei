@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { fmt } from "@/i18n/format";
+import { EN } from "../testing";
 import {
   arrivedFromApp,
   closedSite,
-  closedSiteNote,
   jobLinkParam,
   looksLikeLink,
 } from "./job-links";
@@ -25,7 +26,7 @@ describe("closedSite", () => {
   });
 
   it("says what to do in one line", () => {
-    expect(closedSiteNote("LinkedIn")).toBe(
+    expect(fmt(EN.jobForm.closedSite, { site: "LinkedIn" })).toBe(
       "LinkedIn hides the post from apps. Copy the job description and paste it here.",
     );
   });

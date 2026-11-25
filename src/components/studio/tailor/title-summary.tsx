@@ -1,6 +1,7 @@
 "use client";
 
 import { CircleCheck, TriangleExclamationPoint } from "lucide-react";
+import { useMessages } from "@/i18n/client";
 import { TITLE_SECTION_ID } from "@/lib/tailor/reasons";
 import type { SummaryCheck, TitleCheck } from "@/lib/tailor/title-checks";
 import { ResultSection } from "./result-section";
@@ -17,6 +18,7 @@ export type TitleSummaryProps = {
 
 function CheckLine({ ok, label, text }: { ok: boolean; label: string; text: string }) {
   const Icon = ok ? CircleCheck : TriangleExclamationPoint;
+  const t = useMessages("studioTailor").top;
   return (
     <li className="flex items-start gap-3 py-3">
       <Icon
@@ -26,7 +28,7 @@ function CheckLine({ ok, label, text }: { ok: boolean; label: string; text: stri
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="text-sm/6 font-medium text-ink">
           {label}
-          <span className="sr-only">{ok ? ": looks right" : ": could be better"}</span>
+          <span className="sr-only">{ok ? t.looksRight : t.couldBeBetter}</span>
         </p>
         <p className="text-sm/6 text-pretty text-muted">{text}</p>
       </div>
@@ -42,31 +44,26 @@ export function TitleSummary({
   useSummary,
   onUseSummary,
 }: TitleSummaryProps) {
-  const off = [
-    title && title.status !== "match" ? "title" : null,
-    summary.status !== "match" ? "summary" : null,
-  ].filter((part): part is string => part !== null);
-  let meta = `Your ${off.join(" and ")} could fit this job better`;
-  if (off.length === 0) {
-    meta = title ? "Your title and summary fit this job" : "Your summary fits this job";
-  }
+  const t = useMessages("studioTailor").top;
+  const titleOff = title !== null && title.status !== "match";
+  const summaryOff = summary.status !== "match";
+  let meta: string = title ? t.bothFit : t.summaryFits;
+  if (titleOff && summaryOff) meta = t.bothOff;
+  else if (titleOff) meta = t.titleOff;
+  else if (summaryOff) meta = t.summaryOff;
   return (
-    <ResultSection id={TITLE_SECTION_ID} title="The top of your resume" meta={meta}>
-      <p className="text-sm text-muted">
-        A recruiter reads your title and summary before any line.
-      </p>
+    <ResultSection id={TITLE_SECTION_ID} title={t.title} meta={meta}>
+      <p className="text-sm text-muted">{t.note}</p>
       <ul className="divide-y divide-border border-y border-border">
         {title ? (
-          <CheckLine ok={title.status === "match"} label="Job title" text={title.text} />
+          <CheckLine ok={title.status === "match"} label={t.jobTitle} text={title.text} />
         ) : null}
-        <CheckLine ok={summary.status === "match"} label="Summary" text={summary.text} />
+        <CheckLine ok={summary.status === "match"} label={t.summary} text={summary.text} />
       </ul>
       {suggestion ? (
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium text-ink">Suggested summary</h3>
-          <p className="text-sm text-muted">
-            Written only from what&apos;s already in your resume.
-          </p>
+          <h3 className="text-sm font-medium text-ink">{t.suggested}</h3>
+          <p className="text-sm text-muted">{t.suggestedNote}</p>
           <SummaryChoice
             suggestion={suggestion}
             current={current}

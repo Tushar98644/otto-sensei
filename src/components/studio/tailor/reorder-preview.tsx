@@ -1,6 +1,8 @@
 "use client";
 
 import { ArrowUp } from "lucide-react";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { ReorderPlan } from "./apply";
 
 export type ReorderPreviewProps = {
@@ -12,6 +14,7 @@ export type ReorderPreviewProps = {
 const SHOWN_LINES = 3;
 
 export function ReorderPreview({ plans, reorder, onToggle }: ReorderPreviewProps) {
+  const t = useMessages("studioTailor").reorder;
   return (
     <ul className="flex flex-col gap-4">
       {plans.map((plan) => {
@@ -31,7 +34,7 @@ export function ReorderPreview({ plans, reorder, onToggle }: ReorderPreviewProps
               />
               <span className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium text-ink">{plan.label}</span>
-                <span className="text-sm text-muted">We&apos;ll move these lines up:</span>
+                <span className="text-sm text-muted">{t.moveUp}</span>
               </span>
             </label>
             <ol className="flex flex-col gap-2 pl-8">
@@ -41,7 +44,9 @@ export function ReorderPreview({ plans, reorder, onToggle }: ReorderPreviewProps
                   <span className="line-clamp-2">{bullet.text}</span>
                 </li>
               ))}
-              {hidden > 0 ? <li className="text-sm text-muted">And {hidden} more.</li> : null}
+              {hidden > 0 ? (
+                <li className="text-sm text-muted">{fmt(t.more, { count: hidden })}</li>
+              ) : null}
             </ol>
           </li>
         );

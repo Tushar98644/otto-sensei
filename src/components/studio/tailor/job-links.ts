@@ -28,10 +28,6 @@ export function closedSite(link: string): string | null {
   return null;
 }
 
-export function closedSiteNote(site: string): string {
-  return `${site} hides the post from apps. Copy the job description and paste it here.`;
-}
-
 export function looksLikeLink(text: string): boolean {
   return /^(https?:\/\/|www\.)/i.test(text.trim()) && webUrl(text) !== null;
 }

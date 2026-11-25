@@ -4,5 +4,7 @@ import type { Namespace } from "@/i18n/messages";
 export const STUDIO_NAMESPACES = [
   "studio",
   "studioEditor",
+  "studioTailor",
+  "jobForm",
   "lint",
 ] as const satisfies readonly Namespace[];

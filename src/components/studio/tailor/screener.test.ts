@@ -1,3 +1,4 @@
+import { EN } from "../testing";
 import { describe, expect, it } from "vitest";
 import type { TailorRequirement, TailorResult } from "@/lib/ai/types";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
@@ -124,20 +125,21 @@ describe("the add-a-line helpers", () => {
   });
 
   it("asks for the name when a line about a tool never says it", () => {
-    expect(missingName(terraform, "Set up our staging servers with it")).toBe(
+    expect(missingName(EN.studioTailor.addLine, terraform, "Set up our staging servers with it")).toBe(
       "Name Terraform in the line, so a screener can find it.",
     );
-    expect(missingName(terraform, "Set up staging with Terraform")).toBeNull();
-    expect(missingName({ ...terraform, terms: [] }, "Mentored two new hires")).toBeNull();
+    expect(missingName(EN.studioTailor.addLine, terraform, "Set up staging with Terraform")).toBeNull();
+    expect(missingName(EN.studioTailor.addLine, { ...terraform, terms: [] }, "Mentored two new hires")).toBeNull();
   });
 
   it("flags a line that claims more than the person said", () => {
     expect(
-      verbNote("I helped set up staging with Terraform", "Led the staging setup with Terraform"),
+      verbNote(EN.studioTailor.addLine, "I helped set up staging with Terraform", "Led the staging setup with Terraform"),
     ).toBe("Otto wrote “led”, which claims more than you said. Change it if it isn't right.");
-    expect(verbNote("I set up staging with Terraform", "Set up staging with Terraform")).toBeNull();
+    expect(verbNote(EN.studioTailor.addLine, "I set up staging with Terraform", "Set up staging with Terraform")).toBeNull();
     expect(
       verbNote(
+        EN.studioTailor.addLine,
         "At Brightloop I helped set up Amplitude dashboards to track how teams adopted the add-on",
         "Set up Amplitude dashboards tracking add-on adoption across teams",
       ),

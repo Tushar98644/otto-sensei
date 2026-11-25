@@ -2,8 +2,10 @@
 
 import { useEffect, useEffectEvent, useRef, useState, type RefObject } from "react";
 import { OTTO } from "@/components/mascot/lines";
+import { fmt } from "@/i18n/format";
 import { api, isApiError } from "@/lib/api/client";
-import { closedSite, closedSiteNote, looksLikeLink } from "./job-links";
+import { useJobFormCopy, type JobFormCopy } from "./job-form-copy";
+import { closedSite, looksLikeLink } from "./job-links";
 import { clearQueuedJob, type QueuedJob, type ReadJob, type TailorDraft } from "./session";
 import { MIN_POST_CHARS } from "./use-tailor";
 
@@ -12,25 +14,20 @@ const MAX_LINK_CHARS = 2048;
 const OWN_PASTE =
   "input, textarea, select, [contenteditable]:not([contenteditable='false']), dialog, [popover]";
 
-function linkProblem(link: string): string | null {
-  if (!link) return "Paste the link to the job post first.";
-  if (/\s/.test(link))
-    return "That doesn't look like a link. Copy it from your browser's address bar.";
-  if (link.length > MAX_LINK_CHARS)
-    return "That link is too long. Copy the address of the job post itself.";
+function linkProblem(t: JobFormCopy, link: string): string | null {
+  if (!link) return t.linkFirst;
+  if (/\s/.test(link)) return t.notALink;
+  if (link.length > MAX_LINK_CHARS) return t.linkTooLong;
   return null;
 }
 
-function readFailure(error: unknown): { message: string; backup: boolean } {
+function readFailure(t: JobFormCopy, error: unknown): { message: string; backup: boolean } {
   if (isApiError(error, "network_error")) return { message: OTTO.errors.offline, backup: false };
   if (isApiError(error, "bad_request")) return { message: error.message, backup: false };
   if (isApiError(error, "parse_failed") || isApiError(error, "rate_limited")) {
     return { message: error.message, backup: true };
   }
-  return {
-    message: "Otto couldn't read that link just now. Paste the job text instead.",
-    backup: true,
-  };
+  return { message: t.readFailed, backup: true };
 }
 
 type Notice = { link: string; message: string; on: "field" | "paste" };
@@ -85,6 +82,7 @@ export function useJobLink({
 }: JobLinkOptions): JobLink {
   const linkRef = useRef<HTMLInputElement>(null);
   const postRef = useRef<HTMLTextAreaElement>(null);
+  const t = useJobFormCopy();
   const [reading, setReading] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   // Matched by identity, so an edit made before the read draft renders cancels the send.
@@ -132,7 +130,7 @@ export function useJobLink({
       openPasteFields({ ...draft, link: "", posting: null, paste: true, text: value });
       return;
     }
-    const invalid = linkProblem(value);
+    const invalid = linkProblem(t, value);
     if (invalid) {
       setNotice({ link: raw, message: invalid, on: "field" });
       linkRef.current?.focus();
@@ -152,7 +150,7 @@ export function useJobLink({
           company: known?.company ?? "",
           text: known?.text ?? "",
         },
-        { link: value, message: closedSiteNote(site), on: "paste" },
+        { link: value, message: fmt(t.closedSite, { site }), on: "paste" },
       );
       return;
     }
@@ -166,7 +164,7 @@ export function useJobLink({
         backup?.compare !== false,
       );
     } catch (caught) {
-      const failure = readFailure(caught);
+      const failure = readFailure(t, caught);
       if (!failure.backup) {
         setNotice({ link: raw, message: failure.message, on: "field" });
         linkRef.current?.focus();
@@ -253,7 +251,10 @@ export function useJobLink({
 
   let status = reading ? "" : (shown?.message ?? "");
   if (!reading && !shown && posting) {
-    status = `Read the job: ${[posting.title, posting.company].filter(Boolean).join(" at ") || "untitled"}.`;
+    const { title, company } = posting;
+    const name =
+      title && company ? fmt(t.titleAt, { title, company }) : title || company || t.untitledShort;
+    status = fmt(t.readJob, { name });
   }
 
   return {

@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { VOICE_LABELS } from "@/lib/voice/dictation";
+import { inStudio } from "../testing";
 import { JobForm } from "./job-form";
 import type { TailorDraft } from "./session";
 
@@ -25,7 +26,9 @@ describe("JobForm with voice typing", () => {
     };
     const onChange = vi.fn();
     const html = renderToStaticMarkup(
-      <JobForm draft={draft} onChange={onChange} onSubmit={() => {}} busy={false} checks={false} />,
+      inStudio(
+        <JobForm draft={draft} onChange={onChange} onSubmit={() => {}} busy={false} checks={false} />,
+      ),
     );
     expect(html).toContain(`aria-label="${VOICE_LABELS.start}"`);
 

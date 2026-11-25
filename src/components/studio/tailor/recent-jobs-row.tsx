@@ -7,6 +7,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useProTools } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { api } from "@/lib/api/client";
 import type { JobPostResponse, SavedJob } from "@/lib/job-feed/types";
@@ -39,6 +40,7 @@ export function RecentJobs({ onPick, disabled }: RecentJobsProps) {
   const jobs = useMemo(() => recentJobs(tailored, savedJobs), [tailored, savedJobs]);
   const [opening, setOpening] = useState<string | null>(null);
   const labelId = useId();
+  const t = useMessages("studioTailor").recent;
 
   if (jobs.length === 0) return null;
 
@@ -63,11 +65,7 @@ export function RecentJobs({ onPick, disabled }: RecentJobsProps) {
     setOpening(null);
     const job = savedJobQueued(item.saved, post);
     if (!job.text.trim() && !job.readLink) {
-      toast({
-        title: "Couldn't open that job",
-        description: "Try again in a moment.",
-        variant: "error",
-      });
+      toast({ title: t.failed, description: t.failedNote, variant: "error" });
       return;
     }
     fill(job);
@@ -76,7 +74,7 @@ export function RecentJobs({ onPick, disabled }: RecentJobsProps) {
   return (
     <section aria-labelledby={labelId} className="flex flex-col gap-2">
       <h3 id={labelId} className="text-sm text-subtle">
-        Recent jobs
+        {t.title}
       </h3>
       <ul className="flex flex-wrap gap-2">
         {jobs.map((item) => {
@@ -93,7 +91,7 @@ export function RecentJobs({ onPick, disabled }: RecentJobsProps) {
               >
                 <Icon aria-hidden className="text-muted" />
                 <span className="sr-only">
-                  {item.kind === "saved" ? "Saved: " : "Tailored before: "}
+                  {item.kind === "saved" ? t.saved : t.tailored}{" "}
                 </span>
                 <span className="max-w-64 truncate">{item.label}</span>
               </Button>

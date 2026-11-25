@@ -3,7 +3,6 @@
 import { ChevronDown, ScanSearch, TriangleExclamationPoint, type LucideIcon } from "lucide-react";
 import { useId, useState, type FormEvent, type RefObject } from "react";
 import { EligibilityCard } from "@/components/eligibility/eligibility-card";
-import { OTTO } from "@/components/mascot/lines";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
@@ -13,9 +12,13 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import { TEXT_LIMITS } from "@/config/plans";
+import { useFormat } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import { DAY_MS } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { HiringSystemNotes } from "./hiring-system-notes";
+import { useJobFormCopy, type JobFormCopy } from "./job-form-copy";
 import { RecentJobs } from "./recent-jobs-row";
 import type { QueuedJob, ReadJob, TailorDraft } from "./session";
 import { useJobLink } from "./use-job-link";
@@ -41,28 +44,22 @@ export type JobFormProps = {
   recent?: boolean;
 };
 
-const COMPARE = { label: "Compare with my resume", icon: ScanSearch };
 
-function postProblem(text: string): string | null {
+function postProblem(t: JobFormCopy, format: Format, text: string): string | null {
   const length = text.trim().length;
-  if (length === 0) return OTTO.tailor.needsPost;
-  if (length < MIN_POST_CHARS) {
-    return "That's a bit short. Paste the whole job post, not just the title.";
-  }
-  if (length > MAX_POST_CHARS) {
-    return `That's over ${MAX_POST_CHARS.toLocaleString()} characters. Cut the company intro or the benefits, then try again.`;
-  }
+  if (length === 0) return t.needsPost;
+  if (length < MIN_POST_CHARS) return t.tooShort;
+  if (length > MAX_POST_CHARS) return fmt(t.tooLong, { max: format.number(MAX_POST_CHARS) });
   return null;
 }
 
-function shortDate(time: number, now: number): string {
+const SHORT_DATE = { month: "short", day: "numeric" } as const;
+const SHORT_DATE_YEAR = { month: "short", day: "numeric", year: "numeric" } as const;
+
+function shortDate(format: Format, time: number, now: number): string {
   const date = new Date(time);
   const sameYear = now === 0 || date.getFullYear() === new Date(now).getFullYear();
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
+  return format.date(date, sameYear ? SHORT_DATE : SHORT_DATE_YEAR);
 }
 
 function daysBetween(from: number, to: number): number {
@@ -73,12 +70,17 @@ function daysBetween(from: number, to: number): number {
   return Math.round((day(to) - day(from)) / DAY_MS);
 }
 
-export function postedLine(postedAt: number, now: number): string {
-  const date = shortDate(postedAt, now);
+export function postedLine(
+  t: JobFormCopy,
+  format: Format,
+  postedAt: number,
+  now: number,
+): string {
+  const date = shortDate(format, postedAt, now);
   const days = now === 0 ? -1 : daysBetween(postedAt, now);
-  if (days === 0) return "First posted today";
-  if (days === 1) return "First posted yesterday";
-  return days > 1 ? `First posted ${date} (${days} days ago)` : `First posted ${date}`;
+  if (days === 0) return t.postedToday;
+  if (days === 1) return t.postedYesterday;
+  return days > 1 ? fmt(t.postedDaysAgo, { date, days }) : fmt(t.postedOn, { date });
 }
 
 type JobCardProps = { job: ReadJob; link: string; onPasteInstead: () => void; checks: boolean };
@@ -86,30 +88,34 @@ type JobCardProps = { job: ReadJob; link: string; onPasteInstead: () => void; ch
 function JobCard({ job, link, onPasteInstead, checks }: JobCardProps) {
   const now = useNow();
   const titleId = useId();
+  const t = useJobFormCopy();
+  const format = useFormat();
   const meta = [job.company, job.location].filter(Boolean).join(" · ");
   const closedOn =
-    job.closesAt !== null && now !== 0 && job.closesAt < now ? shortDate(job.closesAt, now) : null;
+    job.closesAt !== null && now !== 0 && job.closesAt < now
+      ? shortDate(format, job.closesAt, now)
+      : null;
   return (
     <section
       aria-labelledby={titleId}
       className="flex flex-col rounded-2xl bg-surface-muted p-4 sm:p-6"
     >
-      <Eyebrow>From the link</Eyebrow>
+      <Eyebrow>{t.fromLink}</Eyebrow>
       <h3 id={titleId} className="mt-2 text-base/6 font-semibold text-ink">
-        {job.title || "Untitled job"}
+        {job.title || t.untitled}
       </h3>
       {meta ? <p className="text-sm/6 text-muted">{meta}</p> : null}
       {job.firstPostedAt !== null ? (
-        <p className="text-sm/6 text-subtle">{postedLine(job.firstPostedAt, now)}</p>
+        <p className="text-sm/6 text-subtle">{postedLine(t, format, job.firstPostedAt, now)}</p>
       ) : null}
       {closedOn ? (
         <p className="mt-1 flex items-center gap-1.5 text-sm/6 text-warn-ink">
           <TriangleExclamationPoint className="size-4 shrink-0 text-warn" strokeWidth={1.75} />
-          The post says it closed {closedOn}.
+          {fmt(t.closed, { date: closedOn })}
         </p>
       ) : null}
       <Button variant="link" onClick={onPasteInstead} className={cn("mt-1", QUIET_LINK)}>
-        Not right? Paste the text instead
+        {t.pasteInstead}
       </Button>
       {checks ? (
         <HiringSystemNotes posting={job} link={link} className="mt-2 border-t border-border pt-1" />
@@ -158,13 +164,15 @@ function PasteFields({
   note,
   postRef,
   readNote,
-  action = COMPARE,
+  action,
   checks = true,
 }: PasteFieldsProps) {
   const [submitted, setSubmitted] = useState(false);
   const [openOptions] = useState(() => draft.title !== "" || draft.company !== "");
   const formId = useId();
-  const problem = postProblem(draft.text);
+  const t = useJobFormCopy();
+  const format = useFormat();
+  const problem = postProblem(t, format, draft.text);
   const length = draft.text.trim().length;
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -190,46 +198,46 @@ function PasteFields({
         ) : null}
         <details open={openOptions} className="group">
           <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-1 text-sm text-muted hover:text-ink">
-            More options
+            {t.moreOptions}
             <ChevronDown
               aria-hidden
               className="size-4 transition-transform group-open:rotate-180"
             />
           </summary>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <Field label="Job title" optional>
+            <Field label={t.title} optional>
               <Input
                 value={draft.title}
                 maxLength={MAX_FIELD_CHARS}
                 autoComplete="off"
-                placeholder="e.g. Product Designer"
+                placeholder={t.titlePlaceholder}
                 onChange={(event) => onChange({ ...draft, title: event.target.value })}
               />
             </Field>
-            <Field label="Company" optional>
+            <Field label={t.company} optional>
               <Input
                 value={draft.company}
                 maxLength={MAX_FIELD_CHARS}
                 autoComplete="off"
-                placeholder="e.g. Shopify"
+                placeholder={t.companyPlaceholder}
                 onChange={(event) => onChange({ ...draft, company: event.target.value })}
               />
             </Field>
           </div>
         </details>
         <Field
-          label="Job post"
+          label={t.post}
           error={submitted ? problem : null}
           hint={
             <span className="flex flex-wrap justify-between gap-x-4 gap-y-1">
-              <span>Paste all of it: duties, requirements and nice-to-haves.</span>
+              <span>{t.postHint}</span>
               <span
                 className={cn(
                   "tabular-nums",
                   length > MAX_POST_CHARS && "font-medium text-fail-ink",
                 )}
               >
-                {length.toLocaleString()} / {MAX_POST_CHARS.toLocaleString()}
+                {format.number(length)} / {format.number(MAX_POST_CHARS)}
               </span>
             </span>
           }
@@ -239,7 +247,7 @@ function PasteFields({
             value={draft.text}
             rows={10}
             spellCheck={false}
-            placeholder="Paste the job post here"
+            placeholder={t.postPlaceholder}
             className="min-h-60"
             onChange={(event) => onChange({ ...draft, text: event.target.value })}
             onDictate={(text) => onChange({ ...draft, text })}
@@ -247,13 +255,19 @@ function PasteFields({
         </Field>
       </form>
       {problem || !checks ? null : <EligibilityCard location="" text={draft.text} />}
-      <SubmitRow busy={busy} note={note} form={formId} action={action} />
+      <SubmitRow busy={busy} note={note} form={formId} action={action ?? compareAction(t)} />
     </div>
   );
 }
 
+function compareAction(t: JobFormCopy) {
+  return { label: t.compare, icon: ScanSearch };
+}
+
 export function JobForm(props: JobFormProps) {
-  const { onSubmit, busy, note, action = COMPARE, checks = true, recent = false } = props;
+  const t = useJobFormCopy();
+  const { onSubmit, busy, note, checks = true, recent = false } = props;
+  const action = props.action ?? compareAction(t);
   // Refs come out first: React's lint treats every field of an object holding refs as a ref.
   const { linkRef, postRef, ...job } = useJobLink(props);
 
@@ -268,9 +282,9 @@ export function JobForm(props: JobFormProps) {
         className="flex flex-col gap-4"
       >
         <Field
-          label="Job link"
+          label={t.link}
           error={job.linkError}
-          hint={job.linkError ? null : "Paste the link and Otto reads it at once."}
+          hint={job.linkError ? null : t.linkHint}
         >
           <Input
             ref={linkRef}
@@ -302,7 +316,7 @@ export function JobForm(props: JobFormProps) {
         )}
         {job.posting || job.pasting ? null : (
           <Button variant="link" onClick={job.pasteInstead} className={QUIET_LINK}>
-            No link? Paste the job text
+            {t.noLink}
           </Button>
         )}
       </form>

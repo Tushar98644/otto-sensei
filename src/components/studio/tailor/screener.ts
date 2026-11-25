@@ -1,3 +1,4 @@
+import { fmt } from "@/i18n/format";
 import type { TailorRequirement, TailorResult } from "@/lib/ai/types";
 import { droppedSupport, verbsAdded } from "@/lib/ai/writing-guards";
 import type { Resume } from "@/lib/resume/schema";
@@ -71,21 +72,23 @@ export function buildScreener(
 }
 
 
-export function missingName(requirement: TailorRequirement, line: string): string | null {
+type LineNotes = { nameIt: string; claimsMore: string; droppedHelp: string };
+
+export function missingName(
+  t: LineNotes,
+  requirement: TailorRequirement,
+  line: string,
+): string | null {
   const [first] = requirement.terms;
   if (!first || !line.trim()) return null;
   if (requirement.terms.some((term) => findTerm(line, term).found)) return null;
-  return `Name ${first} in the line, so a screener can find it.`;
+  return fmt(t.nameIt, { name: first });
 }
 
-export function verbNote(answer: string, line: string): string | null {
+export function verbNote(t: LineNotes, answer: string, line: string): string | null {
   const [verb] = verbsAdded(answer, line);
-  if (verb) {
-    return `Otto wrote “${verb}”, which claims more than you said. Change it if it isn't right.`;
-  }
-  if (droppedSupport(answer, line)) {
-    return "You said you helped; this line reads as if you did it alone. Add it back if that's fairer.";
-  }
+  if (verb) return fmt(t.claimsMore, { verb });
+  if (droppedSupport(answer, line)) return t.droppedHelp;
   return null;
 }
 
