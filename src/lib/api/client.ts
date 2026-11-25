@@ -127,6 +127,9 @@ import type {
   LookingForResponse,
   OccupationSearchResponse,
   JobMatchesResponse,
+  CitySearchResponse,
+  CompanyJobsResponse,
+  JobMapResponse,
   JobPostResponse,
   JobRequestBody,
   MatchActionInput,
@@ -316,6 +319,15 @@ export const api = {
         ? { headers: { "content-type": "application/json", [JOBS_PREFETCH_HEADER]: "1" } }
         : {}),
     }),
+  jobMap: (body: Omit<JobMatchesRequestBody, "view" | "page">, signal?: AbortSignal) =>
+    request<JobMapResponse>("/api/jobs/map", { ...postJson(body), signal }),
+  companyJobs: (name: string, signal?: AbortSignal) =>
+    request<CompanyJobsResponse>(`/api/jobs/company?name=${encodeURIComponent(name)}`, {
+      cache: "no-store",
+      signal,
+    }),
+  searchCities: (query: string, signal?: AbortSignal) =>
+    request<CitySearchResponse>(`/api/jobs/cities?q=${encodeURIComponent(query)}`, { signal }),
   jobPost: (id: string) =>
     request<JobPostResponse>(`/api/jobs/${encodeURIComponent(id)}`, { cache: "no-store" }),
   savedJobs: () =>
