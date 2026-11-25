@@ -151,29 +151,33 @@ describe("proxy", () => {
   it("serves /login's heading for where the visitor was going from that heading's static page", async () => {
     const rewrite = "x-middleware-rewrite";
     const jobs = await proxy(visit("/login?next=%2Fdashboard%2Fjobs"));
-    expect(jobs.headers.get(rewrite)).toBe("https://otto.test/login/jobs?next=%2Fdashboard%2Fjobs");
+    expect(jobs.headers.get(rewrite)).toBe(
+      "https://otto.test/en/login/jobs?next=%2Fdashboard%2Fjobs",
+    );
     expect(jobs.headers.get("location")).toBeNull();
     const upgrade = await proxy(
       visit(`/login?next=${encodeURIComponent("/account?upgrade=1&plan=max")}`),
     );
-    expect(upgrade.headers.get(rewrite)).toMatch(/^https:\/\/otto\.test\/login\/upgrade\?/);
+    expect(upgrade.headers.get(rewrite)).toMatch(/^https:\/\/otto\.test\/en\/login\/upgrade\?/);
     for (const path of [
       "/login",
       "/login?next=%2Fdashboard",
       "/login?next=https%3A%2F%2Fevil.example%2Fdashboard%2Fjobs",
     ]) {
-      expect((await proxy(visit(path))).headers.get(rewrite), path).toBeNull();
+      expect((await proxy(visit(path))).headers.get(rewrite), path).toBe(
+        `https://otto.test/en${path}`,
+      );
     }
-    expect(
-      (await proxy(visit("/pricing?next=%2Fdashboard%2Fjobs"))).headers.get(rewrite),
-    ).toBeNull();
+    expect((await proxy(visit("/pricing?next=%2Fdashboard%2Fjobs"))).headers.get(rewrite)).toBe(
+      "https://otto.test/en/pricing?next=%2Fdashboard%2Fjobs",
+    );
   });
 
   it("keeps a refreshed session on /login's heading page", async () => {
     supabase.refreshTo = "fresh";
     const res = await proxy(visit("/login?next=%2Fdashboard%2Fportfolio", `${COOKIE}=stale`));
     expect(res.headers.get("x-middleware-rewrite")).toBe(
-      "https://otto.test/login/portfolio?next=%2Fdashboard%2Fportfolio",
+      "https://otto.test/en/login/portfolio?next=%2Fdashboard%2Fportfolio",
     );
     expect(res.cookies.get(COOKIE)?.value).toBe("fresh");
     expect(res.headers.get("cache-control")).toContain("no-store");
@@ -193,6 +197,9 @@ describe("proxy", () => {
       "/apiary",
       "/pricing",
       "/privacy",
+      "/en/pricing",
+      "/es/pricing",
+      "/guides/jobs-board.mp4",
     ]) {
       expect(runsOn(url), url).toBe(true);
     }
@@ -221,5 +228,95 @@ describe("proxy", () => {
     ]) {
       expect(runsOn(url), url).toBe(false);
     }
+  });
+
+  describe("languages", () => {
+    const rewrite = (res: Response) => res.headers.get("x-middleware-rewrite");
+
+    it("serves every unprefixed page from the English tree, at the same address", async () => {
+      for (const [path, target] of [
+        ["/", "/en"],
+        ["/pricing?plan=pro", "/en/pricing?plan=pro"],
+        ["/ats/workday", "/en/ats/workday"],
+        ["/studio?step=fix", "/en/studio?step=fix"],
+        ["/s/abc123def456", "/en/s/abc123def456"],
+        ["/nope", "/en/nope"],
+      ] as const) {
+        const res = await proxy(visit(path));
+        expect(rewrite(res), path).toBe(`https://otto.test${target}`);
+        expect(res.headers.get("location"), path).toBeNull();
+      }
+    });
+
+    it("moves /en and /en/* to the unprefixed address for good, before any session work", async () => {
+      for (const [path, target] of [
+        ["/en", "/"],
+        ["/en/pricing?plan=pro", "/pricing?plan=pro"],
+        ["/en/ats/workday", "/ats/workday"],
+      ] as const) {
+        const res = await proxy(visit(path, `${COOKIE}=token`));
+        expect(res.status, path).toBe(308);
+        expect(res.headers.get("location"), path).toBe(`https://otto.test${target}`);
+        expect(res.cookies.get("otto_lang"), path).toBeUndefined();
+      }
+      expect(supabase.created).toBe(0);
+    });
+
+    it("keeps that redirect on this site whatever follows the prefix", async () => {
+      const res = await proxy(visit("/en//evil.example/x"));
+      expect(new URL(res.headers.get("location") ?? "").origin).toBe("https://otto.test");
+    });
+
+    it("sets the app's language from a prefixed app link, then drops the prefix", async () => {
+      const res = await proxy(visit("/en/dashboard/jobs?resume=r1"));
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe("https://otto.test/dashboard/jobs?resume=r1");
+      expect(res.cookies.get("otto_lang")).toMatchObject({
+        value: "en",
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 365 * 24 * 60 * 60,
+      });
+      expect(supabase.created).toBe(0);
+    });
+
+    it("still sends a signed-out visitor from the dashboard to sign in, whatever the language", async () => {
+      for (const cookie of [undefined, "otto_lang=en", "otto_lang=es"]) {
+        const res = await proxy(visit("/dashboard/jobs", cookie));
+        expect(res.status).toBe(307);
+        expect(res.headers.get("location")).toBe(
+          "https://otto.test/login?next=%2Fdashboard%2Fjobs",
+        );
+      }
+    });
+
+    it("serves the app in English while no other language is live, whatever the cookie says", async () => {
+      for (const lang of ["en", "es", "pt-BR", "de", "garbage"]) {
+        const res = await proxy(visit("/dashboard/jobs", `${COOKIE}=token; otto_lang=${lang}`));
+        expect(rewrite(res), lang).toBe("https://otto.test/en/dashboard/jobs");
+      }
+    });
+
+    it("sends a language that isn't live to the English 404, and never sets it", async () => {
+      for (const path of ["/es", "/es/pricing", "/pt-br/dashboard", "/fr/studio", "/de/s/abc"]) {
+        const res = await proxy(visit(path, `${COOKIE}=token`));
+        expect(rewrite(res), path).toBe(`https://otto.test/en${path}`);
+        expect(res.headers.get("location"), path).toBeNull();
+        expect(res.cookies.get("otto_lang"), path).toBeUndefined();
+      }
+    });
+
+    it("leaves routes outside [lang] and public files where they are", async () => {
+      for (const path of [
+        "/auth/callback?code=x",
+        "/guides/jobs-board.mp4",
+        "/portfolio-templates/reel/draco/LICENSE",
+      ]) {
+        const res = await proxy(visit(path));
+        expect(rewrite(res), path).toBeNull();
+        expect(res.headers.get("location"), path).toBeNull();
+      }
+    });
   });
 });

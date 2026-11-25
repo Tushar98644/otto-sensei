@@ -76,7 +76,7 @@ describe("startSmoothScroll", () => {
 
 describe("home page styles", () => {
   it("ships Lenis's rules in the global stylesheet, not a stylesheet of the home page's own", () => {
-    const css = read("../../globals.css");
+    const css = read("../../../globals.css");
     expect(read("./smooth-scroll.tsx")).not.toContain("lenis.css");
     expect(css).toMatch(/html\.lenis,\s*html\.lenis body\s*\{\s*height: auto;/);
     expect(css).toMatch(/\.lenis\.lenis-smooth iframe\s*\{\s*pointer-events: none;/);

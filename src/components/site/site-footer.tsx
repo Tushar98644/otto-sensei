@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MERCHANT } from "@/app/(marketing)/_components/merchant";
+import { MERCHANT } from "@/app/[lang]/(marketing)/_components/merchant";
 import { BRAND } from "@/config/brand";
 import { FOOTER_GROUPS } from "./routes";
 import { SiteLogo } from "./site-logo";

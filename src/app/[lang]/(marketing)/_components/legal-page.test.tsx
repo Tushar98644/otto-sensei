@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import Link from "next/link";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { pickReading } from "./legal-contents";
@@ -51,7 +52,7 @@ describe("LegalPage", () => {
         title="Refunds"
         intro={<p>Intro line.</p>}
         summary={["First fact.", "Second fact."]}
-        action={<a href="/account#plan">Manage billing</a>}
+        action={<Link href="/account#plan">Manage billing</Link>}
         sections={sections}
       />,
     );
@@ -84,7 +85,7 @@ describe("pickReading", () => {
 });
 
 describe("prose tables", () => {
-  const css = readFileSync(new URL("../../globals.css", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../../globals.css", import.meta.url), "utf8");
   const prose = css.slice(
     css.indexOf("@utility prose-otto {"),
     css.indexOf("@utility scroll-pan-frame"),

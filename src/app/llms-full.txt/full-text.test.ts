@@ -7,15 +7,15 @@ import { COMPETITORS, compareTitle, ottoReasons } from "@/lib/seo-pages/compare"
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { calendarDate, calendarMonth, exampleHeadline } from "@/lib/seo-pages/pages";
 import { SEO_PATHS } from "@/lib/seo-pages/paths";
-import { HOME_FAQ } from "../(marketing)/_components/faq";
-import { LETTERS } from "../(marketing)/cover-letter-generator/content";
-import { INTERVIEW_PREP } from "../(marketing)/interview-prep/content";
-import { TRACKER } from "../(marketing)/job-application-tracker/content";
-import { JOB_MATCH_FAQ } from "../(marketing)/job-match/faq";
-import { PORTFOLIO } from "../(marketing)/portfolio-website-builder/content";
-import { BILLING_FAQ } from "../(marketing)/pricing/billing-faq";
-import { BUILDER_FAQ, INDIA_NOTES } from "../(marketing)/resume-builder/content";
-import { COMMON, TEMPLATES_FAQ } from "../(marketing)/resume-templates/content";
+import { HOME_FAQ } from "../[lang]/(marketing)/_components/faq";
+import { LETTERS } from "../[lang]/(marketing)/cover-letter-generator/content";
+import { INTERVIEW_PREP } from "../[lang]/(marketing)/interview-prep/content";
+import { TRACKER } from "../[lang]/(marketing)/job-application-tracker/content";
+import { JOB_MATCH_FAQ } from "../[lang]/(marketing)/job-match/faq";
+import { PORTFOLIO } from "../[lang]/(marketing)/portfolio-website-builder/content";
+import { BILLING_FAQ } from "../[lang]/(marketing)/pricing/billing-faq";
+import { BUILDER_FAQ, INDIA_NOTES } from "../[lang]/(marketing)/resume-builder/content";
+import { COMMON, TEMPLATES_FAQ } from "../[lang]/(marketing)/resume-templates/content";
 import { llmsFullTxt } from "./full-text";
 
 const BASE = "https://www.ottosensei.com";

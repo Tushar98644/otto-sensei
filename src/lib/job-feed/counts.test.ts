@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planCopy, proTools } from "@/app/(marketing)/_components/plan-features";
+import { planCopy, proTools } from "@/app/[lang]/(marketing)/_components/plan-features";
 import { countClaim, JOB_COUNTS_FALLBACK } from "./counts";
 
 describe("countClaim", () => {

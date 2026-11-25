@@ -361,6 +361,10 @@ const SECTIONS: readonly LegalSection[] = [
             once the invite is settled.
           </li>
           <li>
+            <strong>A language cookie</strong> remembers which language you chose for the app. It
+            holds only that choice and lasts a year.
+          </li>
+          <li>
             <strong>Local storage</strong> (not a cookie) keeps your resumes, your progress and
             which tours you&apos;ve seen on your device until you delete them or clear your browser
             data.

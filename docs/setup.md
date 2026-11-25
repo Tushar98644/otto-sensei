@@ -764,7 +764,7 @@ Each item says what the code assumes today and where to change it if Dodo does s
       Succeeded carries the invoice link the refund page mentions. Change: step 2, or the refund page.
 - [ ] **What Dodo sends about the buyer.** The privacy page says Dodo's notices carry name, email,
       billing address and card network and last four, and that the app stores none of them. Change:
-      `src/app/(marketing)/privacy/page.tsx`.
+      `src/app/[lang]/(marketing)/privacy/page.tsx`.
 
 **10. Cutover from the Paddle sandbox** (once, with the deploy that brings the Dodo code):
 
@@ -833,7 +833,7 @@ short: until going live, anyone with a public test card can get Pro (the go-live
      a time, and that the app never promises jobs or interviews.
    - The merchant-of-record sentence and the refund wording, for approval: Dodo's terms want the
      reseller notice "in a form agreed with Dodo Payments". The sentence lives in one place,
-     `MERCHANT.disclosure` in `src/app/(marketing)/_components/merchant.ts`, and the terms, refund,
+     `MERCHANT.disclosure` in `src/app/[lang]/(marketing)/_components/merchant.ts`, and the terms, refund,
      privacy and pricing pages all read it. The refund page defers to Dodo's buyer terms and promises
      nothing of its own. After any change, bump `LEGAL_LAST_UPDATED` in
      `src/components/site/routes.ts`.

@@ -62,7 +62,10 @@ describe("Garamond's italic", () => {
   it("falls back to the same serifs as the rest of the heading while it loads", async () => {
     await import("./display-italic");
     const italic = calls.find((call) => styles(call).includes("italic"));
-    const css = readFileSync(fileURLToPath(new URL("../../globals.css", import.meta.url)), "utf8");
+    const css = readFileSync(
+      fileURLToPath(new URL("../../../globals.css", import.meta.url)),
+      "utf8",
+    );
     const display = css.match(/--font-display: var\(--font-garamond\), ([^;]+);/)?.[1];
     expect(display).toBeDefined();
     expect(italic?.options.fallback).toEqual(display?.split(", "));

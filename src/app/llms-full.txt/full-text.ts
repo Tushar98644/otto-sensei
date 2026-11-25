@@ -44,24 +44,24 @@ import {
   examplePage,
 } from "@/lib/seo-pages/pages";
 import { SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
-import { HOME_FAQ } from "../(marketing)/_components/faq";
-import type { FaqItem } from "../(marketing)/_components/faq-list";
-import type { FeatureContent } from "../(marketing)/_components/feature-page";
-import { LETTERS } from "../(marketing)/cover-letter-generator/content";
-import { INTERVIEW_PREP } from "../(marketing)/interview-prep/content";
-import { TRACKER } from "../(marketing)/job-application-tracker/content";
-import { PORTFOLIO } from "../(marketing)/portfolio-website-builder/content";
-import type { Note } from "../(marketing)/_components/note-rows";
-import { planCopy } from "../(marketing)/_components/plan-features";
-import { JOB_MATCH_FAQ } from "../(marketing)/job-match/faq";
-import { BILLING_FAQ } from "../(marketing)/pricing/billing-faq";
+import { HOME_FAQ } from "../[lang]/(marketing)/_components/faq";
+import type { FaqItem } from "../[lang]/(marketing)/_components/faq-list";
+import type { FeatureContent } from "../[lang]/(marketing)/_components/feature-page";
+import { LETTERS } from "../[lang]/(marketing)/cover-letter-generator/content";
+import { INTERVIEW_PREP } from "../[lang]/(marketing)/interview-prep/content";
+import { TRACKER } from "../[lang]/(marketing)/job-application-tracker/content";
+import { PORTFOLIO } from "../[lang]/(marketing)/portfolio-website-builder/content";
+import type { Note } from "../[lang]/(marketing)/_components/note-rows";
+import { planCopy } from "../[lang]/(marketing)/_components/plan-features";
+import { JOB_MATCH_FAQ } from "../[lang]/(marketing)/job-match/faq";
+import { BILLING_FAQ } from "../[lang]/(marketing)/pricing/billing-faq";
 import {
   AUDIENCES,
   BUILDER_FAQ,
   BUILD_STEPS,
   INDIA_NOTES,
-} from "../(marketing)/resume-builder/content";
-import { COMMON, TEMPLATES_FAQ } from "../(marketing)/resume-templates/content";
+} from "../[lang]/(marketing)/resume-builder/content";
+import { COMMON, TEMPLATES_FAQ } from "../[lang]/(marketing)/resume-templates/content";
 
 // No live job count here: the file is built once, so it makes no claim a count could outdate.
 const NO_COUNT = { open: 0, matchable: 0 };

@@ -35,7 +35,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Tabs open across a deploy reload once instead of requesting code that no longer exists.
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID?.trim() || undefined,
-  experimental: { staleTimes: { dynamic: 30 } },
+  // With the root layout under [lang], unmatched URLs get src/app/global-not-found.tsx, a static page.
+  experimental: { staleTimes: { dynamic: 30 }, globalNotFound: true },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

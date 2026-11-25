@@ -18,6 +18,7 @@ Every document about the project lives in this folder. The repo root keeps only 
 | --- | --- |
 | [job-sources.md](job-sources.md) | Where jobs come from, per source and country, and the ingest limits |
 | [matching.md](matching.md) | How the Jobs tab picks and orders openings: role gate, title vectors, weights, eval |
+| [i18n.md](i18n.md) | Serving Otto in Spanish, Portuguese, French and German: decisions, phases, guardrails |
 | [extension.md](extension.md) | Otto for Chrome: build, store upload, scripts, security |
 | [extension-store-listing.md](extension-store-listing.md) | Chrome Web Store listing text (draft) |
 | [extension-store-privacy.md](extension-store-privacy.md) | Chrome Web Store privacy tab (draft) |

@@ -9,14 +9,14 @@ const css = readFileSync(path.join(root, "src/app/globals.css"), "utf8");
 
 const SOURCES = [
   "src/components/site",
-  "src/app/(marketing)/layout.tsx",
-  "src/app/(marketing)/page.tsx",
-  "src/app/(marketing)/_components",
-  "src/app/(marketing)/pricing",
-  "src/app/(marketing)/privacy",
-  "src/app/(marketing)/terms",
-  "src/app/(marketing)/refunds",
-  "src/app/not-found.tsx",
+  "src/app/[lang]/(marketing)/layout.tsx",
+  "src/app/[lang]/(marketing)/page.tsx",
+  "src/app/[lang]/(marketing)/_components",
+  "src/app/[lang]/(marketing)/pricing",
+  "src/app/[lang]/(marketing)/privacy",
+  "src/app/[lang]/(marketing)/terms",
+  "src/app/[lang]/(marketing)/refunds",
+  "src/app/[lang]/not-found.tsx",
 ];
 
 const MARKERS = new Set(["group", "peer"]);

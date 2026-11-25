@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { MERCHANT } from "@/app/(marketing)/_components/merchant";
+import { MERCHANT } from "@/app/[lang]/(marketing)/_components/merchant";
 import { BRAND } from "@/config/brand";
 import { SEO_PATHS } from "@/lib/seo-pages/paths";
 import { FOOTER_GROUPS } from "./routes";

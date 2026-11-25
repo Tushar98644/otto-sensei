@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { AccountSkeleton } from "@/app/(marketing)/account/_components/account-skeleton";
-import { AccountView } from "@/app/(marketing)/account/_components/account-view";
+import { AccountSkeleton } from "@/app/[lang]/(marketing)/account/_components/account-skeleton";
+import { AccountView } from "@/app/[lang]/(marketing)/account/_components/account-view";
 
 export const metadata: Metadata = { title: "Account" };
 

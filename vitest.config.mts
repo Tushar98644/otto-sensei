@@ -9,6 +9,8 @@ export default defineConfig({
       "server-only": fileURLToPath(
         new URL("./node_modules/next/dist/compiled/server-only/empty.js", import.meta.url),
       ),
+      // Next's compiler writes this module per app; tests get a stub they can set.
+      "next/root-params": fileURLToPath(new URL("./src/i18n/testing.ts", import.meta.url)),
     },
   },
   test: {

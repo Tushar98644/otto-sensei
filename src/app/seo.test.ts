@@ -99,10 +99,10 @@ const APP = fileURLToPath(new URL(".", import.meta.url));
 function pageFileFor(path: string): string | undefined {
   const parts = path.split("/").filter(Boolean);
   const candidates = [
-    join(APP, "(marketing)", ...parts, "page.tsx"),
-    join(APP, "(marketing)", ...parts.slice(0, -1), "[system]", "page.tsx"),
-    join(APP, "(marketing)", ...parts.slice(0, -1), "[competitor]", "page.tsx"),
-    join(APP, "(marketing)", ...parts.slice(0, -1), "[role]", "page.tsx"),
+    join(APP, "[lang]", "(marketing)", ...parts, "page.tsx"),
+    join(APP, "[lang]", "(marketing)", ...parts.slice(0, -1), "[system]", "page.tsx"),
+    join(APP, "[lang]", "(marketing)", ...parts.slice(0, -1), "[competitor]", "page.tsx"),
+    join(APP, "[lang]", "(marketing)", ...parts.slice(0, -1), "[role]", "page.tsx"),
   ];
   return candidates.find((file) => existsSync(file));
 }

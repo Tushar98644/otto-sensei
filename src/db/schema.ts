@@ -16,6 +16,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { LOCALES } from "@/i18n/config";
 import {
   APPLICATION_STAGES,
   APPLICATION_STATUSES,
@@ -170,6 +171,8 @@ export const userSettings = pgTable(
     notices: jsonb("notices").$type<Record<string, number>>(),
     noticeSentAt: epochMs("notice_sent_at"),
     deletedResumes: jsonb("deleted_resumes").$type<Record<string, number>>(),
+    // The app's language (src/i18n/config.ts); null until the account picks one.
+    locale: text("locale", { enum: LOCALES }),
   },
   (t) => [
     index("user_settings_career_due_idx")

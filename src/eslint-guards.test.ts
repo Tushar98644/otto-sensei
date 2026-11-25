@@ -32,7 +32,7 @@ describe("browser code imports", () => {
       'import { DRAFT_LIMITS, type DraftRequestBody } from "@/lib/api/types";\nexport const jobs: DraftRequestBody | number = DRAFT_LIMITS.jobs;\n',
     ],
     [
-      "src/app/(marketing)/_components/a.tsx",
+      "src/app/[lang]/(marketing)/_components/a.tsx",
       '"use client";\n\nimport { getDb } from "@/db/client";\nexport const open = getDb;\n',
     ],
     [
@@ -50,7 +50,7 @@ describe("browser code imports", () => {
     ],
     ["src/lib/queries/a.ts", 'import { type Db } from "@/db/client";\nexport type Store = Db;\n'],
     [
-      "src/app/(marketing)/_components/a.tsx",
+      "src/app/[lang]/(marketing)/_components/a.tsx",
       'import { getDb } from "@/db/client";\nexport const open = getDb;\n',
     ],
     ["src/lib/a.ts", 'import { z } from "zod";\nexport const name = z.string();\n'],

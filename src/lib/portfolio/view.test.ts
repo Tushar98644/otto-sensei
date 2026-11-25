@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planCopy } from "@/app/(marketing)/_components/plan-features";
+import { planCopy } from "@/app/[lang]/(marketing)/_components/plan-features";
 import { emptyResume } from "@/lib/resume/schema";
 import { sampleResume } from "./testing";
 import { canBuildPortfolio, canPublishPortfolio } from "./plan";

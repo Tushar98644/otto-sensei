@@ -11,6 +11,7 @@ const SCREENS = new Set(["page.tsx", "not-found.tsx", "error.tsx", "loading.tsx"
 
 // Public portfolios draw in their design's own fonts.
 const OWN_FONTS = new Set(["p/[slug]/page.tsx"]);
+const ROOT_LAYOUTS = ["[lang]/layout.tsx", "p/[slug]/layout.tsx"];
 
 function screens(dir: string): string[] {
   return readdirSync(path.join(APP, dir), { withFileTypes: true }).flatMap((entry) => {
@@ -46,8 +47,13 @@ describe("the app's fonts", () => {
     expect(missing).toEqual([]);
   });
 
-  it("are left out of the root layout, which /p shares", () => {
-    expect(readFileSync(path.join(APP, "layout.tsx"), "utf8")).not.toMatch(/next\/font|SiteFonts/);
+  it("are left out of the root layouts and the document they share with /p", () => {
+    for (const file of [
+      ...ROOT_LAYOUTS.map((layout) => path.join(APP, layout)),
+      path.join(SRC, "components/site/root-document.tsx"),
+    ]) {
+      expect(readFileSync(file, "utf8"), file).not.toMatch(/next\/font|SiteFonts/);
+    }
   });
 });
 
@@ -101,13 +107,13 @@ function fontLoads(source: string): { calls: number; unpreloaded: number } {
 
 const fromSrc = (file: string) => path.relative(SRC, file);
 
-// Every page carries the root layout, not-found and global error; /p adds its page and its not-found.
-const EVERY_PAGE = ["layout.tsx", "not-found.tsx", "global-error.tsx"];
+// /p carries its own root layout and the global error, then its page and its not-found.
+const PORTFOLIO_ROOT = ["p/[slug]/layout.tsx", "global-error.tsx"];
 const PORTFOLIO = ["p/[slug]/page.tsx", "p/[slug]/not-found.tsx"];
 
 describe("/p's HTML", () => {
   it("preloads no app fonts: nothing it is built from loads the app's fonts or preloads a font", () => {
-    const modules = modulesOf([...EVERY_PAGE, ...PORTFOLIO]);
+    const modules = modulesOf([...PORTFOLIO_ROOT, ...PORTFOLIO]);
     expect(modules.has(path.join(SRC, "components/site/site-fonts.tsx"))).toBe(false);
     const preloading = [...modules]
       .filter(([, source]) => {
@@ -119,7 +125,13 @@ describe("/p's HTML", () => {
   });
 
   it("gets no font stylesheet from the not-found pages, which draw in faces the root CSS declares", () => {
-    const modules = modulesOf([...EVERY_PAGE, "p/[slug]/not-found.tsx"]);
+    const modules = modulesOf([
+      ...PORTFOLIO_ROOT,
+      ...ROOT_LAYOUTS,
+      "global-not-found.tsx",
+      "[lang]/not-found.tsx",
+      "p/[slug]/not-found.tsx",
+    ]);
     const loaders = [...modules].filter(([, source]) => fontLoads(source).calls > 0);
     expect(loaders.map(([file]) => fromSrc(file))).toEqual([]);
     const css = readFileSync(path.join(APP, "globals.css"), "utf8");

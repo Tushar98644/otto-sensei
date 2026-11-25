@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { HeroCta } from "@/app/(marketing)/_components/hero-cta";
-import { PricingPlans } from "@/app/(marketing)/_components/pricing-plans";
-import { PrimaryCta } from "@/app/(marketing)/_components/primary-cta";
-import NotFound from "@/app/not-found";
+import { HeroCta } from "@/app/[lang]/(marketing)/_components/hero-cta";
+import { PricingPlans } from "@/app/[lang]/(marketing)/_components/pricing-plans";
+import { PrimaryCta } from "@/app/[lang]/(marketing)/_components/primary-cta";
+import NotFound from "@/app/[lang]/not-found";
 import { HeaderActions } from "./account-link";
 import { IntentLink } from "./intent-link";
 import { FOOTER_NAV, MAIN_NAV, ROUTES } from "./routes";

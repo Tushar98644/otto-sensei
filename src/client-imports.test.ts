@@ -124,7 +124,7 @@ describe("code a page loads before anyone clicks", () => {
     ["components/dashboard/sidebar.tsx", "components/feedback/feedback-dialog.tsx"],
     ["components/studio/account-menu.tsx", "components/feedback/feedback-dialog.tsx"],
     [
-      "app/(marketing)/account/_components/account-view.tsx",
+      "app/[lang]/(marketing)/account/_components/account-view.tsx",
       "components/account/upgrade-dialog.tsx",
     ],
     ["components/eligibility/eligibility-card.tsx", "components/account/sign-in-dialog.tsx"],
