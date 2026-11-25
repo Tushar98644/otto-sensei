@@ -1,4 +1,6 @@
+import { MONTH_NAMES, PRESENT_WORDS, RANGE_WORDS, SHORT_MONTH_WORDS } from "./date-words";
 import type { ExtraKind, SectionKey } from "./schema";
+import { HEADING_LANGUAGES } from "./sections-lang";
 
 export type HeadingMatch = {
   lineIndex: number;
@@ -118,6 +120,39 @@ for (const [kind, phrases] of Object.entries(PHRASES) as [HeadingKind, readonly 
   }
 }
 
+// Other languages' headings: their phrases join the index (English wins a tie), their head words are read on their own.
+type ForeignHeadings = { heads: ReadonlyMap<string, HeadingKind>; modifiers: ReadonlySet<string> };
+const FOREIGN_HEADINGS: ForeignHeadings[] = [];
+const FOREIGN_WEAK = new Set<string>();
+for (const language of HEADING_LANGUAGES) {
+  for (const [kind, phrases] of Object.entries(language.phrases) as [HeadingKind, readonly string[]][]) {
+    for (const phrase of phrases) {
+      const key = normalizeWords(phrase).join(" ");
+      if (!PHRASE_INDEX.has(key)) PHRASE_INDEX.set(key, kind);
+      if (!SQUASHED_INDEX.has(key.replace(/ /g, ""))) SQUASHED_INDEX.set(key.replace(/ /g, ""), kind);
+    }
+  }
+  for (const word of normalizeWords(language.weak)) FOREIGN_WEAK.add(word);
+  FOREIGN_HEADINGS.push({
+    heads: new Map(Object.entries(language.heads).map(([word, kind]) => [normalizeWords(word).join(""), kind])),
+    modifiers: new Set(normalizeWords(language.modifiers)),
+  });
+}
+
+function headKind(
+  words: readonly string[],
+  heads: (word: string) => HeadingKind | undefined,
+  modifiers: ReadonlySet<string>,
+): HeadingKind | null {
+  let kind: HeadingKind | null = null;
+  for (const word of words) {
+    const head = heads(word);
+    if (head) kind ??= head;
+    else if (!modifiers.has(word)) return null;
+  }
+  return kind;
+}
+
 export function matchHeading(line: string): SectionKey | null {
   const kind = classifyHeading(line);
   return kind === "other" ? null : kind;
@@ -144,17 +179,17 @@ export function classifyHeading(line: string): HeadingKind | null {
   if (words.length > MAX_HEADING_WORDS) return null;
 
   const phrase = words.join(" ");
-  if (words.length === 1 && WEAK_HEADINGS.has(phrase) && !strong) return null;
+  if (words.length === 1 && (WEAK_HEADINGS.has(phrase) || FOREIGN_WEAK.has(phrase)) && !strong) return null;
   const exact = PHRASE_INDEX.get(phrase);
   if (exact) return exact;
 
-  let kind: HeadingKind | null = null;
-  for (const word of words) {
-    const head = HEAD_WORDS[word];
-    if (head) kind ??= head;
-    else if (!MODIFIERS.has(word)) return null;
+  const english = headKind(words, (word) => HEAD_WORDS[word], MODIFIERS);
+  if (english) return english;
+  for (const language of FOREIGN_HEADINGS) {
+    const kind = headKind(words, (word) => language.heads.get(word), language.modifiers);
+    if (kind) return kind;
   }
-  return kind;
+  return null;
 }
 
 const EXTRA_PHRASES: Record<ExtraKind, readonly string[]> = {
@@ -184,6 +219,21 @@ const EXTRA_INDEX = new Map<string, ExtraKind>();
 for (const [kind, phrases] of Object.entries(EXTRA_PHRASES) as [ExtraKind, readonly string[]][]) {
   for (const phrase of phrases) EXTRA_INDEX.set(phrase, kind);
 }
+const FOREIGN_VOLUNTEER = new Set<string>();
+for (const language of HEADING_LANGUAGES) {
+  for (const [kind, phrases] of Object.entries(language.extras) as [ExtraKind, readonly string[]][]) {
+    for (const phrase of phrases) {
+      const key = normalizeWords(phrase).join(" ");
+      if (!EXTRA_INDEX.has(key)) EXTRA_INDEX.set(key, kind);
+    }
+  }
+  for (const phrase of language.dropped) DROPPED_HEADINGS.add(normalizeWords(phrase).join(" "));
+  for (const [word, kind] of Object.entries(language.extraHeads)) {
+    const key = normalizeWords(word).join("");
+    if (kind === "volunteering") FOREIGN_VOLUNTEER.add(key);
+    if (!Object.hasOwn(EXTRA_HEAD_WORDS, key)) EXTRA_HEAD_WORDS[key] = kind;
+  }
+}
 
 export function extraKindOf(line: string): ExtraKind | null {
   const kind = classifyHeading(line);
@@ -191,7 +241,8 @@ export function extraKindOf(line: string): ExtraKind | null {
   const words = normalizeWords(unwrapDecoration(line.trim()));
   if (kind === "experience") {
     const head = words.find((word) => !MODIFIERS.has(word));
-    return head === "volunteer" || head === "volunteering" ? "volunteering" : null;
+    if (head === "volunteer" || head === "volunteering") return "volunteering";
+    return words.some((word) => FOREIGN_VOLUNTEER.has(word)) ? "volunteering" : null;
   }
   const phrase = words.join(" ");
   const exact = EXTRA_INDEX.get(phrase);
@@ -280,9 +331,12 @@ function unwrapDecoration(text: string): string {
   return wrapped ? `${wrapped[1]}${text.endsWith(":") ? ":" : ""}` : text;
 }
 
+// Accents fold away, so "FORMACION" and "Formación" read the same.
 function normalizeWords(text: string): string[] {
   return text
     .replace(/\([^)]*\)|\[[^\]]*\]/g, " ")
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
     .toLowerCase()
     .replace(/[&+/]/g, " and ")
     .replace(/['’]/g, "")
@@ -304,18 +358,19 @@ export function bulletText(line: string): string | null {
 }
 
 const MONTH =
-  "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?";
+  `(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|${MONTH_NAMES})\\.?`;
 const YEAR = "(?:19|20)\\d{2}";
 const SEASON = "(?:spring|summer|fall|autumn|winter)";
+// Spanish and Portuguese put "de" before the year ("enero de 2020"); Brazilian CVs write "jan/2020".
 const DATE =
-  `(?:${MONTH},?\\s*${YEAR}|${MONTH}\\s*['’]\\d{2}|${SEASON},?\\s+${YEAR}` +
+  `(?:${MONTH}(?:,?\\s*|\\s*/\\s*|\\s+(?:de|del)\\s+)${YEAR}|(?:${SHORT_MONTH_WORDS})(?:\\.\\s*|\\s*/\\s*)${YEAR}|${MONTH}\\s*['’]\\d{2}|${SEASON},?\\s+${YEAR}` +
   `|(?:0?[1-9]|1[0-2])[/.-]${YEAR}|${YEAR}[/.-](?:0[1-9]|1[0-2])(?!\\d)|${YEAR})`;
-const PRESENT = "(?:present|current|now|today|ongoing|date)";
-const RANGE_SEPARATOR = "\\s*(?:-|–|—|―|‒|−|~|to|until|till|through|thru)\\s*";
+const PRESENT = `(?:present|current|now|today|ongoing|date|${PRESENT_WORDS})`;
+const RANGE_SEPARATOR = `\\s*(?:-|–|—|―|‒|−|~|to|until|till|through|thru)\\s*|\\s+(?:${RANGE_WORDS})\\s+`;
 const EDGE_BEFORE = "(?<![\\p{L}\\p{N}])";
 const EDGE_AFTER = "(?![\\p{L}\\p{N}])";
 
-const DATE_RANGE = new RegExp(`${EDGE_BEFORE}(${DATE})${RANGE_SEPARATOR}(${DATE}|${PRESENT})${EDGE_AFTER}`, "giu");
+const DATE_RANGE = new RegExp(`${EDGE_BEFORE}(${DATE})(?:${RANGE_SEPARATOR})(${DATE}|${PRESENT})${EDGE_AFTER}`, "giu");
 const SINGLE_DATE = new RegExp(`${EDGE_BEFORE}${DATE}${EDGE_AFTER}`, "giu");
 
 export type DateRange = { text: string; start: string; end: string; index: number };
@@ -336,7 +391,7 @@ export function findDates(line: string): { text: string; index: number }[] {
 export type DateStyle = "month-name" | "numeric" | "year" | "season";
 
 const STARTS_WITH_SEASON = new RegExp(`^${SEASON}`, "i");
-const PRESENT_ONLY = new RegExp(`^${PRESENT}$`, "i");
+const PRESENT_ONLY = new RegExp(`^${PRESENT}$`, "iu");
 
 export function dateStyle(date: string): DateStyle {
   if (STARTS_WITH_SEASON.test(date)) return "season";
