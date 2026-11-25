@@ -14,11 +14,16 @@ import {
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
 import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
+import type { DashboardMessages } from "./i18n";
 import { TRASH_ROUTE } from "./trash/trash-route";
+
+export type NavKey = keyof DashboardMessages["nav"];
 
 export type AppNavItem = {
   href: string;
+  // The English name, which tests find a section by; people see nav[key] in their language.
   label: string;
+  key: NavKey;
   icon: LucideIcon;
   pro?: boolean;
   tour?: string;
@@ -27,19 +32,27 @@ export type AppNavItem = {
 };
 
 export const APP_NAV: readonly AppNavItem[] = [
-  { href: ROUTES.dashboard, label: "Home", icon: House },
-  { href: ROUTES.dashboardResumes, label: "Resumes", icon: FileText, tour: "dashboard-library" },
-  { href: ROUTES.dashboardJobs, label: "Jobs", icon: Search, tour: "dashboard-jobs" },
+  { href: ROUTES.dashboard, label: "Home", key: "home", icon: House },
+  {
+    href: ROUTES.dashboardResumes,
+    label: "Resumes",
+    key: "resumes",
+    icon: FileText,
+    tour: "dashboard-library",
+  },
+  { href: ROUTES.dashboardJobs, label: "Jobs", key: "jobs", icon: Search, tour: "dashboard-jobs" },
   {
     href: ROUTES.dashboardApplications,
     label: "Applications",
+    key: "applications",
     icon: BriefcaseBusiness,
     tour: "dashboard-applications",
   },
-  { href: ROUTES.dashboardLetters, label: "Letters", icon: Mail, pro: true },
+  { href: ROUTES.dashboardLetters, label: "Letters", key: "letters", icon: Mail, pro: true },
   {
     href: ROUTES.dashboardInterview,
     label: "Interview prep",
+    key: "interview",
     icon: MessagesSquare,
     pro: true,
     tour: "dashboard-interview",
@@ -47,16 +60,23 @@ export const APP_NAV: readonly AppNavItem[] = [
   {
     href: PORTFOLIO_ROUTE,
     label: "Portfolio",
+    key: "portfolio",
     icon: Globe,
     pro: true,
     tour: "dashboard-portfolio",
   },
-  { href: CAREER_LOG_ROUTE, label: "Career log", icon: NotebookPen },
+  { href: CAREER_LOG_ROUTE, label: "Career log", key: "careerLog", icon: NotebookPen },
 ];
 
 export const APP_NAV_FOOTER: readonly AppNavItem[] = [
-  { href: ROUTES.dashboardFormats, label: "Formats", icon: LayoutTemplate, eager: true },
-  { href: TRASH_ROUTE, label: "Recently deleted", icon: Trash2 },
+  {
+    href: ROUTES.dashboardFormats,
+    label: "Formats",
+    key: "formats",
+    icon: LayoutTemplate,
+    eager: true,
+  },
+  { href: TRASH_ROUTE, label: "Recently deleted", key: "trash", icon: Trash2 },
 ];
 
 const PHONE_TAB_HREFS: readonly string[] = [

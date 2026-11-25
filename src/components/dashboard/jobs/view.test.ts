@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Application } from "@/lib/applications/schema";
 import { emptyResume } from "@/lib/resume/schema";
+import { EN, FORMAT_EN } from "../messages-testing";
 import {
   moreWithProCopy,
   appliedFor,
@@ -82,39 +83,44 @@ describe("Jobs tab helpers", () => {
   });
 
   it("says when a job was posted and where it is", () => {
-    expect(postedLabel(NOW, NOW)).toBe("Posted today");
-    expect(postedLabel(NOW - DAY, NOW)).toBe("Posted yesterday");
-    expect(postedLabel(NOW - 5 * DAY, NOW)).toBe("Posted 5 days ago");
-    expect(postedLabel(new Date(2026, 6, 2).getTime(), NOW)).toBe("Posted Jul 2");
-    expect(postedLabel(NOW, 0)).toBe("");
-    expect(placeLine({ location: "Berlin", remote: true, employmentType: "contract" })).toBe(
-      "Remote · Berlin · Contract",
+    expect(postedLabel(NOW, NOW, EN.jobs, FORMAT_EN)).toBe("Posted today");
+    expect(postedLabel(NOW - DAY, NOW, EN.jobs, FORMAT_EN)).toBe("Posted yesterday");
+    expect(postedLabel(NOW - 5 * DAY, NOW, EN.jobs, FORMAT_EN)).toBe("Posted 5 days ago");
+    expect(postedLabel(new Date(2026, 6, 2).getTime(), NOW, EN.jobs, FORMAT_EN)).toBe(
+      "Posted Jul 2",
     );
-    expect(placeLine({ location: "Remote - Germany", remote: true, employmentType: null })).toBe(
-      "Remote - Germany",
-    );
+    expect(postedLabel(NOW, 0, EN.jobs, FORMAT_EN)).toBe("");
     expect(
-      placeLine({
-        location: "Remote UK",
-        remote: true,
-        employmentType: "full_time",
-        otherPlaces: ["Remote Canada", "Berlin"],
-        morePlaces: 2,
-      }),
+      placeLine({ location: "Berlin", remote: true, employmentType: "contract" }, EN.jobs),
+    ).toBe("Remote · Berlin · Contract");
+    expect(
+      placeLine({ location: "Remote - Germany", remote: true, employmentType: null }, EN.jobs),
+    ).toBe("Remote - Germany");
+    expect(
+      placeLine(
+        {
+          location: "Remote UK",
+          remote: true,
+          employmentType: "full_time",
+          otherPlaces: ["Remote Canada", "Berlin"],
+          morePlaces: 2,
+        },
+        EN.jobs,
+      ),
     ).toBe("Remote UK, Remote Canada, Berlin (+2) · Full-time");
-    expect(checkedLabel(NOW - 3 * 60 * 60 * 1_000, NOW)).toBe("3 hours ago");
-    expect(checkedLabel(null, NOW)).toBeNull();
+    expect(checkedLabel(NOW - 3 * 60 * 60 * 1_000, NOW, EN.jobs, FORMAT_EN)).toBe("3 hours ago");
+    expect(checkedLabel(null, NOW, EN.jobs, FORMAT_EN)).toBeNull();
   });
 });
 
 describe("moreWithProCopy", () => {
   it("says how many matches Free isn't seeing, and what Pro adds, with real numbers", () => {
-    expect(moreWithProCopy(5, 1_243, 27_828)).toEqual({
+    expect(moreWithProCopy(5, 1_243, 27_828, EN.jobs, FORMAT_EN)).toEqual({
       title: "Your top 5 of 1,243 matches",
       body: "Pro shows every match from 27,000+ open jobs, and narrows them by remote, level, posting date and where each job can hire.",
     });
-    expect(moreWithProCopy(3, 3, 19_325).title).toBe("Your 3 matches so far");
-    expect(moreWithProCopy(1, 1, 19_325).title).toBe("Your match so far");
+    expect(moreWithProCopy(3, 3, 19_325, EN.jobs, FORMAT_EN).title).toBe("Your 3 matches so far");
+    expect(moreWithProCopy(1, 1, 19_325, EN.jobs, FORMAT_EN).title).toBe("Your match so far");
   });
 });
 
@@ -147,10 +153,8 @@ describe("job card copy", () => {
       rest: "4 look strong.",
     });
     expect(splitLead("Nothing saved yet")).toEqual({ lead: "Nothing saved yet", rest: "" });
-    expect(placeParts({ location: "Berlin", remote: true, employmentType: "contract" })).toEqual([
-      "Remote",
-      "Berlin",
-      "Contract",
-    ]);
+    expect(
+      placeParts({ location: "Berlin", remote: true, employmentType: "contract" }, EN.jobs),
+    ).toEqual(["Remote", "Berlin", "Contract"]);
   });
 });

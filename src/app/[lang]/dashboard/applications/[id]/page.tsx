@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
 import { ApplicationHub } from "@/components/dashboard/applications/hub/application-hub";
 import { WRITE_PARAM, WRITE_THANK_YOU } from "@/lib/notifications/links";
+import { pageTitle } from "../../page-title";
 
-export const metadata: Metadata = { title: "Application" };
+export const generateMetadata = () => pageTitle("application");
 
 type Props = {
   params: Promise<{ id: string }>;

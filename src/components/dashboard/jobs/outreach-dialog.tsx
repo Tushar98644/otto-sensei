@@ -3,7 +3,6 @@
 import { ArrowUpRight, RotateCcw, Send, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMe } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { WritingStyleHint } from "@/components/settings/writing-style-hint";
@@ -16,6 +15,9 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TEXT_LIMITS } from "@/config/plans";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import { api } from "@/lib/api/client";
 import { resumeTitle } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
@@ -30,28 +32,7 @@ import { useOutreachKeeper, type Kept, type OutreachActions } from "./use-outrea
 // Kept in step with the server: OutreachRequestSchema's shortest post.
 const MIN_POST_CHARS = 80;
 
-const TITLE = "Write an outreach message";
-
-const WORDS = {
-  first: {
-    title: TITLE,
-    written: "Your outreach message",
-    otto: "I'll write a short email and a LinkedIn note from your resume and this job, nothing made up.",
-    write: "Write my message",
-  },
-  followUp: {
-    title: "Write a follow-up",
-    written: "Your follow-up",
-    otto: "I'll write a short follow-up and a LinkedIn note from your resume and this job, nothing made up.",
-    write: "Write my follow-up",
-  },
-  thankYou: {
-    title: "Write a thank-you",
-    written: "Your thank-you",
-    otto: "I'll write a short thank-you and a LinkedIn note from your resume and this job, nothing made up.",
-    write: "Write my thank-you",
-  },
-};
+const bold = (chunk: string) => <span className="font-medium text-ink">{chunk}</span>;
 
 export type OutreachDialogProps = {
   job: OutreachJob | null;
@@ -61,10 +42,13 @@ export type OutreachDialogProps = {
 };
 
 export function OutreachDialog({ job, resume, onClose, onSaved }: OutreachDialogProps) {
+  const { outreach } = useMessages("jobs");
   const { kept, actions } = useOutreachKeeper(onSaved);
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
 
-  if (!job) return <Dialog open={false} onOpenChange={onClose} title={TITLE} />;
+  if (!job) {
+    return <Dialog open={false} onOpenChange={onClose} title={outreach.kinds.first.title} />;
+  }
   const key = outreachKey(job);
   const unsaved = [...kept.values()].some(
     (item) => item.save === "saving" || item.save === "failed",
@@ -132,6 +116,8 @@ function OutreachFlow({
   keepPage,
   onPending,
 }: FlowProps) {
+  const { outreach: t, card } = useMessages("jobs");
+  const format = useFormat();
   const { user, me, loading } = useMe();
   const studio = useStudioActions();
   const message = kept?.draft ?? null;
@@ -217,19 +203,22 @@ function OutreachFlow({
     ? null
     : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
   const source = kept?.resumeTitle || (resume ? resumeTitle(resume) : "");
-  const role = job.title.trim() || "this role";
+  const role = job.title.trim() || t.thisRole;
   const company = job.company.trim();
-  const words = job.thankYou ? WORDS.thankYou : job.followUp ? WORDS.followUp : WORDS.first;
+  const words = job.thankYou ? t.kinds.thankYou : job.followUp ? t.kinds.followUp : t.kinds.first;
+  const forLine = company
+    ? source
+      ? t.forRoleAtFrom
+      : t.forRoleAt
+    : source
+      ? t.forRoleFrom
+      : t.forRole;
 
   async function write() {
     if (!resume || busy || waiting) return;
     if (writingText.trim().length < MIN_POST_CHARS) {
       setAskPost(true);
-      setPostError(
-        post.text.trim()
-          ? "That's too short to be the whole post. Paste all of it."
-          : "Paste the job post first.",
-      );
+      setPostError(post.text.trim() ? t.tooShort : t.pasteFirst);
       requestAnimationFrame(() => postRef.current?.focus());
       return;
     }
@@ -267,12 +256,8 @@ function OutreachFlow({
   const postField = showPost ? (
     <div className="flex flex-col gap-2">
       <Field
-        label="The job post"
-        hint={
-          post.status === "paste"
-            ? "Otto couldn't read this post. Open the job and paste its description here."
-            : "This is the post Otto read. Trim it to the job description, then try again."
-        }
+        label={t.post}
+        hint={post.status === "paste" ? t.postCantRead : t.postTrim}
         error={postError}
       >
         <Textarea
@@ -293,10 +278,10 @@ function OutreachFlow({
           rel="noopener"
           className="inline-flex items-center gap-1 self-start text-sm font-medium text-ink underline decoration-border-strong underline-offset-4"
         >
-          Open the job
+          {t.openTheJob}
           <ArrowUpRight className="size-4" aria-hidden />
           <span className="sr-only">
-            (opens {company || "the company"}&apos;s posting in a new tab)
+            {company ? fmt(card.opensPosting, { company }) : t.opensThePosting}
           </span>
         </a>
       ) : null}
@@ -315,40 +300,24 @@ function OutreachFlow({
         size="lg"
         title={message ? words.written : words.title}
         illustration={
-          <OttoNote
-            size="sm"
-            live={false}
-            message={noResume ? OTTO.letters.noResume : words.otto}
-          />
+          <OttoNote size="sm" live={false} message={noResume ? t.noResume : words.otto} />
         }
       >
         {noResume ? (
           <Button variant="secondary" className="self-start" onClick={studio.upload}>
             <Upload aria-hidden />
-            Upload a resume
+            {t.upload}
           </Button>
         ) : (
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <p className="text-sm/6 text-pretty text-muted">
-                For <span className="font-medium text-ink">{role}</span>
-                {company ? (
-                  <>
-                    {" "}
-                    at <span className="font-medium text-ink">{company}</span>
-                  </>
-                ) : null}
-                {source ? (
-                  <>
-                    , from <span className="font-medium text-ink">{source}</span>
-                  </>
-                ) : null}
-                .{" "}
+                {rich(forLine, { b: bold }, { role, company, source })}{" "}
                 {job.thankYou
-                  ? "Send it today, to the people you met."
+                  ? t.sendThankYou
                   : job.followUp
-                    ? `You applied ${job.followUp.days} ${job.followUp.days === 1 ? "day" : "days"} ago. Send it to the recruiter or the hiring manager.`
-                    : "Send it to the hiring manager, someone on the team, or a founder at a small company."}
+                    ? format.plural(t.sendFollowUp, job.followUp.days)
+                    : t.sendFirst}
               </p>
               <WritingStyleHint linked={!(keepPage || busy)} />
             </div>
@@ -357,20 +326,16 @@ function OutreachFlow({
               reading ? (
                 <OttoWorking task="job" size="sm" />
               ) : (
-                <OttoWorking
-                  task="job"
-                  size="sm"
-                  message="Checking for a message you already wrote."
-                />
+                <OttoWorking task="job" size="sm" message={t.checking} />
               )
             ) : null}
             {message || !resume ? null : postField}
 
             {job.thankYou && !message && resume ? (
               <Field
-                label="Who did you meet?"
+                label={t.whoMet}
                 optional
-                hint={`Their first name, or leave it empty to thank the ${company ? `${company} ` : ""}team.`}
+                hint={company ? fmt(t.whoMetHintAt, { company }) : t.whoMetHint}
               >
                 <Input
                   data-autofocus
@@ -435,7 +400,7 @@ function OutreachFlow({
                         onClick={() => void write()}
                       >
                         <RotateCcw aria-hidden />
-                        Write a new one
+                        {t.writeNew}
                       </Button>
                     </>
                   ) : (
@@ -446,7 +411,7 @@ function OutreachFlow({
                       onClick={studio.upload}
                     >
                       <Upload aria-hidden />
-                      Upload a resume to write a new one
+                      {t.uploadToWrite}
                     </Button>
                   )}
                   {status}

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useId } from "react";
 import { useSessionUserId } from "@/components/account/session-user";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { useMessages } from "@/i18n/client";
 import { api } from "@/lib/api/client";
 import { briefOf } from "@/lib/interviews/brief";
 import { useAppQueryClient } from "@/lib/queries/client";
@@ -34,6 +35,7 @@ export function TodayBrief({
   applicationId: string;
   className?: string;
 }) {
+  const { brief: words } = useMessages("interview");
   const userId = useSessionUserId();
   const client = useAppQueryClient();
   const titleId = useId();
@@ -41,9 +43,9 @@ export function TodayBrief({
   if (!prep) return null;
   const brief = briefOf(prep);
   const lists = [
-    { title: "Your strongest stories", items: brief.stories },
-    { title: "Likely questions", items: brief.questions },
-    { title: "Questions to ask them", items: brief.asks },
+    { title: words.stories, items: brief.stories },
+    { title: words.questions, items: brief.questions },
+    { title: words.asks, items: brief.asks },
   ].filter((list) => list.items.length > 0);
   if (lists.length === 0) return null;
   return (
@@ -52,7 +54,7 @@ export function TodayBrief({
       className={cn("flex flex-col gap-4 motion-safe:animate-fade-in", className)}
     >
       <h4 id={titleId} className="font-sans text-sm/5 font-medium text-ink">
-        Today&rsquo;s brief
+        {words.title}
       </h4>
       <div className="grid gap-5 sm:grid-cols-3 sm:gap-6">
         {lists.map((list) => (

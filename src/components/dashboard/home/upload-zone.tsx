@@ -4,7 +4,6 @@ import { FileUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
-import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { ROUTES } from "@/components/site/routes";
 import { UPLOAD_ACCEPT } from "@/components/studio/upload/upload-handoff";
@@ -13,9 +12,12 @@ import { Dropzone } from "@/components/ui/dropzone";
 import { formatBytes } from "@/components/ui/file-check";
 import { toast } from "@/components/ui/toast";
 import { UPLOAD_LIMITS } from "@/config/plans";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { StudioActions } from "../use-studio-actions";
 
 export function UploadZone({ actions, hasSample }: { actions: StudioActions; hasSample: boolean }) {
+  const { upload, errors } = useMessages("dashboard");
   const router = useRouter();
   const pro = useProTools();
   const [opening, setOpening] = useState(false);
@@ -31,8 +33,8 @@ export function UploadZone({ actions, hasSample }: { actions: StudioActions; has
       }
     } catch {
       toast({
-        title: "Couldn't open the studio",
-        description: OTTO.errors.generic,
+        title: errors.cantOpenStudio,
+        description: errors.generic,
         variant: "error",
       });
     }
@@ -51,39 +53,37 @@ export function UploadZone({ actions, hasSample }: { actions: StudioActions; has
       <Dropzone
         onFile={(file) => void take(file)}
         onReject={(message) =>
-          toast({ title: "Couldn't use that file", description: message, variant: "error" })
+          toast({ title: errors.cantUseFile, description: message, variant: "error" })
         }
         accept={UPLOAD_ACCEPT}
         maxBytes={UPLOAD_LIMITS.maxBytes}
         disabled={opening}
-        label="Upload your resume, a PDF or Word file"
+        label={upload.label}
         className="gap-2 px-4 py-8"
       >
         <span className="mb-1 flex size-11 items-center justify-center rounded-xl bg-surface shadow-control ring-1 ring-ink/8">
           <FileUp className="size-5 text-ink" aria-hidden />
         </span>
-        <p className="font-medium text-ink">
-          {opening ? "Opening the studio" : "Drop your resume here, or choose a file"}
-        </p>
+        <p className="font-medium text-ink">{opening ? upload.opening : upload.drop}</p>
         <p className="text-sm text-muted">
-          PDF or Word (.docx), up to {formatBytes(UPLOAD_LIMITS.maxBytes)}
+          {fmt(upload.types, { size: formatBytes(UPLOAD_LIMITS.maxBytes) })}
         </p>
       </Dropzone>
       <div className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-        <span className="pr-1">No file handy?</span>
+        <span className="pr-1">{upload.noFile}</span>
         {/* Build with Otto writes with AI, which Free doesn't include. */}
         {pro ? (
           <Button variant="ghost" size="sm" onClick={actions.guided}>
-            Build with Otto
+            {upload.guided}
           </Button>
         ) : (
           <Button variant="ghost" size="sm" onClick={actions.scratch}>
-            Start from scratch
+            {upload.scratch}
           </Button>
         )}
         {hasSample ? null : (
           <Button variant="ghost" size="sm" onClick={actions.sample}>
-            Try a sample
+            {upload.sample}
           </Button>
         )}
       </div>

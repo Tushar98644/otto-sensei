@@ -1,31 +1,11 @@
 import { resumeTitle } from "@/lib/resume/ops";
-import type { Resume, ResumeSource } from "@/lib/resume/schema";
+import type { Resume } from "@/lib/resume/schema";
 
 export const LIBRARY_FILTERS = ["all", "import", "tailored", "sample", "scratch"] as const;
 export type LibraryFilter = (typeof LIBRARY_FILTERS)[number];
 
-export const FILTER_LABELS: Record<LibraryFilter, string> = {
-  all: "All",
-  import: "Uploaded",
-  tailored: "Tailored",
-  sample: "Samples",
-  scratch: "From scratch",
-};
-
-export const SOURCE_TABS: Record<ResumeSource, string> = {
-  import: "Uploaded",
-  tailored: "Tailored",
-  sample: "Sample",
-  scratch: "From scratch",
-};
-
 export const LIBRARY_SORTS = ["edited", "name"] as const;
 export type LibrarySort = (typeof LIBRARY_SORTS)[number];
-
-export const SORT_LABELS: Record<LibrarySort, string> = {
-  edited: "Last edited",
-  name: "Name",
-};
 
 export function cardId(resumeId: string): string {
   return `resume-${resumeId}`;

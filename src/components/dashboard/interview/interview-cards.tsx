@@ -16,6 +16,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { CompanyMark } from "@/components/ui/company-mark";
 import { FolderCard } from "@/components/ui/folder-card";
 import { ProMark } from "@/components/ui/pro-mark";
+import { useFormat, useMessages } from "@/i18n/client";
 import { applicationHref } from "@/lib/applications/thread";
 import type { PrepSummary } from "@/lib/insights/prep";
 import { cn, pluralize } from "@/lib/utils";
@@ -82,8 +83,10 @@ function PrepareTarget({
 
 // The countdown beside the company: "Tomorrow", "In 3 days"; sepia while it's close.
 function Countdown({ at, now }: { at: number; now: number }) {
+  const words = useMessages("applications");
+  const format = useFormat();
   if (now <= 0) return null;
-  const when = interviewWhen(at, now);
+  const when = interviewWhen(at, now, words, format);
   return (
     <span
       className={cn(
@@ -213,10 +216,12 @@ export function InterviewTile({
   index: number;
 }) {
   const { application, pack } = entry;
+  const words = useMessages("applications");
+  const format = useFormat();
   const got = usePackPractice(pack);
   const at = application.interviewAt;
   const titleId = useId();
-  const soon = at !== null && now > 0 && !interviewWhen(at, now).past;
+  const soon = at !== null && now > 0 && !interviewWhen(at, now, words, format).past;
   return (
     <li
       style={stagger(index)}

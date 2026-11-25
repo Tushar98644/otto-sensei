@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { LettersPage } from "@/components/dashboard/letters/letters-page";
+import { pageTitle } from "../page-title";
 
-export const metadata: Metadata = { title: "Letters" };
+export const generateMetadata = () => pageTitle("letters");
 
 export default function Page() {
   return <LettersPage />;

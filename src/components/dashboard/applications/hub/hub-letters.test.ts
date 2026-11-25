@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Writing } from "@/lib/writings/schema";
+import { EN, FORMAT_EN } from "../../messages-testing";
 import { hubLetters, hubTally, withWriting } from "./hub-letters";
 
 function writing(id: string, patch: Partial<Writing>): Writing {
@@ -43,9 +44,15 @@ describe("an application's letters and messages", () => {
       ["w3", "answer", ""],
       ["w1", "letter", ""],
     ]);
-    expect(hubTally(letters)).toBe("1 letter · 1 answer · 1 message");
-    expect(hubTally(letters.filter((letter) => letter.kind === "outreach"))).toBe("1 message");
-    expect(hubTally([])).toBe("");
+    expect(hubTally(letters, EN.applications, FORMAT_EN)).toBe("1 letter · 1 answer · 1 message");
+    expect(
+      hubTally(
+        letters.filter((letter) => letter.kind === "outreach"),
+        EN.applications,
+        FORMAT_EN,
+      ),
+    ).toBe("1 message");
+    expect(hubTally([], EN.applications, FORMAT_EN)).toBe("");
   });
 
   it("shows a new message at once and an edited one in place, so Copy email copies the edit", () => {

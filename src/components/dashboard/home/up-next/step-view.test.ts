@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Application } from "@/lib/applications/schema";
+import { EN, FORMAT_EN } from "../../messages-testing";
 import type { StudioActions } from "../../use-studio-actions";
 import type { UpNext } from "../use-up-next";
 import { calendarDay } from "./calendar";
@@ -43,6 +44,8 @@ describe("Up next step views", () => {
       state,
       actions,
       NOW,
+      EN.dashboard,
+      FORMAT_EN,
     );
     expect(view).toMatchObject({
       title: "Prepare for your Stripe interview",
@@ -60,13 +63,22 @@ describe("Up next step views", () => {
       state,
       actions,
       NOW,
+      EN.dashboard,
+      FORMAT_EN,
     );
     expect(view).toMatchObject({ title: "Practice for your Stripe interview", cta: "Practice" });
     expect(view.href).toBe("/dashboard/applications/a1/prep");
   });
 
   it("show new matches as a badge, with thousands grouped", () => {
-    const view = stepView({ kind: "matches", strong: 4, newToday: 1140 }, state, actions, NOW);
+    const view = stepView(
+      { kind: "matches", strong: 4, newToday: 1140 },
+      state,
+      actions,
+      NOW,
+      EN.dashboard,
+      FORMAT_EN,
+    );
     expect(view).toMatchObject({
       title: "See 4 strong matches in Jobs",
       badge: "1,140 new today",
@@ -80,6 +92,8 @@ describe("Up next step views", () => {
       state,
       actions,
       NOW,
+      EN.dashboard,
+      FORMAT_EN,
     );
     expect(view.title).toBe("Fix 6 lines in maya");
     view.onSelect?.();
@@ -87,7 +101,14 @@ describe("Up next step views", () => {
   });
 
   it("send setup steps to their account section", () => {
-    const view = stepView({ kind: "setup", id: "work" }, state, actions, NOW);
+    const view = stepView(
+      { kind: "setup", id: "work" },
+      state,
+      actions,
+      NOW,
+      EN.dashboard,
+      FORMAT_EN,
+    );
     expect(view).toMatchObject({ title: "Where you can work", eyebrow: "Setup" });
     expect(view.href).toMatch(/^\/dashboard\/account#/);
   });
@@ -95,6 +116,6 @@ describe("Up next step views", () => {
 
 describe("the calendar page", () => {
   it("reads the interview's own local day", () => {
-    expect(calendarDay(noon(23))).toEqual({ month: "Nov", day: 23, weekday: "Monday" });
+    expect(calendarDay(noon(23), FORMAT_EN)).toEqual({ month: "Nov", day: 23, weekday: "Monday" });
   });
 });

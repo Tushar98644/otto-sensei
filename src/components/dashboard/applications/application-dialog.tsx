@@ -1,15 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import {
-  useEffect,
-  useEffectEvent,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { loadDraft } from "@/components/studio/tailor/session";
 import { Alert } from "@/components/ui/alert";
@@ -20,9 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { APPLICATION_LIMITS, type Application } from "@/lib/applications/schema";
 import { cn } from "@/lib/utils";
-import { APPLICATION_STATUSES, isApplicationStatus, STATUS_NAMES } from "@/lib/applications/status";
+import { APPLICATION_STATUSES, isApplicationStatus } from "@/lib/applications/status";
 import { copyJobId } from "@/lib/applications/thread";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
@@ -51,6 +45,7 @@ export type ApplicationDialogProps = {
 };
 
 export function ApplicationDialog({ target, resumes, onClose }: ApplicationDialogProps) {
+  const { dialog } = useMessages("applications");
   const fromCard = target?.kind === "add" && target.resumeId !== null;
   return (
     <Dialog
@@ -58,18 +53,8 @@ export function ApplicationDialog({ target, resumes, onClose }: ApplicationDialo
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      title={
-        target?.kind === "edit"
-          ? "Edit application"
-          : fromCard
-            ? "Mark as applied"
-            : "Add an application"
-      }
-      description={
-        target?.kind === "edit"
-          ? "Changes save as you make them."
-          : "Your own record, so you can see which resume version gets interviews. Otto reminds you to follow up."
-      }
+      title={target?.kind === "edit" ? dialog.edit : fromCard ? dialog.markApplied : dialog.add}
+      description={target?.kind === "edit" ? dialog.editNote : dialog.addNote}
     >
       {target ? (
         <ApplicationForm
@@ -100,6 +85,8 @@ function ApplicationForm({
   resumes: readonly Resume[];
   onClose: () => void;
 }) {
+  const t = useMessages("applications");
+  const { dialog } = t;
   const formRef = useRef<HTMLFormElement>(null);
   const formId = useId();
   const byId = useMemo(() => new Map(resumes.map((resume) => [resume.id, resume])), [resumes]);
@@ -154,7 +141,7 @@ function ApplicationForm({
   async function autosave(next: ApplicationFormValues) {
     const base = latest.current;
     if (!base) return;
-    const result = validateForm(next, versionTitles, Date.now());
+    const result = validateForm(next, versionTitles, Date.now(), t);
     if (!result.ok) {
       setErrors(result.errors);
       setSaved("idle");
@@ -215,7 +202,7 @@ function ApplicationForm({
       onClose();
       return;
     }
-    const result = validateForm(values, versionTitles, Date.now());
+    const result = validateForm(values, versionTitles, Date.now(), t);
     if (!result.ok) {
       setErrors(result.errors);
       if (result.errors.appliedOn || result.errors.notes) setMoreOpen(true);
@@ -232,7 +219,7 @@ function ApplicationForm({
         ...result.body,
         jobId: copyJobId(byId.get(result.body.resumeId ?? "")),
       });
-      toast({ title: "Application added", description: result.body.company, variant: "success" });
+      toast({ title: dialog.added, description: result.body.company, variant: "success" });
       onClose();
     } catch (error) {
       setFailure(errorMessage(error));
@@ -245,7 +232,7 @@ function ApplicationForm({
   return (
     <form ref={formRef} onSubmit={submit} noValidate className="flex flex-col gap-5">
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Company" error={errors.company}>
+        <Field label={dialog.company} error={errors.company}>
           <Input
             value={values.company}
             onChange={(event) => set("company", event.target.value)}
@@ -254,7 +241,7 @@ function ApplicationForm({
             data-autofocus={values.company === "" ? true : undefined}
           />
         </Field>
-        <Field label="Job title" optional error={errors.role}>
+        <Field label={dialog.role} optional error={errors.role}>
           <Input
             value={values.role}
             onChange={(event) => set("role", event.target.value)}
@@ -264,7 +251,7 @@ function ApplicationForm({
         </Field>
       </div>
 
-      <Field label="Job link" optional error={errors.jobUrl}>
+      <Field label={dialog.link} optional error={errors.jobUrl}>
         <Input
           type="url"
           inputMode="url"
@@ -285,15 +272,15 @@ function ApplicationForm({
           onClick={() => setMoreOpen((open) => !open)}
           className="min-h-11 self-start text-sm text-muted hover:text-ink"
         >
-          More options
-          <ChevronDown aria-hidden className={cn("transition-transform", moreOpen && "rotate-180")} />
+          {dialog.more}
+          <ChevronDown
+            aria-hidden
+            className={cn("transition-transform", moreOpen && "rotate-180")}
+          />
         </Button>
       )}
       <div id={`${formId}-more`} hidden={!showMore} className="flex flex-col gap-5">
-        <Field
-          label="Resume you sent"
-          hint={resumes.length === 0 ? "Your resumes show up here once you make one." : undefined}
-        >
+        <Field label={dialog.resume} hint={resumes.length === 0 ? dialog.resumeHint : undefined}>
           <Select value={values.resumeId} onChange={(event) => pickResume(event.target.value)}>
             {choices.map((choice) => (
               <option key={choice.id} value={choice.id}>
@@ -301,15 +288,17 @@ function ApplicationForm({
               </option>
             ))}
             {missingVersion ? (
-              <option
-                value={missingVersion}
-              >{`${editing?.resumeTitle || "A deleted resume"} (deleted)`}</option>
+              <option value={missingVersion}>
+                {fmt(dialog.deletedTitle, {
+                  title: editing?.resumeTitle || dialog.deletedResume,
+                })}
+              </option>
             ) : null}
-            <option value="">A resume not in Otto</option>
+            <option value="">{dialog.notInOtto}</option>
           </Select>
         </Field>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Applied on" error={errors.appliedOn}>
+          <Field label={dialog.appliedOn} error={errors.appliedOn}>
             <Input
               type="date"
               value={values.appliedOn}
@@ -317,7 +306,7 @@ function ApplicationForm({
               onChange={(event) => set("appliedOn", event.target.value)}
             />
           </Field>
-          <Field label="Status">
+          <Field label={dialog.status}>
             <Select
               value={values.status}
               onChange={(event) => {
@@ -327,18 +316,13 @@ function ApplicationForm({
             >
               {APPLICATION_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {STATUS_NAMES[status]}
+                  {t.statuses[status]}
                 </option>
               ))}
             </Select>
           </Field>
         </div>
-        <Field
-          label="Notes"
-          optional
-          hint="A line or two, like who referred you."
-          error={errors.notes}
-        >
+        <Field label={dialog.notes} optional hint={dialog.notesHint} error={errors.notes}>
           <Textarea
             value={values.notes}
             onChange={(event) => set("notes", event.target.value)}
@@ -354,11 +338,11 @@ function ApplicationForm({
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         {editing ? (
           <p aria-live="polite" className="text-sm text-subtle sm:mr-auto">
-            {saved === "waiting" ? "Saving…" : saved === "saved" ? "Saved" : ""}
+            {saved === "waiting" ? dialog.saving : saved === "saved" ? dialog.saved : ""}
           </p>
         ) : (
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {dialog.cancel}
           </Button>
         )}
         <Button
@@ -366,7 +350,7 @@ function ApplicationForm({
           loading={saving}
           data-autofocus={values.company !== "" ? true : undefined}
         >
-          {editing ? "Done" : "Add application"}
+          {editing ? dialog.done : dialog.addButton}
         </Button>
       </div>
     </form>

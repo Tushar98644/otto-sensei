@@ -8,6 +8,7 @@ import {
   tailorHref,
   type PaletteHandlers,
 } from "./command-palette-items";
+import { EN, FORMAT_EN } from "./messages-testing";
 
 const NOW = Date.UTC(2026, 10, 21, 12);
 const HOUR = 60 * 60 * 1000;
@@ -47,6 +48,8 @@ function commands(
       ...overrides,
     },
     on,
+    EN.dashboard,
+    FORMAT_EN,
   );
 }
 
@@ -57,7 +60,9 @@ describe("parseJobLink", () => {
     expect(parseJobLink("https://boards.greenhouse.io/acme/jobs/123")).toBe(
       "https://boards.greenhouse.io/acme/jobs/123",
     );
-    expect(parseJobLink("  jobs.lever.co/acme/42?ref=x  ")).toBe("https://jobs.lever.co/acme/42?ref=x");
+    expect(parseJobLink("  jobs.lever.co/acme/42?ref=x  ")).toBe(
+      "https://jobs.lever.co/acme/42?ref=x",
+    );
     expect(parseJobLink("http://example.com/careers/7")).toBe("http://example.com/careers/7");
   });
 
@@ -173,8 +178,14 @@ describe("paletteCommands", () => {
     expect(on.lockedTailor).toHaveBeenCalledOnce();
     expect(on.tailor).not.toHaveBeenCalled();
 
-    const link = commands("https://jobs.lever.co/acme/1", { proTools: false, tailorLocked: true }, on);
-    expect(link).toMatchObject([{ label: "Tailor to this job", pro: true, detail: "jobs.lever.co" }]);
+    const link = commands(
+      "https://jobs.lever.co/acme/1",
+      { proTools: false, tailorLocked: true },
+      on,
+    );
+    expect(link).toMatchObject([
+      { label: "Tailor to this job", pro: true, detail: "jobs.lever.co" },
+    ]);
   });
 
   it("marks nothing while the plan is still loading", () => {

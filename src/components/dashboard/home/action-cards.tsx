@@ -13,6 +13,7 @@ import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { ROUTES } from "@/components/site/routes";
 import { FolderCard } from "@/components/ui/folder-card";
 import { ProMark } from "@/components/ui/pro-mark";
+import { useMessages } from "@/i18n/client";
 import type { Resume } from "@/lib/resume/schema";
 import { CheckArt, FormatsArt, TailorArt } from "../action-art";
 import type { StudioActions } from "../use-studio-actions";
@@ -40,22 +41,23 @@ export function ActionCards({
   latest: Resume | null;
   pageResume: Resume;
 }) {
+  const { actions: t, home } = useMessages("dashboard");
   const tailorLocked = useTailorLocked();
   const items: Action[] = [
     {
-      tab: "Recruiter view",
+      tab: t.checkTab,
       icon: ScanSearch,
       art: <CheckArt resume={pageResume} />,
-      title: "Check a resume",
-      detail: "See what hiring software reads from your file.",
+      title: t.checkTitle,
+      detail: t.checkDetail,
       target: { onClick: actions.upload },
     },
     {
-      tab: "Tailor",
+      tab: t.tailorTab,
       icon: BriefcaseBusiness,
       art: <TailorArt />,
-      title: "Tailor to a job",
-      detail: "Paste a job link. See what it asks for that you haven't shown.",
+      title: t.tailorTitle,
+      detail: t.tailorDetail,
       pro: tailorLocked,
       target: {
         onClick: () =>
@@ -67,11 +69,11 @@ export function ActionCards({
       },
     },
     {
-      tab: "Formats",
+      tab: t.formatsTab,
       icon: LayoutTemplate,
       art: <FormatsArt resume={pageResume} />,
-      title: "Pick a format",
-      detail: "Six clean looks for one resume. Each reads cleanly.",
+      title: t.formatsTitle,
+      detail: t.formatsDetail,
       target: { href: ROUTES.dashboardFormats },
     },
   ];
@@ -79,7 +81,7 @@ export function ActionCards({
   return (
     <section aria-labelledby="actions-heading" data-tour="dashboard-actions">
       <h2 id="actions-heading" className="sr-only">
-        Quick actions
+        {home.quickActions}
       </h2>
       <ul className="grid grid-cols-3 gap-2 md:hidden">
         {items.map((item) => (

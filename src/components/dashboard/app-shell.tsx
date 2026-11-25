@@ -11,6 +11,7 @@ import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import { RecapWarmup } from "@/components/recap/recap-warmup";
 import { ROUTES } from "@/components/site/routes";
 import { lazyModule, useLazy, whenIdle } from "@/components/ui/lazy";
+import { useMessages } from "@/i18n/client";
 import { plantSeeds, type ApiSeeds } from "@/lib/api/seeds";
 import type { SessionUser } from "@/lib/auth/types";
 import { getQueryClient } from "@/lib/queries/client";
@@ -38,6 +39,7 @@ export function AppShell({
   seeds?: ApiSeeds;
   children: ReactNode;
 }) {
+  const { shell } = useMessages("dashboard");
   const router = useRouter();
   // Layout effects all run before the first passive effect, where every page's reads start.
   useLayoutEffect(() => {
@@ -47,7 +49,7 @@ export function AppShell({
   }, [seeds, initialUser]);
   useLayoutEffect(() => recallMatches(getQueryClient(), initialUser.id), [initialUser.id]);
   useCloudSync(initialUser.id);
-  useOttoLoadingScreen(useFirstLoadPending(initialUser.id), "Loading your resumes");
+  useOttoLoadingScreen(useFirstLoadPending(initialUser.id), shell.loadingResumes);
   const { me, user, loading } = useMe();
   const actions = useStudioActions();
   const setup = useLazy(setupDefaults, false);

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { useFormat, useMessages } from "@/i18n/client";
 import type { JobFilters } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
@@ -13,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { activeFilterCount, type FilterMemory } from "./filter-memory";
 import type { JobView } from "./use-job-matches";
 
-const count = new Intl.NumberFormat("en-US");
 const TYPE_DELAY_MS = 350;
 
 const SEGMENT =
@@ -21,6 +21,7 @@ const SEGMENT =
 const CHECKBOX = "flex min-h-11 items-center gap-2 text-sm text-ink";
 
 function SearchInput({ value, onCommit }: { value: string; onCommit: (value: string) => void }) {
+  const { filters: t } = useMessages("jobs");
   const [text, setText] = useState(value);
   const [shown, setShown] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,8 +60,8 @@ function SearchInput({ value, onCommit }: { value: string; onCommit: (value: str
             onCommit("");
           }
         }}
-        placeholder="Search titles, companies, skills or places"
-        aria-label="Search jobs"
+        placeholder={t.search}
+        aria-label={t.searchLabel}
         autoComplete="off"
         spellCheck={false}
         className={cn("pl-10 [&::-webkit-search-cancel-button]:appearance-none", text && "pr-11")}
@@ -68,7 +69,7 @@ function SearchInput({ value, onCommit }: { value: string; onCommit: (value: str
       {text ? (
         <button
           type="button"
-          aria-label="Clear search jobs"
+          aria-label={t.clear}
           onClick={() => {
             setText("");
             onCommit("");
@@ -108,6 +109,8 @@ export function JobFiltersBar({
   onRemote,
   profileReady,
 }: JobFiltersBarProps) {
+  const { filters: t } = useMessages("jobs");
+  const format = useFormat();
   const ids = useId();
   const [open, setOpen] = useState(false);
   const active = activeFilterCount(filters);
@@ -117,7 +120,7 @@ export function JobFiltersBar({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div
           role="group"
-          aria-label="Show"
+          aria-label={t.show}
           className="flex w-max gap-1 rounded-xl bg-surface-strong p-1"
         >
           <button
@@ -126,7 +129,7 @@ export function JobFiltersBar({
             onClick={() => onView("matches")}
             className={SEGMENT}
           >
-            Best matches
+            {t.best}
           </button>
           <button
             type="button"
@@ -134,9 +137,9 @@ export function JobFiltersBar({
             onClick={() => onView("saved")}
             className={SEGMENT}
           >
-            Saved
+            {t.saved}
             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-ink/6 px-1.5 text-xs/none text-muted tabular-nums">
-              {count.format(savedCount)}
+              {format.number(savedCount)}
             </span>
           </button>
         </div>
@@ -150,11 +153,11 @@ export function JobFiltersBar({
               onClick={() => setOpen((current) => !current)}
             >
               <SlidersHorizontal aria-hidden />
-              Filters
+              {t.filters}
               {active > 0 ? (
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs/none text-white tabular-nums">
-                  {count.format(active)}
-                  <span className="sr-only"> on</span>
+                  {format.number(active)}
+                  <span className="sr-only">{t.on}</span>
                 </span>
               ) : null}
               <ChevronDown
@@ -170,7 +173,7 @@ export function JobFiltersBar({
         {view === "matches" && open ? (
           <div className="grid gap-x-6 gap-y-3 rounded-2xl bg-surface p-4 shadow-[0_1px_2px_rgb(18_36_29/0.04)] motion-safe:animate-fade-in sm:grid-cols-2 sm:p-6">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`${ids}-posted`}>Posted</Label>
+              <Label htmlFor={`${ids}-posted`}>{t.posted}</Label>
               <Select
                 id={`${ids}-posted`}
                 value={filters.postedWithin === null ? "" : String(filters.postedWithin)}
@@ -179,14 +182,14 @@ export function JobFiltersBar({
                   onFilters({ postedWithin: value === "7" ? 7 : value === "30" ? 30 : null });
                 }}
               >
-                <option value="">Any time</option>
-                <option value="7">In the last 7 days</option>
-                <option value="30">In the last 30 days</option>
+                <option value="">{t.anyTime}</option>
+                <option value="7">{t.last7}</option>
+                <option value="30">{t.last30}</option>
               </Select>
             </div>
             {resumes.length > 1 ? (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor={`${ids}-resume`}>Resume to match</Label>
+                <Label htmlFor={`${ids}-resume`}>{t.resume}</Label>
                 <Select
                   id={`${ids}-resume`}
                   value={resumeId ?? ""}
@@ -209,7 +212,7 @@ export function JobFiltersBar({
                     onChange={(event) => onRemote(event.target.checked)}
                     className="size-4 accent-ink"
                   />
-                  Remote only
+                  {t.remote}
                 </label>
               ) : null}
               {profileReady ? (
@@ -220,7 +223,7 @@ export function JobFiltersBar({
                     onChange={(event) => onFilters({ eligibleOnly: event.target.checked })}
                     className="size-4 accent-ink"
                   />
-                  Only jobs I can take
+                  {t.eligible}
                 </label>
               ) : null}
             </div>

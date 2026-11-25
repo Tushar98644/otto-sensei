@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { offerLabel } from "@/components/dashboard/plan-slip";
+import dashboard from "@/i18n/messages/en/dashboard";
 import type { Application } from "@/lib/applications/schema";
 import type { Resume } from "@/lib/resume/schema";
 import { expect, test } from "./fixtures";
@@ -149,7 +150,7 @@ test("a Free account sees an example letter and is offered Pro instead of writin
   // The sidebar offers the same trial, so the folder's key is the one under test.
   await page
     .getByRole("main")
-    .getByRole("button", { name: offerLabel(true), exact: true })
+    .getByRole("button", { name: offerLabel(true, dashboard), exact: true })
     .click();
   const upgrade = page.getByRole("dialog").filter({ hasText: PRO_ONLY });
   await firstLoad(upgrade).toBeVisible();

@@ -12,6 +12,8 @@ import type { ApplicationStatus } from "@/lib/applications/status";
 import { savedJobUrl } from "@/lib/insights/saved-job";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
+import { fmt } from "@/i18n/format";
+import type { ApplicationsMessages } from "../i18n";
 
 export type ApplicationFormValues = {
   resumeId: string;
@@ -142,6 +144,7 @@ export function validateForm(
   values: ApplicationFormValues,
   titles: ReadonlyMap<string, string>,
   now: number,
+  { form }: ApplicationsMessages,
 ): ValidForm | { ok: false; errors: FormErrors } {
   const errors: FormErrors = {};
   const company = cleanLine(values.company);
@@ -150,17 +153,17 @@ export function validateForm(
   const jobUrl = normalizeJobUrl(values.jobUrl);
   const appliedAt = fromDateInput(values.appliedOn);
 
-  if (company === "") errors.company = "Add the company you applied to.";
+  if (company === "") errors.company = form.company;
   else if (company.length > APPLICATION_LIMITS.company)
-    errors.company = `Keep it under ${APPLICATION_LIMITS.company} characters.`;
+    errors.company = fmt(form.tooLong, { max: APPLICATION_LIMITS.company });
   if (role.length > APPLICATION_LIMITS.role)
-    errors.role = `Keep it under ${APPLICATION_LIMITS.role} characters.`;
-  if (jobUrl === null) errors.jobUrl = "That doesn't look like a web link. Paste the full address.";
-  if (appliedAt === null) errors.appliedOn = "Pick the day you applied.";
-  else if (values.appliedOn > toDateInput(now)) errors.appliedOn = "That day hasn't come yet.";
-  else if (appliedAt < MIN_APPLIED_AT) errors.appliedOn = "Pick a day from 2000 on.";
+    errors.role = fmt(form.tooLong, { max: APPLICATION_LIMITS.role });
+  if (jobUrl === null) errors.jobUrl = form.link;
+  if (appliedAt === null) errors.appliedOn = form.day;
+  else if (values.appliedOn > toDateInput(now)) errors.appliedOn = form.future;
+  else if (appliedAt < MIN_APPLIED_AT) errors.appliedOn = form.old;
   if (notes.length > APPLICATION_LIMITS.notes)
-    errors.notes = `Keep notes under ${APPLICATION_LIMITS.notes} characters.`;
+    errors.notes = fmt(form.notes, { max: APPLICATION_LIMITS.notes });
 
   if (Object.keys(errors).length > 0 || jobUrl === null || appliedAt === null) {
     return { ok: false, errors };

@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { JobsPage } from "@/components/dashboard/jobs/jobs-page";
+import { pageTitle } from "../page-title";
 
-export const metadata: Metadata = { title: "Jobs" };
+export const generateMetadata = () => pageTitle("jobs");
 
 export default function Page() {
   return <JobsPage />;

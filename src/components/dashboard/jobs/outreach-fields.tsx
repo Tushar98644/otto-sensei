@@ -10,6 +10,8 @@ import { copyText } from "@/components/ui/copy-text";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { liveWarnings, needsFirstName } from "@/lib/ai/warning-text";
 import { WRITING_LIMITS } from "@/lib/writings/schema";
 import type { OutreachField } from "./outreach-saved";
@@ -26,7 +28,10 @@ export type OutreachFieldsProps = {
 };
 
 export function OutreachFields({ message, onEdit, onSettle, subjectRef }: OutreachFieldsProps) {
+  const { fields: t } = useMessages("jobs");
+  const format = useFormat();
   const noteOver = message.note.length > NOTE_CHARS;
+  const noteValues = { count: format.number(message.note.length), max: format.number(NOTE_CHARS) };
   const firstName = needsFirstName(message.subject, message.email, message.note);
   const checks = liveWarnings(
     message.warnings,
@@ -37,11 +42,9 @@ export function OutreachFields({ message, onEdit, onSettle, subjectRef }: Outrea
     <>
       {message.demo ? <DemoNote /> : null}
       {firstName || checks.length ? (
-        <Alert variant="warn" title="Check before you send it">
+        <Alert variant="warn" title={t.check}>
           <ul className="flex list-disc flex-col gap-1 pl-4">
-            {firstName ? (
-              <li>Swap [first name] for the name of the person you&apos;re writing to.</li>
-            ) : null}
+            {firstName ? <li>{t.swapName}</li> : null}
             {checks.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}
@@ -50,7 +53,7 @@ export function OutreachFields({ message, onEdit, onSettle, subjectRef }: Outrea
       ) : null}
 
       <div className="flex flex-col gap-2">
-        <Field label="Email subject">
+        <Field label={t.subject}>
           <Input
             ref={subjectRef}
             maxLength={WRITING_LIMITS.subject}
@@ -59,10 +62,7 @@ export function OutreachFields({ message, onEdit, onSettle, subjectRef }: Outrea
             onBlur={onSettle}
           />
         </Field>
-        <Field
-          label="Email"
-          error={message.email.trim() ? null : "Write the email here. An empty one isn't saved."}
-        >
+        <Field label={t.email} error={message.email.trim() ? null : t.emailEmpty}>
           <Textarea
             autoResize
             maxLength={WRITING_LIMITS.outreachChars}
@@ -79,7 +79,7 @@ export function OutreachFields({ message, onEdit, onSettle, subjectRef }: Outrea
             onClick={() => void copyText(message.subject, "subject")}
           >
             <Copy aria-hidden />
-            Copy subject
+            {t.copySubject}
           </Button>
           <Button
             size="sm"
@@ -87,20 +87,16 @@ export function OutreachFields({ message, onEdit, onSettle, subjectRef }: Outrea
             onClick={() => void copyText(message.email, "email")}
           >
             <Copy aria-hidden />
-            Copy email
+            {t.copyEmail}
           </Button>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
         <Field
-          label="LinkedIn note"
-          hint={`${message.note.length} of ${NOTE_CHARS} characters, the most a free LinkedIn account allows.`}
-          error={
-            noteOver
-              ? `${message.note.length} characters. Trim it to ${NOTE_CHARS} so it fits a free LinkedIn invite.`
-              : null
-          }
+          label={t.note}
+          hint={fmt(t.noteHint, noteValues)}
+          error={noteOver ? fmt(t.noteOver, noteValues) : null}
         >
           <Textarea
             autoResize
@@ -118,17 +114,12 @@ export function OutreachFields({ message, onEdit, onSettle, subjectRef }: Outrea
           onClick={() => void copyText(message.note, "note")}
         >
           <Copy aria-hidden />
-          Copy note
+          {t.copyNote}
         </Button>
       </div>
     </>
   );
 }
-
-const SAVE_LINES: Record<"saving" | "saved", string> = {
-  saving: "Saving…",
-  saved: "Saved to Letters",
-};
 
 export function OutreachSaveStatus({
   save,
@@ -139,25 +130,26 @@ export function OutreachSaveStatus({
   error: string | null;
   onRetry: () => void;
 }) {
+  const { fields: t } = useMessages("jobs");
   if (save === "failed") {
     return (
       <Alert
         variant="error"
-        title="Not saved yet"
+        title={t.notSaved}
         action={
           <Button variant="secondary" size="sm" onClick={onRetry}>
-            Try again
+            {t.tryAgain}
           </Button>
         }
       >
-        {error ? `${error} ` : null}It stays here while this page is open, so copy it before you
-        leave.
+        {error ? `${error} ` : null}
+        {t.keepOpen}
       </Alert>
     );
   }
   return (
     <p role="status" className="min-h-5 text-sm text-subtle">
-      {save === "idle" ? "" : SAVE_LINES[save]}
+      {save === "idle" ? "" : save === "saving" ? t.saving : t.saved}
     </p>
   );
 }

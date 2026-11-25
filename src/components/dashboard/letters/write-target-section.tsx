@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
+import { useMessages } from "@/i18n/client";
 import { postLine, type WriteTarget } from "./write-targets";
 
 export const ANOTHER_JOB = "another";
@@ -19,8 +20,9 @@ export function TargetPicker({
   disabled: boolean;
   onPick: (value: string) => void;
 }) {
+  const t = useMessages("letters").targets;
   return (
-    <Field label="For" hint={target ? postLine(target.post) : undefined}>
+    <Field label={t.for} hint={target ? postLine(target.post, t) : undefined}>
       <Select
         value={target?.value ?? ANOTHER_JOB}
         disabled={disabled}
@@ -31,7 +33,7 @@ export function TargetPicker({
             {item.label}
           </option>
         ))}
-        <option value={ANOTHER_JOB}>Another job: paste its link</option>
+        <option value={ANOTHER_JOB}>{t.another}</option>
       </Select>
     </Field>
   );
@@ -50,7 +52,13 @@ export function WriteRow({
 }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <Button size="lg" loading={busy} onClick={onWrite} className="w-full sm:w-auto" data-autofocus>
+      <Button
+        size="lg"
+        loading={busy}
+        onClick={onWrite}
+        className="w-full sm:w-auto"
+        data-autofocus
+      >
         <action.icon aria-hidden />
         {action.label}
       </Button>

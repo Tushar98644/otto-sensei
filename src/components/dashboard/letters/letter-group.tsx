@@ -18,22 +18,17 @@ import { buttonClasses } from "@/components/ui/button";
 import { CompanyMark } from "@/components/ui/company-mark";
 import { copyText } from "@/components/ui/copy-text";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { Application } from "@/lib/applications/schema";
-import { STATUS_NAMES } from "@/lib/applications/status";
 import { applicationHref } from "@/lib/applications/thread";
 import { cn } from "@/lib/utils";
 import type { WritingKind } from "@/lib/writings/schema";
 import { StatusIcon } from "../applications/status-menu";
-import { formatDay } from "../applications/view";
+import { formatDay } from "../i18n";
 import { KIND_NAMES, type LetterEntry } from "./entries";
 import { QuickActions, type QuickState } from "./quick-actions";
 import { asEmail, type LetterGroup } from "./ready";
-
-const ITEM_TITLES: Record<WritingKind, string> = {
-  letter: "Cover letter",
-  answer: "Answer",
-  outreach: "Outreach message",
-};
 
 const BAR = "block h-0.75 rounded-full bg-surface-strong";
 const PANEL = "rounded-2xl bg-surface shadow-[0_1px_2px_rgb(18_36_29/0.04)] ring-1 ring-ink/4";
@@ -118,9 +113,11 @@ export function LetterGroupCard({
   onWrite,
   onDismiss,
 }: LetterGroupCardProps) {
+  const { group: words } = useMessages("letters");
+  const { statuses } = useMessages("applications");
   const titleId = useId();
   const company = group.company;
-  const heading = company || group.role || "Other writing";
+  const heading = company || group.role || words.other;
 
   return (
     <li
@@ -148,8 +145,8 @@ export function LetterGroupCard({
                   className="inline-flex h-6 items-center gap-1 rounded-full bg-surface-muted px-2 text-xs font-medium text-muted transition-colors hover:bg-surface-strong hover:text-ink"
                 >
                   <StatusIcon status={application.status} className="size-3.5" />
-                  {STATUS_NAMES[application.status]}
-                  <span className="sr-only">: open the application</span>
+                  {statuses[application.status]}
+                  <span className="sr-only">{words.openApplication}</span>
                 </Link>
               </div>
             ) : null}
@@ -214,14 +211,19 @@ function GroupItem({
   onOpenInStudio: () => void;
   onDelete: () => void;
 }) {
+  const t = useMessages("letters");
+  const words = t.group;
+  const format = useFormat();
   const titleId = useId();
   const kind = KIND_NAMES[entry.kind];
   const letter = entry.kind === "letter";
   const saved = entry.writingId !== null || entry.copyId !== null;
   const line = excerpt(entry);
-  const title =
-    entry.kind === "answer" && entry.question ? entry.question : ITEM_TITLES[entry.kind];
-  const meta = [formatDay(entry.createdAt, now), source ? `From “${source}”` : null]
+  const title = entry.kind === "answer" && entry.question ? entry.question : t.kinds[entry.kind];
+  const meta = [
+    formatDay(format, entry.createdAt, now),
+    source ? fmt(words.from, { source }) : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   const copyMain = () =>
@@ -233,27 +235,25 @@ function GroupItem({
     ...(letter
       ? [
           {
-            label: "Copy as email",
+            label: words.copyAsEmail,
             icon: Send,
             onSelect: () => void copyText(asEmail(subject, entry.text), "email"),
           },
-          { label: "Download PDF", icon: Download, onSelect: onPdf },
+          { label: words.download, icon: Download, onSelect: onPdf },
         ]
       : []),
     ...(entry.kind === "outreach" && entry.outreach?.note
       ? [
           {
-            label: "Copy LinkedIn note",
+            label: words.copyNote,
             icon: Copy,
             onSelect: () => void copyText(entry.outreach?.note ?? "", "note"),
           },
         ]
       : []),
-    ...(studio
-      ? [{ label: "Open in the studio", icon: PanelsTopLeft, onSelect: onOpenInStudio }]
-      : []),
+    ...(studio ? [{ label: words.openStudio, icon: PanelsTopLeft, onSelect: onOpenInStudio }] : []),
     "separator",
-    { label: "Delete", icon: Trash2, tone: "danger", onSelect: onDelete },
+    { label: words.delete, icon: Trash2, tone: "danger", onSelect: onDelete },
   ];
 
   return (
@@ -272,7 +272,7 @@ function GroupItem({
             </button>
             {saved ? null : (
               <Badge variant="warn" className="shrink-0">
-                Not saved
+                {words.notSaved}
               </Badge>
             )}
           </p>
@@ -280,7 +280,7 @@ function GroupItem({
             <button
               type="button"
               aria-describedby={titleId}
-              aria-label={entry.kind === "outreach" ? "Copy email" : `Copy ${kind.one}`}
+              aria-label={entry.kind === "outreach" ? words.copyEmail : t.copyKind[entry.kind]}
               onClick={copyMain}
               className={buttonClasses({
                 variant: "ghost",
@@ -291,9 +291,9 @@ function GroupItem({
               <Copy aria-hidden />
             </button>
             <Menu
-              label={`Actions for ${title}`}
+              label={fmt(words.actionsFor, { title })}
               align="end"
-              triggerLabel={`More actions for ${title}`}
+              triggerLabel={fmt(words.moreActionsFor, { title })}
               triggerClassName={buttonClasses({
                 variant: "ghost",
                 size: "icon-sm",

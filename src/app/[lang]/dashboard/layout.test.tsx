@@ -32,8 +32,12 @@ const { GET } = await import("@/app/api/me/route");
 
 type ShellProps = { initialUser: SessionUser; initialMe: unknown; seeds?: ApiSeeds };
 
+// The shell sits inside the messages provider.
 async function shellProps(): Promise<ShellProps> {
-  return ((await DashboardLayout({ children: null })) as ReactElement<ShellProps>).props;
+  const tree = (await DashboardLayout({ children: null })) as ReactElement<{
+    children: ReactElement<ShellProps>;
+  }>;
+  return tree.props.children.props;
 }
 
 beforeEach(async () => {

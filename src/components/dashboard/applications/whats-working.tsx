@@ -13,8 +13,9 @@ import { useNow } from "@/components/studio/use-now";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
+import { useFormat, useMessages } from "@/i18n/client";
 import type { Application } from "@/lib/applications/schema";
-import { formatCount, tally } from "@/lib/applications/stats";
+import { tally } from "@/lib/applications/stats";
 import {
   findingOf,
   letteredApplications,
@@ -50,6 +51,8 @@ export function WhatsWorking({
   onTailor,
   onAddApplication,
 }: WhatsWorkingProps) {
+  const t = useMessages("applications");
+  const format = useFormat();
   const now = useNow();
   const userId = useSessionUserId();
   const pro = useProTools() === true;
@@ -79,14 +82,14 @@ export function WhatsWorking({
   return (
     <FolderCard
       data-tour={variant === "home" ? "dashboard-win-rate" : undefined}
-      tab="What's working"
+      tab={t.working.tab}
       tabEnd={
         variant === "home" ? (
           <Link
             href={ROUTES.dashboardApplications}
             className="group inline-flex items-center gap-1 text-sm font-medium text-ink"
           >
-            Applications
+            {t.working.applications}
             <ArrowRight
               aria-hidden
               className="size-4 text-muted transition-transform group-hover:translate-x-0.5"
@@ -102,14 +105,17 @@ export function WhatsWorking({
           {working ? (
             <Findings working={working} onTailor={onTailor} onAddApplication={onAddApplication} />
           ) : (
-            <p className="text-sm/6 text-muted">Counting your applications…</p>
+            <p className="text-sm/6 text-muted">{t.working.counting}</p>
           )}
         </div>
       </div>
       {variant === "home" && counts.applications > 0 ? (
         <p className="border-t border-border px-4 pt-3 pb-2 text-sm/5 text-subtle sm:px-6">
-          {formatCount(counts.applications, "application")} ·{" "}
-          {formatCount(counts.interviews, "interview")} · {formatCount(counts.offers, "offer")}
+          {[
+            format.plural(t.count.applications, counts.applications),
+            format.plural(t.count.interviews, counts.interviews),
+            format.plural(t.count.offers, counts.offers),
+          ].join(" · ")}
         </p>
       ) : null}
     </FolderCard>
@@ -125,6 +131,8 @@ function Findings({
   onTailor?: (() => void) | null;
   onAddApplication?: () => void;
 }) {
+  const { working: words } = useMessages("applications");
+  const format = useFormat();
   const { resume, letter } = working;
   const finding = resume.ready ? findingOf(resume) : null;
   const waiting = waitingLine(working.waiting);
@@ -133,9 +141,7 @@ function Findings({
     <>
       <div className="flex flex-col gap-2">
         <Eyebrow>
-          {working.total === 0
-            ? "From your own applications"
-            : `From your ${formatCount(working.total, "application")}`}
+          {working.total === 0 ? words.fromOwn : format.plural(words.fromYour, working.total)}
         </Eyebrow>
         {finding ? (
           <p className="font-display text-2xl/8 font-normal tracking-tight text-pretty text-ink sm:text-3xl/9">
@@ -146,9 +152,7 @@ function Findings({
         ) : (
           <>
             <p className="font-display text-2xl/8 font-normal tracking-tight text-pretty text-ink sm:text-3xl/9">
-              {working.total === 0
-                ? "See which resume gets you replies"
-                : "Not enough to compare yet"}
+              {working.total === 0 ? words.seeWhich : words.notEnough}
             </p>
             {working.total > 0 ? (
               <p className="text-sm/6 text-pretty text-muted">{together(notEnoughLine(resume))}</p>
@@ -200,6 +204,7 @@ function NextAction({
   onTailor?: (() => void) | null;
   onAddApplication?: () => void;
 }) {
+  const { working: words } = useMessages("applications");
   const arrow = <ArrowRight aria-hidden className="size-4" />;
   if (kind === "tailor" && onTailor) {
     return (
@@ -228,7 +233,7 @@ function NextAction({
       href={href}
       className={buttonClasses({ variant: "secondary", size: "sm", className: ACTION })}
     >
-      {kind === "tailor" ? "Find a job to tailor for" : label}
+      {kind === "tailor" ? words.findJob : label}
       {arrow}
     </Link>
   );
@@ -244,12 +249,13 @@ function dotsOf(group: Group, measure: Comparison["measure"]): number {
 
 // Two sheets, tailored and general, with a dot for each share of interviews; Otto points at the one that does better.
 function WorkingArt({ comparison }: { comparison: Comparison | null }) {
+  const { working: words } = useMessages("applications");
   const ready = comparison?.ready === true;
   const pose: OttoPose = !ready ? "think" : comparison.leader === "same" ? "read" : "point";
   const sheets = [
-    { label: "Tailored", group: comparison?.with ?? null, lead: comparison?.leader === "with" },
+    { label: words.tailored, group: comparison?.with ?? null, lead: comparison?.leader === "with" },
     {
-      label: "General",
+      label: words.general,
       group: comparison?.without ?? null,
       lead: comparison?.leader === "without",
     },

@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import { CalendarChip } from "./calendar";
 import { LeadArt } from "./lead-art";
@@ -166,16 +168,17 @@ export function SetupProgress({
   total: number;
   onHide: () => void;
 }) {
+  const { home } = useMessages("dashboard");
   const fraction = total > 0 ? Math.min(Math.max(done / total, 0), 1) : 0;
   return (
     <div className="flex items-center gap-1 motion-safe:animate-fade-in">
       <div
         role="progressbar"
-        aria-label="Setup"
+        aria-label={home.setup}
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={done}
-        aria-valuetext={`${done} of ${total} done`}
+        aria-valuetext={fmt(home.setupDone, { done, total })}
         className="flex items-center gap-2 text-sm/5"
       >
         <svg viewBox="0 0 20 20" aria-hidden className="size-5 -rotate-90">
@@ -196,10 +199,8 @@ export function SetupProgress({
           ) : null}
         </svg>
         <span className="text-muted">
-          <span className="font-medium text-ink">Setup</span>{" "}
-          <span className="tabular-nums">
-            {done} of {total}
-          </span>
+          <span className="font-medium text-ink">{home.setup}</span>{" "}
+          <span className="tabular-nums">{fmt(home.setupCount, { done, total })}</span>
         </span>
       </div>
       <Button
@@ -208,7 +209,7 @@ export function SetupProgress({
         onClick={onHide}
         className="-mr-2 text-muted hover:text-ink"
       >
-        Hide this
+        {home.hideSetup}
       </Button>
     </div>
   );

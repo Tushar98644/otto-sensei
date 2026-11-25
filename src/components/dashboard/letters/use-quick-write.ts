@@ -5,6 +5,7 @@ import { errorMessage } from "@/components/account/errors";
 import type { TailorDraft } from "@/components/studio/tailor/session";
 import { useWriting } from "@/components/studio/tailor/use-writing";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { api } from "@/lib/api/client";
 import { resumeTitle } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
@@ -28,13 +29,6 @@ type Request = {
 
 const NO_RESUME = emptyResume(0);
 const NO_JOB: TailorDraft = { title: "", company: "", text: "" };
-const UNKEPT: Record<WritingKind, string> = {
-  letter: "Couldn't keep this letter",
-  answer: "Couldn't keep this answer",
-  outreach: "Couldn't keep this message",
-};
-const NEEDS_POST =
-  "Otto writes from the job post. Paste it here once and he keeps it for this job.";
 const LINK = /^(https?:\/\/|www\.)\S+$/i;
 
 export function quickResume(
@@ -55,6 +49,7 @@ function pastedPost(value: string): TargetPost | null {
 
 // One click writes for a job the app already knows: its post, the resume made for it, then straight to the result.
 export function useQuickWrite(resumes: readonly Resume[], onWritten: (written: Written) => void) {
+  const { quick: words } = useMessages("letters");
   const [run, setRun] = useState<QuickRun | null>(null);
   const [request, setRequest] = useState<Request | null>(null);
   const [asks, setAsks] = useState<Readonly<Record<string, string>>>({});
@@ -119,7 +114,7 @@ export function useQuickWrite(resumes: readonly Resume[], onWritten: (written: W
       const { writing: saved } = await api.saveWriting(body);
       onWritten({ kind: "saved", writing: saved, show: true });
     } catch (error) {
-      toast({ title: UNKEPT[kind], description: errorMessage(error), variant: "error" });
+      toast({ title: words.unkept[kind], description: errorMessage(error), variant: "error" });
       onWritten({ kind: "unsaved", show: true, entry: unsavedEntry(body, Date.now()) });
     } finally {
       finish();
@@ -153,7 +148,7 @@ export function useQuickWrite(resumes: readonly Resume[], onWritten: (written: W
             : target.post);
     if (!source) {
       busy.current = false;
-      ask(target.value, NEEDS_POST);
+      ask(target.value, words.needsPost);
       return;
     }
     let text = source.kind === "saved" ? source.text.trim() : "";
@@ -168,10 +163,7 @@ export function useQuickWrite(resumes: readonly Resume[], onWritten: (written: W
       if (!text) {
         busy.current = false;
         setRun(null);
-        ask(
-          target.value,
-          failure ?? "That post is too short to write from. Paste the whole post here instead.",
-        );
+        ask(target.value, failure ?? words.tooShortPost);
         return;
       }
     }

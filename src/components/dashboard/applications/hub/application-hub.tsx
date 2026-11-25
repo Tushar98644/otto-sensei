@@ -16,10 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api, isApiError } from "@/lib/api/client";
 import type { Application } from "@/lib/applications/schema";
 import { followsUp } from "@/lib/applications/follow-up";
-import { nextStep, STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
+import { nextStep, type ApplicationStatus } from "@/lib/applications/status";
 import { copyLetter, type ApplicationThread } from "@/lib/applications/thread";
 import { savedJobText } from "@/lib/insights/saved-job";
 import { WRITE_PARAM } from "@/lib/notifications/links";
@@ -42,7 +44,10 @@ import {
   restoreApplication,
   useApplications,
 } from "../use-applications";
-import { formatDay, prepHref, sentLabel } from "../view";
+import { formatDay } from "../../i18n";
+import { sentLine } from "../copy";
+import { useStatusMenuCopy } from "../use-status-copy";
+import { prepHref } from "../view";
 import { hubLetters, hubTally, LettersCard, withWriting } from "./hub-letters";
 import { JobCard, NotesCard, PrepCard, ResumeSentCard, TimelineCard } from "./hub-sections";
 import { nextStepLine, timelineSteps } from "./timeline";
@@ -68,6 +73,10 @@ export function ApplicationHub({
   applicationId: string;
   thankYou?: boolean;
 }) {
+  const t = useMessages("applications");
+  const { hub } = t;
+  const format = useFormat();
+  const statusCopy = useStatusMenuCopy();
   const router = useRouter();
   const now = useNow();
   const hydrated = useStudioHydrated();
@@ -107,7 +116,10 @@ export function ApplicationHub({
   const keepWriting = useCallback((writing: Writing) => {
     setLoad((current) =>
       current.status === "ready"
-        ? { status: "ready", thread: { ...current.thread, writings: withWriting(current.thread.writings, writing) } }
+        ? {
+            status: "ready",
+            thread: { ...current.thread, writings: withWriting(current.thread.writings, writing) },
+          }
         : current,
     );
   }, []);
@@ -116,7 +128,10 @@ export function ApplicationHub({
   const application: Application | null =
     items.find((item) => item.id === applicationId) ?? thread?.application ?? null;
   const sent = useMemo(
-    () => (application?.resumeId ? (resumes.find((resume) => resume.id === application.resumeId) ?? null) : null),
+    () =>
+      application?.resumeId
+        ? (resumes.find((resume) => resume.id === application.resumeId) ?? null)
+        : null,
     [application?.resumeId, resumes],
   );
   const copy = sent?.tailor ? sent : null;
@@ -135,18 +150,18 @@ export function ApplicationHub({
         reload();
         if (status === "interview" && !target.hasPrep) {
           toast({
-            title: "Moved to Interviewing",
+            title: hub.movedInterview,
             description: target.company,
             durationMs: 8000,
             action: {
-              label: pro === false ? "Prepare (Pro)" : "Prepare for this interview",
+              label: pro === false ? hub.prepareActionPro : hub.prepareAction,
               onAction: () => prepare(target),
             },
           });
         }
       },
       (error: unknown) =>
-        toast({ title: "Couldn't change the status", description: errorMessage(error), variant: "error" }),
+        toast({ title: hub.cantChange, description: errorMessage(error), variant: "error" }),
     );
   }
 
@@ -195,7 +210,7 @@ export function ApplicationHub({
     hideApplication(target);
     router.push(ROUTES.dashboardApplications);
     undoToast({
-      title: "Application deleted",
+      title: hub.deleted,
       description: target.company,
       onUndo: () => {
         restoreApplication(target);
@@ -203,7 +218,7 @@ export function ApplicationHub({
       },
       onCommit: (options) => {
         commitDelete(target, options).catch((error: unknown) =>
-          toast({ title: "Couldn't delete it", description: errorMessage(error), variant: "error" }),
+          toast({ title: hub.cantDelete, description: errorMessage(error), variant: "error" }),
         );
       },
     });
@@ -216,9 +231,9 @@ export function ApplicationHub({
   );
   const facts = application
     ? [
-        STATUS_NAMES[application.status],
-        letters.length > 0 ? hubTally(letters) : null,
-        thread?.prep ? "prep ready" : null,
+        t.statuses[application.status],
+        letters.length > 0 ? hubTally(letters, t, format) : null,
+        thread?.prep ? hub.prepReady : null,
       ]
         .filter(Boolean)
         .join(" · ")
@@ -231,8 +246,11 @@ export function ApplicationHub({
           href={ROUTES.dashboardApplications}
           className="group inline-flex w-fit items-center gap-1 text-sm font-medium text-muted hover:text-ink"
         >
-          <ArrowLeft aria-hidden className="size-4 transition-transform group-hover:-translate-x-0.5" />
-          Applications
+          <ArrowLeft
+            aria-hidden
+            className="size-4 transition-transform group-hover:-translate-x-0.5"
+          />
+          {hub.back}
         </Link>
         {application ? (
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
@@ -243,25 +261,46 @@ export function ApplicationHub({
               <p className="mt-2 max-w-prose text-base/7 text-muted">
                 {[
                   application.role,
-                  `Applied ${formatDay(application.appliedAt, now || application.appliedAt)}`,
+                  fmt(hub.applied, {
+                    day: formatDay(format, application.appliedAt, now || application.appliedAt),
+                  }),
                   application.interviewAt
-                    ? `Interview ${formatDay(application.interviewAt, now || application.interviewAt)}`
+                    ? fmt(hub.interview, {
+                        day: formatDay(
+                          format,
+                          application.interviewAt,
+                          now || application.interviewAt,
+                        ),
+                      })
                     : null,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
               </p>
-              <p className="mt-1 text-sm/5 text-subtle">Sent {sentLabel(application, titles)}</p>
+              <p className="mt-1 text-sm/5 text-subtle">
+                {fmt(hub.sent, { sent: sentLine(application, titles, t) })}
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <StatusMenu application={application} onChange={(status) => setStatus(application, status)} />
+              <StatusMenu
+                application={application}
+                onChange={(status) => setStatus(application, status)}
+                copy={statusCopy}
+              />
               {next ? (
-                <Button variant="ghost" size="sm" onClick={() => setStatus(application, next.status)}>
-                  {next.label}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setStatus(application, next.status)}
+                >
+                  {application.status === "applied" || application.status === "interview"
+                    ? t.next[application.status]
+                    : next.label}
                 </Button>
               ) : application.status === "offer" && !hired ? (
                 <Button variant="ghost" size="sm" onClick={() => setHired(true)}>
-                  <PartyPopper aria-hidden />I got the job
+                  <PartyPopper aria-hidden />
+                  {hub.gotJob}
                 </Button>
               ) : null}
             </div>
@@ -272,7 +311,7 @@ export function ApplicationHub({
       {load.status === "loading" || !hydrated ? (
         <div aria-busy className="flex flex-col gap-6">
           <span className="sr-only" role="status">
-            Loading this application
+            {hub.loading}
           </span>
           <Skeleton aria-hidden className="h-12 w-72 max-w-full" />
           <div aria-hidden className="grid gap-6 lg:grid-cols-3">
@@ -283,22 +322,25 @@ export function ApplicationHub({
       ) : load.status === "missing" ? (
         <Alert
           variant="warn"
-          title="That application isn't in your list anymore"
+          title={hub.missing}
           action={
-            <Link href={ROUTES.dashboardApplications} className="text-sm font-medium text-ink underline">
-              Back to Applications
+            <Link
+              href={ROUTES.dashboardApplications}
+              className="text-sm font-medium text-ink underline"
+            >
+              {hub.backTo}
             </Link>
           }
         >
-          It may have been deleted on another device.
+          {hub.missingBody}
         </Alert>
       ) : load.status === "error" ? (
         <Alert
           variant="error"
-          title="This application didn't load"
+          title={hub.didntLoad}
           action={
             <Button variant="secondary" size="sm" onClick={reload}>
-              Try again
+              {hub.tryAgain}
             </Button>
           }
         >
@@ -314,7 +356,7 @@ export function ApplicationHub({
           <OttoNote
             live={false}
             meta={facts}
-            message={nextStepLine(application, thread.prep !== null, now)}
+            message={nextStepLine(application, thread.prep !== null, now, t, format)}
           >
             {followsUp(application.status) ? (
               <FollowUpChip application={application} now={now} />
@@ -354,9 +396,13 @@ export function ApplicationHub({
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setDialog({ kind: "edit", application })}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDialog({ kind: "edit", application })}
+            >
               <PenLine aria-hidden />
-              Edit details
+              {hub.edit}
             </Button>
             <Button
               variant="ghost"
@@ -365,7 +411,7 @@ export function ApplicationHub({
               onClick={() => remove(application)}
             >
               <Trash2 aria-hidden className="text-fail" />
-              Delete application
+              {hub.delete}
             </Button>
           </div>
         </>
@@ -414,7 +460,7 @@ export function ApplicationHub({
             setWriting((current) => current && { ...current, open: false });
             if (written.kind === "saved") {
               reload();
-              toast({ title: "Letter kept with this application", variant: "success" });
+              toast({ title: hub.letterKept, variant: "success" });
             }
           }}
         />

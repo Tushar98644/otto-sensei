@@ -6,7 +6,6 @@ import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { useSessionUserId } from "@/components/account/session-user";
 import { saveLookingForChoice, useWorkProfile } from "@/components/eligibility/use-work-profile";
-import { OTTO } from "@/components/mascot/lines";
 import { JobsWorkPrompt } from "@/components/setup/jobs-work-prompt";
 import { useSetupGuess } from "@/components/setup/use-account-setup";
 import { useNow } from "@/components/studio/use-now";
@@ -15,6 +14,9 @@ import { Button } from "@/components/ui/button";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import { cn } from "@/lib/utils";
 import type { JobMatchesResponse, MatchedJob } from "@/lib/api/types";
 import { isProfileStarted } from "@/lib/eligibility/profile";
@@ -25,6 +27,7 @@ import { jobsWorkPromptShows } from "@/lib/setup/checklist";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { useApplications } from "../applications/use-applications";
+import type { JobsMessages } from "../i18n";
 import { jobCards } from "../page-code";
 import { LazyOutreachDialog } from "./lazy-outreach-dialog";
 import { useStudioActions } from "../use-studio-actions";
@@ -51,9 +54,34 @@ import { appliedFor, checkedLabel, matchingResumeId, moreWithProCopy, tailoredFo
 
 preload(jobCards);
 
-const count = new Intl.NumberFormat("en-US");
+// Otto's line over the matches: how many fit, then how many look strong or are new.
+function foundLine(
+  { otto }: JobsMessages,
+  format: Format,
+  matching: number,
+  shown: number,
+  strong: number,
+  newToday: number,
+): string {
+  const whole = (n: number) => (Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0);
+  const n = whole(matching);
+  if (n === 0 || whole(shown) === 0) return otto.foundNone;
+  const lead =
+    n > whole(shown)
+      ? fmt(otto.foundMore, { count: format.number(n), shown: format.number(whole(shown)) })
+      : format.plural(otto.foundAll, n);
+  const s = whole(strong);
+  const fresh = whole(newToday);
+  const parts = [
+    s > 0 ? format.plural(otto.strong, s) : "",
+    fresh > 0 ? format.plural(otto.fresh, fresh) : "",
+  ].filter(Boolean);
+  return parts.length > 0 ? `${lead} ${parts.join(", ")}.` : lead;
+}
 
 export function JobsPage() {
+  const t = useMessages("jobs");
+  const format = useFormat();
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
   const actions = useStudioActions();
@@ -144,7 +172,7 @@ export function JobsPage() {
     try {
       await saveLookingForChoice(work.userId, next);
     } catch (error) {
-      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+      toast({ title: t.page.cantSave, description: errorMessage(error), variant: "error" });
     } finally {
       setSavingChoice(false);
     }
@@ -160,15 +188,17 @@ export function JobsPage() {
   const filtered = !locked && searchedOrNarrowed(filters);
   let message: string | null = null;
   if (data) {
-    if (data.openJobs === 0) message = OTTO.jobs.noJobs;
-    else if (view === "saved") message = OTTO.jobs.saved(data.savedCount);
-    else if (data.total === 0 && filtered) message = OTTO.jobs.filtered;
+    if (data.openJobs === 0) message = t.otto.noJobs;
+    else if (view === "saved")
+      message =
+        data.savedCount > 0 ? format.plural(t.otto.saved, data.savedCount) : t.otto.savedNone;
+    else if (data.total === 0 && filtered) message = t.otto.filtered;
     else if (data.total === 0 && state.status === "ready" && resume && isBare(resume))
-      message = OTTO.jobs.noSkills;
-    else message = OTTO.jobs.found(data.matching, data.total, data.strong, data.newToday);
+      message = t.otto.noSkills;
+    else message = foundLine(t, format, data.matching, data.total, data.strong, data.newToday);
   }
   if (data && locked && data.openJobs > 0) {
-    message = OTTO.jobs.found(data.matching, data.jobs.length, 0, 0);
+    message = foundLine(t, format, data.matching, data.jobs.length, 0, 0);
   }
   // A new choice, filter or page keeps the last list up while it loads, so Otto says what it's reading.
   const refreshing = state.status === "loading" && data !== null && view === "matches";
@@ -176,9 +206,12 @@ export function JobsPage() {
     data?.lookingFor?.title === lookingFor?.title ? (data?.occupation?.name ?? null) : null;
   if (refreshing && lookingFor)
     message = searchingLine(lookingFor, occupation, choice.role !== null);
-  const checked = data ? checkedLabel(data.checkedAt, now) : null;
+  const checked = data ? checkedLabel(data.checkedAt, now, t, format) : null;
   const meta = data
-    ? [`${count.format(data.openJobs)} open jobs`, checked ? `checked ${checked}` : null]
+    ? [
+        fmt(t.page.openJobs, { count: format.number(data.openJobs) }),
+        checked ? fmt(t.page.checked, { when: checked }) : null,
+      ]
         .filter(Boolean)
         .join(" · ")
     : null;
@@ -212,7 +245,7 @@ export function JobsPage() {
       {/* From the first paint on wider screens, so the filters and list keep their place; a phone's wraps too unevenly to hold. */}
       {message || lookingForLine || waiting ? (
         <JobsSummary
-          tab={view === "saved" ? "Saved jobs" : "Your matches"}
+          tab={view === "saved" ? t.page.savedTab : t.page.matchesTab}
           message={message}
           meta={meta}
           loading={waiting}
@@ -266,7 +299,7 @@ export function JobsPage() {
             className="flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm/6 text-muted sm:px-6"
           >
             <Spinner />
-            Opening that job in Tailor…
+            {t.page.openingInTailor}
           </p>
         ) : null}
         <AppliedAnnouncer onCard={prompts.onCard} offPage={prompts.offPage} />
@@ -283,18 +316,23 @@ export function JobsPage() {
         />
         <p aria-live="polite" className="sr-only">
           {state.status === "loading"
-            ? "Loading jobs"
+            ? t.page.loading
             : data
-              ? `${count.format(data.jobs.length)} of ${count.format(data.total)} jobs shown, page ${data.page} of ${pages}.`
+              ? fmt(t.page.shown, {
+                  shown: format.number(data.jobs.length),
+                  total: format.number(data.total),
+                  page: format.number(data.page),
+                  pages: format.number(pages),
+                })
               : ""}
         </p>
         {state.status === "error" ? (
           <Alert
             variant="error"
-            title="Jobs didn't load"
+            title={t.page.didntLoad}
             action={
               <Button variant="secondary" size="sm" onClick={retry}>
-                Try again
+                {t.page.tryAgain}
               </Button>
             }
           >
@@ -308,7 +346,7 @@ export function JobsPage() {
           ) : null
         ) : (
           <>
-            <h2 className="sr-only">{view === "saved" ? "Saved jobs" : "Your matches"}</h2>
+            <h2 className="sr-only">{view === "saved" ? t.page.savedTab : t.page.matchesTab}</h2>
             <ul
               aria-busy={state.status === "loading"}
               className={cn(
@@ -351,7 +389,7 @@ export function JobsPage() {
 
         {data && locked && data.openJobs > 0 ? (
           <MoreWithPro
-            copy={moreWithProCopy(data.jobs.length, data.matching, data.openJobs)}
+            copy={moreWithProCopy(data.jobs.length, data.matching, data.openJobs, t, format)}
             tryPro={tryPro}
           />
         ) : null}

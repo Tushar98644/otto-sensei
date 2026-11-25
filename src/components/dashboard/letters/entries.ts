@@ -1,9 +1,11 @@
 import type { Application } from "@/lib/applications/schema";
 import { applicationForCopy, applicationForWriting } from "@/lib/applications/thread";
 import { resumeTitle } from "@/lib/resume/ops";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
 import type { OutreachParts, UpdateWritingBody, Writing, WritingKind } from "@/lib/writings/schema";
+import type { LettersMessages } from "../i18n";
 import type { OutreachFields } from "../jobs/outreach-saved";
 
 export type LetterEntry = {
@@ -126,14 +128,18 @@ export function kindCounts(entries: readonly LetterEntry[]): Record<LetterFilter
   return counts;
 }
 
-export function kindsTally(counts: Record<LetterFilter, number>): string {
-  const parts = [
-    counts.letter ? pluralize(counts.letter, "letter") : null,
-    counts.answer ? pluralize(counts.answer, "answer") : null,
-    counts.outreach ? pluralize(counts.outreach, "outreach message") : null,
-  ].filter((part) => part !== null);
+export function kindsTally(
+  counts: Record<LetterFilter, number>,
+  t: LettersMessages,
+  format: Format,
+): string {
+  const parts = (["letter", "answer", "outreach"] as const)
+    .map((kind) => (counts[kind] ? format.plural(t.counts[kind], counts[kind]) : null))
+    .filter((part) => part !== null);
   const last = parts.pop();
-  return parts.length > 0 ? `${parts.join(", ")} and ${last}` : (last ?? "");
+  return parts.length > 0
+    ? fmt(t.page.and, { list: parts.join(", "), last: last ?? "" })
+    : (last ?? "");
 }
 
 // The saved message as it will be once an edit lands, shown while the edit is on its way.

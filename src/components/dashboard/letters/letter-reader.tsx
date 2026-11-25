@@ -24,10 +24,11 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { CompanyMark } from "@/components/ui/company-mark";
 import { copyText } from "@/components/ui/copy-text";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { liveWarnings, needsFirstName } from "@/lib/ai/warning-text";
 import { wordCount } from "@/lib/ai/writing-guards";
 import type { Application } from "@/lib/applications/schema";
-import { STATUS_NAMES } from "@/lib/applications/status";
 import { applicationHref } from "@/lib/applications/thread";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
@@ -38,27 +39,16 @@ import { OutreachSend } from "../jobs/outreach-send";
 import { fieldsOfEntry, KIND_NAMES, type LetterEntry } from "./entries";
 import { longDay, Paper, PaperBody, PaperHead, PaperLine } from "./letter-paper";
 import { asEmail, emailSubject } from "./ready";
-import { WRITE_ACTIONS } from "./quick-actions";
+import { useWriteActions } from "./quick-actions";
 import type { QuickRun } from "./use-quick-write";
 import { PostBox } from "./write-boxes";
 
 // The most a free LinkedIn account allows in an invite note; the outreach writer keeps to it.
 const NOTE_CHARS = 200;
 
-const EYEBROWS: Record<LetterEntry["kind"], string> = {
-  letter: "Cover letter",
-  answer: "Answer",
-  outreach: "Outreach message",
-};
-
 type SaveState = "idle" | "saving" | "saved" | "failed";
 
-const SAVE_LINES: Record<SaveState, string> = {
-  idle: "",
-  saving: "Saving…",
-  saved: "Saved",
-  failed: "Not saved yet",
-};
+const LONG_DAY = { month: "long", day: "numeric", year: "numeric" } as const;
 
 export type ReaderAgain = {
   run: QuickRun | null;
@@ -149,6 +139,17 @@ export function LetterReader({
   onWriteAgain,
   onDismissAgain,
 }: LetterReaderProps) {
+  const t = useMessages("letters");
+  const { reader } = t;
+  const { statuses } = useMessages("applications");
+  const format = useFormat();
+  const writeActions = useWriteActions();
+  const saveLines: Record<SaveState, string> = {
+    idle: "",
+    saving: reader.saving,
+    saved: reader.saved,
+    failed: reader.failed,
+  };
   const titleId = useId();
   const [text, setText] = useState(entry.text);
   const [fields, setFields] = useState(() => fieldsOfEntry(entry));
@@ -166,7 +167,7 @@ export function LetterReader({
     outreach ? ["[first name]"] : [],
   );
   const firstName = outreach && needsFirstName(fields.subject, fields.email, fields.note);
-  const title = entry.company || entry.role || EYEBROWS[kind];
+  const title = entry.company || entry.role || t.kinds[kind];
   const role = entry.company ? entry.role : "";
   const mine = again.run;
 
@@ -201,34 +202,37 @@ export function LetterReader({
   const menu: MenuEntry[] = [
     ...(letter
       ? [
-          { label: "Download PDF", icon: Download, onSelect: () => onPdf(text) },
-          { label: "Download Word", icon: FileText, onSelect: () => onWord(text) },
+          { label: reader.download, icon: Download, onSelect: () => onPdf(text) },
+          { label: reader.downloadWord, icon: FileText, onSelect: () => onWord(text) },
         ]
       : []),
     {
-      label: "Write again",
+      label: reader.again,
       icon: RotateCcw,
       disabled: again.blocked || mine !== null,
       onSelect: () => onWriteAgain(),
     },
     ...(canOpenInStudio
-      ? [{ label: "Open in the studio", icon: PanelsTopLeft, onSelect: onOpenInStudio }]
+      ? [{ label: reader.openStudio, icon: PanelsTopLeft, onSelect: onOpenInStudio }]
       : []),
     "separator",
-    { label: "Delete", icon: Trash2, tone: "danger", onSelect: onDelete },
+    { label: reader.delete, icon: Trash2, tone: "danger", onSelect: onDelete },
   ];
 
   const status = (
     <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-subtle">
       {outreach ? (
         <span className={cn("tabular-nums", fields.note.length > NOTE_CHARS && "text-fail-ink")}>
-          Note {fields.note.length} of {NOTE_CHARS}
+          {fmt(reader.note, {
+            count: format.number(fields.note.length),
+            max: format.number(NOTE_CHARS),
+          })}
         </span>
       ) : (
-        <span className="tabular-nums">{wordCount(text)} words</span>
+        <span className="tabular-nums">{format.plural(reader.words, wordCount(text))}</span>
       )}
       <span role="status" className={save === "failed" ? "text-fail-ink" : undefined}>
-        {SAVE_LINES[save]}
+        {saveLines[save]}
       </span>
     </div>
   );
@@ -245,7 +249,7 @@ export function LetterReader({
           className="-ml-2 inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted transition-colors hover:bg-ink/6 hover:text-ink pointer-coarse:h-11"
         >
           <ArrowLeft aria-hidden className="size-4" />
-          All letters
+          {reader.all}
         </button>
       </div>
 
@@ -253,9 +257,9 @@ export function LetterReader({
         <CompanyMark name={entry.company} size="lg" className="mt-1 max-sm:hidden" />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-x-2 text-xs/5 font-medium tracking-widest text-subtle uppercase">
-            <span>{EYEBROWS[kind]}</span>
+            <span>{t.kinds[kind]}</span>
             <span aria-hidden>·</span>
-            <span>{longDay(entry.createdAt)}</span>
+            <span>{format.date(entry.createdAt, LONG_DAY)}</span>
           </p>
           <h1
             id={titleId}
@@ -272,8 +276,8 @@ export function LetterReader({
                 className="inline-flex h-7 items-center gap-1.5 rounded-full bg-surface px-2.5 text-xs font-medium text-muted shadow-control ring-1 ring-ink/6 transition-colors hover:text-ink"
               >
                 <StatusIcon status={application.status} className="size-3.5" />
-                {STATUS_NAMES[application.status]}
-                <span className="sr-only">: open the application</span>
+                {statuses[application.status]}
+                <span className="sr-only">{reader.openApplication}</span>
               </Link>
             ) : null}
             {entry.jobUrl ? (
@@ -283,9 +287,9 @@ export function LetterReader({
                 rel="noopener noreferrer"
                 className="inline-flex h-7 items-center gap-1 text-sm font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
               >
-                Job post
+                {reader.post}
                 <ExternalLink aria-hidden className="size-3.5" />
-                <span className="sr-only"> (opens in a new tab)</span>
+                <span className="sr-only">{reader.newTab}</span>
               </a>
             ) : null}
           </div>
@@ -298,7 +302,7 @@ export function LetterReader({
           <div className="flex items-center gap-2 lg:hidden">
             <Button className="flex-1" disabled={!body.trim()} onClick={copyMain}>
               <Copy aria-hidden />
-              {outreach ? "Copy email" : "Copy"}
+              {outreach ? reader.copyEmail : reader.copy}
             </Button>
             {kind === "answer" ? null : (
               <Button
@@ -308,13 +312,13 @@ export function LetterReader({
                 onClick={copySecond}
               >
                 <Mail aria-hidden />
-                {outreach ? "Copy note" : "Copy as email"}
+                {outreach ? reader.copyNote : reader.copyAsEmail}
               </Button>
             )}
             <Menu
-              label={`More for ${title}`}
+              label={fmt(reader.moreFor, { title })}
               align="end"
-              triggerLabel="More actions"
+              triggerLabel={reader.moreActions}
               triggerClassName={buttonClasses({ variant: "secondary", size: "icon" })}
               trigger={<Ellipsis aria-hidden />}
               items={menu}
@@ -326,8 +330,8 @@ export function LetterReader({
               size="sm"
               message={
                 outreach
-                  ? "Here's your email and LinkedIn note. Swap in a name, then send it to one person."
-                  : `Here it is, written from “${source || "your resume"}”. Read it once, then copy it or send it as an email.`
+                  ? reader.outreachDone
+                  : fmt(reader.writtenFrom, { source: source || reader.yourResume })
               }
             />
           ) : null}
@@ -338,7 +342,7 @@ export function LetterReader({
           ) : again.ask !== null ? (
             <PostBox
               note={again.ask}
-              action={WRITE_ACTIONS[kind]}
+              action={writeActions[kind]}
               onWrite={(post) => onWriteAgain(post)}
               onCancel={onDismissAgain}
               className="bg-surface shadow-card ring-1 ring-ink/4"
@@ -346,16 +350,14 @@ export function LetterReader({
           ) : null}
           {again.error ? <Alert variant="error">{again.error}</Alert> : null}
           {kept ? null : (
-            <Alert variant="warn" title="Not saved to your account">
-              Copy it now: it will be gone when you leave this page.
+            <Alert variant="warn" title={reader.unsaved}>
+              {reader.unsavedBody}
             </Alert>
           )}
           {firstName || checks.length ? (
-            <Alert variant="warn" title="Check before you send it">
+            <Alert variant="warn" title={reader.check}>
               <ul className="flex list-disc flex-col gap-1 pl-4">
-                {firstName ? (
-                  <li>Swap [first name] for the name of the person you&apos;re writing to.</li>
-                ) : null}
+                {firstName ? <li>{reader.swapName}</li> : null}
                 {checks.map((warning) => (
                   <li key={warning}>{warning}</li>
                 ))}
@@ -368,7 +370,7 @@ export function LetterReader({
             {outreach ? (
               <div className="flex flex-col gap-5">
                 <PaperLine
-                  label="Subject"
+                  label={reader.subject}
                   value={fields.subject}
                   maxLength={WRITING_LIMITS.subject}
                   onChange={(value) => edit("subject", value)}
@@ -376,7 +378,7 @@ export function LetterReader({
                 />
                 <span aria-hidden className="block h-px bg-border" />
                 <PaperBody
-                  label="Email"
+                  label={reader.email}
                   value={fields.email}
                   maxLength={WRITING_LIMITS.outreachChars}
                   onChange={(value) => edit("email", value)}
@@ -394,7 +396,7 @@ export function LetterReader({
                 ) : entry.question ? (
                   <div className="flex flex-col gap-2 border-l-2 border-otter/40 pl-4">
                     <p className="text-xs/4 font-medium tracking-widest text-subtle uppercase">
-                      Question
+                      {reader.question}
                     </p>
                     <p className="font-display text-xl/8 text-pretty text-ink italic">
                       {entry.question}
@@ -402,7 +404,7 @@ export function LetterReader({
                   </div>
                 ) : null}
                 <PaperBody
-                  label={letter ? "Cover letter" : "Answer"}
+                  label={t.kinds[letter ? "letter" : "answer"]}
                   value={text}
                   maxLength={textLimit(kind)}
                   onChange={(value) => {
@@ -418,22 +420,23 @@ export function LetterReader({
           {outreach ? (
             <section className="flex flex-col gap-3 rounded-2xl bg-surface p-5 shadow-card ring-1 ring-ink/4 sm:p-6">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="font-sans text-base/6 font-semibold text-ink">LinkedIn note</h2>
+                <h2 className="font-sans text-base/6 font-semibold text-ink">{reader.linkedin}</h2>
                 <span
                   className={cn(
                     "text-xs text-subtle tabular-nums",
                     fields.note.length > NOTE_CHARS && "font-medium text-fail-ink",
                   )}
                 >
-                  {fields.note.length} of {NOTE_CHARS} characters
+                  {fmt(reader.noteCount, {
+                    count: format.number(fields.note.length),
+                    max: format.number(NOTE_CHARS),
+                  })}
                 </span>
               </div>
-              <p className="text-sm/6 text-muted">
-                Fits a connection request, the most a free LinkedIn account allows.
-              </p>
+              <p className="text-sm/6 text-muted">{reader.fits}</p>
               <div className="rounded-xl bg-surface-muted p-4">
                 <PaperBody
-                  label="LinkedIn note"
+                  label={reader.linkedin}
                   value={fields.note}
                   maxLength={WRITING_LIMITS.noteChars}
                   onChange={(value) => edit("note", value)}
@@ -452,25 +455,27 @@ export function LetterReader({
         </div>
 
         <aside
-          aria-label="Actions"
+          aria-label={reader.actions}
           className="flex flex-col gap-4 max-lg:hidden lg:sticky lg:top-6"
         >
           <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3 shadow-card ring-1 ring-ink/4">
             <RailButton
               icon={Copy}
               variant="primary"
-              label={outreach ? "Copy email" : kind === "answer" ? "Copy answer" : "Copy letter"}
+              label={
+                outreach ? reader.copyEmail : t.copyKind[kind === "answer" ? "answer" : "letter"]
+              }
               disabled={!body.trim()}
               onClick={copyMain}
-              hint={outreach ? "With its subject line." : undefined}
+              hint={outreach ? reader.withSubject : undefined}
             />
             {kind === "answer" ? null : (
               <RailButton
                 icon={Mail}
-                label={outreach ? "Copy LinkedIn note" : "Copy as email"}
+                label={outreach ? reader.copyLinkedin : reader.copyAsEmail}
                 disabled={!body.trim()}
                 onClick={copySecond}
-                hint={outreach ? undefined : <>Subject: {subject}</>}
+                hint={outreach ? undefined : fmt(reader.subjectLine, { subject })}
               />
             )}
             {letter ? (
@@ -501,16 +506,16 @@ export function LetterReader({
               <RailButton
                 icon={RotateCcw}
                 variant="ghost"
-                label="Write again"
+                label={reader.again}
                 disabled={again.blocked || mine !== null}
                 onClick={() => onWriteAgain()}
-                hint="A fresh one from the same job. It counts as one more."
+                hint={reader.againHint}
               />
               {canOpenInStudio ? (
                 <RailButton
                   icon={PanelsTopLeft}
                   variant="ghost"
-                  label="Open in the studio"
+                  label={reader.openStudio}
                   onClick={onOpenInStudio}
                 />
               ) : null}
@@ -520,7 +525,7 @@ export function LetterReader({
                 className="w-full justify-start px-3 text-fail-ink hover:bg-fail-soft"
               >
                 <Trash2 aria-hidden />
-                Delete
+                {reader.delete}
               </Button>
             </div>
           </div>

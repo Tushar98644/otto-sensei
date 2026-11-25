@@ -18,11 +18,13 @@ import { Lazy, preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { waitingTooLong } from "@/lib/applications/nudge";
 import { latestOffer } from "@/lib/career-log/resume-lines";
 import type { Application } from "@/lib/applications/schema";
-import { formatCount, tally, type VersionInfo } from "@/lib/applications/stats";
-import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
+import { tally, type VersionInfo } from "@/lib/applications/stats";
+import type { ApplicationStatus } from "@/lib/applications/status";
 import { browserStorage } from "@/lib/browser-storage";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList } from "@/lib/store/resume-store";
@@ -31,6 +33,7 @@ import { LazyApplicationDialog } from "./lazy-application-dialog";
 import type { ApplicationDialogTarget } from "./application-dialog";
 import { ApplicationFilters } from "./application-filters";
 import { ApplicationRow } from "./application-row";
+import { sentLine } from "./copy";
 import { ApplicationsBoard } from "./board/applications-board";
 import { emailedCards, useEmailTracking } from "./email/use-email-tracking";
 import { readView, toApplyItems, writeView, type BoardView } from "./board/board";
@@ -47,8 +50,6 @@ import {
   applicationAnchor,
   filterApplications,
   filterCounts,
-  FILTER_NAMES,
-  sentLabel,
   type ApplicationFilter,
 } from "./view";
 import { WinRate } from "./win-rate";
@@ -73,6 +74,8 @@ function linkedApplicationId(): string | null {
 }
 
 export function ApplicationsPage() {
+  const t = useMessages("applications");
+  const format = useFormat();
   const now = useNow();
   const resumes = useResumeList();
   const { status, items, retry } = useApplications();
@@ -147,11 +150,11 @@ export function ApplicationsPage() {
   }
 
   function setStatus(application: Application, next: ApplicationStatus) {
-    setAnnouncement(`${application.company}: ${STATUS_NAMES[next]}`);
+    setAnnouncement(`${application.company}: ${t.statuses[next]}`);
     changeApplication(application, { status: next }).catch((error: unknown) => {
       setAnnouncement("");
       toast({
-        title: "Couldn't change the status",
+        title: t.page.cantChange,
         description: errorMessage(error),
         variant: "error",
       });
@@ -161,13 +164,13 @@ export function ApplicationsPage() {
   function remove(target: Application) {
     hideApplication(target);
     undoToast({
-      title: "Application deleted",
+      title: t.page.deleted,
       description: target.company,
       onUndo: () => restoreApplication(target),
       onCommit: (options) => {
         commitDelete(target, options).catch((error: unknown) =>
           toast({
-            title: "Couldn't delete it",
+            title: t.page.cantDelete,
             description: errorMessage(error),
             variant: "error",
           }),
@@ -181,12 +184,15 @@ export function ApplicationsPage() {
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="min-w-0">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-            Applications
+            {t.page.title}
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-muted">
             {status === "ready" && items.length > 0
-              ? `${formatCount(totals.applications, "application")}, ${formatCount(totals.interviews, "interview")} so far. Counted from your own record only.`
-              : "Log the jobs you apply to and the resume you sent. See which version gets interviews."}
+              ? fmt(t.page.soFar, {
+                  applications: format.plural(t.count.applications, totals.applications),
+                  interviews: format.plural(t.count.interviews, totals.interviews),
+                })
+              : t.page.intro}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -195,7 +201,7 @@ export function ApplicationsPage() {
           ) : null}
           <Button onClick={() => void add()}>
             <Plus aria-hidden />
-            Add application
+            {t.page.add}
           </Button>
         </div>
       </header>
@@ -213,14 +219,14 @@ export function ApplicationsPage() {
       ) : status === "error" ? (
         <Alert
           variant="error"
-          title="Your applications didn't load"
+          title={t.page.didntLoad}
           action={
             <Button variant="secondary" size="sm" onClick={retry}>
-              Try again
+              {t.page.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {t.page.checkConnection}
         </Alert>
       ) : items.length === 0 && waiting === 0 ? (
         <>
@@ -239,7 +245,7 @@ export function ApplicationsPage() {
 
           <section aria-labelledby="applications-heading" className="flex flex-col gap-4">
             <h2 id="applications-heading" className="sr-only">
-              {view === "board" ? "Where each job stands" : "Every application"}
+              {view === "board" ? t.page.boardHeading : t.page.listHeading}
             </h2>
             <p aria-live="polite" className="sr-only">
               {announcement}
@@ -262,10 +268,10 @@ export function ApplicationsPage() {
               <>
                 <ApplicationFilters filter={filter} counts={counts} onChange={pickFilter} />
                 <FolderCard
-                  tab={FILTER_NAMES[filter]}
+                  tab={t.filters[filter]}
                   tabEnd={
                     <span className="text-xs text-subtle tabular-nums">
-                      {formatCount(shown.length, "shown", "shown")}
+                      {fmt(t.page.shown, { count: format.number(shown.length) })}
                     </span>
                   }
                   bodyClassName="px-4 py-0 sm:px-6"
@@ -276,7 +282,7 @@ export function ApplicationsPage() {
                         <ApplicationRow
                           key={application.id}
                           application={application}
-                          sent={sentLabel(application, versions)}
+                          sent={sentLine(application, versions, t)}
                           now={now}
                           onStatus={(target, next) => setStatus(target, next)}
                           onEdit={(target) => edit(target)}
@@ -290,16 +296,18 @@ export function ApplicationsPage() {
                             size="sm"
                             onClick={() => setRows(visibleRows + PAGE_ROWS)}
                           >
-                            Show {Math.min(PAGE_ROWS, shown.length - visibleRows)} more
+                            {fmt(t.page.showMore, {
+                              count: format.number(Math.min(PAGE_ROWS, shown.length - visibleRows)),
+                            })}
                           </Button>
                         </li>
                       ) : null}
                     </ul>
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-3 py-5">
-                      <p className="text-sm/6 text-muted">Nothing with this status right now.</p>
+                      <p className="text-sm/6 text-muted">{t.page.nothingHere}</p>
                       <Button variant="secondary" size="sm" onClick={() => pickFilter("all")}>
-                        Show all
+                        {t.page.showAll}
                       </Button>
                     </div>
                   )}
@@ -330,13 +338,18 @@ export function ApplicationsPage() {
 }
 
 const VIEW_OPTIONS = [
-  { value: "board", label: "Board", icon: Columns3 },
-  { value: "list", label: "List", icon: List },
+  { value: "board", icon: Columns3 },
+  { value: "list", icon: List },
 ] as const;
 
 function ViewToggle({ view, onChange }: { view: BoardView; onChange: (view: BoardView) => void }) {
+  const { page } = useMessages("applications");
   return (
-    <div role="group" aria-label="View" className="flex gap-1 rounded-xl bg-surface-strong p-1">
+    <div
+      role="group"
+      aria-label={page.view}
+      className="flex gap-1 rounded-xl bg-surface-strong p-1"
+    >
       {VIEW_OPTIONS.map((option) => (
         <button
           key={option.value}
@@ -346,7 +359,7 @@ function ViewToggle({ view, onChange }: { view: BoardView; onChange: (view: Boar
           className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control pointer-coarse:h-10"
         >
           <option.icon aria-hidden className="size-4" />
-          {option.label}
+          {page[option.value]}
         </button>
       ))}
     </div>
@@ -354,6 +367,7 @@ function ViewToggle({ view, onChange }: { view: BoardView; onChange: (view: Boar
 }
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
+  const { page } = useMessages("applications");
   return (
     <section
       aria-labelledby="empty-applications"
@@ -361,16 +375,13 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
     >
       <Otto pose="point" size={128} />
       <h2 id="empty-applications" className="mt-6 font-sans text-lg/7 font-medium text-ink">
-        Your applications will live here
+        {page.emptyTitle}
       </h2>
-      <p className="mt-2 max-w-sm text-sm/6 text-pretty text-muted">
-        Log each job and the resume version you sent. Otto counts the interviews per version, from
-        your numbers only.
-      </p>
+      <p className="mt-2 max-w-sm text-sm/6 text-pretty text-muted">{page.emptyBody}</p>
       <div className="mt-6">
         <Button onClick={onAdd}>
           <Plus aria-hidden />
-          Add your first application
+          {page.addFirst}
         </Button>
       </div>
     </section>
@@ -378,10 +389,11 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 }
 
 function LoadingState() {
+  const { page } = useMessages("applications");
   return (
     <div aria-busy className="flex flex-col gap-8">
       <span className="sr-only" role="status">
-        Loading your applications
+        {page.loading}
       </span>
       <div aria-hidden className="flex flex-col">
         <Skeleton className="h-8 w-28 rounded-t-xl rounded-b-none" />

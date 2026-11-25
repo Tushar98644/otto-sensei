@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { StatusIcon } from "@/components/dashboard/applications/status-menu";
 import { interviewHref } from "@/components/dashboard/interview/view";
-import { STATUS_NAMES } from "@/lib/applications/status";
+import { useFormat, useMessages } from "@/i18n/client";
 import { applicationHref } from "@/lib/applications/thread";
 import { cn } from "@/lib/utils";
 import { needsAction, type BoardCard } from "../board";
@@ -31,8 +31,9 @@ export function CardMarks({
   hasLetter: boolean;
   fromEmail?: boolean;
 }) {
+  const t = useMessages("applications");
   const marks: { key: string; node: ReactNode }[] = [];
-  const time = stageTime(card, now);
+  const time = stageTime(card, now, t, useFormat());
 
   if (needsAction(card, now)) {
     marks.push({
@@ -40,7 +41,7 @@ export function CardMarks({
       node: (
         <span className={cn(CHIP, TONES.warn)}>
           <BellRing aria-hidden className="text-warn" />
-          Time to follow up
+          {t.card.followUp}
         </span>
       ),
     });
@@ -52,7 +53,7 @@ export function CardMarks({
         <span className={cn(CHIP, TONES.fail)}>
           <Clock aria-hidden className="text-fail" />
           {time.text}
-          <span className="sr-only">, no reply yet</span>
+          <span className="sr-only">{t.card.noReplyYet}</span>
         </span>
       ),
     });
@@ -65,7 +66,7 @@ export function CardMarks({
         node: (
           <span className={cn(CHIP, TONES.quiet)}>
             <StatusIcon status={application.status} />
-            {STATUS_NAMES[application.status]}
+            {t.statuses[application.status]}
           </span>
         ),
       });
@@ -76,11 +77,11 @@ export function CardMarks({
         node: (
           <Link
             href={interviewHref(application.id)}
-            aria-label="Open interview prep"
+            aria-label={t.card.openPrep}
             className={cn(CHIP, TONES.attachment, TONES.link)}
           >
             <MessagesSquare aria-hidden />
-            Prep
+            {t.card.prep}
           </Link>
         ),
       });
@@ -91,7 +92,7 @@ export function CardMarks({
       node: (
         <span className={cn(CHIP, TONES.warn)}>
           <CircleSlash aria-hidden className="text-warn" />
-          Post closed
+          {t.card.postClosed}
         </span>
       ),
     });
@@ -103,16 +104,16 @@ export function CardMarks({
         card.kind === "application" ? (
           <Link
             href={`${applicationHref(card.application.id)}#letters`}
-            aria-label="Open the cover letter"
+            aria-label={t.card.openLetter}
             className={cn(CHIP, TONES.attachment, TONES.link)}
           >
             <FileText aria-hidden />
-            Letter
+            {t.card.letter}
           </Link>
         ) : (
           <span className={cn(CHIP, TONES.attachment)}>
             <FileText aria-hidden />
-            Letter
+            {t.card.letter}
           </span>
         ),
     });
@@ -123,11 +124,11 @@ export function CardMarks({
       node: (
         <a
           href="#email-updates"
-          title="Changed by a job email"
+          title={t.card.byEmail}
           className={cn(CHIP, TONES.quiet, TONES.link)}
         >
           <Mail aria-hidden />
-          From email
+          {t.card.fromEmail}
         </a>
       ),
     });
@@ -146,7 +147,7 @@ export function CardMarks({
 
   if (marks.length === 0) return null;
   return (
-    <ul aria-label="About this job" className="flex flex-wrap items-center gap-1.5">
+    <ul aria-label={t.card.about} className="flex flex-wrap items-center gap-1.5">
       {marks.map((mark) => (
         <li key={mark.key}>{mark.node}</li>
       ))}

@@ -17,10 +17,40 @@ const filesIn = (locale: Locale) =>
 
 // Words that read the same in every language, per locale and message path.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
-  es: new Set(),
-  "pt-BR": new Set(),
-  fr: new Set(),
-  de: new Set(),
+  es: new Set(["row.quoted", "working.general"]),
+  "pt-BR": new Set(["card.via", "hub.via", "row.quoted", "dialog.status"]),
+  fr: new Set([
+    "meta.portfolio",
+    "nav.portfolio",
+    "card.via",
+    "hub.via",
+    "hub.notes",
+    "dialog.notes",
+    "hub.kinds.outreach",
+    "labels.outreach",
+    "reader.question",
+    "filters.outreach",
+  ]),
+  de: new Set([
+    "meta.jobs",
+    "meta.portfolio",
+    "nav.jobs",
+    "nav.portfolio",
+    "rename.name",
+    "steps.interview",
+    "steps.jobs",
+    "library.sorts.name",
+    "page.title",
+    "card.remote",
+    "page.board",
+    "dialog.status",
+    "when.interview",
+    "when.interviewOn",
+    "when.in",
+    "hub.remote",
+    "move.optional",
+    "winRate.interviews",
+  ]),
 };
 
 describe("English messages", () => {

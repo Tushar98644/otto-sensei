@@ -2,24 +2,25 @@ import { describe, expect, it } from "vitest";
 import type { SavedResult, TailorDraft } from "@/components/studio/tailor/session";
 import type { TailorResult } from "@/lib/ai/types";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { EN, FORMAT_EN } from "../messages-testing";
 import { homeGreeting } from "./greeting";
 import { sourceNote } from "./stats";
 import { tailorSource, unfinishedTailor } from "./tailor-draft";
 
 describe("homeGreeting", () => {
   it("says Welcome back only to someone with a resume of their own", () => {
-    expect(homeGreeting({ own: 0, samples: 0 })).toEqual({
+    expect(homeGreeting({ own: 0, samples: 0 }, EN.dashboard, FORMAT_EN)).toEqual({
       title: "Welcome",
       message: "Upload your resume and I'll show you what hiring software reads.",
     });
-    expect(homeGreeting({ own: 2, samples: 1 })).toMatchObject({
+    expect(homeGreeting({ own: 2, samples: 1 }, EN.dashboard, FORMAT_EN)).toMatchObject({
       title: "Welcome back",
       meta: "2 resumes",
     });
   });
 
   it("points a sample-only account at its own file", () => {
-    expect(homeGreeting({ own: 0, samples: 1 })).toEqual({
+    expect(homeGreeting({ own: 0, samples: 1 }, EN.dashboard, FORMAT_EN)).toEqual({
       title: "Welcome",
       message: "That's the sample. Now drop in yours.",
       meta: "1 sample",
@@ -29,11 +30,11 @@ describe("homeGreeting", () => {
 
 describe("sourceNote", () => {
   it("leaves samples out and never reads as a broken plural", () => {
-    expect(sourceNote(["import", "sample", "sample", "scratch", "import"])).toBe(
-      "2 uploaded · 1 from scratch",
-    );
-    expect(sourceNote(["sample"])).toBe("None yet");
-    expect(sourceNote([])).toBe("None yet");
+    expect(
+      sourceNote(["import", "sample", "sample", "scratch", "import"], EN.dashboard, FORMAT_EN),
+    ).toBe("2 uploaded · 1 from scratch");
+    expect(sourceNote(["sample"], EN.dashboard, FORMAT_EN)).toBe("None yet");
+    expect(sourceNote([], EN.dashboard, FORMAT_EN)).toBe("None yet");
   });
 });
 
@@ -57,7 +58,11 @@ const draft = (patch: Partial<TailorDraft> = {}): TailorDraft => ({
   ...patch,
 });
 
-const result = (sourceId: string, job: TailorDraft, extra: Partial<SavedResult> = {}): SavedResult => ({
+const result = (
+  sourceId: string,
+  job: TailorDraft,
+  extra: Partial<SavedResult> = {},
+): SavedResult => ({
   id: "run",
   sourceId,
   job,
@@ -78,7 +83,11 @@ describe("the unfinished tailor row", () => {
 
   it("offers to continue a pasted post that hasn't run yet", () => {
     expect(
-      unfinishedTailor({ source: mine, draft: draft({ text: "Post", company: " Acme " }), last: null }),
+      unfinishedTailor({
+        source: mine,
+        draft: draft({ text: "Post", company: " Acme " }),
+        last: null,
+      }),
     ).toEqual({ resumeId: "mine", company: "Acme", ran: false });
     expect(unfinishedTailor({ source: mine, draft: draft(), last: null })).toBeNull();
   });

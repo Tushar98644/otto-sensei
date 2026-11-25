@@ -10,6 +10,8 @@ import { ROUTES } from "@/components/site/routes";
 import { useNow } from "@/components/studio/use-now";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { createSampleResume } from "@/lib/resume/sample";
 import { ownResumes } from "@/lib/setup/checklist";
 import { useResumeList } from "@/lib/store/resume-store";
@@ -30,9 +32,10 @@ import { useStudioActions } from "./use-studio-actions";
 preload(resumeSections);
 
 const RECENT = 3;
-const count = new Intl.NumberFormat("en-US");
 
 export function DashboardHome() {
+  const t = useMessages("dashboard");
+  const format = useFormat();
   const loading = useFirstLoadPending();
   const resumes = useResumeList();
   const applications = useApplications();
@@ -42,7 +45,11 @@ export function DashboardHome() {
   const ownGroups = useMemo(() => groupResumes(own).length, [own]);
   const recent = useMemo(() => recentResumes(resumes, RECENT), [resumes]);
   const samples = resumes.filter((resume) => resume.source === "sample").length;
-  const greeting = homeGreeting({ own: loading ? 0 : ownGroups, samples: loading ? 0 : samples });
+  const greeting = homeGreeting(
+    { own: loading ? 0 : ownGroups, samples: loading ? 0 : samples },
+    t,
+    format,
+  );
   const parts = useLazy(resumeSections, true);
   const steps = useUpNext();
   const now = useNow();
@@ -107,14 +114,14 @@ export function DashboardHome() {
             <section aria-labelledby="recent-heading" className="flex flex-col gap-5">
               <div className="flex items-baseline justify-between gap-3">
                 <h2 id="recent-heading" className="font-sans text-lg/7 font-medium text-ink">
-                  Recent resumes
+                  {t.home.recent}
                 </h2>
                 {resumes.length > RECENT ? (
                   <Link
                     href={ROUTES.dashboardResumes}
                     className="group inline-flex items-center gap-1 text-sm font-medium text-ink"
                   >
-                    View all {count.format(resumes.length)}
+                    {fmt(t.home.viewAll, { count: format.number(resumes.length) })}
                     <ArrowRight
                       aria-hidden
                       className="size-4 text-muted transition-transform group-hover:translate-x-0.5"

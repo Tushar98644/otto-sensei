@@ -4,6 +4,7 @@ import { useState } from "react";
 import { unlockProTool } from "@/components/account/pro-tools";
 import { usePageSize } from "@/components/studio/download/use-page-size";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import type { Resume } from "@/lib/resume/schema";
 import { letterResume, type LetterEntry } from "./entries";
 
@@ -11,6 +12,7 @@ export type LetterFile = "pdf" | "word";
 
 // The letter as a file under the resume's own header: PDF free with Pro's letters, Word as on the Download step.
 export function useLetterFiles(resumes: readonly Resume[]) {
+  const { page } = useMessages("letters");
   const pageSize = usePageSize();
   const [rendering, setRendering] = useState<{ key: string; file: LetterFile } | null>(null);
 
@@ -36,8 +38,8 @@ export function useLetterFiles(resumes: readonly Resume[]) {
     } catch (error) {
       console.error(`Letter ${file} build failed`, error);
       toast({
-        title: file === "pdf" ? "Your PDF didn't come out" : "Your Word file didn't come out",
-        description: "Try again, or copy the letter instead.",
+        title: file === "pdf" ? page.pdfFailed : page.wordFailed,
+        description: page.copyInstead,
         variant: "error",
       });
     } finally {

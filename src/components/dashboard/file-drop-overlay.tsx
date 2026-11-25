@@ -3,22 +3,23 @@
 import { FileUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useState } from "react";
-import { OTTO_ERRORS } from "@/components/mascot/error-lines";
 import { ROUTES } from "@/components/site/routes";
 import { toast } from "@/components/ui/toast";
-import { carriesFiles, DROP_HINT, droppedResume } from "./drop-upload";
+import { useMessages } from "@/i18n/client";
+import { carriesFiles, dropHint, droppedResume } from "./drop-upload";
 
 // A modal dialog makes the page under it inert, so a drop there is refused instead of taken.
 const dialogOpen = () => document.querySelector("dialog[open]") !== null;
 
 export function FileDropOverlay() {
+  const t = useMessages("dashboard");
   const router = useRouter();
   const [shown, setShown] = useState(false);
 
   const take = useEffectEvent(async (files: File[]) => {
-    const dropped = droppedResume(files);
+    const dropped = droppedResume(files, t);
     if (dropped.problem !== null) {
-      toast({ title: "Couldn't use that file", description: dropped.problem, variant: "error" });
+      toast({ title: t.errors.cantUseFile, description: dropped.problem, variant: "error" });
       return;
     }
     const { file } = dropped;
@@ -30,8 +31,8 @@ export function FileDropOverlay() {
         if (await openStudioWithFile(file, () => void open())) router.push(ROUTES.studio);
       } catch {
         toast({
-          title: "Couldn't open the studio",
-          description: OTTO_ERRORS.generic,
+          title: t.errors.cantOpenStudio,
+          description: t.errors.generic,
           variant: "error",
         });
       }
@@ -117,8 +118,8 @@ export function FileDropOverlay() {
     >
       <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-ink bg-surface/60 px-6 text-center">
         <FileUp className="size-8 text-ink" />
-        <p className="text-lg/7 font-semibold text-ink">Drop your resume here</p>
-        <p className="max-w-sm text-sm/6 text-pretty text-muted">{DROP_HINT}</p>
+        <p className="text-lg/7 font-semibold text-ink">{t.drop.title}</p>
+        <p className="max-w-sm text-sm/6 text-pretty text-muted">{dropHint(t)}</p>
       </div>
     </div>
   );

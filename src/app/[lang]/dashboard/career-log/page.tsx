@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { CareerLogPage } from "@/components/career-log/career-log-page";
+import { pageTitle } from "../page-title";
 
-export const metadata: Metadata = { title: "Career log" };
+export const generateMetadata = () => pageTitle("careerLog");
 
 export default function Page() {
   return <CareerLogPage />;

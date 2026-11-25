@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EN } from "../messages-testing";
 import type { Application } from "@/lib/applications/schema";
 import { createSampleResume } from "@/lib/resume/sample";
 import type { Resume } from "@/lib/resume/schema";
@@ -152,6 +153,7 @@ describe("validateForm", () => {
       }),
       titles,
       NOW,
+      EN.applications,
     );
     expect(result).toEqual({
       ok: true,
@@ -167,7 +169,7 @@ describe("validateForm", () => {
         notes: "Ask Sam",
       },
     });
-    expect(validateForm(values(), titles, NOW)).toMatchObject({
+    expect(validateForm(values(), titles, NOW, EN.applications)).toMatchObject({
       ok: true,
       body: { resumeId: null, resumeTitle: "" },
     });
@@ -183,6 +185,7 @@ describe("validateForm", () => {
       }),
       titles,
       NOW,
+      EN.applications,
     );
     expect(result).toEqual({
       ok: false,
@@ -193,11 +196,13 @@ describe("validateForm", () => {
         notes: "Keep notes under 500 characters.",
       },
     });
-    expect(validateForm(values({ appliedOn: "" }), titles, NOW)).toMatchObject({
+    expect(validateForm(values({ appliedOn: "" }), titles, NOW, EN.applications)).toMatchObject({
       ok: false,
       errors: { appliedOn: "Pick the day you applied." },
     });
-    expect(validateForm(values({ appliedOn: "1999-12-31" }), titles, NOW)).toMatchObject({
+    expect(
+      validateForm(values({ appliedOn: "1999-12-31" }), titles, NOW, EN.applications),
+    ).toMatchObject({
       ok: false,
       errors: { appliedOn: "Pick a day from 2000 on." },
     });
@@ -229,7 +234,7 @@ describe("patchFrom", () => {
   const titles = new Map([["copy-1", "Product Manager at Stripe"]]);
 
   it("sends nothing when nothing changed, keeping the stored time of day", () => {
-    const result = validateForm(formFromApplication(original), titles, NOW);
+    const result = validateForm(formFromApplication(original), titles, NOW, EN.applications);
     expect(result.ok && patchFrom(original, result.body)).toEqual({});
   });
 
@@ -238,6 +243,7 @@ describe("patchFrom", () => {
       { ...formFromApplication(original), notes: "Call booked", status: "interview", resumeId: "" },
       titles,
       NOW,
+      EN.applications,
     );
     expect(result.ok && patchFrom(original, result.body)).toEqual({
       notes: "Call booked",

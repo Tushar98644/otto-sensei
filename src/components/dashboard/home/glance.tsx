@@ -7,22 +7,26 @@ import { openLineOnArrival } from "@/components/studio/tailor/jump";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { UsagePeriod } from "@/config/plans";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import type { Resume } from "@/lib/resume/schema";
-import { resetDay, thisPeriod } from "@/lib/usage-copy";
-import { pluralize } from "@/lib/utils";
 import { groupResumes } from "../group-resumes";
+import { midSentence, type DashboardMessages } from "../i18n";
 import type { StudioActions } from "../use-studio-actions";
 import { linesToImprove, sourceNote } from "./stats";
 
-const count = new Intl.NumberFormat("en-US");
+const SHORT_DAY = { month: "short", day: "numeric" } as const;
 
-function resetOn(period: UsagePeriod | null | undefined): string {
-  const day = resetDay(period);
-  return day ? `on ${day}` : "when your plan renews";
+function resetDay(format: Format, period: UsagePeriod | null | undefined): string | null {
+  return period ? format.date(period.resetsAt, SHORT_DAY) : null;
 }
 
 // Own resumes only: the sample is a demo, not part of anyone's numbers.
 export function AtAGlance({ own, actions }: { own: readonly Resume[]; actions: StudioActions }) {
+  const t = useMessages("dashboard");
+  const { glance } = t;
+  const format = useFormat();
   const { me } = useMe();
   const groups = useMemo(() => groupResumes(own), [own]);
   const lines = useMemo(() => linesToImprove(groups.map((group) => group.resume)), [groups]);
@@ -32,32 +36,39 @@ export function AtAGlance({ own, actions }: { own: readonly Resume[]; actions: S
   const firstWeak = lines.first;
 
   return (
-    <FolderCard tab="At a glance" bodyClassName="overflow-hidden p-0">
+    <FolderCard tab={glance.tab} bodyClassName="overflow-hidden p-0">
       <dl className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
         <Stat
-          label="Resumes"
-          value={count.format(groups.length)}
-          note={sourceNote(groups.map((group) => group.resume.source))}
+          label={glance.resumes}
+          value={format.number(groups.length)}
+          note={sourceNote(
+            groups.map((group) => group.resume.source),
+            t,
+            format,
+          )}
         />
         <Stat
-          label="Tailored versions"
-          value={count.format(tailoredCount)}
+          label={glance.tailored}
+          value={format.number(tailoredCount)}
           note={
             tailors
               ? tailors.limit === 0
-                ? "Tailoring comes with Pro"
-                : `${count.format(tailors.used)} of ${count.format(tailors.limit)} made ${thisPeriod(me?.period)}`
+                ? glance.tailoringPro
+                : fmt(me?.period?.kind === "trial" ? glance.madeThisTrial : glance.madeThisMonth, {
+                    used: format.number(tailors.used),
+                    limit: format.number(tailors.limit),
+                  })
               : null
           }
         />
         <Stat
-          label="Lines to improve"
-          value={count.format(lines.total)}
-          note={lines.total === 0 ? "Every line looks good" : `Across ${pluralize(groups.length, "resume")}`}
+          label={glance.lines}
+          value={format.number(lines.total)}
+          note={lines.total === 0 ? glance.allGood : format.plural(glance.across, groups.length)}
           action={
             firstWeak
               ? {
-                  label: "Open the first one",
+                  label: glance.openFirst,
                   onSelect: () => {
                     openLineOnArrival(firstWeak.bulletId);
                     actions.open(firstWeak.resumeId, "fix");
@@ -67,19 +78,25 @@ export function AtAGlance({ own, actions }: { own: readonly Resume[]; actions: S
           }
         />
         <Stat
-          label="Line fixes left"
-          value={fixes ? count.format(Math.max(0, fixes.limit - fixes.used)) : null}
-          note={
-            fixes
-              ? me?.period?.kind === "trial"
-                ? `of ${count.format(fixes.limit)} · trial ends ${resetDay(me.period)}`
-                : `of ${count.format(fixes.limit)} · resets ${resetOn(me?.period)}`
-              : null
-          }
+          label={glance.fixesLeft}
+          value={fixes ? format.number(Math.max(0, fixes.limit - fixes.used)) : null}
+          note={fixes ? fixesNote(format, glance, fixes.limit, me?.period) : null}
         />
       </dl>
     </FolderCard>
   );
+}
+
+function fixesNote(
+  format: Format,
+  glance: DashboardMessages["glance"],
+  limit: number,
+  period: UsagePeriod | null | undefined,
+): string {
+  const values = { limit: format.number(limit) };
+  const day = resetDay(format, period);
+  if (period?.kind === "trial") return fmt(glance.trialEnds, { ...values, day: day ?? "" });
+  return day ? fmt(glance.resetsOn, { ...values, day }) : fmt(glance.resetsRenew, values);
 }
 
 type StatProps = {
@@ -90,6 +107,7 @@ type StatProps = {
 };
 
 function Stat({ label, value, note, action }: StatProps) {
+  const format = useFormat();
   return (
     <div className="flex flex-col bg-surface p-5 sm:p-6">
       <dt className="text-sm/5 text-muted">{label}</dt>
@@ -107,7 +125,7 @@ function Stat({ label, value, note, action }: StatProps) {
               aria-hidden
               className="size-5 text-muted transition-transform group-hover/stat:translate-x-0.5 group-hover/stat:text-ink"
             />
-            <span className="sr-only">{`${label.toLowerCase()}. ${action.label}`}</span>
+            <span className="sr-only">{`${midSentence(format, label)}. ${action.label}`}</span>
           </button>
         ) : (
           value
