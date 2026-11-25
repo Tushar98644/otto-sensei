@@ -11,6 +11,8 @@ import {
   type RefObject,
 } from "react";
 import { Button } from "@/components/ui/button";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { AskedAppliedAnswer } from "@/lib/job-feed/types";
 import { cn } from "@/lib/utils";
 import { promptAnnouncement, stripLine, type OpenedJob } from "./applied-prompt";
@@ -77,6 +79,7 @@ export function CardAppliedQuestion({
   onAnswer: (answer: AskedAppliedAnswer) => void;
   focusAfter: RefObject<HTMLElement | null>;
 }) {
+  const { applied } = useMessages("jobs");
   const box = useRef<HTMLDivElement>(null);
   const answered = useFocusAfterAnswer(box, () => focusAfter.current);
   const [asked, setAsked] = useState(open);
@@ -92,11 +95,13 @@ export function CardAppliedQuestion({
       {asked ? (
         <div ref={box} className="px-1 pt-4 pb-1">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4">
-            <p className="text-sm/6 font-medium text-pretty text-ink">Applied to {company}?</p>
+            <p className="text-sm/6 font-medium text-pretty text-ink">
+              {fmt(applied.question, { company })}
+            </p>
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" size="sm" loading={logging} onClick={() => answer("yes")}>
                 <Check aria-hidden />
-                Yes, I applied
+                {applied.yes}
               </Button>
               <Button
                 variant="ghost"
@@ -105,7 +110,7 @@ export function CardAppliedQuestion({
                 onClick={() => answer("not_yet")}
                 className="text-muted hover:text-ink"
               >
-                Not yet
+                {applied.notYet}
               </Button>
             </div>
           </div>
@@ -130,6 +135,9 @@ export function AppliedStrip({
   onAnswer: (job: OpenedJob, answer: AskedAppliedAnswer) => void;
   focusAfter: RefObject<HTMLElement | null>;
 }) {
+  const t = useMessages("jobs");
+  const { applied } = t;
+  const format = useFormat();
   const [expanded, setExpanded] = useState(false);
   const [shown, setShown] = useState(jobs);
   if (jobs.length > 0 && !sameJobs(jobs, shown)) setShown(jobs);
@@ -149,9 +157,11 @@ export function AppliedStrip({
   return (
     <Reveal open={open} className="-mb-4">
       <div ref={box} className="pb-4">
-        <section aria-label="Jobs you opened" className="rounded-2xl bg-surface px-4 py-3 sm:px-6">
+        <section aria-label={applied.opened} className="rounded-2xl bg-surface px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm/6 font-medium text-pretty text-ink">{stripLine(list.length)}</p>
+            <p className="text-sm/6 font-medium text-pretty text-ink">
+              {stripLine(list.length, t, format)}
+            </p>
             <Button
               ref={toggle}
               variant="ghost"
@@ -161,7 +171,7 @@ export function AppliedStrip({
               onClick={() => setExpanded((value) => !value)}
               className="-mr-2 text-muted hover:text-ink"
             >
-              {expanded ? "Hide jobs" : "Show jobs"}
+              {expanded ? applied.hide : applied.show}
               <ChevronDown
                 aria-hidden
                 className={cn("transition-transform duration-200", expanded && "rotate-180")}
@@ -187,8 +197,10 @@ export function AppliedStrip({
                       onClick={() => answer(job, "yes")}
                     >
                       <Check aria-hidden />
-                      Yes, I applied
-                      <span className="sr-only"> to {job.company}</span>
+                      {applied.yes}
+                      <span className="sr-only">
+                        {fmt(applied.yesTo, { company: job.company })}
+                      </span>
                     </Button>
                     <Button
                       variant="ghost"
@@ -197,8 +209,8 @@ export function AppliedStrip({
                       onClick={() => answer(job, "not_yet")}
                       className="text-muted hover:text-ink"
                     >
-                      Not yet
-                      <span className="sr-only">, {job.company}</span>
+                      {applied.notYet}
+                      <span className="sr-only">{`, ${job.company}`}</span>
                     </Button>
                   </div>
                 </li>
@@ -218,6 +230,8 @@ export function AppliedAnnouncer({
   onCard: readonly OpenedJob[];
   offPage: readonly OpenedJob[];
 }) {
+  const t = useMessages("jobs");
+  const format = useFormat();
   const live = useRef<HTMLParagraphElement>(null);
   const heard = useRef<ReadonlySet<string>>(new Set());
   const key = [...onCard, ...offPage].map((entry) => entry.jobId).join(" ");
@@ -229,7 +243,12 @@ export function AppliedAnnouncer({
     const newOffPage = offPage.some(fresh);
     heard.current = ids;
     if (!live.current || (newOnCard.length === 0 && !newOffPage)) return;
-    live.current.textContent = promptAnnouncement(newOnCard, newOffPage ? offPage.length : 0);
+    live.current.textContent = promptAnnouncement(
+      newOnCard,
+      newOffPage ? offPage.length : 0,
+      t,
+      format,
+    );
     // Only the key decides: a re-render with the same questions says nothing again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);

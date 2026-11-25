@@ -14,6 +14,8 @@ import { useId, useMemo, type ReactNode } from "react";
 import { copyText } from "@/components/ui/copy-text";
 import type { OutreachDraft } from "@/components/studio/tailor/use-writing";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import {
   gmailUrl,
   hiringPeopleUrl,
@@ -40,6 +42,7 @@ function NewTab({
   describedBy?: string;
   children: ReactNode;
 }) {
+  const { send } = useMessages("jobs");
   return (
     <a
       href={href}
@@ -49,7 +52,7 @@ function NewTab({
       aria-describedby={describedBy}
     >
       {children}
-      <span className="sr-only"> (opens in a new tab)</span>
+      <span className="sr-only">{send.newTab}</span>
     </a>
   );
 }
@@ -64,10 +67,11 @@ export type OutreachSendProps = {
 };
 
 export function OutreachSend({ company, title, postText, message }: OutreachSendProps) {
+  const { send: t } = useMessages("jobs");
   const headingId = useId();
   const fillInId = useId();
   const emails = useMemo(() => postEmails(postText), [postText]);
-  const name = searchName(company) || "the company";
+  const name = searchName(company) || t.theCompany;
   const to = emails[0] ?? "";
   const draft = { to, subject: message.subject, body: message.email };
   const mailto = mailtoLink(draft);
@@ -77,20 +81,20 @@ export function OutreachSend({ company, title, postText, message }: OutreachSend
   const searches: Search[] = [
     {
       Icon: Users,
-      label: `Search LinkedIn for people at ${name}`,
-      hint: "Look for someone on the team you'd join. Works when you're signed in to LinkedIn.",
+      label: fmt(t.linkedin, { name }),
+      hint: t.linkedinHint,
       href: linkedInPeopleUrl(company, title),
     },
     {
       Icon: UserSearch,
-      label: `Search Google for managers and recruiters at ${name}`,
-      hint: "Public LinkedIn profiles of managers, team leads, recruiters and founders.",
+      label: fmt(t.google, { name }),
+      hint: t.googleHint,
       href: hiringPeopleUrl(company, title),
     },
     {
       Icon: Building,
-      label: `Search Google for ${name}'s team page`,
-      hint: "Small companies often list their founders and team on their own site.",
+      label: fmt(t.teamPage, { name }),
+      hint: t.teamPageHint,
       href: teamPageUrl(company),
     },
   ];
@@ -102,16 +106,13 @@ export function OutreachSend({ company, title, postText, message }: OutreachSend
     >
       <div className="flex flex-col gap-1">
         <h3 id={headingId} className="text-base/6 font-semibold text-ink">
-          Where to send it
+          {t.where}
         </h3>
-        <p className="text-sm/6 text-pretty text-muted">
-          Write to one person, not several at the same company. No reply in about a week? Follow up
-          once.
-        </p>
+        <p className="text-sm/6 text-pretty text-muted">{t.whereIntro}</p>
       </div>
 
       <div className="flex flex-col gap-3">
-        <h4 className={SUBHEADING}>Find the person</h4>
+        <h4 className={SUBHEADING}>{t.findPerson}</h4>
         <ul className="flex flex-col gap-3">
           {searches.map(({ Icon, label, hint, href }) => (
             <li key={label} className="flex items-start gap-3">
@@ -129,18 +130,11 @@ export function OutreachSend({ company, title, postText, message }: OutreachSend
             </li>
           ))}
         </ul>
-        <p className="text-sm text-pretty text-subtle">
-          These open in a new tab. Otto doesn&apos;t look anyone up. What you type into your
-          message, like their name, is saved with it.
-        </p>
+        <p className="text-sm text-pretty text-subtle">{t.newTabNote}</p>
 
         {emails.length ? (
           <div className="flex flex-col gap-2 rounded-2xl bg-surface-muted p-4">
-            <p className={SUBHEADING}>
-              {emails.length === 1
-                ? "This address is in the job post"
-                : "These addresses are in the job post"}
-            </p>
+            <p className={SUBHEADING}>{emails.length === 1 ? t.addressOne : t.addressMany}</p>
             <ul className="flex flex-col gap-1">
               {emails.map((email) => (
                 <li key={email} className="flex items-center gap-1">
@@ -148,7 +142,7 @@ export function OutreachSend({ company, title, postText, message }: OutreachSend
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Copy ${email}`}
+                    aria-label={fmt(t.copyAddress, { email })}
                     onClick={() => void copyText(email, "address")}
                   >
                     <Copy aria-hidden />
@@ -157,56 +151,47 @@ export function OutreachSend({ company, title, postText, message }: OutreachSend
               ))}
             </ul>
             <p className="text-sm text-pretty text-muted">
-              {emails.length === 1 ? "It" : "They"} may reach a recruiting team rather than the
-              hiring manager.
+              {emails.length === 1 ? t.reachOne : t.reachMany}
             </p>
           </div>
         ) : null}
       </div>
 
       <div className="flex flex-col gap-3">
-        <h4 className={SUBHEADING}>Send the email</h4>
+        <h4 className={SUBHEADING}>{t.sendEmail}</h4>
         {fillIn ? (
           <p id={fillInId} className="flex items-start gap-1.5 text-sm/6 text-pretty text-warn-ink">
             <TriangleExclamationPoint aria-hidden className="mt-1 size-4 shrink-0 text-warn" />
-            <span>
-              Your email still says {fillIn}. Swap in their name, or write “Hi there” if it&apos;s
-              going to a team inbox.
-            </span>
+            <span>{fmt(t.fillIn, { fillIn })}</span>
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
           <NewTab href={gmailUrl(draft)} className={SEND_BUTTON} describedBy={describedBy}>
             <Mail aria-hidden />
-            Open in Gmail
+            {t.gmail}
           </NewTab>
           <NewTab href={outlookUrl(draft)} className={SEND_BUTTON} describedBy={describedBy}>
             <Mail aria-hidden />
-            Open in Outlook
+            {t.outlook}
           </NewTab>
           <a href={mailto.href} className={SEND_BUTTON} aria-describedby={describedBy}>
             <Mail aria-hidden />
-            Open in your email app
+            {t.app}
           </a>
         </div>
         <p className="text-sm text-pretty text-muted">
-          {to
-            ? `The To line has ${to}, from the job post. Swap in the person's own address if you find it.`
-            : "Add the person's address in the To line."}{" "}
-          Your subject and email go in as they are now.
-          {mailto.clipped
-            ? " “Open in your email app” starts this email but cuts it short, since mail links have a length limit. Replace it there with the whole email from Copy email."
-            : null}
+          {to ? fmt(t.toLine, { to }) : t.addTo} {t.asIs}
+          {mailto.clipped ? ` ${t.clipped}` : null}
         </p>
       </div>
 
       <div className="flex flex-col gap-3">
-        <h4 className={SUBHEADING}>Or send the LinkedIn note</h4>
+        <h4 className={SUBHEADING}>{t.linkedinNote}</h4>
         <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm/6 text-pretty text-ink">
-          <li>Copy the note.</li>
-          <li>Open their LinkedIn profile.</li>
-          <li>Press Connect, then Add a note. If Connect isn&apos;t there, look under More.</li>
-          <li>Paste the note and send it.</li>
+          <li>{t.step1}</li>
+          <li>{t.step2}</li>
+          <li>{t.step3}</li>
+          <li>{t.step4}</li>
         </ol>
       </div>
     </section>

@@ -12,7 +12,7 @@ import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
 import type { Resume } from "@/lib/resume/schema";
 import { groupResumes } from "../group-resumes";
-import type { DashboardMessages } from "../i18n";
+import { midSentence, type DashboardMessages } from "../i18n";
 import type { StudioActions } from "../use-studio-actions";
 import { linesToImprove, sourceNote } from "./stats";
 
@@ -107,6 +107,7 @@ type StatProps = {
 };
 
 function Stat({ label, value, note, action }: StatProps) {
+  const format = useFormat();
   return (
     <div className="flex flex-col bg-surface p-5 sm:p-6">
       <dt className="text-sm/5 text-muted">{label}</dt>
@@ -124,7 +125,7 @@ function Stat({ label, value, note, action }: StatProps) {
               aria-hidden
               className="size-5 text-muted transition-transform group-hover/stat:translate-x-0.5 group-hover/stat:text-ink"
             />
-            <span className="sr-only">{`${label.toLowerCase()}. ${action.label}`}</span>
+            <span className="sr-only">{`${midSentence(format, label)}. ${action.label}`}</span>
           </button>
         ) : (
           value

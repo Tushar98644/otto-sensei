@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
+import { fmt } from "@/i18n/format";
 import type { Application } from "@/lib/applications/schema";
 import {
   APPLICATION_STATUSES,
@@ -44,18 +45,38 @@ export function StatusIcon({
   );
 }
 
+export type StatusMenuCopy = {
+  statuses: Record<ApplicationStatus, string>;
+  hints: Record<ApplicationStatus, string>;
+  label: string;
+  trigger: string;
+  thisApplication: string;
+};
+
+// The studio has no messages provider yet, so it reads these; the dashboard passes its own.
+const englishCopy: StatusMenuCopy = {
+  statuses: STATUS_NAMES,
+  hints: STATUS_HINTS,
+  label: "Status for {name}",
+  trigger: "Status: {status}. Change the status for {name}",
+  thisApplication: "this application",
+};
+
 export function StatusMenu({
   application,
   onChange,
+  copy = englishCopy,
 }: {
   application: Application;
   onChange: (status: ApplicationStatus) => void;
+  copy?: StatusMenuCopy;
 }) {
-  const name = application.company || "this application";
+  const name = application.company || copy.thisApplication;
+  const current = copy.statuses[application.status];
   return (
     <Menu
-      label={`Status for ${name}`}
-      triggerLabel={`Status: ${STATUS_NAMES[application.status]}. Change the status for ${name}`}
+      label={fmt(copy.label, { name })}
+      triggerLabel={fmt(copy.trigger, { status: current, name })}
       triggerClassName={buttonClasses({
         variant: "secondary",
         size: "sm",
@@ -64,13 +85,13 @@ export function StatusMenu({
       trigger={
         <>
           <StatusIcon status={application.status} />
-          <span className="flex-1 text-left">{STATUS_NAMES[application.status]}</span>
+          <span className="flex-1 text-left">{current}</span>
           <ChevronDown aria-hidden className="text-muted" />
         </>
       }
       items={APPLICATION_STATUSES.map((status) => ({
-        label: STATUS_NAMES[status],
-        description: STATUS_HINTS[status],
+        label: copy.statuses[status],
+        description: copy.hints[status],
         icon: STATUS_ICONS[status],
         checked: status === application.status,
         onSelect: () => {

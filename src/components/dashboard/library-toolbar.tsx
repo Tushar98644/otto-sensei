@@ -8,6 +8,7 @@ import { Menu } from "@/components/ui/menu";
 import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
+import { midSentence } from "./i18n";
 import {
   LIBRARY_FILTERS,
   LIBRARY_SORTS,
@@ -76,7 +77,7 @@ export function LibraryToolbar({
           <Menu
             label={library.sortLabel}
             align="end"
-            triggerLabel={fmt(library.sortBy, { sort: library.sorts[sort].toLowerCase() })}
+            triggerLabel={fmt(library.sortBy, { sort: midSentence(format, library.sorts[sort]) })}
             triggerClassName={buttonClasses({ variant: "secondary", className: "px-3.5" })}
             trigger={
               <>

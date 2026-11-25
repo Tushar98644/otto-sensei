@@ -18,13 +18,12 @@ import { CompanyMark } from "@/components/ui/company-mark";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
 import { ProMark } from "@/components/ui/pro-mark";
 import { StatusPill } from "@/components/ui/status";
-import { STATUS_NAMES } from "@/lib/applications/status";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { Application } from "@/lib/applications/schema";
 import { applicationHref } from "@/lib/applications/thread";
-import { sourceCredit } from "@/lib/job-feed/sources";
+import { SOURCE_INFO } from "@/lib/job-feed/sources";
 import {
-  MATCH_LABELS,
-  NOT_FIT_LABELS,
   type AskedAppliedAnswer,
   type JobMatch,
   type MatchedJob,
@@ -32,6 +31,7 @@ import {
 } from "@/lib/job-feed/types";
 import { cn } from "@/lib/utils";
 import { StatusIcon } from "../applications/status-menu";
+import { midSentence } from "../i18n";
 import { CardAppliedQuestion } from "./applied-question";
 import { NotFitQuestion } from "./not-fit-question";
 import { matchLead, placeParts, postedLabel, skillList } from "./view";
@@ -69,13 +69,14 @@ const BADGE = "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full text-x
 const SEAL = "flex size-4.5 items-center justify-center rounded-full";
 
 function MatchBadge({ match }: { match: JobMatch }) {
+  const { card } = useMessages("jobs");
   if (match.label === "strong") {
     return (
       <span className={cn(BADGE, "bg-pass-soft pr-2.5 pl-1 text-pass-ink")}>
         <span className={cn(SEAL, "bg-pass text-white shadow-[0_1px_1px_rgb(23_97_58/0.35)]")}>
           <Check aria-hidden className="size-3" strokeWidth={3} />
         </span>
-        {MATCH_LABELS.strong}
+        {card.strong}
       </span>
     );
   }
@@ -85,7 +86,7 @@ function MatchBadge({ match }: { match: JobMatch }) {
         <span className={cn(SEAL, "bg-surface text-ink shadow-control ring-1 ring-ink/8")}>
           <Check aria-hidden className="size-3" strokeWidth={2.75} />
         </span>
-        {MATCH_LABELS.good}
+        {card.good}
       </span>
     );
   }
@@ -93,11 +94,11 @@ function MatchBadge({ match }: { match: JobMatch }) {
     return (
       <span className={cn(BADGE, "bg-surface-muted pr-2.5 pl-1 text-muted")}>
         <span aria-hidden className={cn(SEAL, "border border-dashed border-border-strong")} />
-        {MATCH_LABELS.stretch}
+        {card.stretch}
       </span>
     );
   }
-  return <span className={cn(BADGE, "bg-surface-muted px-2.5 text-muted")}>No overlap</span>;
+  return <span className={cn(BADGE, "bg-surface-muted px-2.5 text-muted")}>{card.noOverlap}</span>;
 }
 
 function SkillChips({
@@ -111,6 +112,8 @@ function SkillChips({
   max: number;
   found: boolean;
 }) {
+  const { card } = useMessages("jobs");
+  const format = useFormat();
   const { shown, more } = skillList(items, max);
   if (shown.length === 0) return null;
   return (
@@ -135,7 +138,7 @@ function SkillChips({
         ))}
         {more > 0 ? (
           <li className="inline-flex h-7 items-center px-1 text-xs/none text-subtle tabular-nums">
-            and {more} more
+            {fmt(card.andMore, { count: format.number(more) })}
           </li>
         ) : null}
       </ul>
@@ -162,32 +165,36 @@ export function JobCard({
   onNotFit,
   index = 0,
 }: JobCardProps) {
+  const t = useMessages("jobs");
+  const { card } = t;
+  const { statuses } = useMessages("applications");
+  const format = useFormat();
   const [notFit, setNotFit] = useState<NotFitReason | "asking" | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
   const reasonId = useId();
-  const posted = postedLabel(job.postedAt, now);
-  const meta = [...placeParts(job).flatMap((part) => part.split(/\s+·\s+/)), posted].filter(
+  const posted = postedLabel(job.postedAt, now, t, format);
+  const meta = [...placeParts(job, t).flatMap((part) => part.split(/\s+·\s+/)), posted].filter(
     Boolean,
   );
   const lead = matchLead(job.match);
   const more: MenuEntry[] = [];
   if (onOutreach && !job.closed) {
     more.push({
-      label: "Write an outreach message",
+      label: card.outreach,
       icon: Send,
       pro: free,
       onSelect: () => onOutreach(job),
     });
   }
   if (onNotFit && notFit === null) {
-    more.push({ label: "Not a fit", icon: ThumbsDown, onSelect: () => setNotFit("asking") });
+    more.push({ label: card.notFit, icon: ThumbsDown, onSelect: () => setNotFit("asking") });
   }
 
   const badges = (
     <>
       <MatchBadge match={job.match} />
-      {job.match.blocked ? <StatusPill status="fail">Likely blocked</StatusPill> : null}
+      {job.match.blocked ? <StatusPill status="fail">{card.blocked}</StatusPill> : null}
     </>
   );
 
@@ -233,9 +240,11 @@ export function JobCard({
                   </li>
                 ))}
                 {job.closed ? (
-                  <li className={cn(META_PART, "font-medium text-ink")}>This job has closed</li>
+                  <li className={cn(META_PART, "font-medium text-ink")}>{card.closed}</li>
                 ) : null}
-                <li className={cn(META_PART, "text-subtle")}>{sourceCredit(job.source)}</li>
+                <li className={cn(META_PART, "text-subtle")}>
+                  {fmt(card.via, { source: SOURCE_INFO[job.source].name })}
+                </li>
               </ul>
             </div>
             {job.visa.length > 0 ? (
@@ -261,14 +270,9 @@ export function JobCard({
           </p>
           <div aria-hidden className="flex flex-col gap-2.5">
             {lead ? <p className="text-sm/6 text-pretty text-ink">{lead}</p> : null}
+            <SkillChips label={card.found} items={job.match.found} max={FOUND_SHOWN} found />
             <SkillChips
-              label="Found in your resume"
-              items={job.match.found}
-              max={FOUND_SHOWN}
-              found
-            />
-            <SkillChips
-              label="Not found"
+              label={card.notFound}
               items={job.match.missing}
               max={MISSING_SHOWN}
               found={false}
@@ -285,7 +289,7 @@ export function JobCard({
         <div className="flex flex-wrap items-center gap-2 sm:pl-16">
           {tailoredTitle ? (
             <Button size="sm" onClick={() => onOpenTailored(job)} className="max-sm:flex-1">
-              Open tailored copy
+              {card.openTailored}
             </Button>
           ) : job.closed ? null : (
             <Button
@@ -295,7 +299,7 @@ export function JobCard({
               className="max-sm:flex-1"
             >
               <ScanSearch aria-hidden />
-              Tailor my resume
+              {card.tailor}
             </Button>
           )}
           <Button
@@ -309,7 +313,7 @@ export function JobCard({
               aria-hidden
               className={cn(job.saved && "fill-primary text-primary motion-safe:animate-pop")}
             />
-            {job.saved ? "Saved" : "Save"}
+            {job.saved ? card.saved : card.save}
             {free && !job.saved ? <ProMark /> : null}
           </Button>
           {applied ? (
@@ -322,8 +326,8 @@ export function JobCard({
               })}
             >
               <StatusIcon status={applied.status} />
-              {STATUS_NAMES[applied.status]}
-              <span className="sr-only">: open this application</span>
+              {statuses[applied.status]}
+              <span className="sr-only">{card.openApplication}</span>
             </Link>
           ) : (
             <Button
@@ -332,7 +336,7 @@ export function JobCard({
               loading={logging}
               onClick={() => onMarkApplied(job)}
             >
-              Mark applied
+              {card.markApplied}
             </Button>
           )}
           <div className="ml-auto flex items-center gap-1">
@@ -352,15 +356,15 @@ export function JobCard({
                   "[&_svg]:text-muted [&_svg]:transition-transform hover:[&_svg]:translate-x-0.5 hover:[&_svg]:-translate-y-0.5 hover:[&_svg]:text-ink",
               })}
             >
-              Open job
+              {card.openJob}
               <ArrowUpRight aria-hidden />
-              <span className="sr-only">(opens {job.company}&apos;s posting in a new tab)</span>
+              <span className="sr-only">{fmt(card.opensPosting, { company: job.company })}</span>
             </a>
             {more.length > 0 ? (
               <Menu
-                label={`More for ${job.title}`}
+                label={fmt(card.moreFor, { title: job.title })}
                 align="end"
-                triggerLabel={`More for ${job.title}`}
+                triggerLabel={fmt(card.moreFor, { title: job.title })}
                 triggerClassName={buttonClasses({
                   variant: "ghost",
                   size: "icon-sm",
@@ -388,7 +392,7 @@ export function JobCard({
           />
         ) : notFit && notFit !== "asking" ? (
           <p className="text-sm/6 text-muted" role="status">
-            Noted: {NOT_FIT_LABELS[notFit].toLowerCase()}. Thanks.
+            {fmt(card.noted, { reason: midSentence(format, t.notFit.reasons[notFit]) })}
           </p>
         ) : null}
 

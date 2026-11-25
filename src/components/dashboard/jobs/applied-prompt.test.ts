@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EN, FORMAT_EN } from "../messages-testing";
 import {
   answerOpenedJob,
   ASK_FOR_MS,
@@ -143,18 +144,20 @@ describe("where the question shows", () => {
   });
 
   it("words the strip and what a screen reader hears", () => {
-    expect(stripLine(1)).toBe("You opened 1 job. Applied to it?");
-    expect(stripLine(3)).toBe("You opened 3 jobs. Applied to any?");
+    expect(stripLine(1, EN.jobs, FORMAT_EN)).toBe("You opened 1 job. Applied to it?");
+    expect(stripLine(3, EN.jobs, FORMAT_EN)).toBe("You opened 3 jobs. Applied to any?");
     const [stripe, vercel] = recordOpen(
       recordOpen([], job("a", "Vercel"), NOW),
       job("b", "Stripe"),
       NOW,
     );
-    expect(promptAnnouncement([stripe!], 0)).toBe("Applied to Stripe? Answer on its job card.");
-    expect(promptAnnouncement([stripe!, vercel!], 3)).toBe(
+    expect(promptAnnouncement([stripe!], 0, EN.jobs, FORMAT_EN)).toBe(
+      "Applied to Stripe? Answer on its job card.",
+    );
+    expect(promptAnnouncement([stripe!, vercel!], 3, EN.jobs, FORMAT_EN)).toBe(
       "Applied to the 2 jobs you opened? Answer on their job cards. You opened 3 jobs. Applied to any? It's at the top of the list.",
     );
-    expect(promptAnnouncement([], 0)).toBe("");
+    expect(promptAnnouncement([], 0, EN.jobs, FORMAT_EN)).toBe("");
   });
 });
 

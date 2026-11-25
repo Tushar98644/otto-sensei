@@ -3,7 +3,6 @@
 import { ArrowLeft, ArrowRight, Lock, SearchX } from "lucide-react";
 import type { ReactNode } from "react";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
-import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,8 @@ import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { BRAND } from "@/config/brand";
+import { useMessages } from "@/i18n/client";
+import { rich } from "@/i18n/rich";
 import { cn } from "@/lib/utils";
 import { NewResumeMenu } from "../new-resume-menu";
 import type { StudioActions } from "../use-studio-actions";
@@ -18,20 +19,19 @@ import { JobsArt } from "./jobs-art";
 import { splitLead } from "./view";
 
 export function JobsHeader() {
+  const { page } = useMessages("jobs");
   return (
     <header className="min-w-0">
       <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-        Jobs
+        {page.title}
       </h1>
-      <p className="mt-2 max-w-prose text-base/7 text-pretty text-muted">
-        Open jobs from companies&apos; careers pages and public job feeds, ordered by how closely
-        each post matches your resume. Each one links to the original post.
-      </p>
+      <p className="mt-2 max-w-prose text-base/7 text-pretty text-muted">{page.intro}</p>
     </header>
   );
 }
 
-const NUMBER = /(\d[\d,]*)/;
+// Digits with the separators each language groups them by: 1,114 or 1.114 or 1 114.
+const NUMBER = /(\d(?:[\d,.\u00a0\u202f]*\d)?)/;
 
 // Numbers in Otto's line read as figures, not words.
 function Figures({ text }: { text: string }) {
@@ -131,6 +131,7 @@ export function LookingForSkeleton() {
 }
 
 export function NoResumeYet({ actions }: { actions: StudioActions }) {
+  const { page, otto } = useMessages("jobs");
   return (
     <div className="flex flex-col gap-8">
       <JobsHeader />
@@ -140,9 +141,9 @@ export function NoResumeYet({ actions }: { actions: StudioActions }) {
       >
         <Otto pose="read" size={128} />
         <h2 id="jobs-empty" className="mt-6 font-sans text-lg/7 font-medium text-ink">
-          Jobs that fit your resume will show up here
+          {page.emptyTitle}
         </h2>
-        <p className="mt-2 max-w-sm text-sm/6 text-pretty text-muted">{OTTO.jobs.noResume}</p>
+        <p className="mt-2 max-w-sm text-sm/6 text-pretty text-muted">{otto.noResume}</p>
         <div className="mt-6">
           <NewResumeMenu actions={actions} />
         </div>
@@ -179,10 +180,11 @@ function CardSkeleton({ still = false }: { still?: boolean }) {
 }
 
 export function LoadingCards() {
+  const { page } = useMessages("jobs");
   return (
     <div aria-busy className="flex flex-col gap-4">
       <span className="sr-only" role="status">
-        Loading jobs
+        {page.loading}
       </span>
       {[0, 1, 2].map((index) => (
         <CardSkeleton key={index} />
@@ -192,14 +194,15 @@ export function LoadingCards() {
 }
 
 export function NoFilterMatches({ onClear }: { onClear: () => void }) {
+  const { page } = useMessages("jobs");
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-4 sm:px-6">
       <p className="flex items-center gap-2.5 text-sm/6 text-muted">
         <SearchX aria-hidden className="size-4 shrink-0 text-subtle" />
-        No jobs match these filters.
+        {page.noFilterMatches}
       </p>
       <Button variant="secondary" size="sm" onClick={onClear}>
-        Clear filters
+        {page.clearFilters}
       </Button>
     </div>
   );
@@ -214,8 +217,9 @@ export function JobsPager({
   pages: number;
   onGo: (page: number) => void;
 }) {
+  const t = useMessages("jobs").page;
   return (
-    <nav aria-label="Pages" className="mt-2 flex items-center justify-between gap-3">
+    <nav aria-label={t.pages} className="mt-2 flex items-center justify-between gap-3">
       <Button
         variant="secondary"
         size="sm"
@@ -224,10 +228,14 @@ export function JobsPager({
         className="[&_svg]:transition-transform hover:[&_svg]:-translate-x-0.5"
       >
         <ArrowLeft aria-hidden />
-        Previous
+        {t.previous}
       </Button>
       <p className="text-sm text-subtle tabular-nums">
-        Page <span className="font-medium text-ink">{page}</span> of {pages}
+        {rich(
+          t.pageOf,
+          { b: (chunk) => <span className="font-medium text-ink">{chunk}</span> },
+          { page, pages },
+        )}
       </p>
       <Button
         variant="secondary"
@@ -236,7 +244,7 @@ export function JobsPager({
         onClick={() => onGo(page + 1)}
         className="[&_svg]:transition-transform hover:[&_svg]:translate-x-0.5"
       >
-        Next
+        {t.next}
         <ArrowRight aria-hidden />
       </Button>
     </nav>

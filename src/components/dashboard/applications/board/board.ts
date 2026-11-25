@@ -284,14 +284,19 @@ export function initials(name: string): string {
   return letters.toUpperCase() || "?";
 }
 
-export function cardName(card: BoardCard): string {
+export type CardFallbacks = { thisApplication: string; thisJob: string };
+
+export function cardName(
+  card: BoardCard,
+  fallback: CardFallbacks = { thisApplication: "this application", thisJob: "this job" },
+): string {
   if (card.kind === "application") {
-    return card.application.company || card.application.role || "this application";
+    return card.application.company || card.application.role || fallback.thisApplication;
   }
   return (
     card.item.company ||
     card.item.role ||
-    (card.item.copy ? resumeTitle(card.item.copy) : "this job")
+    (card.item.copy ? resumeTitle(card.item.copy) : fallback.thisJob)
   );
 }
 

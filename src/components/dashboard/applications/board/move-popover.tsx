@@ -5,6 +5,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } f
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useMessages } from "@/i18n/client";
 import type { ApplicationStatus } from "@/lib/applications/status";
 import { fromDateInput, fromTimeInput, toDateInput, toTimeInput } from "../form";
 import { cardName, type BoardCard } from "./board";
@@ -37,6 +38,7 @@ export function MovePopover({
   onAnswer: (answer: MoveAnswer) => void;
   onCancel: () => void;
 }) {
+  const t = useMessages("applications").move;
   const titleId = useId();
   const dateId = useId();
   const timeId = useId();
@@ -112,7 +114,7 @@ export function MovePopover({
         <>
           <div>
             <p id={titleId} className="text-sm/5 font-semibold text-ink">
-              How did it end?
+              {t.howEnded}
             </p>
             <p className="mt-0.5 truncate text-sm/5 text-muted">{name}</p>
           </div>
@@ -121,51 +123,61 @@ export function MovePopover({
               variant="secondary"
               size="sm"
               onClick={() =>
-                onAnswer({ status: "rejected", interviewAt: null, interviewTime: null, prepare: false })
+                onAnswer({
+                  status: "rejected",
+                  interviewAt: null,
+                  interviewTime: null,
+                  prepare: false,
+                })
               }
             >
               <CircleX aria-hidden className="text-muted" />
-              Rejected
+              {t.rejected}
             </Button>
             <Button
               variant="secondary"
               size="sm"
               onClick={() =>
-                onAnswer({ status: "no_reply", interviewAt: null, interviewTime: null, prepare: false })
+                onAnswer({
+                  status: "no_reply",
+                  interviewAt: null,
+                  interviewTime: null,
+                  prepare: false,
+                })
               }
             >
               <MailX aria-hidden className="text-muted" />
-              No reply
+              {t.noReply}
             </Button>
           </div>
           <Button variant="ghost" size="sm" className="self-start" onClick={onCancel}>
-            Cancel
+            {t.cancel}
           </Button>
         </>
       ) : (
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div>
             <p id={titleId} className="text-sm/5 font-semibold text-ink">
-              Move to Interviewing
+              {t.toInterview}
             </p>
             <p className="mt-0.5 truncate text-sm/5 text-muted">{name}</p>
           </div>
           <fieldset className="flex min-w-0 flex-col gap-1.5">
             <legend className="mb-1.5 text-sm/5 font-medium text-ink">
-              Interview day and time <span className="font-normal text-subtle">(optional)</span>
+              {t.when} <span className="font-normal text-subtle">{t.optional}</span>
             </legend>
             <div className="grid grid-cols-[minmax(0,1fr)_8.5rem] gap-2">
               <Input
                 id={dateId}
                 type="date"
-                aria-label="Interview day"
+                aria-label={t.day}
                 value={day}
                 onChange={(event) => setDay(event.target.value)}
               />
               <Input
                 id={timeId}
                 type="time"
-                aria-label="Time"
+                aria-label={t.time}
                 value={time}
                 disabled={!day}
                 onChange={(event) => setTime(event.target.value)}
@@ -174,11 +186,11 @@ export function MovePopover({
           </fieldset>
           <div className="flex flex-wrap gap-2">
             <Button type="submit" size="sm">
-              Move
+              {t.move}
             </Button>
             <Button type="button" variant="secondary" size="sm" onClick={() => interview(true)}>
               <MessagesSquare aria-hidden />
-              Move and prepare
+              {t.movePrepare}
               {pro === false ? (
                 <Badge variant="ink" className="h-5 px-1.5">
                   Pro
@@ -187,7 +199,7 @@ export function MovePopover({
             </Button>
           </div>
           <Button type="button" variant="ghost" size="sm" className="self-start" onClick={onCancel}>
-            Cancel
+            {t.cancel}
           </Button>
         </form>
       )}

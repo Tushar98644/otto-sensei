@@ -17,17 +17,20 @@ import { useEffect, useId, useRef, type KeyboardEvent, type PointerEvent } from 
 import { buttonClasses } from "@/components/ui/button";
 import { CompanyMark } from "@/components/ui/company-mark";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
-import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { ApplicationStatus } from "@/lib/applications/status";
 import { applicationHref } from "@/lib/applications/thread";
 import { cn } from "@/lib/utils";
+import type { ApplicationsMessages } from "../../i18n";
 import {
   cardColumn,
   cardName,
-  COLUMN_NAMES,
   menuStatuses,
   onward,
   type BoardCard,
   type BoardColumn,
+  type CardFallbacks,
 } from "./board";
 import { InterviewTicket } from "./card/interview-ticket";
 import { CardMarks } from "./card/marks";
@@ -74,11 +77,13 @@ export function BoardCardView({
   onHandleKeyDown,
   onHandleBlur,
 }: BoardCardProps) {
+  const t = useMessages("applications");
+  const { card: words, board } = t;
   const titleId = useId();
   const router = useRouter();
   const articleRef = useRef<HTMLElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
-  const name = cardName(card);
+  const name = cardName(card, words);
   const next = onward(card);
   const column = cardColumn(card);
 
@@ -92,17 +97,17 @@ export function BoardCardView({
     ...(next
       ? [
           {
-            label: `Move on to ${COLUMN_NAMES[next]}`,
+            label: fmt(words.moveOn, { column: board.columns[next] }),
             icon: ArrowRight,
             onSelect: () => onAction(card, { kind: "column", column: next }),
           },
         ]
       : []),
-    ...links(card, (href) => router.push(href), onAction),
+    ...links(card, (href) => router.push(href), onAction, words),
     ...(column === "interview" && card.kind === "application"
       ? [
           {
-            label: card.application.hasPrep ? "Open interview prep" : "Prepare for this interview",
+            label: card.application.hasPrep ? words.openPrep : words.prepare,
             icon: MessagesSquare,
             onSelect: () => onAction(card, { kind: "prepare" }),
           },
@@ -110,7 +115,7 @@ export function BoardCardView({
       : []),
     "separator",
     ...menuStatuses(card).map((status) => ({
-      label: `Move to ${STATUS_NAMES[status]}`,
+      label: fmt(words.moveTo, { status: t.statuses[status] }),
       onSelect: () =>
         onAction(
           card,
@@ -123,7 +128,7 @@ export function BoardCardView({
       ? [
           "separator" as const,
           {
-            label: "Delete",
+            label: words.delete,
             icon: Trash2,
             tone: "danger" as const,
             onSelect: () => onAction(card, { kind: "delete" }),
@@ -134,7 +139,7 @@ export function BoardCardView({
       ? [
           "separator" as const,
           {
-            label: "Remove from To apply",
+            label: words.removePost,
             icon: Trash2,
             tone: "danger" as const,
             onSelect: () => onAction(card, { kind: "remove-post", postId: card.item.postId ?? "" }),
@@ -143,7 +148,7 @@ export function BoardCardView({
       : []),
   ];
 
-  const text = cardText(card);
+  const text = cardText(card, words);
   const roleId = `${titleId}-role`;
   const interviewAt =
     card.kind === "application" && card.application.status === "interview"
@@ -178,7 +183,7 @@ export function BoardCardView({
             ref={handleRef}
             type="button"
             data-drag-handle=""
-            aria-label={`Move ${name}`}
+            aria-label={fmt(words.move, { name })}
             aria-describedby={instructionsId}
             aria-pressed={holding}
             onKeyDown={(event) => onHandleKeyDown(event, card)}
@@ -233,8 +238,8 @@ export function BoardCardView({
           {next ? (
             <button
               type="button"
-              aria-label={`Move on to ${COLUMN_NAMES[next]}`}
-              title={`Move on to ${COLUMN_NAMES[next]}`}
+              aria-label={fmt(words.moveOn, { column: board.columns[next] })}
+              title={fmt(words.moveOn, { column: board.columns[next] })}
               aria-describedby={titleId}
               onClick={() => onAction(card, { kind: "column", column: next })}
               className={buttonClasses({
@@ -251,9 +256,9 @@ export function BoardCardView({
             </button>
           ) : null}
           <Menu
-            label={`Actions for ${name}`}
+            label={fmt(words.actionsFor, { name })}
             align="end"
-            triggerLabel={`More for ${name}`}
+            triggerLabel={fmt(words.moreFor, { name })}
             triggerClassName={buttonClasses({
               variant: "ghost",
               size: "icon-sm",
@@ -276,14 +281,14 @@ export function BoardCardView({
 const ENTER =
   "motion-safe:nth-1:animate-[fade-in_220ms_ease-out_backwards] motion-safe:nth-2:animate-[fade-in_220ms_ease-out_40ms_backwards] motion-safe:nth-3:animate-[fade-in_220ms_ease-out_80ms_backwards] motion-safe:nth-4:animate-[fade-in_220ms_ease-out_120ms_backwards] motion-safe:nth-5:animate-[fade-in_220ms_ease-out_160ms_backwards] motion-safe:nth-[n+6]:animate-[fade-in_220ms_ease-out_200ms_backwards]";
 
-function cardText(card: BoardCard) {
+function cardText(card: BoardCard, fallback: CardFallbacks) {
   const company = (
     card.kind === "application" ? card.application.company : card.item.company
   ).trim();
   const role = (card.kind === "application" ? card.application.role : card.item.role).trim();
   return {
     company,
-    primary: company || role || cardName(card),
+    primary: company || role || cardName(card, fallback),
     secondary: company && role ? role : "",
   };
 }
@@ -292,19 +297,20 @@ function links(
   card: BoardCard,
   go: (href: string) => void,
   onAction: (card: BoardCard, action: CardAction) => void,
+  words: ApplicationsMessages["card"],
 ): MenuEntry[] {
   const out: MenuEntry[] = [];
   const copy = card.kind === "application" ? card.copy : card.item.copy;
   if (card.kind === "application") {
     out.push({
-      label: "View application",
+      label: words.view,
       icon: PanelsTopLeft,
       onSelect: () => go(applicationHref(card.application.id)),
     });
   }
   if (copy) {
     out.push({
-      label: "Open tailored copy",
+      label: words.openCopy,
       icon: FileText,
       onSelect: () => onAction(card, { kind: "open-copy", copyId: copy.id }),
     });
@@ -312,15 +318,15 @@ function links(
   const url = card.kind === "application" ? card.application.jobUrl : card.item.jobUrl;
   if (url) {
     out.push({
-      label: "Open job post",
+      label: words.openPost,
       icon: SquareArrowOutUpRight,
       onSelect: () => window.open(url, "_blank", "noopener"),
     });
   }
   if (cardColumn(card) !== "closed") {
     out.push({
-      label: "Close…",
-      description: "Rejected or no reply",
+      label: words.close,
+      description: words.closeDetail,
       icon: CircleX,
       tone: "danger",
       onSelect: () => onAction(card, { kind: "close" }),
@@ -330,10 +336,11 @@ function links(
 }
 
 export function CardGhost({ card }: { card: BoardCard }) {
-  const text = cardText(card);
+  const words = useMessages("applications").card;
+  const text = cardText(card, words);
   return (
     <div className="flex items-start gap-2.5 rounded-xl bg-surface p-3 shadow-float ring-1 ring-ink/8 motion-safe:scale-[1.02] motion-safe:rotate-[1.5deg]">
-      <CompanyMark name={text.company || cardName(card)} size="md" />
+      <CompanyMark name={text.company || cardName(card, words)} size="md" />
       <div className="min-w-0 pt-px">
         <p className="line-clamp-2 text-sm/5 font-semibold text-pretty [overflow-wrap:anywhere] text-ink">
           {text.primary}

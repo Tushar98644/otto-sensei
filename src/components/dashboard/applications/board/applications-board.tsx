@@ -9,8 +9,9 @@ import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { Application } from "@/lib/applications/schema";
-import { STATUS_NAMES } from "@/lib/applications/status";
 import { copyLetter, writingsByApplication } from "@/lib/applications/thread";
 import { savedPostFromHash } from "@/lib/extension/links";
 import type { Resume } from "@/lib/resume/schema";
@@ -25,14 +26,14 @@ import {
   hideApplication,
   restoreApplication,
 } from "../use-applications";
-import { formatDay, prepHref } from "../view";
+import { formatDay } from "../../i18n";
+import { prepHref } from "../view";
 import {
   BOARD_COLUMNS,
   boardColumns,
   canDrop,
   cardColumn,
   columnOf,
-  COLUMN_NAMES,
   COLUMN_PAGE,
   createBody,
   interviewClock,
@@ -48,11 +49,13 @@ import { MovePopover, type MoveAnswer, type MoveAsk } from "./move-popover";
 import { hideSavedPost, removeSavedPost, restoreSavedPosts } from "./use-board-extras";
 import { useBoardDrag, type DragMode, type DropPoint } from "./use-board-drag";
 
-const count = new Intl.NumberFormat("en-US");
-
 // Written out in full so Tailwind sees every class.
 const STAGE: Record<BoardColumn, { bar: string; tint: string; over: string }> = {
-  to_apply: { bar: "bg-border-strong", tint: "from-border-strong/10", over: "border-border-strong" },
+  to_apply: {
+    bar: "bg-border-strong",
+    tint: "from-border-strong/10",
+    over: "border-border-strong",
+  },
   applied: { bar: "bg-primary", tint: "from-primary/8", over: "border-primary" },
   interview: { bar: "bg-otter", tint: "from-otter/10", over: "border-otter" },
   offer: { bar: "bg-pass", tint: "from-pass/10", over: "border-pass" },
@@ -88,6 +91,9 @@ export function ApplicationsBoard({
   pro,
   onNeedsDetails,
 }: ApplicationsBoardProps) {
+  const t = useMessages("applications");
+  const { board } = t;
+  const format = useFormat();
   const router = useRouter();
   const actions = useStudioActions();
   const instructionsId = useId();
@@ -139,14 +145,14 @@ export function ApplicationsBoard({
 
   function remove(application: Application) {
     hideApplication(application);
-    drag.announce(`${application.company} deleted.`);
+    drag.announce(fmt(board.deletedSr, { name: application.company }));
     undoToast({
-      title: "Application deleted",
+      title: board.deleted,
       description: application.company,
       onUndo: () => restoreApplication(application),
       onCommit: (options) => {
         commitDelete(application, options).catch((error: unknown) =>
-          toast({ title: "Couldn't delete it", description: errorMessage(error), variant: "error" }),
+          toast({ title: board.cantDelete, description: errorMessage(error), variant: "error" }),
         );
       },
     });
@@ -173,7 +179,9 @@ export function ApplicationsBoard({
     setBusyKey(card.key);
     try {
       const application = await addApplication(body);
-      drag.announce(`${application.company} moved to ${STATUS_NAMES[answer.status]}.`);
+      drag.announce(
+        fmt(board.movedSr, { name: application.company, status: t.statuses[answer.status] }),
+      );
       if (mode === "keyboard") setFocusKey(`application:${application.id}`);
       if (answer.prepare) {
         prepare(application);
@@ -182,29 +190,31 @@ export function ApplicationsBoard({
       undoToast({
         title:
           answer.status === "applied"
-            ? `Marked as applied at ${application.company}`
-            : `${application.company} moved to ${STATUS_NAMES[answer.status]}`,
+            ? fmt(board.markedAt, { company: application.company })
+            : fmt(board.moved, { name: application.company, status: t.statuses[answer.status] }),
         description:
           application.followUpAt === null
             ? undefined
-            : `I'll remind you to follow up on ${formatDay(application.followUpAt, application.followUpAt)}.`,
+            : fmt(board.remind, {
+                day: formatDay(format, application.followUpAt, application.followUpAt),
+              }),
         onUndo: () => {
           hideApplication(application);
           commitDelete(application, { keepalive: false }).catch((error: unknown) =>
-            toast({ title: "Couldn't undo that", description: errorMessage(error), variant: "error" }),
+            toast({ title: board.cantUndo, description: errorMessage(error), variant: "error" }),
           );
         },
       });
     } catch (error) {
-      toast({ title: "Couldn't log it", description: errorMessage(error), variant: "error" });
+      toast({ title: board.cantLog, description: errorMessage(error), variant: "error" });
     } finally {
       setBusyKey(null);
     }
   }
 
   function changeStatus(application: Application, answer: MoveAnswer, mode: MoveMode) {
-    const name = application.company || application.role || "It";
-    drag.announce(`${name} moved to ${STATUS_NAMES[answer.status]}.`);
+    const name = application.company || application.role || board.it;
+    drag.announce(fmt(board.movedSr, { name, status: t.statuses[answer.status] }));
     if (mode === "keyboard") setFocusKey(`application:${application.id}`);
     changeApplication(application, {
       status: answer.status,
@@ -216,8 +226,8 @@ export function ApplicationsBoard({
         if (answer.prepare) prepare(application);
       },
       (error: unknown) => {
-        drag.announce(`${name} is back in ${STATUS_NAMES[application.status]}.`);
-        toast({ title: "Couldn't move it", description: errorMessage(error), variant: "error" });
+        drag.announce(fmt(board.backIn, { name, status: t.statuses[application.status] }));
+        toast({ title: board.cantMove, description: errorMessage(error), variant: "error" });
       },
     );
   }
@@ -272,15 +282,15 @@ export function ApplicationsBoard({
   function removePost(card: BoardCard, postId: string) {
     const name = card.kind === "to_apply" ? card.item.company || card.item.role : "";
     hideSavedPost(postId);
-    drag.announce(`${name || "The job"} removed from To apply.`);
+    drag.announce(fmt(board.removedSr, { name: name || board.theJob }));
     undoToast({
-      title: "Removed from To apply",
+      title: board.removed,
       description: name || undefined,
       onUndo: restoreSavedPosts,
       onCommit: (options) => {
         removeSavedPost(postId, options).catch((error: unknown) =>
           toast({
-            title: "Couldn't remove it",
+            title: board.cantRemove,
             description: errorMessage(error),
             variant: "error",
           }),
@@ -300,7 +310,7 @@ export function ApplicationsBoard({
   const clearFocus = useCallback(() => setFocusKey(null), []);
   function cancelAsk() {
     setAsk(null);
-    announce("Left where it was.");
+    announce(board.leftWhere);
   }
 
   function answerAsk(answer: MoveAnswer) {
@@ -338,10 +348,10 @@ export function ApplicationsBoard({
         <header className="relative flex h-10 shrink-0 items-center gap-2 px-3 pt-1">
           <span aria-hidden className={cn("h-4 w-1 rounded-full", stage.bar)} />
           <h3 id={`${instructionsId}-${name}`} className="flex-1 text-sm/5 font-semibold text-ink">
-            {COLUMN_NAMES[name]}
+            {board.columns[name]}
           </h3>
           <span className="text-xs font-medium text-muted tabular-nums">
-            {count.format(cards.length)}
+            {format.number(cards.length)}
           </span>
         </header>
         <div className="relative flex-1 px-2 pt-2 pb-2 md:overflow-y-auto">
@@ -370,7 +380,9 @@ export function ApplicationsBoard({
           ) : (
             <p className="px-1 py-3 text-center text-sm text-subtle">
               <span aria-hidden>—</span>
-              <span className="sr-only">Nothing in {COLUMN_NAMES[name]}</span>
+              <span className="sr-only">
+                {fmt(board.nothingIn, { column: board.columns[name] })}
+              </span>
             </p>
           )}
           {cards.length > limit ? (
@@ -380,7 +392,7 @@ export function ApplicationsBoard({
               className="mt-1 w-full text-muted hover:text-ink"
               onClick={() => setShown({ ...shown, [name]: limit + COLUMN_PAGE })}
             >
-              Load more ({count.format(cards.length - limit)})
+              {fmt(board.loadMore, { count: format.number(cards.length - limit) })}
             </Button>
           ) : null}
         </div>
@@ -391,8 +403,7 @@ export function ApplicationsBoard({
   return (
     <div className="flex flex-col gap-3">
       <p id={instructionsId} className="sr-only">
-        Press Space on a job&apos;s initials to pick it up. Use the arrow keys to choose a column,
-        then Space to drop it there, or Escape to put it back. Each job&apos;s menu can move it too.
+        {board.instructions}
       </p>
       <p aria-live="polite" className="sr-only">
         {drag.announcement}
@@ -401,7 +412,7 @@ export function ApplicationsBoard({
       <div className="-mx-4 overflow-x-auto px-4 md:hidden">
         <div
           role="group"
-          aria-label="Stage"
+          aria-label={board.stage}
           className="flex w-max gap-1 rounded-xl bg-surface-strong p-1"
         >
           {BOARD_COLUMNS.map((name) => (
@@ -414,9 +425,9 @@ export function ApplicationsBoard({
               className="flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control"
             >
               <span aria-hidden className={cn("h-3 w-1 rounded-full", STAGE[name].bar)} />
-              {COLUMN_NAMES[name]}
+              {board.columns[name]}
               <span className="text-xs text-muted tabular-nums">
-                {count.format(columns[name].length)}
+                {format.number(columns[name].length)}
               </span>
             </button>
           ))}
@@ -444,7 +455,7 @@ export function ApplicationsBoard({
           )}
         >
           <Trash2 aria-hidden className="size-4 text-fail" />
-          Drop here to delete
+          {board.dropDelete}
         </div>
       ) : null}
 

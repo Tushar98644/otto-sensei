@@ -7,6 +7,8 @@ import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { queueJobForTailor, type QueuedJob } from "@/components/studio/tailor/session";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api } from "@/lib/api/client";
 import type {
   Application,
@@ -18,7 +20,7 @@ import type { AskedAppliedAnswer, FeedJob } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
 import { commitDelete, hideApplication } from "../applications/use-applications";
 import { forgetSavedJobs } from "../applications/board/use-board-extras";
-import { formatDay } from "../applications/view";
+import { formatDay } from "../i18n";
 import type { StudioActions } from "../use-studio-actions";
 import type { OpenedJobRef } from "./applied-prompt";
 import { logJobApplied } from "./job-actions";
@@ -49,6 +51,8 @@ export function useJobActions({
   actions,
   free,
 }: JobActionsInput) {
+  const t = useMessages("jobs").actions;
+  const format = useFormat();
   const [busy, setBusy] = useState<{ id: string; action: "apply" | "tailor" } | null>(null);
   const saveQueue = useRef(new Map<string, Promise<void>>());
 
@@ -104,11 +108,7 @@ export function useJobActions({
     } catch {
       if (!readsLink(job)) {
         setBusy(null);
-        toast({
-          title: "Couldn't open that job",
-          description: "Try again in a moment.",
-          variant: "error",
-        });
+        toast({ title: t.cantOpen, description: t.tryLater, variant: "error" });
         return;
       }
     }
@@ -116,7 +116,7 @@ export function useJobActions({
   }
 
   function closedToast() {
-    toast({ title: "That job has closed", description: "Your other matches are below." });
+    toast({ title: t.closed, description: t.otherMatches });
   }
 
   // A link from an email names a job that may not be on this page, so it's read by its id.
@@ -146,7 +146,7 @@ export function useJobActions({
     } catch (error) {
       setBusy(null);
       toast({
-        title: "Couldn't open that job",
+        title: t.cantOpen,
         description: errorMessage(error),
         variant: "error",
       });
@@ -189,7 +189,7 @@ export function useJobActions({
       } catch (error) {
         if (before) patch(() => before, mark(job.saved, before.savedCount));
         toast({
-          title: save ? "Couldn't save it" : "Couldn't remove it",
+          title: save ? t.cantSave : t.cantRemove,
           description: errorMessage(error),
           variant: "error",
         });
@@ -209,16 +209,18 @@ export function useJobActions({
       note(job, "applied");
       if (userId) answerAppliedPrompt(userId, job.id, "yes");
       undoToast({
-        title: `Marked as applied at ${application.company}`,
+        title: fmt(t.markedAt, { company: application.company }),
         description:
           application.followUpAt === null
             ? undefined
-            : `I'll remind you to follow up on ${formatDay(application.followUpAt, application.followUpAt)}.`,
+            : fmt(t.remind, {
+                day: formatDay(format, application.followUpAt, application.followUpAt),
+              }),
         onUndo: () => {
           hideApplication(application);
           commitDelete(application, { keepalive: false }).catch((error: unknown) =>
             toast({
-              title: "Couldn't undo that",
+              title: t.cantUndo,
               description: errorMessage(error),
               variant: "error",
             }),
@@ -227,7 +229,7 @@ export function useJobActions({
       });
       return "logged";
     } catch (error) {
-      toast({ title: "Couldn't log it", description: errorMessage(error), variant: "error" });
+      toast({ title: t.cantLog, description: errorMessage(error), variant: "error" });
       return "failed";
     } finally {
       setBusy(null);

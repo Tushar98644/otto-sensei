@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { formatFor } from "@/i18n/intl";
-import { translationsFor } from "@/i18n/messages";
+import { loadMessages } from "@/i18n/messages";
 import { createSampleResume } from "@/lib/resume/sample";
 import { ActionCards } from "./home/action-cards";
 import { interviewDay } from "./home/next-steps";
@@ -66,7 +66,7 @@ describe("the dashboard in Spanish", () => {
   });
 
   it("words dates and times in the reader's language", async () => {
-    const es = (await translationsFor("es")).dashboard!;
+    const es = await loadMessages("es", "dashboard");
     const format = formatFor("es");
     expect(interviewDay(noon(22), NOW, es, format)).toBe("Hoy");
     expect(interviewDay(noon(26), NOW, es, format)).toMatch(/^jue/);

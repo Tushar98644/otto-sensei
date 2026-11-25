@@ -1,5 +1,8 @@
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import type { AskedAppliedAnswer, FeedJob } from "@/lib/job-feed/types";
 import { DAY_MS } from "@/lib/time";
+import type { JobsMessages } from "../i18n";
 
 export const ASK_FOR_MS = 7 * DAY_MS;
 export const MAX_NOT_YET = 2;
@@ -105,23 +108,23 @@ export function splitByPage(
   };
 }
 
-const count = new Intl.NumberFormat("en-US");
-
-export function stripLine(jobs: number): string {
-  return jobs === 1
-    ? "You opened 1 job. Applied to it?"
-    : `You opened ${count.format(jobs)} jobs. Applied to any?`;
+export function stripLine(jobs: number, { applied }: JobsMessages, format: Format): string {
+  return format.plural(applied.strip, jobs);
 }
 
-export function promptAnnouncement(onCard: readonly OpenedJob[], offPage: number): string {
+export function promptAnnouncement(
+  onCard: readonly OpenedJob[],
+  offPage: number,
+  t: JobsMessages,
+  format: Format,
+): string {
+  const { applied } = t;
   const parts: string[] = [];
-  if (onCard.length === 1) parts.push(`Applied to ${onCard[0]!.company}? Answer on its job card.`);
+  if (onCard.length === 1) parts.push(fmt(applied.onCardOne, { company: onCard[0]!.company }));
   if (onCard.length > 1) {
-    parts.push(
-      `Applied to the ${count.format(onCard.length)} jobs you opened? Answer on their job cards.`,
-    );
+    parts.push(fmt(applied.onCardMany, { count: format.number(onCard.length) }));
   }
-  if (offPage > 0) parts.push(`${stripLine(offPage)} It's at the top of the list.`);
+  if (offPage > 0) parts.push(`${stripLine(offPage, t, format)} ${applied.atTop}`);
   return parts.join(" ");
 }
 

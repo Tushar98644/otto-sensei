@@ -1,8 +1,9 @@
+import { useFormat, useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { interviewWhen } from "./when";
 
 export function InterviewTicket({ at, now }: { at: number; now: number }) {
-  const when = interviewWhen(at, now);
+  const when = interviewWhen(at, now, useMessages("applications"), useFormat());
   return (
     <div
       className={cn(

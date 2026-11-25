@@ -9,14 +9,9 @@ import {
   type PointerEvent,
   type RefObject,
 } from "react";
-import {
-  cardColumn,
-  cardName,
-  COLUMN_NAMES,
-  stepColumn,
-  type BoardCard,
-  type DropTarget,
-} from "./board";
+import { cardColumn, cardName, stepColumn, type BoardCard, type DropTarget } from "./board";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 export type DragMode = "pointer" | "keyboard";
 
@@ -71,6 +66,9 @@ export function useBoardDrag({
 }): BoardDrag {
   const [held, setHeld] = useState<Held | null>(null);
   const [ghost, setGhost] = useState<{ width: number } | null>(null);
+  const t = useMessages("applications");
+  const { board, card: fallback } = t;
+  const nameOf = useCallback((card: BoardCard) => cardName(card, fallback), [fallback]);
   const [announcement, setAnnouncement] = useState("");
   const ghostRef = useRef<HTMLDivElement | null>(null);
   const pending = useRef<Pending | null>(null);
@@ -103,10 +101,10 @@ export function useBoardDrag({
 
   const cancel = useCallback(() => {
     const current = heldRef.current;
-    if (current) setAnnouncement(`${cardName(current.card)} put back.`);
+    if (current) setAnnouncement(fmt(board.putBack, { name: nameOf(current.card) }));
     endPointer();
     hold(null);
-  }, [endPointer, hold]);
+  }, [endPointer, hold, board, nameOf]);
 
   useEffect(() => {
     function edgeScroll() {
@@ -143,7 +141,7 @@ export function useBoardDrag({
         document.body.style.setProperty("user-select", "none");
         setGhost({ width: drag.width });
         hold({ card: drag.card, mode: "pointer", target: cardColumn(drag.card) });
-        setAnnouncement(`Picked up ${cardName(drag.card)}.`);
+        setAnnouncement(fmt(board.pickedUp, { name: nameOf(drag.card) }));
       }
       event.preventDefault();
       moveGhost();
@@ -164,7 +162,7 @@ export function useBoardDrag({
       if (target && target !== cardColumn(current.card)) {
         dropRef.current(current.card, target, "pointer", { x: event.clientX, y: event.clientY });
       } else {
-        setAnnouncement(`${cardName(current.card)} put back.`);
+        setAnnouncement(fmt(board.putBack, { name: nameOf(current.card) }));
       }
     }
 
@@ -186,7 +184,7 @@ export function useBoardDrag({
       window.removeEventListener("pointercancel", onCancel);
       window.removeEventListener("keydown", onKey);
     };
-  }, [cancel, endPointer, hold, moveGhost, scrollerRef]);
+  }, [cancel, endPointer, hold, moveGhost, scrollerRef, board, nameOf]);
 
   useEffect(() => {
     if (ghost) moveGhost();
@@ -222,9 +220,7 @@ export function useBoardDrag({
         if (event.key !== " " && event.key !== "Enter") return;
         event.preventDefault();
         hold({ card, mode: "keyboard", target: own });
-        setAnnouncement(
-          `Picked up ${cardName(card)}, in ${COLUMN_NAMES[own]}. Use the arrow keys to choose a column, Space to drop it, Escape to put it back.`,
-        );
+        setAnnouncement(fmt(board.pickedUpIn, { name: nameOf(card), column: board.columns[own] }));
         return;
       }
       const here = current.target && current.target !== "delete" ? current.target : own;
@@ -234,14 +230,14 @@ export function useBoardDrag({
         const next = stepColumn(card, here, step);
         hold({ ...current, target: next });
         onKeyboardTarget?.(next);
-        setAnnouncement(`Over ${COLUMN_NAMES[next]}.`);
+        setAnnouncement(fmt(board.over, { column: board.columns[next] }));
         return;
       }
       if (event.key === " " || event.key === "Enter") {
         event.preventDefault();
         hold(null);
         if (here !== own) dropRef.current(card, here, "keyboard", null);
-        else setAnnouncement(`${cardName(card)} put back.`);
+        else setAnnouncement(fmt(board.putBack, { name: nameOf(card) }));
         return;
       }
       if (event.key === "Escape") {
@@ -249,7 +245,7 @@ export function useBoardDrag({
         cancel();
       }
     },
-    [cancel, hold, onKeyboardTarget],
+    [cancel, hold, onKeyboardTarget, board, nameOf],
   );
 
   const onHandleBlur = useCallback(

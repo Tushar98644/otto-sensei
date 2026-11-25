@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { followUpState, SNOOZE_DAYS, snoozedUntil } from "@/lib/applications/follow-up";
 import type { Application } from "@/lib/applications/schema";
 import { changeApplication } from "./use-applications";
-import { formatDay } from "./view";
+import { formatDay } from "../i18n";
 
 export function FollowUpChip({
   application,
@@ -20,6 +22,8 @@ export function FollowUpChip({
   now: number;
   describedBy?: string;
 }) {
+  const { followUp: t } = useMessages("applications");
+  const format = useFormat();
   const state = now === 0 ? "none" : followUpState(application, now);
   if (state === "none" || application.followUpAt === null) return null;
   const previous = application.followUpAt;
@@ -34,7 +38,7 @@ export function FollowUpChip({
           onUndo: () => {
             changeApplication(saved, { followUpAt: previous }).catch((error: unknown) =>
               toast({
-                title: "Couldn't undo that",
+                title: t.cantUndo,
                 description: errorMessage(error),
                 variant: "error",
               }),
@@ -44,7 +48,7 @@ export function FollowUpChip({
       })
       .catch((error: unknown) =>
         toast({
-          title: "Couldn't change the reminder",
+          title: t.cantChange,
           description: errorMessage(error),
           variant: "error",
         }),
@@ -56,16 +60,16 @@ export function FollowUpChip({
       <div className="flex flex-wrap items-center gap-1">
         <Badge variant="warn">
           <BellRing aria-hidden className="text-warn" />
-          Follow up now
+          {t.now}
         </Badge>
         <Button
           variant="ghost"
           size="sm"
           aria-describedby={describedBy}
-          onClick={() => change(null, "Follow-up marked done")}
+          onClick={() => change(null, t.marked)}
         >
           <Check aria-hidden />
-          Done
+          {t.done}
         </Button>
         <Button
           variant="ghost"
@@ -73,11 +77,11 @@ export function FollowUpChip({
           aria-describedby={describedBy}
           onClick={() => {
             const until = snoozedUntil(Date.now());
-            change(until, `Snoozed until ${formatDay(until, until)}`);
+            change(until, fmt(t.snoozed, { day: formatDay(format, until, until) }));
           }}
         >
           <Clock aria-hidden />
-          Snooze {SNOOZE_DAYS} days
+          {format.plural(t.snooze, SNOOZE_DAYS)}
         </Button>
       </div>
     );
@@ -86,12 +90,12 @@ export function FollowUpChip({
   return (
     <span className="inline-flex items-center gap-0.5 text-xs/5 text-subtle">
       <BellRing aria-hidden className="size-3.5" />
-      Follow-up reminder {formatDay(previous, now)}
+      {fmt(t.reminder, { day: formatDay(format, previous, now) })}
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`Remove the follow-up reminder for ${name}`}
-        onClick={() => change(null, "Reminder removed")}
+        aria-label={fmt(t.remove, { name })}
+        onClick={() => change(null, t.removed)}
         className="-my-2 text-subtle hover:text-ink"
       >
         <X aria-hidden />
