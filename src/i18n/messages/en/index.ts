@@ -1,4 +1,5 @@
 import account from "./account";
+import accountMenu from "./accountMenu";
 import api from "./api";
 import common from "./common";
 import dashboard from "./dashboard";
@@ -23,6 +24,7 @@ import studioTailor from "./studioTailor";
 // The source of truth: every other locale is checked against these, key by key.
 const en = {
   account,
+  accountMenu,
   api,
   common,
   dashboard,

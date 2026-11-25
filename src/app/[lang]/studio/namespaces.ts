@@ -9,5 +9,6 @@ export const STUDIO_NAMESPACES = [
   "studioDownload",
   "jobForm",
   "onboarding",
+  "accountMenu",
   "lint",
 ] as const satisfies readonly Namespace[];
