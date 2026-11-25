@@ -379,6 +379,7 @@ export default {
       differs: "Ton résumé ne cite ni ce poste ni ses exigences obligatoires.",
       suggest: " Tu montres {names} dans tes lignes ; dis-le aussi en haut.",
     },
+    targets: { aJob: "Un emploi", project: "Projet : {name}", untitled: "sans titre" },
     asks: {
       used: "As-tu déjà utilisé {term} ?",
       experience: "As-tu de l’expérience avec {phrase} ?",

@@ -81,6 +81,14 @@ export default {
     },
   },
   history: {
+    labels: {
+      fix: "O Otto ajustou uma linha",
+      summary: "O Otto escreveu seu resumo",
+      tailor: "O Otto personalizou esta cópia",
+      format: "Mudou o formato",
+      renamed: "Renomeou o currículo",
+      restored: "Restaurou “{name}”",
+    },
     labelled: "{action}: {label}",
     undo: "Desfazer",
     redo: "Refazer",
@@ -92,6 +100,8 @@ export default {
     menuTrigger: "Refazer e versões",
   },
   versions: {
+    conflict: { here: "Edições neste dispositivo", elsewhere: "Edições de outro dispositivo" },
+    suggested: "Versão {number}",
     title: "Versões",
     description:
       "Salve este currículo como está agora e volte a ele quando quiser. Ao restaurar, o que você tem agora também vira uma versão.",

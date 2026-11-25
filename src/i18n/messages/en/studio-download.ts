@@ -159,6 +159,59 @@ export default {
     showMore: "Show {count} more",
     showOk: { one: "Show {count} item marked correct", other: "Show {count} items marked correct" },
   },
+  // What the send check flags (src/lib/sendcheck), and where.
+  sendItems: {
+    places: {
+      name: "Your name",
+      headline: "Headline",
+      email: "Email",
+      phone: "Phone",
+      location: "Location",
+      links: "Links",
+      summary: "Summary",
+      at: "{title} at {company}",
+      aJob: "A job",
+      aProject: "A project",
+      aSchool: "A school",
+      skills: "Skills",
+      aCertification: "A certification",
+      extra: "Extra section",
+      letter: "Cover letter",
+    },
+    blank: {
+      title: "Blank left in",
+      message: "“{blank}” looks like a blank to fill in. Put in the real detail, or take it out.",
+    },
+    company: {
+      title: "Another company's name",
+      message: "Mentions {name}, but this copy is for {company}.",
+    },
+    backwards: {
+      title: "Dates run backwards",
+      message: "{dates} ends before it starts. One of the dates may be a typo.",
+    },
+    future: {
+      title: "Date in the future",
+      job: '{date} hasn\'t happened yet. If the job is still going, use "Present".',
+      certification: '{date} hasn\'t happened yet. If you\'re still working toward it, say "Expected".',
+    },
+    overlap: {
+      title: "Dates overlap",
+      message: "Overlaps {place} by {span}. Fine for a side job; otherwise check the dates.",
+    },
+    tool: {
+      title: "Named before it existed",
+      job: "{tool} came out in {released}, after this job ended ({dates}).",
+      course: "{tool} came out in {released}, after this course ended ({dates}).",
+    },
+    copied: {
+      title: "Copied from the job post",
+      message: "{count} words in a row match the job post. Say it in your own words.",
+    },
+    months: { one: "{count} month", other: "{count} months" },
+    years: { one: "{count} year", other: "{count} years" },
+    yearsAndMonths: "{years} and {months}",
+  },
   check: {
     checking: "Checking your PDF.",
     checkedProblems: {

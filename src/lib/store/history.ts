@@ -1,3 +1,4 @@
+import { fmt } from "@/i18n/format";
 import type { RecruiterReport } from "@/lib/checks/types";
 import { cleanTitle, isTitleTaken, resumeTitle } from "@/lib/resume/ops";
 import { newId, type Resume } from "@/lib/resume/schema";
@@ -11,6 +12,10 @@ export const EDIT_LABELS = {
   tailor: "Otto tailored this copy",
   format: "Changed the format",
 } as const;
+
+// Labels the store writes itself; the history controls show each in the studio's language.
+export const RENAMED_LABEL = "Renamed the resume";
+export const restoredLabel = (name: string) => `Restored “${name}”`;
 
 export type EditOptions = {
   label?: string;
@@ -143,8 +148,11 @@ export function isSaved(resume: Resume, versions: readonly ResumeVersion[]): boo
   return versions.some((v) => v.resume === resume || content(v.resume) === wanted);
 }
 
-export function suggestVersionName(versions: readonly ResumeVersion[]): string {
-  return `Version ${versions.filter((v) => !v.auto).length + 1}`;
+export function suggestVersionName(
+  versions: readonly ResumeVersion[],
+  template = "Version {number}",
+): string {
+  return fmt(template, { number: versions.filter((v) => !v.auto).length + 1 });
 }
 
 // The account refuses a deleted id, so restoring makes a copy under a new id.

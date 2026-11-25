@@ -376,6 +376,7 @@ export default {
       differs: "Dein Profil nennt weder diesen Job noch seine Muss-Anforderungen.",
       suggest: " Du zeigst {names} in deinen Zeilen; schreib es auch oben hin.",
     },
+    targets: { aJob: "Ein Job", project: "Projekt: {name}", untitled: "ohne Titel" },
     asks: {
       used: "Hast du schon mit {term} gearbeitet?",
       experience: "Hast du Erfahrung mit {phrase}?",

@@ -356,6 +356,8 @@ export default {
       differs: "Your summary doesn't name this job or its must-haves.",
       suggest: " You show {names} in your lines; say it up top too.",
     },
+    // Where a new line can go.
+    targets: { aJob: "A job", project: "Project: {name}", untitled: "untitled" },
     asks: {
       used: "Have you used {term}?",
       experience: "Do you have experience with {phrase}?",

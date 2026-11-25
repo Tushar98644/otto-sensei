@@ -20,6 +20,7 @@ import {
   suggestVersionName,
   versionToDrop,
 } from "@/lib/store/history";
+import { versionName } from "./history-words";
 import { useStudioStore, useVersions, type ResumeVersion } from "@/lib/store/resume-store";
 
 export type VersionsDialogProps = {
@@ -59,10 +60,10 @@ function SaveVersionForm({
   resumeId: string;
   versions: readonly ResumeVersion[];
 }) {
-  const [draft, setDraft] = useState(() => suggestVersionName(versions));
+  const t = useMessages("studio").versions;
+  const [draft, setDraft] = useState(() => suggestVersionName(versions, t.suggested));
   const [error, setError] = useState<string | null>(null);
   const dropping = versionToDrop(versions);
-  const t = useMessages("studio").versions;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,7 +86,7 @@ function SaveVersionForm({
         label={t.nameLabel}
         error={error}
         hint={
-          dropping ? fmt(t.dropping, { count: versions.length, name: dropping.name }) : undefined
+          dropping ? fmt(t.dropping, { count: versions.length, name: versionName(dropping.name, t) }) : undefined
         }
       >
         <Input
@@ -128,7 +129,7 @@ function VersionList({
     useStudioStore.getState().deleteVersion(resumeId, version.id);
     undoToast({
       title: t.deleted,
-      description: version.name,
+      description: versionName(version.name, t),
       onUndo: () => useStudioStore.getState().putVersionBack(resumeId, version),
     });
   }
@@ -137,7 +138,7 @@ function VersionList({
     if (!useStudioStore.getState().restoreVersion(resumeId, version.id)) return;
     toast({
       title: t.restored,
-      description: fmt(t.restoredNote, { name: version.name }),
+      description: fmt(t.restoredNote, { name: versionName(version.name, t) }),
       variant: "success",
     });
     onRestored();
@@ -183,7 +184,7 @@ function VersionRow({
   return (
     <li className="flex items-center gap-2 py-3">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm/6 font-medium text-ink">{version.name}</p>
+        <p className="truncate text-sm/6 font-medium text-ink">{versionName(version.name, t)}</p>
         <p className="text-xs/5 text-subtle">
           {fmt(version.auto ? t.keptWhen : t.savedWhen, { when })}
         </p>
@@ -195,7 +196,7 @@ function VersionRow({
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={fmt(t.delete, { name: version.name })}
+        aria-label={fmt(t.delete, { name: versionName(version.name, t) })}
         className="text-muted hover:text-ink"
         onClick={onDelete}
       >

@@ -68,8 +68,8 @@ export function TailorResults({
   const cardRef = useRef<HTMLDivElement>(null);
   const cardInView = useInView(cardRef);
 
-  const plans = useMemo(() => reorderPlans(source, result), [source, result]);
-  const targets = useMemo(() => lineTargets(source), [source]);
+  const plans = useMemo(() => reorderPlans(source, result, t.reasons), [source, result, t]);
+  const targets = useMemo(() => lineTargets(source, t.reasons), [source, t]);
   const preview = useMemo(
     () => applyTailorChoices(source, result, choices),
     [source, result, choices],

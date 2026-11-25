@@ -372,6 +372,7 @@ export default {
       differs: "Tu resumen no nombra este empleo ni sus requisitos obligatorios.",
       suggest: " Muestras {names} en tus líneas; dilo también arriba.",
     },
+    targets: { aJob: "Un trabajo", project: "Proyecto: {name}", untitled: "sin nombre" },
     asks: {
       used: "¿Has usado {term}?",
       experience: "¿Tienes experiencia con {phrase}?",

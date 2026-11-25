@@ -84,6 +84,14 @@ export default {
     },
   },
   history: {
+    labels: {
+      fix: "Otto hat eine Zeile korrigiert",
+      summary: "Otto hat dein Profil geschrieben",
+      tailor: "Otto hat diese Kopie angepasst",
+      format: "Format geändert",
+      renamed: "Lebenslauf umbenannt",
+      restored: "„{name}“ wiederhergestellt",
+    },
     labelled: "{action}: {label}",
     undo: "Rückgängig",
     redo: "Wiederholen",
@@ -95,6 +103,8 @@ export default {
     menuTrigger: "Wiederholen und Fassungen",
   },
   versions: {
+    conflict: { here: "Änderungen auf diesem Gerät", elsewhere: "Änderungen von einem anderen Gerät" },
+    suggested: "Version {number}",
     title: "Fassungen",
     description:
       "Speichere diesen Lebenslauf, wie er gerade ist, und kehre jederzeit zu ihm zurück. Beim Wiederherstellen wird dein aktueller Stand auch als Fassung behalten.",

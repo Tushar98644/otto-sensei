@@ -9,6 +9,7 @@ import { useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import type { Messages } from "@/i18n/messages";
 import { historyKey, type HistoryKey } from "@/lib/store/history-keys";
+import { historyLabel } from "./history-words";
 import { useHistoryStatus, useStudioStore } from "@/lib/store/resume-store";
 
 const versionsDialog = lazyComponent(() =>
@@ -19,20 +20,23 @@ const IS_MAC =
   typeof navigator !== "undefined" && /mac|iphone|ipad|ipod/i.test(navigator.userAgent);
 const MOD = IS_MAC ? "⌘" : "Ctrl+";
 
-type HistoryCopy = Messages["studio"]["history"];
+type HistoryCopy = Pick<Messages["studio"], "history" | "versions">;
 
-function describe(action: string, label: string | undefined, t: HistoryCopy): string {
-  return label ? fmt(t.labelled, { action, label }) : action;
+function describe(action: string, label: string | undefined, studio: HistoryCopy): string {
+  return label
+    ? fmt(studio.history.labelled, { action, label: historyLabel(label, studio) })
+    : action;
 }
 
-function stepHistory(id: string, direction: HistoryKey, t: HistoryCopy): string | null {
+function stepHistory(id: string, direction: HistoryKey, studio: HistoryCopy): string | null {
+  const t = studio.history;
   const store = useStudioStore.getState();
   const history = store.history[id];
   const next = direction === "undo" ? history?.past.at(-1) : history?.future.at(-1);
   const moved = direction === "undo" ? store.undo(id) : store.redo(id);
   if (!moved) return null;
   const verb = direction === "undo" ? t.undone : t.redone;
-  return describe(verb, next?.label, t);
+  return describe(verb, next?.label, studio);
 }
 
 export function HistoryControls({ resumeId }: { resumeId: string | null }) {
@@ -40,11 +44,12 @@ export function HistoryControls({ resumeId }: { resumeId: string | null }) {
   const [versionsOpen, setVersionsOpen] = useState(false);
   const versionsWanted = useOpenedOnce(versionsOpen);
   const [announcement, setAnnouncement] = useState("");
-  const t = useMessages("studio").history;
+  const studio = useMessages("studio");
+  const t = studio.history;
 
   function move(direction: HistoryKey) {
     if (!resumeId) return;
-    const said = stepHistory(resumeId, direction, t);
+    const said = stepHistory(resumeId, direction, studio);
     if (said) setAnnouncement(said);
   }
 
@@ -57,17 +62,17 @@ export function HistoryControls({ resumeId }: { resumeId: string | null }) {
       if (!action) return;
       // Ours even when there's nothing left to undo, so the browser doesn't undo something else.
       event.preventDefault();
-      const said = stepHistory(id, action, t);
+      const said = stepHistory(id, action, studio);
       if (said) setAnnouncement(said);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [resumeId, t]);
+  }, [resumeId, studio]);
 
   if (!resumeId) return null;
 
-  const undoText = describe(t.undo, status.undoLabel, t);
-  const redoText = describe(t.redo, status.redoLabel, t);
+  const undoText = describe(t.undo, status.undoLabel, studio);
+  const redoText = describe(t.redo, status.redoLabel, studio);
 
   return (
     <div className="flex shrink-0 items-center gap-0.5">
@@ -116,7 +121,9 @@ export function HistoryControls({ resumeId }: { resumeId: string | null }) {
             {
               label: t.redo,
               icon: Redo2,
-              ...(status.redoLabel ? { description: status.redoLabel } : {}),
+              ...(status.redoLabel
+                ? { description: historyLabel(status.redoLabel, studio) }
+                : {}),
               disabled: !status.canRedo,
               onSelect: () => move("redo"),
             },

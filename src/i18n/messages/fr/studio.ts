@@ -84,6 +84,14 @@ export default {
     },
   },
   history: {
+    labels: {
+      fix: "Otto a corrigé une ligne",
+      summary: "Otto a écrit ton résumé",
+      tailor: "Otto a adapté cette copie",
+      format: "Format changé",
+      renamed: "CV renommé",
+      restored: "« {name} » restaurée",
+    },
     labelled: "{action} : {label}",
     undo: "Annuler",
     redo: "Rétablir",
@@ -95,6 +103,8 @@ export default {
     menuTrigger: "Rétablir et versions",
   },
   versions: {
+    conflict: { here: "Modifications sur cet appareil", elsewhere: "Modifications d’un autre appareil" },
+    suggested: "Version {number}",
     title: "Versions",
     description:
       "Enregistre ce CV tel qu’il est et reviens-y quand tu veux. Restaurer garde aussi ce que tu as maintenant comme version.",

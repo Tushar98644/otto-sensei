@@ -21,6 +21,8 @@ import {
   adoptState,
   cleanVersionName,
   CONFLICT_VERSION_NAMES,
+  RENAMED_LABEL,
+  restoredLabel,
   EMPTY_HISTORY,
   freshTrash,
   isSaved,
@@ -237,7 +239,7 @@ export const useStudioStore = create<StudioState>()(
           if (!next || !current) return false;
           if (isTitleTaken(next, Object.values(get().resumes), id)) return false;
           if (next !== current.title) {
-            get().updateResume(id, (r) => ({ ...r, title: next }), { label: "Renamed the resume" });
+            get().updateResume(id, (r) => ({ ...r, title: next }), { label: RENAMED_LABEL });
           }
           return true;
         },
@@ -390,7 +392,7 @@ export const useStudioStore = create<StudioState>()(
               [id]: recordEdit(
                 s.history[id] ?? EMPTY_HISTORY,
                 current,
-                { label: `Restored “${version.name}”` },
+                { label: restoredLabel(version.name) },
                 now,
               ),
             },

@@ -81,6 +81,7 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   "pt-BR": new Set([
+    "sendItems.places.links",
     "card.via",
     "hub.via",
     "row.quoted",
@@ -132,6 +133,8 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   fr: new Set([
+    "reasons.places.certifications",
+    "versions.suggested",
     "meta.portfolio",
     "nav.portfolio",
     "card.via",
@@ -212,6 +215,9 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   de: new Set([
+    "sendItems.places.links",
+    "reasons.outsidePlaces.other",
+    "versions.suggested",
     "meta.jobs",
     "meta.portfolio",
     "nav.jobs",
