@@ -26,6 +26,7 @@ export function Intro({
   label,
   titleScale,
   scrollTarget,
+  scrollLabel,
 }: {
   id: string;
   name: string;
@@ -34,6 +35,7 @@ export function Intro({
   label: string;
   titleScale: number;
   scrollTarget: string | null;
+  scrollLabel: string;
 }) {
   const { theme, mode, reduceMotion } = useReel();
   const sectionRef = useRef<HTMLElement>(null);
@@ -148,7 +150,7 @@ export function Intro({
                   data-hidden={scrollIndicatorHidden}
                   onClick={handleScrollClick}
                 >
-                  <span className="visually-hidden">Scroll to projects</span>
+                  <span className="visually-hidden">{scrollLabel}</span>
                 </a>
                 <a
                   href={scrollTarget}
@@ -157,7 +159,7 @@ export function Intro({
                   data-hidden={scrollIndicatorHidden}
                   onClick={handleScrollClick}
                 >
-                  <span className="visually-hidden">Scroll to projects</span>
+                  <span className="visually-hidden">{scrollLabel}</span>
                   <svg aria-hidden stroke="currentColor" width="43" height="15" viewBox="0 0 43 15">
                     <path d="M1 1l20.5 12L42 1" strokeWidth="2" fill="none" />
                   </svg>

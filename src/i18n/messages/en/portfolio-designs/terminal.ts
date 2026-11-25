@@ -1,0 +1,47 @@
+// Terminal: a shell's terse lines; the commands a visitor types stay as they are.
+export default {
+  user: "visitor",
+  banner: {
+    help: "Type '<link>{command}</link>' to see the list of available commands.",
+    summary: "Type '<link>{command}</link>' to display summary.",
+    resume: "Type '<link>{command}</link>' or click <link>here</link> for the resume.",
+  },
+  fetch: {
+    title: "<b>{command}</b>: summary display",
+    about: "ABOUT",
+    resume: "Resume",
+    contact: "CONTACT",
+    status: "STATUS",
+    now: "NOW",
+  },
+  about: {
+    hello: "Hi, I am {name}.",
+    more: "More about me:",
+    summary: "'<link>{command}</link>' - short summary.",
+    work: "'<link>{command}</link>' - where I have worked.",
+    projects: "'<link>{command}</link>' - things I have built.",
+  },
+  skills: "skills",
+  stack: "stack:",
+  minutes: "{minutes} min",
+  email: "email",
+  resume: "resume",
+  shell: {
+    welcome: "Welcome! Here are all the available commands:",
+    tab: "[tab]: trigger completion.",
+    clear: "[ctrl+l]/clear: clear terminal.",
+    opening: "Opening {label}...",
+    themeSet: "Theme set to {mode}.",
+    usage: "usage: theme [light|dark]",
+    notFound: "shell: command not found: {name}. Try 'help' to get started.",
+    prompt: "Type a command, or help",
+    jokes: {
+      vi: "woah, you still use 'vi'? just try 'vim'.",
+      vim: "'vim' is so outdated. how about 'nvim'?",
+      nvim: "'nvim'? too fancy. why not 'emacs'?",
+      emacs: "you know what? just use vscode.",
+      sudo: "Permission denied: with little power comes... no responsibility?",
+      cd: "unfortunately, i cannot afford more directories.",
+    },
+  },
+} as const;

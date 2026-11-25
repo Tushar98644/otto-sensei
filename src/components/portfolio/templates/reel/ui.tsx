@@ -120,12 +120,18 @@ export function Loader({
   className,
   center,
   reduceMotion,
+  label,
   ...rest
-}: { className?: string; center?: boolean; reduceMotion: boolean } & DataAttributes) {
+}: {
+  className?: string;
+  center?: boolean;
+  reduceMotion: boolean;
+  label: string;
+} & DataAttributes) {
   if (reduceMotion) {
     return (
       <span className={["text loader-text", className].filter(Boolean).join(" ")} {...rest}>
-        Loading...
+        {label}
       </span>
     );
   }

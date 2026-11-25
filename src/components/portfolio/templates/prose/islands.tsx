@@ -97,7 +97,7 @@ export function ArtPlum() {
   );
 }
 
-export function ToTop() {
+export function ToTop({ label }: { label: string }) {
   const button = useRef<HTMLButtonElement>(null);
   const [shown, setShown] = useState(false);
 
@@ -121,7 +121,7 @@ export function ToTop() {
     <button
       ref={button}
       type="button"
-      title="Scroll to top"
+      title={label}
       className="to-top"
       data-shown={shown}
       onClick={() => {
@@ -132,7 +132,7 @@ export function ToTop() {
       }}
     >
       <ArrowUp aria-hidden />
-      <span className="sr-only">Scroll to top</span>
+      <span className="sr-only">{label}</span>
     </button>
   );
 }

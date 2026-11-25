@@ -8,9 +8,20 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Fragment, type CSSProperties, type ReactNode } from "react";
+import { fmt } from "@/i18n/format";
 import type { ContentProject, ContentRole } from "@/lib/portfolio/content";
-import { allSkills, Marked, nameOf, OutLink, safeId, TemplateStyle } from "../parts";
-import type { PortfolioTemplateProps } from "../types";
+import { lowerFor } from "../../i18n";
+import {
+  allSkills,
+  designFormat,
+  designLocale,
+  Marked,
+  nameOf,
+  OutLink,
+  safeId,
+  TemplateStyle,
+} from "../parts";
+import type { DesignWords, PortfolioTemplateProps } from "../types";
 import type { WinId } from "./islands";
 import {
   AppMenu,
@@ -28,24 +39,12 @@ import { RETRO_CSS } from "./styles";
 
 // Ported from mirkoschubert/retro-os (MIT, see ./LICENSE.txt): a fictional retro workstation, no brand art.
 
-const TITLES: Record<WinId, string> = {
-  welcome: "Welcome.",
-  sysinfo: "System Info",
-  projects: "Project Browser",
-  work: "Work History",
-  archive: "Archive",
-  console: "Console",
-};
-
-const MENU: Partial<Record<WinId, string>> = {
-  projects: "Projects",
-  work: "Work",
-  archive: "Archive",
-  sysinfo: "Info",
-  console: "Console",
-};
+type Words = DesignWords["retro"];
 
 const DOCK = ["projects", "work", "archive", "sysinfo", "console"] as const;
+// Code on the desk's console and paths, read the same in every language.
+const WORKSPACE = "~/workspace";
+const PROMPT = "~/$";
 
 function isoDate(at: number): string {
   return at > Date.UTC(2000, 0, 1) ? new Date(at).toISOString().slice(0, 10) : "";
@@ -66,22 +65,22 @@ function ProjectRow({ project }: { project: ContentProject }) {
   );
 }
 
-function ProjectPane({ project }: { project: ContentProject }) {
+function ProjectPane({ project, t }: { project: ContentProject; t: Words }) {
   const links = [
     project.website ? { href: project.website.href, label: project.website.text } : null,
-    project.source ? { href: project.source.href, label: project.source.repo ?? "source" } : null,
+    project.source ? { href: project.source.href, label: project.source.repo ?? t.source } : null,
   ].filter((link) => link !== null);
   const kicker = [project.category, project.years].filter(Boolean).join(" · ");
   const lede = project.description || project.line;
   const facts: { term: string; body: ReactNode; className?: string }[] = [];
-  if (project.roles.length > 0) facts.push({ term: "Role", body: project.roles.join(", ") });
+  if (project.roles.length > 0) facts.push({ term: t.facts.role, body: project.roles.join(", ") });
   if (project.tech.length > 0)
-    facts.push({ term: "Stack", body: project.tech.join(" · "), className: "mono" });
-  if (project.outcome) facts.push({ term: "Result", body: project.outcome });
-  else if (project.stars) facts.push({ term: "Stars", body: `★ ${compact(project.stars)}` });
+    facts.push({ term: t.facts.stack, body: project.tech.join(" · "), className: "mono" });
+  if (project.outcome) facts.push({ term: t.facts.result, body: project.outcome });
+  else if (project.stars) facts.push({ term: t.facts.stars, body: `★ ${compact(project.stars)}` });
   if (links.length > 0)
     facts.push({
-      term: "Links",
+      term: t.facts.links,
       className: "links",
       body: links.map((link) => (
         <OutLink key={link.href} href={link.href}>
@@ -94,14 +93,14 @@ function ProjectPane({ project }: { project: ContentProject }) {
       {kicker || project.source ? (
         <p className="detail-kicker">
           {kicker}
-          {project.source ? <span className="os">open source</span> : null}
+          {project.source ? <span className="os">{t.openSource}</span> : null}
         </p>
       ) : null}
       <h3 className="h-display">{project.name}</h3>
       {lede ? <p className="lede">{lede}</p> : null}
       <div className="ph" aria-hidden>
         <span className="mark">{project.monogram}</span>
-        <span className="ph-cap">{safeId("p", project.name).slice(2)} · cover</span>
+        <span className="ph-cap">{fmt(t.cover, { name: safeId("p", project.name).slice(2) })}</span>
         {project.years ? <span className="ph-tag">{project.years}</span> : null}
       </div>
       {facts.length > 0 ? (
@@ -146,12 +145,12 @@ function ProjectCard({ project }: { project: ContentProject }) {
   );
 }
 
-function JobRow({ job }: { job: ContentRole }) {
+function JobRow({ job, now }: { job: ContentRole; now: string }) {
   return (
     <>
       <span className="pub-meta">
         {job.dates ? <span>{job.dates}</span> : null}
-        {job.current ? <span className="pub-badge">now</span> : null}
+        {job.current ? <span className="pub-badge">{now}</span> : null}
       </span>
       <span className="pub-name">{job.company || job.title}</span>
       {job.company && job.title ? <span className="pub-desc">{job.title}</span> : null}
@@ -159,7 +158,7 @@ function JobRow({ job }: { job: ContentRole }) {
   );
 }
 
-function JobPane({ job }: { job: ContentRole }) {
+function JobPane({ job, t }: { job: ContentRole; t: Words }) {
   return (
     <div className="detail">
       <h3 className="h-display">{job.company || job.title}</h3>
@@ -186,13 +185,13 @@ function JobPane({ job }: { job: ContentRole }) {
         <dl className="facts" style={{ marginTop: 18 }}>
           {job.tags.length > 0 ? (
             <>
-              <dt>Stack</dt>
+              <dt>{t.facts.stack}</dt>
               <dd className="mono">{job.tags.join(" · ")}</dd>
             </>
           ) : null}
           {job.website ? (
             <>
-              <dt>Site</dt>
+              <dt>{t.facts.site}</dt>
               <dd className="links">
                 <OutLink href={job.website.href}>↗ {job.website.text}</OutLink>
               </dd>
@@ -215,7 +214,7 @@ type File = {
 };
 type Folder = { id: string; label: string; icon: LucideIcon; files: File[] };
 
-function Files({ folder }: { folder: Folder }) {
+function Files({ folder, columns }: { folder: Folder; columns: Words["columns"] }) {
   const Icon = folder.icon;
   return (
     <div className="group">
@@ -229,15 +228,15 @@ function Files({ folder }: { folder: Folder }) {
         </colgroup>
         <thead>
           <tr>
-            <th scope="col">Name</th>
+            <th scope="col">{columns.name}</th>
             <th scope="col" className="kind">
-              Kind
+              {columns.kind}
             </th>
             <th scope="col" className="where">
-              Where
+              {columns.where}
             </th>
             <th scope="col" className="date">
-              Date
+              {columns.date}
             </th>
           </tr>
         </thead>
@@ -264,8 +263,18 @@ function Files({ folder }: { folder: Folder }) {
   );
 }
 
-export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function RetroTemplate({
+  view,
+  content,
+  words,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = words.retro;
+  const format = designFormat(view);
+  const TITLES = t.titles;
+  const MENU: Partial<Record<WinId, string>> = t.menu;
+  const name = nameOf(view, words.shared.untitled);
   const first = content.first || name.split(" ")[0] || name;
   const app = `${first.length <= 10 ? first : content.initials || "Retro"}OS`;
   const date = isoDate(view.updatedAt);
@@ -290,13 +299,13 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (content.writing.length > 0)
     folders.push({
       id: "writing",
-      label: "~/writing",
+      label: t.folders.writing,
       icon: FileText,
       files: content.writing.map((post) => ({
         id: post.id,
         name: post.title,
         href: post.href,
-        kind: post.minutes ? `${post.minutes} min` : "post",
+        kind: post.minutes ? fmt(t.kinds.minutes, { minutes: post.minutes }) : t.kinds.post,
         where: post.publisher,
         date: post.date,
       })),
@@ -304,13 +313,13 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (content.talks.length > 0)
     folders.push({
       id: "talks",
-      label: "~/talks",
+      label: t.folders.talks,
       icon: Mic,
       files: content.talks.map((talk) => ({
         id: talk.id,
         name: talk.title,
         href: talk.href ?? talk.recording ?? talk.slides,
-        kind: talk.recording ? "recording" : talk.slides ? "slides" : "talk",
+        kind: talk.recording ? t.kinds.recording : talk.slides ? t.kinds.slides : t.kinds.talk,
         where: [talk.event, talk.place].filter(Boolean).join(", "),
         date: talk.date,
       })),
@@ -318,14 +327,14 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (content.milestones.length > 0)
     folders.push({
       id: "milestones",
-      label: "~/milestones",
+      label: t.folders.milestones,
       icon: Trophy,
       files: content.milestones.map((item) => ({
         id: item.id,
         name: item.title,
         sub: item.detail && item.detail !== item.result ? item.detail : undefined,
         href: item.href,
-        kind: item.kind,
+        kind: t.kinds.milestones[item.kind],
         where: [item.result, item.place].filter(Boolean).join(", "),
         date: item.date,
       })),
@@ -333,14 +342,14 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (content.education.length > 0)
     folders.push({
       id: "education",
-      label: `~/${(view.titles.education || "education").toLowerCase()}`,
+      label: `~/${(view.titles.education || t.folders.education).toLowerCase()}`,
       icon: GraduationCap,
       files: content.education.map((school) => ({
         id: school.id,
         name: school.school || school.degree,
         sub: [school.school ? school.degree : "", ...school.lines].filter(Boolean).join(" · "),
         href: school.website?.href ?? null,
-        kind: "school",
+        kind: t.kinds.school,
         where: "",
         date: school.dates,
       })),
@@ -348,13 +357,13 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (view.certifications.length > 0)
     folders.push({
       id: "certifications",
-      label: `~/${(view.titles.certifications || "certifications").toLowerCase()}`,
+      label: `~/${(view.titles.certifications || t.folders.certifications).toLowerCase()}`,
       icon: BadgeCheck,
       files: view.certifications.map((cert) => ({
         id: cert.id,
         name: cert.name,
         href: null,
-        kind: "cert",
+        kind: t.kinds.cert,
         where: cert.issuer,
         date: cert.date,
       })),
@@ -370,7 +379,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
         name: item.title || item.subtitle,
         sub: item.detail || item.lines[0] || undefined,
         href: null,
-        kind: "file",
+        kind: t.kinds.file,
         where: item.title ? item.subtitle : "",
         date: item.date,
       })),
@@ -386,7 +395,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
         name: repo.name,
         sub: repo.description || undefined,
         href: repo.url,
-        kind: repo.language || "repo",
+        kind: repo.language || t.kinds.repo,
         where: repo.stars > 0 ? `★ ${compact(repo.stars)}` : "",
         date: repo.pushedAt.slice(0, 10),
       })),
@@ -406,30 +415,30 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
   const titles = Object.fromEntries(ids.map((id) => [id, TITLES[id]]));
 
   const filters = [
-    { id: "all", label: "All" },
+    { id: "all", label: t.filters.all },
     ...(projects.some((project) => project.featured) &&
     projects.some((project) => !project.featured)
-      ? [{ id: "featured", label: "Featured" }]
+      ? [{ id: "featured", label: t.filters.featured }]
       : []),
     ...(projects.some((project) => project.source) && projects.some((project) => !project.source)
-      ? [{ id: "open", label: "Open source" }]
+      ? [{ id: "open", label: t.filters.open }]
       : []),
   ];
+  const workLabel = view.titles.experience || t.work;
+  const projectsLabel = view.titles.projects || t.projects;
 
   const boot = [
-    projects.length > 0 ? `Mounting ~/projects (${projects.length})` : null,
-    content.experience.length > 0
-      ? `Reading work history (${content.experience.length} ${content.experience.length === 1 ? "role" : "roles"})`
-      : null,
-    fileCount > 0 ? `Indexing archive (${fileCount} files)` : null,
-    skills.length > 0 ? `Loading ${skills.length} skills` : null,
-    "Ready.",
+    projects.length > 0 ? format.plural(t.boot.projects, projects.length) : null,
+    content.experience.length > 0 ? format.plural(t.boot.work, content.experience.length) : null,
+    fileCount > 0 ? format.plural(t.boot.archive, fileCount) : null,
+    skills.length > 0 ? format.plural(t.boot.skills, skills.length) : null,
+    t.boot.ready,
   ].filter((line) => line !== null);
 
   const now = content.now;
   const lines: { kind: "sys" | "in" | "out" | "gap"; body: ReactNode }[] = [
-    { kind: "sys", body: `${app} msh · build ${date.replaceAll("-", ".") || "1.0"}` },
-    { kind: "sys", body: "Session restored. Links below open in a new window." },
+    { kind: "sys", body: fmt(t.console.build, { app, build: date.replaceAll("-", ".") || "1.0" }) },
+    { kind: "sys", body: t.console.restored },
     { kind: "gap", body: null },
     { kind: "in", body: "~/$ whoami" },
     {
@@ -461,7 +470,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
   }
   if (resumeHref) {
     lines.push({ kind: "in", body: "~/$ open resume.pdf" });
-    lines.push({ kind: "out", body: <a href={resumeHref}>Resume</a> });
+    lines.push({ kind: "out", body: <a href={resumeHref}>{t.resume}</a> });
   }
   if (now && now.items.length > 0) {
     lines.push({ kind: "in", body: "~/$ cat now.txt" });
@@ -476,7 +485,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
   return (
     <div className="pf-retro" data-era="workbench" id="pf-retro-top">
       <TemplateStyle css={RETRO_CSS} />
-      <DeskProvider ids={ids}>
+      <DeskProvider ids={ids} words={t.desk}>
         <header className="menubar">
           <span className="menubar-logo" aria-hidden>
             <span className="logo-mark" />
@@ -494,10 +503,10 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
             ) : null}
             {resumeHref ? (
               <a className="pill" href={resumeHref}>
-                Resume
+                {t.resume}
               </a>
             ) : null}
-            {timezone ? <Clock timezone={timezone} /> : null}
+            {timezone ? <Clock timezone={timezone} locale={designLocale(view)} /> : null}
           </div>
         </header>
 
@@ -506,7 +515,10 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
             <div className="col">
               <Win id="welcome" title={TITLES.welcome} plain>
                 <div className="welcome">
-                  <p className="kicker">~/workspace{date ? ` · ${date}` : ""}</p>
+                  <p className="kicker">
+                    {WORKSPACE}
+                    {date ? ` · ${date}` : ""}
+                  </p>
                   <h1 className="h-display">{name}</h1>
                   {roles.length > 0 ? (
                     <p className="role">{roles.slice(0, 3).join(" · ")}</p>
@@ -523,7 +535,9 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                   </div>
                   {content.availability?.text || content.email ? (
                     <p className="avail">
-                      {content.availability?.text ? `Status: ${content.availability.text}` : null}
+                      {content.availability?.text
+                        ? fmt(t.status, { status: content.availability.text })
+                        : null}
                       {content.availability?.text && content.email ? " · " : null}
                       {content.email ? (
                         <a href={`mailto:${content.email}`}>{content.email}</a>
@@ -536,7 +550,8 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
               {content.experience.length > 0 ? (
                 <Win id="work" title={TITLES.work} className="work">
                   <Picker
-                    label={view.titles.experience || "Work"}
+                    label={workLabel}
+                    searchLabel={fmt(t.search, { label: lowerFor(format, workLabel) })}
                     prefix="pf-retro-work"
                     rowClass="pub-row"
                     items={content.experience.map((job) => ({
@@ -545,10 +560,10 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                       tags: [],
                     }))}
                     rows={content.experience.map((job) => (
-                      <JobRow key={job.id} job={job} />
+                      <JobRow key={job.id} job={job} now={t.now} />
                     ))}
                     panes={content.experience.map((job) => (
-                      <JobPane key={job.id} job={job} />
+                      <JobPane key={job.id} job={job} t={t} />
                     ))}
                   />
                 </Win>
@@ -560,7 +575,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                   <div className="si-head">
                     <div className="portrait" aria-hidden>
                       <span className="initials">{content.initials || name.slice(0, 1)}</span>
-                      <span className="ph-cap">portrait</span>
+                      <span className="ph-cap">{t.sysinfo.portrait}</span>
                     </div>
                     <div className="identity">
                       <p className="si-name">{name}</p>
@@ -581,19 +596,19 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                         <dl className="meta-grid">
                           {content.availability ? (
                             <>
-                              <dt>Available</dt>
+                              <dt>{t.sysinfo.available}</dt>
                               <dd>{content.availability.text || content.availability.short}</dd>
                             </>
                           ) : null}
                           {content.location ? (
                             <>
-                              <dt>Location</dt>
+                              <dt>{t.sysinfo.location}</dt>
                               <dd>{content.location.label}</dd>
                             </>
                           ) : null}
                           {content.email ? (
                             <>
-                              <dt>Contact</dt>
+                              <dt>{t.sysinfo.contact}</dt>
                               <dd>
                                 <a href={`mailto:${content.email}`}>{content.email}</a>
                               </dd>
@@ -601,7 +616,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                           ) : null}
                           {socials.length > 0 ? (
                             <>
-                              <dt>Links</dt>
+                              <dt>{t.sysinfo.links}</dt>
                               <dd className="links">
                                 {socials.map((social) => (
                                   <OutLink key={social.href} href={social.href}>
@@ -618,7 +633,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                   {now || skills.length > 0 ? <div className="divider" /> : null}
                   {now ? (
                     <div className="si-section">
-                      <p className="si-label">Now</p>
+                      <p className="si-label">{t.sysinfo.now}</p>
                       <ul className="body now">
                         {now.items.map((item, index) => (
                           <li key={index}>
@@ -633,7 +648,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                     <div className="si-section">
                       {view.skills.map((group) => (
                         <div key={group.id} className="stack-row">
-                          <p className="si-label">{group.label || "Stack"}</p>
+                          <p className="si-label">{group.label || t.sysinfo.stack}</p>
                           <ul className="tags">
                             {group.items.map((item) => (
                               <li key={item} className="tag">
@@ -661,7 +676,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                   {quotes.length > 0 ? (
                     <>
                       <div className="divider" />
-                      <p className="si-label">Kind words</p>
+                      <p className="si-label">{t.sysinfo.kindWords}</p>
                       <div className="quotes">
                         {quotes.map((quote) => (
                           <blockquote key={quote.id} className="quote">
@@ -681,8 +696,9 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                   ) : null}
                   <div className="divider" />
                   <p className="si-foot">
-                    {app} 1.0 · {skills.length > 0 ? `${skills.length} skills · ` : ""}
-                    {date ? `build ${date.replaceAll("-", ".")}` : "build 1"}
+                    {app} 1.0 ·{" "}
+                    {skills.length > 0 ? `${format.plural(t.foot.skills, skills.length)} · ` : ""}
+                    {date ? fmt(t.foot.build, { build: date.replaceAll("-", ".") }) : t.foot.first}
                   </p>
                 </div>
               </Win>
@@ -691,7 +707,8 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
           {projects.length > 0 ? (
             <Win id="projects" title={TITLES.projects}>
               <Picker
-                label={view.titles.projects || "Projects"}
+                label={projectsLabel}
+                searchLabel={fmt(t.search, { label: lowerFor(format, projectsLabel) })}
                 prefix="pf-retro-projects"
                 rowClass="list-row"
                 search={projects.length > 4}
@@ -710,7 +727,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                   <ProjectRow key={project.id} project={project} />
                 ))}
                 panes={projects.map((project) => (
-                  <ProjectPane key={project.id} project={project} />
+                  <ProjectPane key={project.id} project={project} t={t} />
                 ))}
                 cards={
                   projects.length > 2
@@ -725,15 +742,13 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
             <Win id="archive" title={TITLES.archive}>
               <div className="toolbar">
                 <span>/</span>
-                <span style={{ color: "var(--text-1)" }}>~ /Archive</span>
+                <span style={{ color: "var(--text-1)" }}>{`~ /${t.archiveFolder}`}</span>
                 <span className="tb-grow" />
-                <span>
-                  {fileCount} {fileCount === 1 ? "item" : "items"}
-                </span>
+                <span>{format.plural(t.items, fileCount)}</span>
               </div>
               <div className="archive">
                 {folders.map((folder) => (
-                  <Files key={folder.id} folder={folder} />
+                  <Files key={folder.id} folder={folder} columns={t.columns} />
                 ))}
               </div>
             </Win>
@@ -751,7 +766,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
                 ),
               )}
               <p className="in" style={{ "--i": lines.length } as CSSProperties}>
-                ~/$
+                {PROMPT}
                 <span className="cursor" aria-hidden />
               </p>
             </Typed>
@@ -770,7 +785,7 @@ export function RetroTemplate({ view, content, footer, resumeHref }: PortfolioTe
           <div className="boot-mark" />
           <div>
             <p className="boot-title">{app}</p>
-            <p className="boot-version">{headline || "Portfolio"}</p>
+            <p className="boot-version">{headline || words.shared.untitled}</p>
           </div>
           <div className="boot-log">
             {boot.map((line, index) => (

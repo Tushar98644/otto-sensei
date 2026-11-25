@@ -25,7 +25,17 @@ export function NavScroll() {
 
 export type NavLink = { href: string; label: string };
 
-export function NavMenu({ links, resumeHref }: { links: NavLink[]; resumeHref: string | null }) {
+export function NavMenu({
+  links,
+  resumeHref,
+  menu,
+  resume,
+}: {
+  links: NavLink[];
+  resumeHref: string | null;
+  menu: string;
+  resume: string;
+}) {
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
 
@@ -48,7 +58,7 @@ export function NavMenu({ links, resumeHref }: { links: NavLink[]; resumeHref: s
         ref={button}
         type="button"
         className="ham"
-        aria-label="Menu"
+        aria-label={menu}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
@@ -69,7 +79,7 @@ export function NavMenu({ links, resumeHref }: { links: NavLink[]; resumeHref: s
           </ol>
           {resumeHref ? (
             <a className="btn resume-link" href={resumeHref} tabIndex={open ? 0 : -1}>
-              Resume
+              {resume}
             </a>
           ) : null}
         </nav>
@@ -88,7 +98,7 @@ export type NavyJob = {
   lines: string[];
 };
 
-export function JobTabs({ jobs }: { jobs: NavyJob[] }) {
+export function JobTabs({ jobs, label }: { jobs: NavyJob[]; label: string }) {
   const [active, setActive] = useState(0);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const list = useRef<HTMLDivElement>(null);
@@ -133,7 +143,7 @@ export function JobTabs({ jobs }: { jobs: NavyJob[] }) {
         ref={list}
         className="tablist"
         role="tablist"
-        aria-label="Job tabs"
+        aria-label={label}
         onKeyDown={onKeyDown}
         style={{ "--active": active } as CSSProperties}
       >
@@ -203,7 +213,7 @@ export function JobTabs({ jobs }: { jobs: NavyJob[] }) {
   );
 }
 
-export function ShowMore() {
+export function ShowMore({ more: moreLabel, less }: { more: string; less: string }) {
   const [more, setMore] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -218,7 +228,7 @@ export function ShowMore() {
       aria-expanded={more}
       onClick={() => setMore((value) => !value)}
     >
-      Show {more ? "Less" : "More"}
+      {more ? less : moreLabel}
     </button>
   );
 }

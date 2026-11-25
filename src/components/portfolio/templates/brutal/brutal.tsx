@@ -1,4 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import type { ContentProject, ContentRole } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
 import {
@@ -13,7 +15,7 @@ import {
   TemplateStyle,
   unbroken,
 } from "../parts";
-import type { PortfolioTemplateProps } from "../types";
+import type { DesignWords, PortfolioTemplateProps } from "../types";
 import { ToTop } from "./on-demand";
 import { BRUTAL_CSS } from "./styles";
 
@@ -37,6 +39,8 @@ const YELLOW = "#facc15";
 const EXTRA_COLORS = ["#c084fc", "#93c5fd", "#86efac", CORAL, ORANGE];
 const STACK_PILLS = 12;
 const TAGS = 4;
+
+type Words = DesignWords["brutal"];
 
 const tone = (color: string) => ({ "--color": color }) as CSSProperties;
 
@@ -88,7 +92,15 @@ function Card({
   );
 }
 
-function ProjectCard({ project, index }: { project: ContentProject; index: number }) {
+function ProjectCard({
+  project,
+  index,
+  t,
+}: {
+  project: ContentProject;
+  index: number;
+  t: Words["projects"];
+}) {
   const href = project.website?.href ?? project.source?.href ?? null;
   const text = project.description || project.line || project.lines[0] || "";
   return (
@@ -111,15 +123,15 @@ function ProjectCard({ project, index }: { project: ContentProject; index: numbe
         <div className="post-actions">
           {project.source && project.website ? (
             <Button href={project.source.href} size="sm">
-              Source
+              {t.source}
             </Button>
           ) : null}
-          {href ? <Button href={href}>{project.website ? "Visit" : "Source"}</Button> : null}
+          {href ? <Button href={href}>{project.website ? t.visit : t.source}</Button> : null}
         </div>
       ) : null}
       {project.tech.length > 0 ? (
         <div className="tags">
-          <p>tags:</p>
+          <p>{t.tags}</p>
           <ul>
             {project.tech.slice(0, TAGS).map((tech) => (
               <li key={tech}>
@@ -170,8 +182,15 @@ function JobCard({ job }: { job: ContentRole }) {
   );
 }
 
-export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function BrutalTemplate({
+  view,
+  content,
+  words,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = words.brutal;
+  const name = nameOf(view, words.shared.untitled);
   const first = content.first || name;
   const lead = [content.pitch, content.headline || view.headline].find(
     (text) => text && text !== content.about[0],
@@ -182,16 +201,16 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
   const socials = content.socials.filter((social) => social.kind !== "email");
   const hello = contactHref(content);
   const nav = [
-    { on: content.about.length > 0, href: `#${ID.about}`, label: "About" },
-    { on: projects.length > 0, href: `#${ID.projects}`, label: "Projects" },
-    { on: content.experience.length > 0, href: `#${ID.work}`, label: "Work" },
-    { on: hello !== null, href: `#${ID.contact}`, label: "Contact" },
+    { on: content.about.length > 0, href: `#${ID.about}`, label: t.nav.about },
+    { on: projects.length > 0, href: `#${ID.projects}`, label: t.nav.projects },
+    { on: content.experience.length > 0, href: `#${ID.work}`, label: t.nav.work },
+    { on: hello !== null, href: `#${ID.contact}`, label: t.nav.contact },
   ].filter((item) => item.on);
 
   const extras = [
     content.education.length > 0 && {
       key: "education",
-      title: view.titles.education || "Education",
+      title: view.titles.education || t.extras.education,
       rows: content.education.map((school) => ({
         id: school.id,
         main: school.school || school.degree,
@@ -201,7 +220,7 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
     },
     view.certifications.length > 0 && {
       key: "certs",
-      title: view.titles.certifications || "Certifications",
+      title: view.titles.certifications || t.extras.certifications,
       rows: view.certifications.map((cert) => ({
         id: cert.id,
         main: cert.name,
@@ -211,11 +230,15 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
     },
     content.writing.length > 0 && {
       key: "writing",
-      title: "Writing",
+      title: t.extras.writing,
       rows: content.writing.map((post) => ({
         id: post.id,
         main: post.title,
-        sub: [post.date, post.minutes ? `${post.minutes} min read` : "", post.publisher]
+        sub: [
+          post.date,
+          post.minutes ? fmt(t.extras.minutes, { minutes: post.minutes }) : "",
+          post.publisher,
+        ]
           .filter(Boolean)
           .join(" · "),
         href: post.href,
@@ -223,7 +246,7 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
     },
     content.talks.length > 0 && {
       key: "talks",
-      title: "Talks",
+      title: t.extras.talks,
       rows: content.talks.map((talk) => ({
         id: talk.id,
         main: talk.title,
@@ -233,7 +256,7 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
     },
     content.milestones.length > 0 && {
       key: "milestones",
-      title: "Milestones",
+      title: t.extras.milestones,
       rows: content.milestones.map((milestone) => ({
         id: milestone.id,
         main: milestone.title,
@@ -263,7 +286,7 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
           {name}
         </a>
         {nav.length > 0 || resumeHref || socials.length > 0 ? (
-          <nav aria-label="Sections">
+          <nav aria-label={t.nav.label}>
             <ul>
               {nav.map((item) => (
                 <li key={item.href} className="nav-text">
@@ -273,7 +296,7 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
               {resumeHref ? (
                 <li>
                   <a href={resumeHref} className="nav-resume">
-                    Resume
+                    {t.resume}
                   </a>
                 </li>
               ) : null}
@@ -303,21 +326,25 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
         ) : null}
 
         <div className="hero" data-cards={heroCards}>
-          <Card color={CORAL} className="hero-card" label="Introduction">
+          <Card color={CORAL} className="hero-card" label={t.hero.label}>
             <h1 className="hero-title">
-              Hi, I&rsquo;m <span className="white">{first}</span>
+              {rich(
+                t.hero.hello,
+                { b: (chunk) => <span className="white">{chunk}</span> },
+                { name: first },
+              )}
             </h1>
             {lead ? <p className="hero-lead">{lead}</p> : null}
             {hello || resumeHref ? (
               <div className="actions">
-                {hello ? <Button href={hello}>Get in touch</Button> : null}
-                {resumeHref ? <Button href={resumeHref}>Resume</Button> : null}
+                {hello ? <Button href={hello}>{t.hero.getInTouch}</Button> : null}
+                {resumeHref ? <Button href={resumeHref}>{t.resume}</Button> : null}
               </div>
             ) : null}
           </Card>
           {stack.length > 0 ? (
-            <Card color={TEAL} label="Stack">
-              <h2 className="serif-title">{first} works with</h2>
+            <Card color={TEAL} label={t.stack.label}>
+              <h2 className="serif-title">{fmt(t.stack.title, { name: first })}</h2>
               <ul className="pills">
                 {stack.map((skill) => (
                   <li key={skill}>
@@ -328,8 +355,8 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
             </Card>
           ) : null}
           {intro ? (
-            <Card color={ORANGE} id={ID.about} label="About">
-              <h2 className="serif-title">Who is {first}?</h2>
+            <Card color={ORANGE} id={ID.about} label={t.nav.about}>
+              <h2 className="serif-title">{fmt(t.about.title, { name: first })}</h2>
               <p className="body-text">
                 <Marked parts={intro} />
               </p>
@@ -352,8 +379,8 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
         </div>
 
         {moreAbout.length > 0 ? (
-          <Card color="#ffffff" className="wide prose-card" label="More about me">
-            <h2 className="serif-title">More about {first}</h2>
+          <Card color="#ffffff" className="wide prose-card" label={t.about.moreLabel}>
+            <h2 className="serif-title">{fmt(t.about.more, { name: first })}</h2>
             {moreAbout.map((parts, i) => (
               <p key={i} className="body-text">
                 <Marked parts={parts} />
@@ -363,24 +390,26 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
         ) : null}
 
         {projects.length > 0 ? (
-          <Card color={TEAL} className="wide" id={ID.projects} label="Projects">
+          <Card color={TEAL} className="wide" id={ID.projects} label={t.projects.title}>
             <div className="wide-head">
-              <h2 className="serif-title big">{view.titles.projects || "Projects"}</h2>
-              {content.github ? <Button href={content.github.href}>See GitHub</Button> : null}
+              <h2 className="serif-title big">{view.titles.projects || t.projects.title}</h2>
+              {content.github ? (
+                <Button href={content.github.href}>{t.projects.github}</Button>
+              ) : null}
             </div>
             <div className="posts" data-count={Math.min(projects.length, 3)}>
               {projects.map((project, i) => (
-                <ProjectCard key={project.id} project={project} index={i} />
+                <ProjectCard key={project.id} project={project} index={i} t={t.projects} />
               ))}
             </div>
           </Card>
         ) : null}
 
         {content.experience.length > 0 ? (
-          <Card color={YELLOW} className="wide" id={ID.work} label="Experience">
+          <Card color={YELLOW} className="wide" id={ID.work} label={t.experience.title}>
             <div className="wide-head">
-              <h2 className="serif-title big">{view.titles.experience || "Experience"}</h2>
-              {resumeHref ? <Button href={resumeHref}>Full resume</Button> : null}
+              <h2 className="serif-title big">{view.titles.experience || t.experience.title}</h2>
+              {resumeHref ? <Button href={resumeHref}>{t.experience.fullResume}</Button> : null}
             </div>
             <div className="jobs">
               {content.experience.map((job) => (
@@ -419,11 +448,11 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
         ) : null}
 
         {hello ? (
-          <Card color={ORANGE} className="wide contact" id={ID.contact} label="Contact">
-            <h2 className="serif-title big">Let&rsquo;s talk.</h2>
+          <Card color={ORANGE} className="wide contact" id={ID.contact} label={t.nav.contact}>
+            <h2 className="serif-title big">{t.contact.title}</h2>
             <p className="hero-lead small">
               {content.availability?.text ||
-                `The quickest way to reach ${first} is ${content.email ? "by email" : "below"}.`}
+                fmt(content.email ? t.contact.byEmail : t.contact.below, { name: first })}
             </p>
             <div className="actions">
               {content.email ? (
@@ -446,7 +475,7 @@ export function BrutalTemplate({ view, content, footer, resumeHref }: PortfolioT
         </p>
         {footer ? <div className="foot-credit">{footer}</div> : null}
       </footer>
-      <ToTop />
+      <ToTop label={t.backToTop} />
     </div>
   );
 }

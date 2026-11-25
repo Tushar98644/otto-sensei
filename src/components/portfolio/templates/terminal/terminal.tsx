@@ -1,4 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import type { ContentProject, ContentRole } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
 import { featuredFirst, nameOf, OutLink, TemplateStyle } from "../parts";
@@ -90,10 +92,12 @@ function Globe({ name }: { name: string }) {
 
 function Entry({
   host,
+  user,
   command,
   children,
 }: {
   host: string;
+  user: string;
   command: string;
   children: ReactNode;
 }) {
@@ -104,7 +108,7 @@ function Entry({
       style={{ "--n": Math.max(1, command.length) } as CSSProperties}
     >
       <p className="line">
-        <Ps1 host={host} />
+        <Ps1 host={host} user={user} />
         <span className="cmd">{command}</span>
       </p>
       <div className="out">{children}</div>
@@ -147,7 +151,7 @@ function Job({ job }: { job: ContentRole }) {
   );
 }
 
-function Project({ project }: { project: ContentProject }) {
+function Project({ project, stack }: { project: ContentProject; stack: string }) {
   const meta = [project.category, project.years].filter(Boolean).join("  ·  ");
   const text = project.description || project.line || project.lines[0] || "";
   return (
@@ -161,7 +165,7 @@ function Project({ project }: { project: ContentProject }) {
       {project.outcome ? <p className="indent green">{project.outcome}</p> : null}
       {project.tech.length > 0 ? (
         <p className="indent">
-          <span className="gray">stack: </span>
+          <span className="gray">{stack} </span>
           {project.tech.join(", ")}
         </p>
       ) : null}
@@ -190,8 +194,15 @@ function Project({ project }: { project: ContentProject }) {
   );
 }
 
-export function TerminalTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function TerminalTemplate({
+  view,
+  content,
+  words,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = words.terminal;
+  const name = nameOf(view, words.shared.untitled);
   const first = content.first || name;
   const host = hostOf(first);
   const headline = content.headline || view.headline;
@@ -201,25 +212,33 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
   const label = (text: string) =>
     text.padEnd(Math.max(...content.skills.map((g) => g.label.length), 6) + 2);
 
+  // A command inside a sentence: the visitor clicks it, or types it as written.
+  const run = (template: string, command: string, link?: (chunk: string) => ReactNode) =>
+    rich(
+      template,
+      {
+        link: (chunk, index) =>
+          index === 0 ? <Run command={command} /> : link ? link(chunk) : chunk,
+      },
+      { command },
+    );
+
   const outputs: Record<string, ReactNode> = {};
   outputs.banner = (
     <>
       {art ? <Banner text={art} /> : <p className="big-name">{name}</p>}
-      {"\n"}Type &apos;
-      <Run command="help" />
-      &apos; to see the list of available commands.
-      {"\n"}Type &apos;
-      <Run command="sumfetch" />
-      &apos; to display summary.
+      {"\n"}
+      {run(t.banner.help, "help")}
+      {"\n"}
+      {run(t.banner.summary, "sumfetch")}
       {resumeHref ? (
         <>
-          {"\n"}Type &apos;
-          <Run command="resume" />
-          &apos; or click{" "}
-          <a className="link" href={resumeHref}>
-            here
-          </a>{" "}
-          for the resume.
+          {"\n"}
+          {run(t.banner.resume, "resume", (chunk) => (
+            <a className="link" href={resumeHref}>
+              {chunk}
+            </a>
+          ))}
         </>
       ) : null}
     </>
@@ -235,10 +254,14 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
       <Globe name={first} />
       <div className="fetch-info">
         <p>
-          <span className="yellow">sumfetch</span>: summary display
+          {rich(
+            t.fetch.title,
+            { b: (chunk) => <span className="yellow">{chunk}</span> },
+            { command: "sumfetch" },
+          )}
         </p>
         <p className="gray">-----------</p>
-        <p className="head">ABOUT</p>
+        <p className="head">{t.fetch.about}</p>
         <p>{name}</p>
         {headline ? <p className="green">{headline}</p> : null}
         {content.location?.label || view.location ? (
@@ -247,14 +270,14 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
         {resumeHref ? (
           <p>
             <a className="link" href={resumeHref}>
-              Resume
+              {t.fetch.resume}
             </a>
           </p>
         ) : null}
         {content.email || socials.length > 0 ? (
           <>
             <p className="gray">-----------</p>
-            <p className="head">CONTACT</p>
+            <p className="head">{t.fetch.contact}</p>
             {content.email ? (
               <p>
                 <a className="link" href={`mailto:${content.email}`}>
@@ -275,7 +298,7 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
         {status || now.length > 0 ? (
           <>
             <p className="gray">-----------</p>
-            <p className="head">{status ? "STATUS" : "NOW"}</p>
+            <p className="head">{status ? t.fetch.status : t.fetch.now}</p>
             {status ? <p className="green">{status}</p> : null}
             {now.slice(0, 3).map((item) => (
               <p key={item.label}>
@@ -291,28 +314,28 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
 
   outputs.about = (
     <>
-      Hi, I am {name}.{headline ? ` ${headline}.` : ""}
+      {fmt(t.about.hello, { name })}
+      {headline ? ` ${headline}.` : ""}
       {content.about.map((paragraph, i) => (
         <span key={i}>
           {"\n\n"}
           {paragraph}
         </span>
       ))}
-      {"\n\n"}More about me:{"\n"}&apos;
-      <Run command="sumfetch" />
-      &apos; - short summary.
+      {"\n\n"}
+      {t.about.more}
+      {"\n"}
+      {run(t.about.summary, "sumfetch")}
       {content.experience.length > 0 ? (
         <>
-          {"\n"}&apos;
-          <Run command="work" />
-          &apos; - where I have worked.
+          {"\n"}
+          {run(t.about.work, "work")}
         </>
       ) : null}
       {projects.length > 0 ? (
         <>
-          {"\n"}&apos;
-          <Run command="projects" />
-          &apos; - things I have built.
+          {"\n"}
+          {run(t.about.projects, "projects")}
         </>
       ) : null}
     </>
@@ -321,11 +344,13 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
   if (content.experience.length > 0)
     outputs.work = content.experience.map((job) => <Job key={job.id} job={job} />);
   if (projects.length > 0)
-    outputs.projects = projects.map((project) => <Project key={project.id} project={project} />);
+    outputs.projects = projects.map((project) => (
+      <Project key={project.id} project={project} stack={t.stack} />
+    ));
   if (content.skills.length > 0)
     outputs.skills = content.skills.map((group) => (
       <p key={group.id}>
-        <span className="yellow">{label(group.label || "skills")}</span>
+        <span className="yellow">{label(group.label || t.skills)}</span>
         {group.items.map((item) => item.name).join(", ")}
       </p>
     ));
@@ -365,7 +390,9 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
         <OutLink href={post.href} className="link">
           {post.title}
         </OutLink>
-        {post.minutes ? <span className="gray">{`  (${post.minutes} min)`}</span> : null}
+        {post.minutes ? (
+          <span className="gray">{`  (${fmt(t.minutes, { minutes: post.minutes })})`}</span>
+        ) : null}
       </p>
     ));
   if (content.talks.length > 0)
@@ -395,7 +422,7 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
       <>
         {content.email ? (
           <p>
-            <span className="yellow">{"email".padEnd(10)}</span>
+            <span className="yellow">{t.email.padEnd(10)}</span>
             <a className="link" href={`mailto:${content.email}`}>
               {content.email}
             </a>
@@ -413,7 +440,7 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
     );
 
   const links: ShellLinks = {};
-  if (resumeHref) links.resume = { href: resumeHref, label: "resume" };
+  if (resumeHref) links.resume = { href: resumeHref, label: t.resume };
   if (content.email)
     links.email = { href: `mailto:${content.email}`, label: `mailto:${content.email}` };
   for (const social of socials) {
@@ -448,17 +475,26 @@ export function TerminalTemplate({ view, content, footer, resumeHref }: Portfoli
         <div className="transcript">
           <div className="entry first">
             <p className="line">
-              <Ps1 host={host} />
+              <Ps1 host={host} user={t.user} />
             </p>
             <div className="out">{outputs.banner}</div>
           </div>
           {shown.map((key) => (
-            <Entry key={key} host={host} command={key}>
+            <Entry key={key} host={host} user={t.user} command={key}>
               {outputs[key]}
             </Entry>
           ))}
         </div>
-        <Shell host={host} outputs={outputs} links={links} />
+        <Shell
+          host={host}
+          outputs={outputs}
+          links={links}
+          words={{
+            ...t.shell,
+            user: t.user,
+            hint: fmt(t.banner.summary.replace(/<\/?link>/g, ""), { command: "sumfetch" }),
+          }}
+        />
         {footer ? (
           <p className="foot">
             <span className="gray"># </span>

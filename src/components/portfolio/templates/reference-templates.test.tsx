@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
+import { englishMessages } from "@/i18n/messages";
 import { contentView } from "@/lib/portfolio/content-view";
 import { emptyContent, type PortfolioContent, type ProjectEntry } from "@/lib/portfolio/content";
 import { jordanContent, jordanGitHub, jordanV2Resume } from "@/lib/portfolio/fixtures/jordan";
@@ -12,6 +13,8 @@ import { portfolioView, type ViewSettings } from "@/lib/portfolio/view";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { loadTemplate } from "./lazy";
 import { PORTFOLIO_TEMPLATES } from "./registry";
+
+const words = englishMessages().portfolioDesigns;
 
 // Each design's islands come in their own chunk; loading the designs brings them in.
 beforeAll(() => Promise.all(PORTFOLIO_TEMPLATE_IDS.map(loadTemplate)));
@@ -29,7 +32,7 @@ function draw(id: PortfolioTemplateId, resume: Resume, settings = OPEN, full = t
   });
   const { Component } = PORTFOLIO_TEMPLATES[id];
   return renderToStaticMarkup(
-    <Component view={view} content={content} footer={<span>Made with Otto</span>} />,
+    <Component view={view} content={content} words={words} footer={<span>Made with Otto</span>} />,
   );
 }
 
@@ -39,7 +42,7 @@ function drawEdited(id: PortfolioTemplateId, edit: (project: ProjectEntry) => Pr
   const edited: PortfolioContent = { ...fixture, projects: fixture.projects.map(edit) };
   const content = contentView({ view, content: edited, github: jordanGitHub(), now: NOW });
   const { Component } = PORTFOLIO_TEMPLATES[id];
-  return renderToStaticMarkup(<Component view={view} content={content} />);
+  return renderToStaticMarkup(<Component view={view} content={content} words={words} />);
 }
 
 const SHOWS: Record<PortfolioTemplateId, string[]> = {
@@ -382,9 +385,9 @@ describe("rebuild details", () => {
       now: NOW,
     });
     const { Component } = PORTFOLIO_TEMPLATES.cv;
-    expect(renderToStaticMarkup(<Component view={view} content={content} />)).not.toContain(
-      "--:--",
-    );
+    expect(
+      renderToStaticMarkup(<Component view={view} content={content} words={words} />),
+    ).not.toContain("--:--");
   });
 
   it("Prose files projects under their kind and puts monogram chips in the intro", () => {

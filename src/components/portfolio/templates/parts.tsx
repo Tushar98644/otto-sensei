@@ -1,4 +1,7 @@
 import type { ReactNode } from "react";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/config";
+import { formatFor, type Format } from "@/i18n/intl";
+import { localeOfLang } from "@/lib/i18n/languages";
 import type { PortfolioContentView, TextPart } from "@/lib/portfolio/content";
 import type { PortfolioView } from "@/lib/portfolio/view";
 
@@ -107,6 +110,15 @@ export function unbroken(date: string): string {
   return date.replace(/ /g, "\u00a0");
 }
 
-export function nameOf(view: PortfolioView): string {
-  return view.name || "Portfolio";
+export function nameOf(view: PortfolioView, untitled: string): string {
+  return view.name || untitled;
+}
+
+// The portfolio's language (its resume's): a design's words, dates and numbers follow it.
+export function designLocale(view: PortfolioView): Locale {
+  return view.lang ? localeOfLang(view.lang) : DEFAULT_LOCALE;
+}
+
+export function designFormat(view: PortfolioView): Format {
+  return formatFor(designLocale(view));
 }

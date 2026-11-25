@@ -1,6 +1,8 @@
 import { Fragment, type ReactNode } from "react";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import type { ContentLink } from "@/lib/portfolio/content";
-import { Marked, nameOf, OutLink, TemplateStyle } from "../parts";
+import { designFormat, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import type { NoteMeta } from "./islands";
 import { NotesApp } from "./on-demand";
@@ -42,22 +44,38 @@ function plain(...parts: (string | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
-export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function FolioTemplate({
+  view,
+  content,
+  words,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = words.folio;
+  const format = designFormat(view);
+  const name = nameOf(view, words.shared.untitled);
   const place = content.location?.label || view.location;
   const headline = view.headline || content.headline;
   const dated = view.updatedAt > Date.UTC(2000, 0, 1);
   const stamp = dated
-    ? new Date(view.updatedAt).toLocaleDateString("en-US", {
+    ? format.date(view.updatedAt, {
         year: "numeric",
         month: "long",
         day: "numeric",
         timeZone: "UTC",
       })
     : "";
-  const short = dated
-    ? new Date(view.updatedAt).toLocaleDateString("en-US", { timeZone: "UTC" })
-    : "";
+  const short = dated ? format.date(view.updatedAt, { timeZone: "UTC" }) : "";
+  const roleAt = (title: string, company: string, link: ContentLink | null) =>
+    title ? (
+      rich(
+        t.about.roleAt,
+        { link: (chunk) => <Link link={link}>{chunk}</Link> },
+        { title, company },
+      )
+    ) : (
+      <Link link={link}>{company}</Link>
+    );
   const lower = (title: string, fallback: string) => (title || fallback).toLowerCase();
 
   const current = content.experience.filter((role) => role.current);
@@ -68,14 +86,14 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
   notes.push({
     id: "about-me",
     emoji: "📍",
-    title: "about me",
+    title: t.notes.aboutMe,
     pinned: true,
-    preview: plain(`my name is ${name}`, aboutText),
+    preview: plain(fmt(t.about.myName.replace(/<\/?b>/g, ""), { name }), aboutText),
     text: plain(name, headline, aboutText, place),
     body: (
       <>
         <p>
-          my name is <strong>{name}</strong>
+          {rich(t.about.myName, {}, { name })}
           {current.length === 0 && headline ? <>, {headline}</> : null}
         </p>
         {content.aboutParts.map((parts, index) => (
@@ -84,36 +102,33 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
           </p>
         ))}
         {current.length > 0 || place || content.availability ? (
-          <Section title="currently">
+          <Section title={t.about.currently}>
             <Bullets
               items={[
-                ...current.map((role) => (
-                  <>
-                    {role.title ? `${role.title} at ` : null}
-                    <Link link={role.website}>{role.company}</Link>
-                  </>
-                )),
-                place ? <>based in {place}</> : null,
+                ...current.map((role) => <>{roleAt(role.title, role.company, role.website)}</>),
+                place ? <>{fmt(t.about.basedIn, { place })}</> : null,
                 content.availability ? <>{content.availability.text.toLowerCase()}</> : null,
               ]}
             />
           </Section>
         ) : null}
         {past.length > 0 || content.education.length > 0 ? (
-          <Section title="previously">
+          <Section title={t.about.previously}>
             <Bullets
               items={[
                 ...past.map((role) => (
                   <>
-                    {role.title ? `${role.title} at ` : null}
-                    <Link link={role.website}>{role.company || role.title}</Link>
+                    {roleAt(role.title, role.company || role.title, role.website)}
                     {role.start ? ` (${role.start.replace(/\D*(\d{4}).*/, "$1")})` : null}
                   </>
                 )),
                 ...content.education.map((school) => (
                   <>
-                    studied {school.degree ? `${school.degree} at ` : null}
-                    <Link link={school.website}>{school.school}</Link>
+                    {rich(
+                      school.degree ? t.about.studiedAt : t.about.studied,
+                      { link: (chunk) => <Link link={school.website}>{chunk}</Link> },
+                      { degree: school.degree, school: school.school },
+                    )}
                   </>
                 )),
               ]}
@@ -129,11 +144,11 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "quick-links",
       emoji: "📎",
-      title: "quick links",
+      title: t.notes.quickLinks,
       pinned: true,
       preview: plain(
-        content.email ? `email - ${content.email}` : null,
-        resumeHref ? "resume" : null,
+        content.email ? `${t.links.email} - ${content.email}` : null,
+        resumeHref ? t.links.resume : null,
         ...socials.map((social) => `${social.label.toLowerCase()} - ${social.handle}`),
       ),
       text: plain(content.email, ...socials.map((social) => `${social.label} ${social.handle}`)),
@@ -142,17 +157,18 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
           items={[
             content.email ? (
               <>
-                email - <a href={`mailto:${content.email}`}>{content.email}</a>
+                {t.links.email} - <a href={`mailto:${content.email}`}>{content.email}</a>
               </>
             ) : null,
             content.phone ? (
               <>
-                phone - <a href={`tel:${content.phone.replace(/[^\d+]/g, "")}`}>{content.phone}</a>
+                {t.links.phone} -{" "}
+                <a href={`tel:${content.phone.replace(/[^\d+]/g, "")}`}>{content.phone}</a>
               </>
             ) : null,
             resumeHref ? (
               <>
-                resume - <a href={resumeHref}>Resume</a>
+                {t.links.resume} - <a href={resumeHref}>{t.links.resumeLink}</a>
               </>
             ) : null,
             ...socials.map((social) => (
@@ -170,7 +186,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "experience",
       emoji: "💼",
-      title: lower(view.titles.experience, "experience"),
+      title: lower(view.titles.experience, t.notes.experience),
       pinned: false,
       preview: plain(
         ...content.experience.map((role) => `${role.company || role.title} - ${role.title}`),
@@ -189,7 +205,9 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
           </p>
           {role.summary ? <p>{role.summary}</p> : null}
           <Bullets items={role.lines} />
-          {role.tags.length > 0 ? <p className="meta">stack: {role.tags.join(", ")}</p> : null}
+          {role.tags.length > 0 ? (
+            <p className="meta">{fmt(t.stack, { list: role.tags.join(", ") })}</p>
+          ) : null}
         </Section>
       )),
     });
@@ -198,7 +216,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "projects",
       emoji: "🛠️",
-      title: lower(view.titles.projects, "projects"),
+      title: lower(view.titles.projects, t.notes.projects),
       pinned: false,
       preview: plain(...content.projects.map((project) => project.name)),
       text: plain(
@@ -230,7 +248,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
               ]}
             />
             {project.tech.length > 0 ? (
-              <p className="meta">stack: {project.tech.join(", ")}</p>
+              <p className="meta">{fmt(t.stack, { list: project.tech.join(", ") })}</p>
             ) : null}
           </Section>
         );
@@ -242,7 +260,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "skills",
       emoji: "🧰",
-      title: lower(view.titles.skills, "skills"),
+      title: lower(view.titles.skills, t.notes.skills),
       pinned: false,
       preview: plain(...skills.flatMap((skill) => skill.items).slice(0, 12)),
       text: plain(...skills.map((skill) => plain(skill.label, ...skill.items))),
@@ -263,7 +281,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "education",
       emoji: "🎓",
-      title: lower(view.titles.education, "education"),
+      title: lower(view.titles.education, t.notes.education),
       pinned: false,
       preview: plain(...content.education.map((school) => `${school.school} ${school.degree}`)),
       text: plain(
@@ -283,7 +301,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "writing",
       emoji: "✍️",
-      title: "writing",
+      title: t.notes.writing,
       pinned: false,
       preview: plain(...content.writing.map((post) => post.title)),
       text: plain(...content.writing.map((post) => plain(post.title, post.publisher))),
@@ -292,7 +310,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
           items={content.writing.map((post) => (
             <>
               {post.href ? <OutLink href={post.href}>{post.title}</OutLink> : post.title}
-              {[post.date, post.minutes ? `${post.minutes} min read` : ""]
+              {[post.date, post.minutes ? fmt(t.minutes, { minutes: post.minutes }) : ""]
                 .filter(Boolean)
                 .map((part) => ` - ${part}`)
                 .join("")}
@@ -306,7 +324,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "talks",
       emoji: "🎤",
-      title: "talks",
+      title: t.notes.talks,
       pinned: false,
       preview: plain(...content.talks.map((talk) => talk.title)),
       text: plain(...content.talks.map((talk) => plain(talk.title, talk.event, talk.place))),
@@ -345,7 +363,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "milestones",
       emoji: "🏆",
-      title: content.milestones.length > 0 ? "milestones" : "certifications",
+      title: content.milestones.length > 0 ? t.notes.milestones : t.notes.certifications,
       pinned: false,
       preview: plain(...honours.map((item) => item.title)),
       text: plain(...honours.map((item) => plain(item.title, item.rest))),
@@ -365,7 +383,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "now",
       emoji: "🌱",
-      title: "now",
+      title: t.notes.now,
       pinned: false,
       preview: plain(...content.now.items.map((item) => `${item.label}: ${item.text}`)),
       text: plain(...content.now.items.map((item) => plain(item.label, item.text))),
@@ -385,7 +403,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "kind-words",
       emoji: "💬",
-      title: "kind words",
+      title: t.notes.kindWords,
       pinned: false,
       preview: plain(...content.testimonials.map((quote) => `"${quote.quote}"`)),
       text: plain(...content.testimonials.map((quote) => plain(quote.quote, quote.name))),
@@ -404,7 +422,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "reading-list",
       emoji: "📚",
-      title: "reading list",
+      title: t.notes.readingList,
       pinned: false,
       preview: plain(...content.shelf.map((item) => item.title)),
       text: plain(...content.shelf.map((item) => plain(item.title, item.by))),
@@ -413,7 +431,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
           items={content.shelf.map((item) => (
             <>
               {item.href ? <OutLink href={item.href}>{item.title}</OutLink> : item.title}
-              {item.by ? ` by ${item.by}` : null}
+              {item.by ? ` ${fmt(t.by, { by: item.by })}` : null}
             </>
           ))}
         />
@@ -424,7 +442,7 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
     notes.push({
       id: "off-the-clock",
       emoji: "🎧",
-      title: "off the clock",
+      title: t.notes.offTheClock,
       pinned: false,
       preview: plain(...content.interests.map((item) => item.title)),
       text: plain(...content.interests.map((item) => plain(item.title, item.line))),
@@ -484,6 +502,8 @@ export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTe
         updatedAt={dated ? view.updatedAt : null}
         stamp={stamp}
         short={short}
+        locale={format.locale}
+        words={t.app}
         footer={footer}
       />
     </div>

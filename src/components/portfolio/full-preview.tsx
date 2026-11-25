@@ -59,9 +59,9 @@ export function FullPortfolioPreview({
 
   // The designs the arrows lead to are fetched now, so stepping shows no empty page.
   useEffect(() => {
-    if (before) preloadTemplate(before);
-    if (after) preloadTemplate(after);
-  }, [before, after]);
+    if (before) preloadTemplate(before, data.view.lang);
+    if (after) preloadTemplate(after, data.view.lang);
+  }, [before, after, data.view.lang]);
 
   useLayoutEffect(() => {
     const dialog = dialogRef.current;

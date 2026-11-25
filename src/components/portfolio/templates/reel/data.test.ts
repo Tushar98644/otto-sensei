@@ -43,20 +43,25 @@ describe("deviceOf", () => {
   });
 });
 
+const LABELS = { project: "View project", website: "View website", source: "View source" };
+
 describe("projectTarget", () => {
   it("opens the project's own page when there's more to show, else its site or source", () => {
-    expect(projectTarget(project({ id: "gh:o/r", details: ["More."] }))).toEqual({
+    expect(projectTarget(project({ id: "gh:o/r", details: ["More."] }), LABELS)).toEqual({
       href: "#pf-reel-p-gh-o-r",
       label: "View project",
     });
     const website = { href: "https://tally.dev/", text: "tally.dev" };
-    expect(projectTarget(project({ website }))).toEqual({
+    expect(projectTarget(project({ website }), LABELS)).toEqual({
       href: website.href,
       label: "View website",
     });
     const source = { href: "https://github.com/o/r", text: "github.com/o/r", repo: "o/r" };
-    expect(projectTarget(project({ source }))).toEqual({ href: source.href, label: "View source" });
-    expect(projectTarget(project())).toBeNull();
+    expect(projectTarget(project({ source }), LABELS)).toEqual({
+      href: source.href,
+      label: "View source",
+    });
+    expect(projectTarget(project(), LABELS)).toBeNull();
   });
 });
 
@@ -64,11 +69,15 @@ describe("intro words", () => {
   it("numbers like the original and labels the title for screen readers", () => {
     expect(indexText(1)).toBe("01");
     expect(indexText(12)).toBe("12");
-    expect(introLabel("Designer", ["Developer", "Prototyper", "Animator"])).toBe(
+    const and = "{list}, and {last}";
+    expect(introLabel("Designer", ["Developer", "Prototyper", "Animator"], and)).toBe(
       "Designer + Developer, Prototyper, and Animator",
     );
-    expect(introLabel("Designer", ["Developer"])).toBe("Designer + Developer");
-    expect(introLabel("Designer", [])).toBe("Designer");
+    expect(introLabel("Designer", ["Developer"], and)).toBe("Designer + Developer");
+    expect(introLabel("Designer", [], and)).toBe("Designer");
+    expect(introLabel("Diseñador", ["Desarrollador", "Animador"], "{list} y {last}")).toBe(
+      "Diseñador + Desarrollador y Animador",
+    );
   });
 
   it("keeps the original's word lengths at full size and steps longer ones down", () => {

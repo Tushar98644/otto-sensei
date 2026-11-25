@@ -36,6 +36,7 @@ export function ProjectSummary({
   device,
   drawn,
   alt,
+  loading,
 }: {
   id: string;
   index: number;
@@ -46,6 +47,7 @@ export function ProjectSummary({
   device: Device;
   drawn: DrawnContent;
   alt: string;
+  loading: string;
 }) {
   const sectionRef = useRef<HTMLElement>(null);
   const sectionVisible = useSectionVisible(sectionRef);
@@ -79,7 +81,14 @@ export function ProjectSummary({
   );
 
   const renderPreview = (visible: boolean) => (
-    <Preview device={device} visible={visible} drawn={drawn} alt={alt} idBase={id} />
+    <Preview
+      device={device}
+      visible={visible}
+      drawn={drawn}
+      alt={alt}
+      idBase={id}
+      loading={loading}
+    />
   );
 
   return (
@@ -121,12 +130,14 @@ function Preview({
   drawn,
   alt,
   idBase,
+  loading,
 }: {
   device: Device;
   visible: boolean;
   drawn: DrawnContent;
   alt: string;
   idBase: string;
+  loading: string;
 }) {
   const { theme, mode, reduceMotion } = useReel();
   const [modelLoaded, setModelLoaded] = useState(false);
@@ -198,6 +209,7 @@ function Preview({
             className="summary-loader"
             data-visible={visible}
             reduceMotion={reduceMotion}
+            label={loading}
           />
         ) : null}
         {live && visible && models ? (

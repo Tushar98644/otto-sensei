@@ -1,7 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
+import { fmt, selectPlural } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import type { ContentProject } from "@/lib/portfolio/content";
-import { featuredFirst, nameOf, OutLink, TemplateStyle } from "../parts";
-import type { PortfolioTemplateProps } from "../types";
+import { designFormat, featuredFirst, nameOf, OutLink, TemplateStyle } from "../parts";
+import type { DesignWords, PortfolioTemplateProps } from "../types";
 import { Stage } from "./on-demand";
 import { STARRING_CSS } from "./styles";
 
@@ -23,6 +25,8 @@ const ROMAN = [
   "XIII",
   "XIV",
 ];
+
+type Words = DesignWords["starring"];
 
 function Star() {
   return (
@@ -48,14 +52,17 @@ function longest(text: string): number {
   return Math.max(4, ...text.split(/\s+/).map((word) => word.length));
 }
 
-function visibility(project: ContentProject): { label: string; solid: boolean; private: boolean } {
-  if (project.source) return { label: "Open source", solid: true, private: false };
-  if (project.website) return { label: "Live", solid: false, private: false };
-  return { label: "Private", solid: false, private: true };
+function visibility(
+  project: ContentProject,
+  t: Words,
+): { label: string; solid: boolean; private: boolean } {
+  if (project.source) return { label: t.visibility.open, solid: true, private: false };
+  if (project.website) return { label: t.visibility.live, solid: false, private: false };
+  return { label: t.visibility.private, solid: false, private: true };
 }
 
-function Feature({ project, index }: { project: ContentProject; index: number }) {
-  const vis = visibility(project);
+function Feature({ project, index, t }: { project: ContentProject; index: number; t: Words }) {
+  const vis = visibility(project, t);
   const impact = project.outcome
     .split(/\s+·\s+/)
     .map((part) => part.trim())
@@ -100,12 +107,12 @@ function Feature({ project, index }: { project: ContentProject; index: number })
         <p className="project-links mono">
           {project.website ? (
             <OutLink href={project.website.href} className="project-link">
-              See it live ↗
+              {t.seeLive}
             </OutLink>
           ) : null}
           {project.source ? (
             <OutLink href={project.source.href} className="project-link">
-              View source ↗
+              {t.viewSource}
             </OutLink>
           ) : null}
         </p>
@@ -140,8 +147,18 @@ function Rows({ rows }: { rows: Row[] }) {
   );
 }
 
-export function StarringTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function StarringTemplate({
+  view,
+  content,
+  words,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = words.starring;
+  const format = designFormat(view);
+  const plural = (forms: Parameters<typeof selectPlural>[1], count: number) =>
+    selectPlural(format.locale, forms, count);
+  const name = nameOf(view, words.shared.untitled);
   const [first = name, ...rest] = name.split(/\s+/);
   const headline = view.headline || content.headline;
   const aboutShown = !view.hidden.includes("about");
@@ -176,14 +193,14 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   const press: Row[] = [
     ...content.talks.map((talk) => ({
       id: talk.id,
-      tag: "Talk",
+      tag: t.talk,
       title: talk.title,
       href: talk.href ?? talk.recording ?? talk.slides,
       meta: [talk.event, talk.date].filter(Boolean).join(" · "),
     })),
     ...content.writing.map((post) => ({
       id: post.id,
-      tag: "Article",
+      tag: t.article,
       title: post.title,
       href: post.href,
       meta: [post.publisher, post.date].filter(Boolean).join(" · "),
@@ -204,7 +221,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   if (stats.length > 0 || github)
     acts.push({
       key: "numbers",
-      title: "By the numbers",
+      title: t.acts.numbers,
       body: (
         <>
           {stats.length === 1 ? (
@@ -227,10 +244,15 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
           ) : null}
           {github ? (
             <p className="iceberg reveal">
-              <span className="display accent">{compact(github.totalStars)}</span>
-              stars across {github.publicRepos} public{" "}
-              {github.publicRepos === 1 ? "repository" : "repositories"}, and{" "}
-              {compact(github.followers)} people following along.
+              {rich(
+                plural(t.iceberg, github.publicRepos),
+                { b: (chunk) => <span className="display accent">{chunk}</span> },
+                {
+                  stars: compact(github.totalStars),
+                  count: github.publicRepos,
+                  followers: compact(github.followers),
+                },
+              )}
             </p>
           ) : null}
         </>
@@ -247,7 +269,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
     if (studios.length > 0)
       acts.push({
         key: "studios",
-        title: "Studios I’ve worked with",
+        title: t.acts.studios,
         className: "act-studios",
         body: (
           <>
@@ -273,10 +295,11 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
                   </span>
                   <span className="muted">{job.type || job.location}</span>
                   {job.current ? (
-                    <span className="tag solid">Now</span>
+                    <span className="tag solid">{t.studio.now}</span>
                   ) : (
                     <span className="tag">
-                      {[yearOf(job.start), yearOf(job.end)].filter(Boolean).join("–") || "Past"}
+                      {[yearOf(job.start), yearOf(job.end)].filter(Boolean).join("–") ||
+                        t.studio.past}
                     </span>
                   )}
                 </li>
@@ -287,13 +310,13 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
       });
     acts.push({
       key: "road",
-      title: "The road",
+      title: t.acts.road,
       body: (
         <>
           <ol>
             {content.experience.map((job) => {
               const from = yearOf(job.start);
-              const to = job.current ? "now" : yearOf(job.end);
+              const to = job.current ? t.until : yearOf(job.end);
               return (
                 <li key={job.id} className="tl-item reveal">
                   <div className="tl-year display">
@@ -340,21 +363,21 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
       title:
         view.titles.projects && view.titles.projects !== "Projects"
           ? view.titles.projects
-          : "Featured work",
+          : t.acts.work,
       body: (
         <>
           <div className="projects">
             {leads.map((project, index) => (
-              <Feature key={project.id} project={project} index={index} />
+              <Feature key={project.id} project={project} index={index} t={t} />
             ))}
           </div>
           {others.length > 0 ? (
             <div className="more-work">
-              <p className="mono accent">Also playing</p>
+              <p className="mono accent">{t.alsoPlaying}</p>
               <Rows
                 rows={others.map((project) => ({
                   id: project.id,
-                  tag: project.category.split(/\s+·\s+/)[0] || visibility(project).label,
+                  tag: project.category.split(/\s+·\s+/)[0] || visibility(project, t).label,
                   title: project.name,
                   note: project.line || project.description || undefined,
                   href: project.website?.href ?? project.source?.href ?? null,
@@ -369,10 +392,10 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   if (repos.length > 0 && github)
     acts.push({
       key: "catalogue",
-      title: "The back catalogue",
+      title: t.acts.catalogue,
       body: (
         <>
-          <p className="oss-lede muted reveal">More of the code, out in the open.</p>
+          <p className="oss-lede muted reveal">{t.openCode}</p>
           <ul className="oss">
             {repos.map((repo) => (
               <li key={repo.fullName} className="reveal">
@@ -398,7 +421,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   if (content.milestones.length > 0 || view.certifications.length > 0)
     acts.push({
       key: "accolades",
-      title: "Accolades",
+      title: t.acts.accolades,
       body: (
         <>
           {content.milestones.length > 0 ? (
@@ -423,7 +446,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
           ) : null}
           {view.certifications.length > 0 ? (
             <div className="certs">
-              <p className="mono accent">{view.titles.certifications || "Certified"}</p>
+              <p className="mono accent">{view.titles.certifications || t.certified}</p>
               <ul>
                 {view.certifications.map((cert) => (
                   <li key={cert.id} className="reveal">
@@ -442,7 +465,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   if (press.length > 0)
     acts.push({
       key: "press",
-      title: "Press tour",
+      title: t.acts.press,
       body: (
         <>
           <Rows rows={press} />
@@ -452,21 +475,21 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   if (github && (github.activity.events90d > 0 || languages.length > 0))
     acts.push({
       key: "activity",
-      title: "Every commit counts",
+      title: t.acts.activity,
       body: (
         <>
           {github.activity.events90d > 0 ? (
             <>
               <h3 className="display big">
-                {github.activity.events90d.toLocaleString("en-US")}
-                <span className="muted"> / contributions in 90 days</span>
+                {format.number(github.activity.events90d)}
+                <span className="muted"> {t.contributions}</span>
               </h3>
               {weeks.length > 0 ? (
                 <>
                   <div
                     className="heat reveal"
                     role="img"
-                    aria-label={`Contributions per week over the last ${weeks.length} weeks`}
+                    aria-label={fmt(plural(t.heatLabel, weeks.length), { count: weeks.length })}
                     style={{ "--weeks": weeks.length } as CSSProperties}
                   >
                     {weeks.map((count, index) => (
@@ -478,7 +501,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
                       />
                     ))}
                   </div>
-                  <p className="mono muted heat-note">One square a week, brightest at {busiest}</p>
+                  <p className="mono muted heat-note">{fmt(t.heatNote, { count: busiest })}</p>
                 </>
               ) : null}
             </>
@@ -490,7 +513,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
                   <span className="display">{language.percent}%</span>
                   <span className="mono">{language.name}</span>
                   <span className="mono muted">
-                    {language.repos} {language.repos === 1 ? "repo" : "repos"}
+                    {fmt(plural(t.repos, language.repos), { count: language.repos })}
                   </span>
                 </li>
               ))}
@@ -502,7 +525,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   if (content.education.length > 0 || view.skills.length > 0)
     acts.push({
       key: "training",
-      title: "Training montage",
+      title: t.acts.training,
       body: (
         <>
           <div className="edu-skills">
@@ -531,7 +554,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
               <div className="skills">
                 {view.skills.map((group) => (
                   <div key={group.id} className="reveal">
-                    <p className="mono accent">{group.label || "Skills"}</p>
+                    <p className="mono accent">{group.label || t.skills}</p>
                     <p className="skill-items">{group.items.join(" / ")}</p>
                   </div>
                 ))}
@@ -544,7 +567,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   if (bonus.length > 0)
     acts.push({
       key: "bonus",
-      title: "Bonus features",
+      title: t.acts.bonus,
       body: (
         <>
           <Rows rows={bonus} />
@@ -554,7 +577,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   if (content.interests.length > 0)
     acts.push({
       key: "offscreen",
-      title: "Behind the scenes",
+      title: t.acts.offscreen,
       body: (
         <>
           <ul className="interests">
@@ -575,7 +598,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
   if (quotes.length > 0)
     acts.push({
       key: "critics",
-      title: "The critics",
+      title: t.acts.critics,
       body: (
         <>
           <div className="quotes">
@@ -599,7 +622,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
     const now = content.now;
     acts.push({
       key: "soon",
-      title: "Coming soon",
+      title: t.acts.soon,
       body: (
         <>
           <ul className="soon">
@@ -622,12 +645,12 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
       <Stage />
       <header className="hero">
         <div className="hero-top mono">
-          <span className="accent">Now starring</span>
+          <span className="accent">{t.hero.nowStarring}</span>
           {content.location ? <span>{content.location.label}</span> : null}
           {content.availability?.open ? (
-            <span className="tag solid">{content.availability.short || "Available for work"}</span>
+            <span className="tag solid">{content.availability.short || t.hero.available}</span>
           ) : null}
-          {resumeHref ? <a href={resumeHref}>Resume ↓</a> : null}
+          {resumeHref ? <a href={resumeHref}>{t.hero.resume}</a> : null}
         </div>
         <div className="hero-main">
           <h1 className="display hero-name" style={{ "--chars": longest(name) } as CSSProperties}>
@@ -638,9 +661,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
         <div className="hero-bottom">
           {headline ? <p className="hero-role">{headline}</p> : <span />}
           {content.pitch ? <p className="muted hero-tag">{content.pitch}</p> : <span />}
-          {acts.length > 0 ? (
-            <span className="mono scroll-cue">Scroll — the show starts ↓</span>
-          ) : null}
+          {acts.length > 0 ? <span className="mono scroll-cue">{t.hero.scroll}</span> : null}
         </div>
       </header>
 
@@ -651,7 +672,7 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
           id={`pf-starring-${item.key}`}
         >
           <h2 className="act-label mono">
-            <span className="num">Act {ROMAN[index] ?? index + 1}</span>
+            <span className="num">{fmt(t.act, { number: ROMAN[index] ?? index + 1 })}</span>
             <span>{item.title}</span>
           </h2>
           {item.body}
@@ -659,9 +680,9 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
       ))}
 
       <footer className="credits">
-        <p className="mono muted">That’s a wrap</p>
+        <p className="mono muted">{t.credits.wrap}</p>
         <h2 className="display" style={{ "--chars": longest(name) } as CSSProperties}>
-          Starring
+          {t.credits.starring}
           <br />
           <span className="accent">{name}</span>
         </h2>
@@ -674,12 +695,12 @@ export function StarringTemplate({ view, content, footer, resumeHref }: Portfoli
             ))}
             {content.email ? (
               <li>
-                <a href={`mailto:${content.email}`}>Email ↗</a>
+                <a href={`mailto:${content.email}`}>{t.credits.email}</a>
               </li>
             ) : null}
             {resumeHref ? (
               <li>
-                <a href={resumeHref}>Resume ↓</a>
+                <a href={resumeHref}>{t.hero.resume}</a>
               </li>
             ) : null}
           </ul>

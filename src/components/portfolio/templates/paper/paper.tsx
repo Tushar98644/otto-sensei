@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { fmt, selectPlural } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import type { ContentProject } from "@/lib/portfolio/content";
-import { allSkills, nameOf, OutLink, safeId, TemplateStyle } from "../parts";
+import { allSkills, designLocale, nameOf, OutLink, safeId, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { Frame, Fx, ModeButtons, Reveal } from "./on-demand";
 import { PAPER_CSS } from "./styles";
@@ -77,8 +79,16 @@ function Rows({ rows }: { rows: Row[] }) {
   );
 }
 
-export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function PaperTemplate({
+  view,
+  content,
+  words,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = words.paper;
+  const locale = designLocale(view);
+  const name = nameOf(view, words.shared.untitled);
   const headline = view.headline || content.headline;
   const roles = content.disciplines.length > 0 ? content.disciplines : headline ? [headline] : [];
   const socials = content.socials.filter((social) => social.kind !== "email");
@@ -108,7 +118,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (about || (aboutShown && content.pitch) || stats.length > 0 || resumeHref)
     sections.push({
       key: "about",
-      title: "About",
+      title: t.about,
       id: ids.about,
       body: (
         <>
@@ -126,7 +136,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
           {resumeHref ? (
             <p className="more">
               <a className="link" href={resumeHref}>
-                my resume
+                {t.myResume}
               </a>
             </p>
           ) : null}
@@ -149,7 +159,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (lead)
     sections.push({
       key: "projects",
-      title: view.titles.projects || "Projects",
+      title: view.titles.projects || t.projects,
       id: ids.projects,
       body: (
         <>
@@ -210,7 +220,11 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
                       <div className="figures">
                         {project.stars ? (
                           <span>
-                            <mark>{compact(project.stars)}</mark> stars
+                            {rich(
+                              selectPlural(locale, t.stars, project.stars),
+                              { b: (chunk) => <mark>{chunk}</mark> },
+                              { count: compact(project.stars) },
+                            )}
                           </span>
                         ) : null}
                         {project.years ? <span>{project.years}</span> : null}
@@ -237,7 +251,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (content.experience.length > 0)
     sections.push({
       key: "work",
-      title: view.titles.experience || "Work",
+      title: view.titles.experience || t.work,
       id: ids.work,
       body: content.experience.map((role) => (
         <article key={role.id} className="job sketch" id={safeId("pf-paper-job", role.id)}>
@@ -268,7 +282,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (skills.length > 0)
     sections.push({
       key: "stack",
-      title: "Tech stack",
+      title: t.stack,
       id: ids.stack,
       body: (
         <ul className="stack">
@@ -282,7 +296,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (content.education.length > 0)
     sections.push({
       key: "education",
-      title: view.titles.education || "Education",
+      title: view.titles.education || t.education,
       body: (
         <Rows
           rows={content.education.map((school) => ({
@@ -299,7 +313,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (repos.length > 0 && content.github)
     sections.push({
       key: "open-source",
-      title: "Open source",
+      title: t.openSource,
       body: (
         <>
           <ul className="rows">
@@ -322,7 +336,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
           </ul>
           <p className="more spaced">
             <OutLink href={content.github.href} className="link">
-              all of it
+              {t.allOfIt}
             </OutLink>
           </p>
         </>
@@ -332,14 +346,18 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (content.writing.length > 0)
     sections.push({
       key: "writing",
-      title: "Writing",
+      title: t.writing,
       body: (
         <Rows
           rows={content.writing.map((post) => ({
             id: post.id,
             title: post.title,
             href: post.href,
-            meta: [post.date, post.minutes ? `${post.minutes} min read` : "", post.publisher]
+            meta: [
+              post.date,
+              post.minutes ? fmt(t.minRead, { count: post.minutes }) : "",
+              post.publisher,
+            ]
               .filter(Boolean)
               .join(" · "),
           }))}
@@ -350,7 +368,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
   if (content.talks.length > 0)
     sections.push({
       key: "talks",
-      title: "Talks",
+      title: t.talks,
       body: (
         <Rows
           rows={content.talks.map((talk) => ({
@@ -384,8 +402,8 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
       key: "milestones",
       title:
         content.milestones.length > 0
-          ? "Milestones"
-          : view.titles.certifications || "Certifications",
+          ? t.milestones
+          : view.titles.certifications || t.certifications,
       body: <Rows rows={honours} />,
     });
 
@@ -410,11 +428,11 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
 
   const nav = [
     sections.some((section) => section.key === "about")
-      ? { href: `#${ids.about}`, label: "about" }
+      ? { href: `#${ids.about}`, label: t.nav.about }
       : null,
-    lead ? { href: `#${ids.projects}`, label: "work" } : null,
-    content.experience.length > 0 ? { href: `#${ids.work}`, label: "jobs" } : null,
-    skills.length > 0 ? { href: `#${ids.stack}`, label: "stack" } : null,
+    lead ? { href: `#${ids.projects}`, label: t.nav.work } : null,
+    content.experience.length > 0 ? { href: `#${ids.work}`, label: t.nav.jobs } : null,
+    skills.length > 0 ? { href: `#${ids.stack}`, label: t.nav.stack } : null,
   ].filter((item) => item !== null);
 
   return (
@@ -429,16 +447,16 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
             <span className="brand-name">{name}</span>
           </a>
           {nav.length > 0 || resumeHref ? (
-            <nav className="nav" aria-label="Sections">
+            <nav className="nav" aria-label={t.sections}>
               {nav.map((item) => (
                 <a key={item.href} href={item.href}>
                   {item.label}
                 </a>
               ))}
-              {resumeHref ? <a href={resumeHref}>Resume</a> : null}
+              {resumeHref ? <a href={resumeHref}>{t.resume}</a> : null}
             </nav>
           ) : null}
-          <ModeButtons header />
+          <ModeButtons header words={t.mode} />
         </div>
       </header>
 
@@ -465,7 +483,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
 
         <div className="wrap">
           {socials.length > 0 || content.email ? (
-            <nav className="links" aria-label="Elsewhere">
+            <nav className="links" aria-label={t.elsewhere}>
               {socials.map((social) => (
                 <OutLink key={social.href} href={social.href} className="tag">
                   {social.label.toLowerCase()}
@@ -473,7 +491,7 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
               ))}
               {content.email ? (
                 <a className="tag" href={`mailto:${content.email}`}>
-                  email
+                  {t.email}
                 </a>
               ) : null}
             </nav>
@@ -496,11 +514,11 @@ export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTe
         <Pic name="ground" className="ground" />
         <div className="footer-body">
           <div className="wrap">
-            <h4>day or night</h4>
-            <ModeButtons />
+            <h4>{t.dayOrNight}</h4>
+            <ModeButtons words={t.mode} />
             <p className="small">
               {year ? `© ${year} ` : null}
-              {name} · drawn by hand, in code
+              {fmt(t.drawn, { name })}
             </p>
             {footer ? <div className="credit">{footer}</div> : null}
           </div>

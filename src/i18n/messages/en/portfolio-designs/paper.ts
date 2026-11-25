@@ -1,0 +1,31 @@
+// Paper: a hand-drawn notebook page with a fox, lowercase and playful.
+export default {
+  nav: { about: "about", work: "work", jobs: "jobs", stack: "stack" },
+  sections: "Sections",
+  resume: "Resume",
+  elsewhere: "Elsewhere",
+  email: "email",
+  about: "About",
+  myResume: "my resume",
+  projects: "Projects",
+  // English has always read "1 stars" here.
+  stars: { one: "<b>{count}</b> stars", other: "<b>{count}</b> stars" },
+  work: "Work",
+  stack: "Tech stack",
+  education: "Education",
+  openSource: "Open source",
+  allOfIt: "all of it",
+  writing: "Writing",
+  minRead: "{count} min read",
+  talks: "Talks",
+  milestones: "Milestones",
+  certifications: "Certifications",
+  dayOrNight: "day or night",
+  drawn: "{name} · drawn by hand, in code",
+  mode: {
+    day: "day",
+    night: "night",
+    toDay: "Switch to day",
+    toNight: "Switch to night",
+  },
+} as const;

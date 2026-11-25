@@ -30,6 +30,8 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import { intlLocale, type Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
 
 // Ported from mirkoschubert/retro-os (MIT, see ./LICENSE.txt): its window manager, dock and eras.
 
@@ -37,7 +39,24 @@ export type WinId = "welcome" | "sysinfo" | "projects" | "work" | "archive" | "c
 type WinState = "open" | "shaded" | "closed";
 type Offset = { x: number; y: number };
 
+export type DeskWords = {
+  close: string;
+  unroll: string;
+  rollUp: string;
+  zoom: string;
+  windows: string;
+  dock: string;
+  about: string;
+  welcome: string;
+  theme: string;
+  listView: string;
+  gridView: string;
+  searchPlaceholder: string;
+  nothing: string;
+};
+
 type Desk = {
+  words: DeskWords;
   focused: WinId | null;
   states: Partial<Record<WinId, WinState>>;
   zoomed: Partial<Record<WinId, boolean>>;
@@ -81,7 +100,15 @@ function typing(target: EventTarget | null): boolean {
 }
 
 // One window is in front: the one you touched, or the one you've scrolled to.
-export function DeskProvider({ ids, children }: { ids: WinId[]; children: ReactNode }) {
+export function DeskProvider({
+  ids,
+  words,
+  children,
+}: {
+  ids: WinId[];
+  words: DeskWords;
+  children: ReactNode;
+}) {
   const anchor = useRef<HTMLSpanElement>(null);
   const [focused, setFocused] = useState<WinId | null>(ids[0] ?? null);
   const [states, setStates] = useState<Partial<Record<WinId, WinState>>>({});
@@ -169,8 +196,8 @@ export function DeskProvider({ ids, children }: { ids: WinId[]; children: ReactN
   }, [ids, focus, open]);
 
   const desk = useMemo(
-    () => ({ focused, states, zoomed, stack, opening, focus, open, set, zoom }),
-    [focused, states, zoomed, stack, opening, focus, open, set, zoom],
+    () => ({ words, focused, states, zoomed, stack, opening, focus, open, set, zoom }),
+    [words, focused, states, zoomed, stack, opening, focus, open, set, zoom],
   );
 
   return (
@@ -281,7 +308,7 @@ export function Win({
           <button
             type="button"
             className="win-btn"
-            aria-label={`Close ${title}`}
+            aria-label={fmt(desk.words.close, { title })}
             onClick={() => desk.set(id, "closed")}
           >
             <X aria-hidden />
@@ -289,7 +316,7 @@ export function Win({
           <button
             type="button"
             className="win-btn"
-            aria-label={state === "shaded" ? `Unroll ${title}` : `Roll up ${title}`}
+            aria-label={fmt(state === "shaded" ? desk.words.unroll : desk.words.rollUp, { title })}
             aria-expanded={state !== "shaded"}
             aria-controls={bodyId}
             onClick={() => desk.set(id, state === "shaded" ? "open" : "shaded")}
@@ -299,7 +326,7 @@ export function Win({
           <button
             type="button"
             className="win-btn"
-            aria-label={`Zoom ${title}`}
+            aria-label={fmt(desk.words.zoom, { title })}
             aria-pressed={zoomed}
             onClick={() => desk.zoom(id)}
           >
@@ -340,7 +367,7 @@ export function Launch({ id, label, keyHint }: { id: WinId; label: string; keyHi
 export function MenuLinks({ items }: { items: { id: WinId; label: string }[] }) {
   const desk = useDesk();
   return (
-    <nav className="menu-items" aria-label="Windows">
+    <nav className="menu-items" aria-label={desk.words.windows}>
       {items.map((item) => (
         <button
           key={item.id}
@@ -436,14 +463,14 @@ export function AppMenu({ name }: { name: string }) {
         <div className="menu-dropdown" role="menu" id={menuId}>
           <button type="button" role="menuitem" className="menu-row" onClick={() => go("sysinfo")}>
             <span className="menu-check" />
-            About {name}
+            {fmt(desk.words.about, { name })}
           </button>
           <button type="button" role="menuitem" className="menu-row" onClick={() => go("welcome")}>
             <span className="menu-check" />
-            Welcome
+            {desk.words.welcome}
           </button>
           <div className="menu-divider" role="separator" />
-          <div className="menu-label">Theme</div>
+          <div className="menu-label">{desk.words.theme}</div>
           {ERAS.map((item) => (
             <button
               key={item.id}
@@ -465,12 +492,12 @@ export function AppMenu({ name }: { name: string }) {
   );
 }
 
-export function Clock({ timezone }: { timezone: string }) {
+export function Clock({ timezone, locale }: { timezone: string; locale: Locale }) {
   const [time, setTime] = useState("--:--");
   useEffect(() => {
     let format: Intl.DateTimeFormat;
     try {
-      format = new Intl.DateTimeFormat("en-US", {
+      format = new Intl.DateTimeFormat(intlLocale(locale), {
         hour: "2-digit",
         minute: "2-digit",
         timeZone: timezone,
@@ -482,7 +509,7 @@ export function Clock({ timezone }: { timezone: string }) {
     tick();
     const timer = window.setInterval(tick, 30_000);
     return () => window.clearInterval(timer);
-  }, [timezone]);
+  }, [timezone, locale]);
   return <span suppressHydrationWarning>{time}</span>;
 }
 
@@ -498,7 +525,7 @@ export function Dock({ items }: { items: { id: keyof typeof GLYPHS; label: strin
   const desk = useDesk();
   return (
     <div className="dock-bar">
-      <nav className="dock" aria-label="Dock">
+      <nav className="dock" aria-label={desk.words.dock}>
         {items.map((item, index) => {
           const Glyph = GLYPHS[item.id];
           return (
@@ -527,6 +554,7 @@ export function Dock({ items }: { items: { id: keyof typeof GLYPHS; label: strin
 // A list beside one open item, as the original's browsers; a grid too when cards are given.
 export function Picker({
   label,
+  searchLabel,
   prefix,
   rowClass,
   items,
@@ -537,6 +565,7 @@ export function Picker({
   search = false,
 }: {
   label: string;
+  searchLabel: string;
   prefix: string;
   rowClass: string;
   items: { id: string; text: string; tags: string[] }[];
@@ -546,6 +575,7 @@ export function Picker({
   filters?: { id: string; label: string }[];
   search?: boolean;
 }) {
+  const { words: desk } = useDesk();
   const [selected, setSelected] = useState(items[0]?.id ?? "");
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -597,7 +627,7 @@ export function Picker({
                 type="button"
                 className="tb-btn"
                 aria-pressed={!grid}
-                aria-label="List view"
+                aria-label={desk.listView}
                 onClick={() => setGrid(false)}
               >
                 <Columns2 aria-hidden />
@@ -606,7 +636,7 @@ export function Picker({
                 type="button"
                 className="tb-btn"
                 aria-pressed={grid}
-                aria-label="Grid view"
+                aria-label={desk.gridView}
                 onClick={() => setGrid(true)}
               >
                 <LayoutGrid aria-hidden />
@@ -617,10 +647,10 @@ export function Picker({
           {search ? (
             <label className="tb-search">
               <Search aria-hidden />
-              <span className="sr-only">Search {label.toLowerCase()}</span>
+              <span className="sr-only">{searchLabel}</span>
               <input
                 type="search"
-                placeholder="Search…"
+                placeholder={desk.searchPlaceholder}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
@@ -653,7 +683,7 @@ export function Picker({
           aria-orientation="vertical"
           onKeyDown={onKey}
         >
-          {shown.length === 0 ? <p className="empty">Nothing matches.</p> : null}
+          {shown.length === 0 ? <p className="empty">{desk.nothing}</p> : null}
           {items.map((item, index) =>
             shown.includes(item) ? (
               <button
