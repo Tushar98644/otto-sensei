@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { NotFoundFonts } from "@/components/site/not-found-fonts";
 import { NotFoundPage } from "@/components/site/not-found-page";
 import { RootDocument, ROOT_VIEWPORT, rootMetadata } from "@/components/site/root-document";
 import { fullTitle } from "@/components/site/page-metadata";
@@ -18,7 +19,7 @@ export default async function GlobalNotFound() {
   const common = await loadMessages(DEFAULT_LOCALE, "common");
   return (
     <RootDocument lang={DEFAULT_LOCALE} skipLabel={common.skipToContent}>
-      {await NotFoundPage({ locale: DEFAULT_LOCALE })}
+      {await NotFoundPage({ locale: DEFAULT_LOCALE, fonts: <NotFoundFonts /> })}
     </RootDocument>
   );
 }

@@ -24,7 +24,6 @@ import {
 import type { SystemNames } from "@/lib/seo-pages/job-link";
 import { atsGuideJsonLd } from "@/lib/seo-pages/json-ld";
 import { ATS_INDEX_PAGE, atsGuidePage } from "@/lib/seo-pages/pages";
-import { publishedHere } from "@/i18n/publish";
 import { SEO_PATHS, atsPath } from "@/lib/seo-pages/paths";
 import { cn } from "@/lib/utils";
 import {
@@ -40,9 +39,8 @@ import { JobLinkCheck } from "../_components/job-link-check";
 
 export const dynamicParams = false;
 
-// Only where the ATS guides are published (ats/layout.tsx 404s the rest).
-export async function generateStaticParams(): Promise<{ system: string }[]> {
-  if (!(await publishedHere(SEO_PATHS.ats))) return [];
+// Every language: where the guides aren't published, ats/layout.tsx prerenders that language's 404.
+export function generateStaticParams(): { system: string }[] {
   return ATS_IDS.map((system) => ({ system }));
 }
 

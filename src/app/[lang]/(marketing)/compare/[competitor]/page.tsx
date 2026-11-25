@@ -23,7 +23,6 @@ import {
   calendarMonth,
   comparePage,
 } from "@/lib/seo-pages/pages";
-import { publishedHere } from "@/i18n/publish";
 import { SEO_PATHS, comparePath } from "@/lib/seo-pages/paths";
 import {
   Breadcrumbs,
@@ -37,9 +36,8 @@ import { CompareTable, PipelineStrip, ReasonCards } from "../_components/compare
 
 export const dynamicParams = false;
 
-// Only where the comparisons are published (compare/layout.tsx 404s the rest).
-export async function generateStaticParams(): Promise<{ competitor: string }[]> {
-  if (!(await publishedHere(SEO_PATHS.compare))) return [];
+// Every language: where comparisons aren't published, compare/layout.tsx prerenders that language's 404.
+export function generateStaticParams(): { competitor: string }[] {
   return COMPETITORS.map(({ slug }) => ({ competitor: slug }));
 }
 

@@ -72,12 +72,12 @@ describe("a translated page", () => {
 });
 
 describe("a page that isn't translated yet", () => {
-  it("is a 404 at /es/compare and isn't prerendered at /es/compare/rezi", async () => {
+  it("is a 404 at /es/compare and /es/compare/rezi, and served in English", async () => {
+    // Every language lists every comparison; the layout turns the untranslated ones into 404s.
+    expect(competitorParams().map(({ competitor }) => competitor)).toContain("rezi");
     setRootLang("es");
     await expect(CompareLayout({ children: null })).rejects.toThrow();
-    expect(await competitorParams()).toEqual([]);
     setRootLang("en");
     expect(await CompareLayout({ children: "ok" })).toBe("ok");
-    expect((await competitorParams()).map(({ competitor }) => competitor)).toContain("rezi");
   });
 });

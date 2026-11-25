@@ -51,14 +51,10 @@ export async function getLocalize(): Promise<Localize> {
   return localizer(locale, await publishedPages(locale));
 }
 
-// A page not published in this request's locale is a 404 there.
+// A page not published in this request's locale is a 404 there. Call it from the page or a layout: nested
+// generateStaticParams must still list every page, since one that returns nothing for a locale prerenders none at all.
 export async function requirePublished(path: string): Promise<void> {
   if (!(await isPublished(await getLocale(), path))) notFound();
-}
-
-// For a nested generateStaticParams: nothing to prerender where the page isn't published.
-export async function publishedHere(path: string): Promise<boolean> {
-  return isPublished(await getLocale(), path);
 }
 
 // pageMetadata in this request's locale, with the languages the page is published in.

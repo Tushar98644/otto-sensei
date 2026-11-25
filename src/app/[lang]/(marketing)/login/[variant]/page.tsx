@@ -6,7 +6,7 @@ import {
   type LoginVariant,
 } from "@/components/account/login-heading";
 import { ROUTES } from "@/components/site/routes";
-import { publishedHere, requirePublished } from "@/i18n/publish";
+import { requirePublished } from "@/i18n/publish";
 import { getMessages } from "@/i18n/server";
 import { LoginScreen, loginMetadata } from "../_components/login-screen";
 
@@ -16,8 +16,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const dynamicParams = false;
 
-export async function generateStaticParams(): Promise<{ variant: LoginVariant }[]> {
-  if (!(await publishedHere(ROUTES.login))) return [];
+// Every language: where sign-in isn't published, the page below prerenders as that language's 404.
+export function generateStaticParams(): { variant: LoginVariant }[] {
   return LOGIN_VARIANTS.map((variant) => ({ variant }));
 }
 
