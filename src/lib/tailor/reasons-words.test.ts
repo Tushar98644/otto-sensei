@@ -67,7 +67,11 @@ const REQUIREMENTS = [
   req("r6", "Redis", ["Redis"], "nice"),
 ];
 
-function screener(words?: { t: typeof en | typeof es; lint: typeof enLint | typeof esLint; locale: "en" | "es" }) {
+function screener(words?: {
+  t: typeof en | typeof es;
+  lint: typeof enLint | typeof esLint;
+  locale: "en" | "es";
+}) {
   const r = resume();
   const rows = screenerRows(r, REQUIREMENTS, words ? { places: words.t.reasons.places } : {});
   const context: ReasonContext = {
@@ -79,7 +83,13 @@ function screener(words?: { t: typeof en | typeof es; lint: typeof enLint | type
   const reasons = rowReasons(rows, context);
   const { lines } = jobLines(rows, context);
   const title = titleCheck(r, "Backend Engineer", words?.t.reasons.title);
-  const summary = summaryCheck(r, rows, "Backend Engineer", words?.t.reasons.summary, words?.locale);
+  const summary = summaryCheck(
+    r,
+    rows,
+    "Backend Engineer",
+    words?.t.reasons.summary,
+    words?.locale,
+  );
   const fixFirst = tailorFixFirst({
     rows,
     reasons,
@@ -112,10 +122,16 @@ describe("the screener's words", () => {
     expect(reasons.r5?.text).toBe(
       "Solo en tus certificaciones. Muéstralo también en una línea sobre lo que hiciste.",
     );
-    expect(reasons.r4?.text).toBe("Aparece en tu proyecto Transit Alerts, no en un trabajo. Si lo usaste en el trabajo, dilo en ese trabajo.");
-    expect(reasons.r3?.text).toMatch(/^Aparece en Lumen Logistics, pero esa línea suena a descripción del puesto\. La oferta pide 5\+ años/);
+    expect(reasons.r4?.text).toBe(
+      "Aparece en tu proyecto Transit Alerts, no en un trabajo. Si lo usaste en el trabajo, dilo en ese trabajo.",
+    );
+    expect(reasons.r3?.text).toMatch(
+      /^Aparece en Lumen Logistics, pero esa línea suena a descripción del puesto\. La oferta pide 5\+ años/,
+    );
     expect(lines[0]?.place).toBe("Software Engineer en Lumen Logistics");
-    expect(lines[0]?.note).toMatch(/^Muestra PostgreSQL, 5\+ years \(un requisito obligatorio\)\. “Responsible for”/);
+    expect(lines[0]?.note).toMatch(
+      /^Muestra PostgreSQL, 5\+ years \(un requisito obligatorio\)\. “Responsible for”/,
+    );
     expect(title?.status).toBe("differs");
     expect(fixFirst[0]?.title).toBe("Falta 1 requisito obligatorio en tu currículum: CI/CD");
     expect(headline).toBe("Requisitos obligatorios demostrados: 2 de 4 · Deseables: 2 de 2");

@@ -27,7 +27,11 @@ export function checkText(check: RecruiterCheck, t: FileCheckMessages, locale: L
       const unit = units[key];
       const shown = number(value, locale);
       values[key] = unit ? fmt(selectPlural(locale, unit, value), { count: shown }) : shown;
-    } else values[key] = joinList(value.map((section) => t.sections[section]), locale);
+    } else
+      values[key] = joinList(
+        value.map((section) => t.sections[section]),
+        locale,
+      );
   }
   const count = copy.params?.count;
   const detail =

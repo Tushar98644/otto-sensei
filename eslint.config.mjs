@@ -184,7 +184,7 @@ const COPY_ELSEWHERE = [
   // Not rendered anywhere today; translate before using them again.
   "src/components/account/pro-perks.tsx",
   "src/components/account/plan-picker.tsx",
-  // Still English: the leftover sweep didn't reach these yet (docs/i18n.md, Known gaps).
+  // Still English: the weekly recap, and the portfolio designs another change translates (docs/i18n.md, Known gaps).
   "src/components/recap/**",
   "src/components/portfolio/templates/**",
 ];
@@ -214,8 +214,9 @@ const EN_US_ALLOWED = [
   "src/lib/job-feed/**",
   "src/lib/inbound/**",
   "src/lib/seo-pages/**",
-  // Still English: the leftover sweep didn't reach these yet (docs/i18n.md, Known gaps).
+  // Not rendered anywhere today; translate before using it again.
   "src/components/account/pro-perks.tsx",
+  // Still English: the weekly recap, and the portfolio designs another change translates (docs/i18n.md, Known gaps).
   "src/components/portfolio/templates/**",
   "src/components/recap/**",
   "src/lib/recap/**",

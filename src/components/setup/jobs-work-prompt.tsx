@@ -29,11 +29,7 @@ export function JobsWorkPrompt({ due, userId, profile, saved }: JobsWorkPromptPr
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-surface px-4 py-2 sm:px-6">
           <p className="flex min-w-0 grow basis-72 items-center gap-2 py-1 text-sm/6 text-muted">
             <Globe aria-hidden className="size-4 shrink-0 text-subtle" />
-            <span>
-              {guessed
-                ? fmt(t.guessed, { region: words.regionNames[guessed] })
-                : t.add}
-            </span>
+            <span>{guessed ? fmt(t.guessed, { region: words.regionNames[guessed] }) : t.add}</span>
           </p>
           <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
             {guessed ? t.check : t.addButton}

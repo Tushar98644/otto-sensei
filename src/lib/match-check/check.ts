@@ -124,7 +124,10 @@ function extraLines(resume: Resume, places: MatchPlaces): MatchLine[] {
       for (const bullet of item.bullets) {
         if (!bullet.text.trim()) continue;
         position += 1;
-        const place = fmt(places.line, { place: joined([title, item.title], ", "), number: position });
+        const place = fmt(places.line, {
+          place: joined([title, item.title], ", "),
+          number: position,
+        });
         push(bullet.text, place, true);
       }
       // A languages section is where a recruiter looks for a language, so it counts as shown.

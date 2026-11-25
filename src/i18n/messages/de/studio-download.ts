@@ -189,7 +189,8 @@ export default {
     },
     blank: {
       title: "Platzhalter stehen gelassen",
-      message: "„{blank}“ sieht nach einem Platzhalter aus. Setz das echte Detail ein oder nimm es raus.",
+      message:
+        "„{blank}“ sieht nach einem Platzhalter aus. Setz das echte Detail ein oder nimm es raus.",
     },
     company: {
       title: "Name einer anderen Firma",
@@ -202,7 +203,8 @@ export default {
     future: {
       title: "Datum in der Zukunft",
       job: "{date} ist noch nicht passiert. Wenn der Job noch läuft, schreib „heute“.",
-      certification: "{date} ist noch nicht passiert. Wenn du noch daran arbeitest, schreib „voraussichtlich“.",
+      certification:
+        "{date} ist noch nicht passiert. Wenn du noch daran arbeitest, schreib „voraussichtlich“.",
     },
     overlap: {
       title: "Daten überschneiden sich",
@@ -212,11 +214,13 @@ export default {
     tool: {
       title: "Genannt, bevor es das gab",
       job: "{tool} gibt es erst seit {released}, also nach dem Ende dieses Jobs ({dates}).",
-      course: "{tool} gibt es erst seit {released}, also nach dem Ende dieser Ausbildung ({dates}).",
+      course:
+        "{tool} gibt es erst seit {released}, also nach dem Ende dieser Ausbildung ({dates}).",
     },
     copied: {
       title: "Aus der Stellenanzeige kopiert",
-      message: "{count} Wörter am Stück stimmen mit der Anzeige überein. Sag es mit deinen eigenen Worten.",
+      message:
+        "{count} Wörter am Stück stimmen mit der Anzeige überein. Sag es mit deinen eigenen Worten.",
     },
     months: { one: "{count} Monat", other: "{count} Monate" },
     years: { one: "{count} Jahr", other: "{count} Jahre" },

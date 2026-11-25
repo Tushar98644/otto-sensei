@@ -338,7 +338,8 @@ export default {
         one: "{count} Muss-Anforderung fehlt in deinem Lebenslauf: {names}",
         other: "{count} Muss-Anforderungen fehlen in deinem Lebenslauf: {names}",
       },
-      missingReason: "Wenn du es gemacht hast, sag wo. Wenn nicht, sag Nein, dann kommt nichts dazu.",
+      missingReason:
+        "Wenn du es gemacht hast, sag wo. Wenn nicht, sag Nein, dann kommt nichts dazu.",
       listed: {
         one: "{count} Muss-Anforderung steht nur in deiner Kenntnisliste: {names}",
         other: "{count} Muss-Anforderungen stehen nur in deiner Kenntnisliste: {names}",
@@ -346,7 +347,8 @@ export default {
       listedReason:
         "Filter suchen sie in einer Zeile darüber, was du gemacht hast. Zeig, wo du sie genutzt hast.",
       spelled: "Die Anzeige sagt „{asked}“, dein Lebenslauf sagt „{written}“",
-      spelledReason: "Die Stichwortsuche findet nur die getippte Form. Schreib einmal beide: „{both}“.",
+      spelledReason:
+        "Die Stichwortsuche findet nur die getippte Form. Schreib einmal beide: „{both}“.",
       weak: {
         one: "{count} Zeile mit einer Muss-Anforderung wirkt schwach",
         other: "{count} Zeilen mit Muss-Anforderungen wirken schwach",

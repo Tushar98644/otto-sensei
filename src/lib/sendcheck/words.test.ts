@@ -72,9 +72,15 @@ describe("send check words", () => {
     expect(byTitle.get("Mencionado antes de existir")?.message).toMatch(
       /^ChatGPT salió en nov\.? 2022, después de que terminó este trabajo \(Jan 2019 – Dec 2021\)\.$/,
     );
-    const german = runSendCheck(resume(), { now: NOW, words: de.sendItems, format: formatFor("de") });
+    const german = runSendCheck(resume(), {
+      now: NOW,
+      words: de.sendItems,
+      format: formatFor("de"),
+    });
     const overlap = german.find((item) => item.title === "Daten überschneiden sich");
-    expect(overlap?.message).toMatch(/^Überschneidet sich 1 Jahr und \d+ Monate? lang mit Engineer bei Northwind\./);
+    expect(overlap?.message).toMatch(
+      /^Überschneidet sich 1 Jahr und \d+ Monate? lang mit Engineer bei Northwind\./,
+    );
     expect(german.find((item) => item.place === "Ein Zertifikat")?.message).toContain("2030");
   });
 });

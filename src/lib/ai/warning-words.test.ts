@@ -30,12 +30,16 @@ describe("warnings under AI results", () => {
     const [numbers, , , , number, verb, unbacked, cliche] = WARNINGS.map((warning) =>
       warningIn(warning, es.warnings),
     );
-    expect(numbers).toBe("Completa [number], [team] antes de enviarlo. Otto nunca inventa números.");
+    expect(numbers).toBe(
+      "Completa [number], [team] antes de enviarlo. Otto nunca inventa números.",
+    );
     expect(number).toBe(es.warnings.number);
     expect(verb).toBe("Revisa “Led”. Tu currículum dice “Helped with the launch”.");
     expect(unbacked).toMatch(/^Revisa “award-winning”: /);
     expect(cliche).toMatch(/^Cambia “team player”, “results-driven” por /);
-    expect(warningIn(WARNINGS[7]!, de.warnings)).toMatch(/^Ersetz „team player“, „results-driven“ /);
+    expect(warningIn(WARNINGS[7]!, de.warnings)).toMatch(
+      /^Ersetz „team player“, „results-driven“ /,
+    );
   });
 
   it("keeps a warning it can't read", () => {

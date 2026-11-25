@@ -98,11 +98,7 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
   }
 
   const message =
-    status.kind === "empty"
-      ? t.empty
-      : status.kind === "failed"
-        ? status.message
-        : t.pick;
+    status.kind === "empty" ? t.empty : status.kind === "failed" ? status.message : t.pick;
 
   return (
     <>
@@ -134,16 +130,9 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
         }
       >
         {writing ? (
-          <OttoWorking
-            task="draft"
-            size="sm"
-            message={format.plural(t.reading, inRange.length)}
-          />
+          <OttoWorking task="draft" size="sm" message={format.plural(t.reading, inRange.length)} />
         ) : !resume ? (
-          <OttoNote
-            live={false}
-            message={t.noResume}
-          >
+          <OttoNote live={false} message={t.noResume}>
             <Link
               href={ROUTES.studio}
               className={buttonClasses({ variant: "secondary", size: "sm" })}
@@ -189,9 +178,7 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
                     ))}
                   </Select>
                 ) : (
-                  <p className="text-sm/6 text-muted">
-                    {t.noJobs}
-                  </p>
+                  <p className="text-sm/6 text-muted">{t.noJobs}</p>
                 )}
               </Field>
               <Field id={`${ids}-from`} label={t.from}>
@@ -221,9 +208,7 @@ export function LinesDialog({ open, onClose, entries }: LinesDialogProps) {
                 </Select>
               </Field>
             </div>
-            <p className="text-sm/6 text-muted">
-              {format.plural(t.inRange, inRange.length)}
-            </p>
+            <p className="text-sm/6 text-muted">{format.plural(t.inRange, inRange.length)}</p>
           </div>
         )}
       </Dialog>

@@ -193,7 +193,8 @@ export default {
     future: {
       title: "Date in the future",
       job: '{date} hasn\'t happened yet. If the job is still going, use "Present".',
-      certification: '{date} hasn\'t happened yet. If you\'re still working toward it, say "Expected".',
+      certification:
+        "{date} hasn't happened yet. If you're still working toward it, say \"Expected\".",
     },
     overlap: {
       title: "Dates overlap",

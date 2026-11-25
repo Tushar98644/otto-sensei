@@ -14,7 +14,8 @@ export default {
     },
     emailNotChecked: {
       title: "E-Mail nicht geprüft",
-      detail: "Es gibt keinen lesbaren Text, also konnten wir nicht nach einer E-Mail-Adresse suchen.",
+      detail:
+        "Es gibt keinen lesbaren Text, also konnten wir nicht nach einer E-Mail-Adresse suchen.",
     },
     emailFound: {
       title: "E-Mail-Adresse gefunden",
@@ -27,7 +28,8 @@ export default {
     },
     phoneNotChecked: {
       title: "Telefon nicht geprüft",
-      detail: "Es gibt keinen lesbaren Text, also konnten wir nicht nach einer Telefonnummer suchen.",
+      detail:
+        "Es gibt keinen lesbaren Text, also konnten wir nicht nach einer Telefonnummer suchen.",
     },
     phoneFound: { title: "Telefonnummer gefunden", detail: "Wir haben {phone} gefunden." },
     phoneMissing: {
@@ -61,7 +63,8 @@ export default {
     },
     sectionsNotChecked: {
       title: "Abschnitte nicht geprüft",
-      detail: "Es gibt keinen lesbaren Text, also konnten wir deine Abschnittsüberschriften nicht prüfen.",
+      detail:
+        "Es gibt keinen lesbaren Text, also konnten wir deine Abschnittsüberschriften nicht prüfen.",
     },
     sectionsProjectsOnly: {
       title: "Kein Abschnitt zur Berufserfahrung",
@@ -88,7 +91,10 @@ export default {
       detail:
         "Wir haben keine Überschrift Ausbildung gefunden. Viele Systeme erwarten eine, auch eine kurze.",
     },
-    sectionsFound: { title: "Klare Abschnittsüberschriften", detail: "Wir haben {sections} gefunden." },
+    sectionsFound: {
+      title: "Klare Abschnittsüberschriften",
+      detail: "Wir haben {sections} gefunden.",
+    },
     layoutNotChecked: {
       title: "Layout nicht geprüft",
       detail: "Es gibt keinen lesbaren Text, also konnten wir das Layout nicht prüfen.",
@@ -129,7 +135,10 @@ export default {
       detail:
         "In einem PDF werden Textfelder zu normalem Text, den ein Bewerbermanagementsystem lesen kann.",
     },
-    textBoxesNone: { title: "Keine Textfelder", detail: "Dein ganzer Text steht auf der Hauptseite." },
+    textBoxesNone: {
+      title: "Keine Textfelder",
+      detail: "Dein ganzer Text steht auf der Hauptseite.",
+    },
     textBoxesFound: {
       title: "Textfelder gefunden",
       detail: {
@@ -141,7 +150,8 @@ export default {
     imagesNone: { title: "Keine Bilder", detail: "Nichts Wichtiges steckt in einem Bild." },
     imagePages: {
       title: "Seiten sind Bilder",
-      detail: "Deine Seiten sind Bilder. Ein Bewerbermanagementsystem sieht nicht, was darauf steht.",
+      detail:
+        "Deine Seiten sind Bilder. Ein Bewerbermanagementsystem sieht nicht, was darauf steht.",
     },
     imagesFound: {
       title: "Bilder gefunden",

@@ -61,7 +61,8 @@ export default {
     },
     sectionsNotChecked: {
       title: "Sections non vérifiées",
-      detail: "Il n’y a pas de texte lisible, donc on n’a pas pu vérifier les titres de tes sections.",
+      detail:
+        "Il n’y a pas de texte lisible, donc on n’a pas pu vérifier les titres de tes sections.",
     },
     sectionsProjectsOnly: {
       title: "Aucune section d’expérience",
@@ -144,7 +145,8 @@ export default {
     imagesNone: { title: "Pas d’images", detail: "Rien d’important n’est caché dans une image." },
     imagePages: {
       title: "Les pages sont des images",
-      detail: "Tes pages sont des images. Le logiciel de recrutement ne voit pas ce qu’elles contiennent.",
+      detail:
+        "Tes pages sont des images. Le logiciel de recrutement ne voit pas ce qu’elles contiennent.",
     },
     imagesFound: {
       title: "Images trouvées",
@@ -239,8 +241,7 @@ export default {
     movePhone: "Sors ton numéro de téléphone de l’en-tête et mets-le dans le texte principal.",
     addPhone: "Ajoute ton numéro de téléphone à côté de ton e-mail.",
     moveContact: "Mets tes coordonnées dans le corps de la page.",
-    addExperience:
-      "Si tu as eu des emplois ou des stages, liste-les sous un titre « Expérience ».",
+    addExperience: "Si tu as eu des emplois ou des stages, liste-les sous un titre « Expérience ».",
     nameExperience: "Mets tes emplois sous un titre clair, comme « Expérience ».",
     addSkillsAndEducation: "Ajoute de courtes sections « Compétences » et « Formation ».",
     addSkills: "Ajoute une section « Compétences » avec les outils que tu utilises.",
@@ -250,7 +251,8 @@ export default {
     noTextBoxes: "Sors le texte des zones de texte et mets-le dans la page principale.",
     noImages: "Retire les images, ou répète ce qui compte en texte simple.",
     noIcons: "Remplace les icônes par des mots comme « E-mail » et « Téléphone ».",
-    addDates: "Ajoute des dates de début et de fin à chaque emploi, comme « janv. 2021 - mars 2023 ».",
+    addDates:
+      "Ajoute des dates de début et de fin à chaque emploi, comme « janv. 2021 - mars 2023 ».",
     oneDateStyle: "Écris toutes les dates de la même façon, comme « {main} ».",
     addLines: "Ajoute quelques puces sur ce que tu as fait à chaque poste.",
     trim: "Raccourcis les postes anciens ou moins utiles pour tenir sur deux pages.",

@@ -121,9 +121,7 @@ export function HistoryControls({ resumeId }: { resumeId: string | null }) {
             {
               label: t.redo,
               icon: Redo2,
-              ...(status.redoLabel
-                ? { description: historyLabel(status.redoLabel, studio) }
-                : {}),
+              ...(status.redoLabel ? { description: historyLabel(status.redoLabel, studio) } : {}),
               disabled: !status.canRedo,
               onSelect: () => move("redo"),
             },

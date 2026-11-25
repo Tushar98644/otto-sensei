@@ -86,7 +86,9 @@ function SaveVersionForm({
         label={t.nameLabel}
         error={error}
         hint={
-          dropping ? fmt(t.dropping, { count: versions.length, name: versionName(dropping.name, t) }) : undefined
+          dropping
+            ? fmt(t.dropping, { count: versions.length, name: versionName(dropping.name, t) })
+            : undefined
         }
       >
         <Input

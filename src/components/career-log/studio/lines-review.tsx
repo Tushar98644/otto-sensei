@@ -242,11 +242,7 @@ function LineRow({
           {on ? t.accepted : t.accept}
         </Button>
         {on ? <span className="text-sm text-subtle">{t.pressAgain}</span> : null}
-        {!canAccept ? (
-          <span className="text-sm text-subtle">
-            {t.fillBlank}
-          </span>
-        ) : null}
+        {!canAccept ? <span className="text-sm text-subtle">{t.fillBlank}</span> : null}
       </div>
     </li>
   );

@@ -79,8 +79,7 @@ export default {
     },
     sectionsNoEducation: {
       title: "No Education section",
-      detail:
-        "We couldn't find an Education heading. Many systems expect one, even a short one.",
+      detail: "We couldn't find an Education heading. Many systems expect one, even a short one.",
     },
     sectionsFound: { title: "Clear section headings", detail: "We found {sections}." },
     layoutNotChecked: {

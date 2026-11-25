@@ -103,7 +103,10 @@ export default {
     menuTrigger: "Wiederholen und Fassungen",
   },
   versions: {
-    conflict: { here: "Änderungen auf diesem Gerät", elsewhere: "Änderungen von einem anderen Gerät" },
+    conflict: {
+      here: "Änderungen auf diesem Gerät",
+      elsewhere: "Änderungen von einem anderen Gerät",
+    },
     suggested: "Version {number}",
     title: "Fassungen",
     description:

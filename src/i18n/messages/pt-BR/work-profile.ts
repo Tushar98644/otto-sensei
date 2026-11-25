@@ -48,11 +48,13 @@ export default {
   },
   dialog: {
     title: "Onde você pode trabalhar",
-    description: "Onde você mora, seu fuso horário e suas necessidades de visto. Só você pode ver isso.",
+    description:
+      "Onde você mora, seu fuso horário e suas necessidades de visto. Só você pode ver isso.",
     done: "Pronto",
   },
   prompt: {
-    guessed: "O Otto marcou Sim para {region} porque parece que você mora lá. Confira e adicione qualquer necessidade de visto.",
+    guessed:
+      "O Otto marcou Sim para {region} porque parece que você mora lá. Confira e adicione qualquer necessidade de visto.",
     add: "Adicione onde você pode trabalhar e Vagas marca as que dizem que não podem contratar você.",
     check: "Conferir onde você pode trabalhar",
     addButton: "Adicionar onde você pode trabalhar",
@@ -70,7 +72,8 @@ export default {
     },
     checked: ", conferidas com seu perfil de trabalho",
     none: "Não encontrei regras sobre onde você mora, vistos, horários ou tipo de vaga. O Otto só identifica frases simples, então dê uma olhada na vaga também.",
-    loadFailed: "Não deu para carregar seu perfil de trabalho, então isto não foi conferido com ele.",
+    loadFailed:
+      "Não deu para carregar seu perfil de trabalho, então isto não foi conferido com ele.",
     signedOut: "Entre e adicione seu perfil de trabalho para conferirmos para você.",
     addProfile: "Adicione seu perfil de trabalho para conferirmos para você.",
     gaps: "Preencha o resto do seu perfil de trabalho para responder as marcadas como Conferir.",

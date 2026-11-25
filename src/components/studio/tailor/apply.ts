@@ -198,9 +198,7 @@ export function screenerResume(
   return { ...applyTailorChoices(source, result, choices), summary: source.summary };
 }
 
-export function screenerOptions(
-  choices: TailorChoices,
-): Required<Omit<ScreenerOptions, "places">> {
+export function screenerOptions(choices: TailorChoices): Required<Omit<ScreenerOptions, "places">> {
   const declined = new Set<string>();
   const linked = new Map<string, string>();
   for (const [id, choice] of Object.entries(choices.requirements)) {

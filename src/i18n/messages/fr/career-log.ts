@@ -19,7 +19,8 @@ export default {
     numbers: {
       label: "Des chiffres ?",
       hint: "Utilisateurs, %, argent, temps gagné. Une estimation suffit.",
-      placeholder: "Inscriptions en hausse de 18 % en trois semaines, environ 6 heures gagnées par semaine",
+      placeholder:
+        "Inscriptions en hausse de 18 % en trois semaines, environ 6 heures gagnées par semaine",
     },
     learned: {
       label: "Quelque chose que tu as appris ou mené ?",
@@ -34,7 +35,8 @@ export default {
     writeThisMonth: "Écrire ce mois-ci",
     loadFailed: "Ton journal de carrière n’a pas chargé",
     yourMonths: "Tes mois",
-    empty: "Rien pour l’instant. Écris sur ce mois-ci, ou ajoute un mois passé dont tu te souviens.",
+    empty:
+      "Rien pour l’instant. Écris sur ce mois-ci, ou ajoute un mois passé dont tu te souviens.",
     writeNote: "Écrire la note de ce mois-ci",
     deleted: "{month} supprimé",
     deleteFailed: "Impossible de supprimer",
@@ -92,7 +94,8 @@ export default {
   checkinPage: {
     loadFailed: "Ton journal n’a pas chargé",
     eyebrow: "Bilan d’une minute",
-    intro: "Réponds à une, deux ou aux trois, en quelques mots. Ça s’enregistre pendant que tu écris.",
+    intro:
+      "Réponds à une, deux ou aux trois, en quelques mots. Ça s’enregistre pendant que tu écris.",
     note: "Note de {month}",
     writingAbout: "J’écris sur",
     rough: "Des notes brutes, c’est très bien. Otto les garde pour ton prochain CV.",
@@ -108,7 +111,8 @@ export default {
   offer: {
     hired: "Félicitations pour le nouveau poste !",
     offered: "Félicitations pour l’offre !",
-    notNow: "D’accord, pas maintenant. Lance-le quand tu veux depuis ton <link>journal de carrière</link>.",
+    notNow:
+      "D’accord, pas maintenant. Lance-le quand tu veux depuis ton <link>journal de carrière</link>.",
     on: "Ton journal de carrière est activé. Écris-y quand tu veux depuis ton <link>journal de carrière</link>.",
     onNext:
       "Ton journal de carrière est activé. Otto te demandera le {day}. Écris-y quand tu veux depuis ton <link>journal de carrière</link>.",

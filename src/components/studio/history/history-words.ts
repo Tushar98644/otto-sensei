@@ -31,6 +31,7 @@ export function historyLabel(label: string, t: Studio): string {
   const key = LABELS.get(label);
   if (key) return t.history.labels[key];
   const restored = RESTORED.exec(label);
-  if (restored) return fmt(t.history.labels.restored, { name: versionName(restored[1] ?? "", t.versions) });
+  if (restored)
+    return fmt(t.history.labels.restored, { name: versionName(restored[1] ?? "", t.versions) });
   return label;
 }

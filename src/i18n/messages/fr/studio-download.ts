@@ -198,12 +198,14 @@ export default {
     },
     backwards: {
       title: "Dates à l’envers",
-      message: "{dates} se termine avant de commencer. Une des dates est peut-être une faute de frappe.",
+      message:
+        "{dates} se termine avant de commencer. Une des dates est peut-être une faute de frappe.",
     },
     future: {
       title: "Date dans le futur",
       job: "{date} n’est pas encore arrivé. Si le poste continue, écris « Aujourd’hui ».",
-      certification: "{date} n’est pas encore arrivé. Si tu y travailles encore, écris « En cours ».",
+      certification:
+        "{date} n’est pas encore arrivé. Si tu y travailles encore, écris « En cours ».",
     },
     overlap: {
       title: "Dates qui se chevauchent",

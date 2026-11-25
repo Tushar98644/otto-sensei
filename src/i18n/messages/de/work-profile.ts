@@ -20,7 +20,8 @@ export default {
     timeZone: "Zeitzone",
     chooseZone: "Zeitzone wählen",
     rightsTitle: "Darfst du dort ohne Visa-Sponsoring arbeiten?",
-    rightsHint: "Ja, wenn du dort Staatsbürger oder ansässig bist oder dein Visum dir das Arbeiten schon erlaubt.",
+    rightsHint:
+      "Ja, wenn du dort Staatsbürger oder ansässig bist oder dein Visum dir das Arbeiten schon erlaubt.",
     openTo: "Offen für",
     fullTime: "Vollzeitjobs",
     contract: "Freie Mitarbeit",
@@ -52,7 +53,8 @@ export default {
     done: "Fertig",
   },
   prompt: {
-    guessed: "Otto hat Ja für {region} gesetzt, weil du wohl dort lebst. Prüf es und ergänz, ob du ein Visum brauchst.",
+    guessed:
+      "Otto hat Ja für {region} gesetzt, weil du wohl dort lebst. Prüf es und ergänz, ob du ein Visum brauchst.",
     add: "Gib an, wo du arbeiten darfst, dann markiert Jobs Anzeigen, die dich nicht einstellen können.",
     check: "Prüfen, wo du arbeiten darfst",
     addButton: "Angeben, wo du arbeiten darfst",
@@ -78,7 +80,8 @@ export default {
     signIn: "Anmelden",
     edit: "Arbeitsprofil bearbeiten",
     add: "Arbeitsprofil anlegen",
-    signInReason: "Melde dich an, um ein Arbeitsprofil zu speichern. Otto gleicht Stellenanzeigen damit ab.",
+    signInReason:
+      "Melde dich an, um ein Arbeitsprofil zu speichern. Otto gleicht Stellenanzeigen damit ab.",
     jobLocation: "Arbeitsort: {place}",
     postSays: "Die Anzeige sagt: ",
     verdicts: {

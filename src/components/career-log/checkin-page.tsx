@@ -144,9 +144,7 @@ function Checkin({
                 </option>
               ))}
             </Select>
-            <p className="mt-1 text-sm/6 text-pretty text-subtle">
-              {t.rough}
-            </p>
+            <p className="mt-1 text-sm/6 text-pretty text-subtle">{t.rough}</p>
           </div>
         </div>
 

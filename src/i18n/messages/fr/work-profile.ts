@@ -52,7 +52,8 @@ export default {
     done: "Terminé",
   },
   prompt: {
-    guessed: "Otto a mis Oui pour {region}, car tu sembles y vivre. Vérifie, et ajoute tes besoins de visa.",
+    guessed:
+      "Otto a mis Oui pour {region}, car tu sembles y vivre. Vérifie, et ajoute tes besoins de visa.",
     add: "Ajoute où tu peux travailler, et Offres signalera celles qui disent ne pas pouvoir t’embaucher.",
     check: "Vérifier où tu peux travailler",
     addButton: "Ajouter où tu peux travailler",
@@ -70,7 +71,8 @@ export default {
     },
     checked: ", vérifiées avec ton profil de travail",
     none: "Aucune règle trouvée sur le lieu de vie, les visas, les horaires ou le type de poste. Otto ne repère que des phrases simples, alors survole l’offre aussi.",
-    loadFailed: "Impossible de charger ton profil de travail, donc ceci n’est pas vérifié avec lui.",
+    loadFailed:
+      "Impossible de charger ton profil de travail, donc ceci n’est pas vérifié avec lui.",
     signedOut: "Connecte-toi et ajoute ton profil de travail pour qu’on vérifie pour toi.",
     addProfile: "Ajoute ton profil de travail pour qu’on vérifie pour toi.",
     gaps: "Complète le reste de ton profil de travail pour répondre à celles marquées À vérifier.",
@@ -78,7 +80,8 @@ export default {
     signIn: "Se connecter",
     edit: "Modifier le profil de travail",
     add: "Ajouter un profil de travail",
-    signInReason: "Connecte-toi pour enregistrer un profil de travail. Otto vérifie les offres avec.",
+    signInReason:
+      "Connecte-toi pour enregistrer un profil de travail. Otto vérifie les offres avec.",
     jobLocation: "Lieu du poste : {place}",
     postSays: "L’offre dit : ",
     verdicts: {

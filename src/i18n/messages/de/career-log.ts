@@ -34,7 +34,8 @@ export default {
     writeThisMonth: "Diesen Monat schreiben",
     loadFailed: "Dein Karrieretagebuch hat nicht geladen",
     yourMonths: "Deine Monate",
-    empty: "Noch nichts hier. Schreib über diesen Monat oder füg einen früheren hinzu, an den du dich erinnerst.",
+    empty:
+      "Noch nichts hier. Schreib über diesen Monat oder füg einen früheren hinzu, an den du dich erinnerst.",
     writeNote: "Notiz für diesen Monat schreiben",
     deleted: "{month} gelöscht",
     deleteFailed: "Konnte nicht löschen",
@@ -130,7 +131,8 @@ export default {
       title: "Tagebuch in Zeilen umwandeln",
       description:
         "Otto schreibt sie; du nimmst jede im Studio an, bevor sie in deinen Lebenslauf kommt.",
-      empty: "Ich habe in diesen Monaten nichts Neues gefunden, was dein Lebenslauf nicht schon sagt.",
+      empty:
+        "Ich habe in diesen Monaten nichts Neues gefunden, was dein Lebenslauf nicht schon sagt.",
       pick: "Wähl den Job und die Monate. Ich nutze nur, was du geschrieben hast, und lasse eine Lücke für jede Zahl, die du mir nicht gegeben hast.",
       cancel: "Abbrechen",
       write: "Meine Zeilen schreiben",
@@ -139,7 +141,8 @@ export default {
         one: "Ich lese {count} Monat deiner Notizen.",
         other: "Ich lese {count} Monate deiner Notizen.",
       },
-      noResume: "Zeilen kommen in einen Lebenslauf, also leg erst einen an. Dann komm hierher zurück.",
+      noResume:
+        "Zeilen kommen in einen Lebenslauf, also leg erst einen an. Dann komm hierher zurück.",
       makeResume: "Lebenslauf anlegen",
       resume: "Lebenslauf",
       job: "Job",

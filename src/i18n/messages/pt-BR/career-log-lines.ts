@@ -13,7 +13,8 @@ export default {
   changed: "Você mudou isso desde então",
   useUndo: "Use Desfazer no topo do editor.",
   title: "Do seu diário de carreira",
-  description: "Aceite as linhas que forem verdade. Nada vai para o seu currículo até você aceitar.",
+  description:
+    "Aceite as linhas que forem verdade. Nada vai para o seu currículo até você aceitar.",
   notNow: "Agora não",
   addCount: {
     one: "Adicionar {count} linha",

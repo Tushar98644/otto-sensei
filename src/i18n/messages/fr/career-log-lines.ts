@@ -13,7 +13,8 @@ export default {
   changed: "Tu l’as modifié depuis",
   useUndo: "Utilise Annuler en haut de l’éditeur.",
   title: "Depuis ton journal de carrière",
-  description: "Accepte les lignes qui sont vraies. Rien ne va sur ton CV tant que tu ne l’as pas fait.",
+  description:
+    "Accepte les lignes qui sont vraies. Rien ne va sur ton CV tant que tu ne l’as pas fait.",
   notNow: "Pas maintenant",
   addCount: {
     one: "Ajouter {count} ligne",

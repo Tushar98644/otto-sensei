@@ -52,7 +52,8 @@ export default {
     done: "Listo",
   },
   prompt: {
-    guessed: "Otto puso Sí para {region} porque parece que vives ahí. Revísalo y agrega cualquier necesidad de visa.",
+    guessed:
+      "Otto puso Sí para {region} porque parece que vives ahí. Revísalo y agrega cualquier necesidad de visa.",
     add: "Agrega dónde puedes trabajar y Empleos marcará las ofertas que dicen que no pueden contratarte.",
     check: "Revisar dónde puedes trabajar",
     addButton: "Agregar dónde puedes trabajar",

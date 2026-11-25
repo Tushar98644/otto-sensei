@@ -144,7 +144,8 @@ export default {
     imagesNone: { title: "Sin imágenes", detail: "Nada importante está escondido en una imagen." },
     imagePages: {
       title: "Las páginas son imágenes",
-      detail: "Tus páginas son imágenes. El software de selección no puede ver lo que hay en ellas.",
+      detail:
+        "Tus páginas son imágenes. El software de selección no puede ver lo que hay en ellas.",
     },
     imagesFound: {
       title: "Hay imágenes",
@@ -239,8 +240,7 @@ export default {
     movePhone: "Saca tu teléfono del encabezado y ponlo en el texto principal.",
     addPhone: "Agrega tu teléfono junto a tu correo.",
     moveContact: "Pon tus datos de contacto en el cuerpo de la página.",
-    addExperience:
-      "Si tuviste trabajos o prácticas, ponlos bajo un título de “Experiencia”.",
+    addExperience: "Si tuviste trabajos o prácticas, ponlos bajo un título de “Experiencia”.",
     nameExperience: "Pon tus trabajos bajo un título claro, como “Experiencia”.",
     addSkillsAndEducation: "Agrega secciones cortas de “Habilidades” y “Educación”.",
     addSkills: "Agrega una sección de “Habilidades” con las herramientas que usas.",

@@ -57,9 +57,7 @@ export function LinesFolder({ entries }: { entries: readonly CareerLogEntry[] })
           <FileInput aria-hidden />
           {t.start}
         </Button>
-        {written.length === 0 ? (
-          <p className="text-sm/6 text-subtle">{t.writeFirst}</p>
-        ) : null}
+        {written.length === 0 ? <p className="text-sm/6 text-subtle">{t.writeFirst}</p> : null}
       </div>
       {opened ? (
         <Lazy

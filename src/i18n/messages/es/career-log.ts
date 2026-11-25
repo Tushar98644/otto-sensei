@@ -73,7 +73,13 @@ export default {
     turnOn: "Activar los repasos",
     on: "Los repasos mensuales están activados.",
     day: "el {week} {weekday}",
-    weeks: { first: "primer", second: "segundo", third: "tercer", fourth: "cuarto", last: "último" },
+    weeks: {
+      first: "primer",
+      second: "segundo",
+      third: "tercer",
+      fourth: "cuarto",
+      last: "último",
+    },
   },
   home: {
     noted: "Anotado: nada nuevo en {month}.",
@@ -102,7 +108,8 @@ export default {
   offer: {
     hired: "¡Felicitaciones por el nuevo trabajo!",
     offered: "¡Felicitaciones por la oferta!",
-    notNow: "Está bien, ahora no. Empiézalo cuando quieras desde tu <link>diario de carrera</link>.",
+    notNow:
+      "Está bien, ahora no. Empiézalo cuando quieras desde tu <link>diario de carrera</link>.",
     on: "Tu diario de carrera está activado. Escribe en él cuando quieras desde tu <link>diario de carrera</link>.",
     onNext:
       "Tu diario de carrera está activado. Otto te preguntará el {day}. Escribe en él cuando quieras desde tu <link>diario de carrera</link>.",

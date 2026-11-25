@@ -103,7 +103,10 @@ export default {
     menuTrigger: "Rétablir et versions",
   },
   versions: {
-    conflict: { here: "Modifications sur cet appareil", elsewhere: "Modifications d’un autre appareil" },
+    conflict: {
+      here: "Modifications sur cet appareil",
+      elsewhere: "Modifications d’un autre appareil",
+    },
     suggested: "Version {number}",
     title: "Versions",
     description:

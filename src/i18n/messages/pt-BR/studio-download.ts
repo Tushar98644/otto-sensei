@@ -201,7 +201,8 @@ export default {
     future: {
       title: "Data no futuro",
       job: "{date} ainda não chegou. Se o emprego continua, use “Atual”.",
-      certification: "{date} ainda não chegou. Se você ainda está cursando, coloque “Em andamento”.",
+      certification:
+        "{date} ainda não chegou. Se você ainda está cursando, coloque “Em andamento”.",
     },
     overlap: {
       title: "Datas sobrepostas",

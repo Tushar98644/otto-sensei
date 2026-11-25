@@ -36,9 +36,7 @@ export function EntryCard({ userId, month, entry, editing, onDone, onDelete }: E
       className="grid gap-x-8 gap-y-3 py-5 sm:grid-cols-[10rem_minmax(0,1fr)]"
     >
       <div className="flex items-start justify-between gap-3 sm:flex-col sm:justify-start">
-        <h3 className="font-display text-2xl/8 font-normal tracking-tight text-ink">
-          {label}
-        </h3>
+        <h3 className="font-display text-2xl/8 font-normal tracking-tight text-ink">{label}</h3>
         {!open ? (
           <div className="flex gap-1 sm:-ml-2.5">
             <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>

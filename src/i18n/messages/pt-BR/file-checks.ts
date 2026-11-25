@@ -37,8 +37,7 @@ export default {
     },
     headerPdf: {
       title: "Nada escondido no cabeçalho",
-      detail:
-        "Em um PDF, o cabeçalho faz parte da página, então o software de recrutamento lê.",
+      detail: "Em um PDF, o cabeçalho faz parte da página, então o software de recrutamento lê.",
     },
     headerClear: {
       title: "Nada escondido no cabeçalho",
@@ -85,8 +84,7 @@ export default {
     },
     sectionsNoEducation: {
       title: "Nenhuma seção de Formação",
-      detail:
-        "Não encontramos um título de Formação. Muitos sistemas esperam um, mesmo que curto.",
+      detail: "Não encontramos um título de Formação. Muitos sistemas esperam um, mesmo que curto.",
     },
     sectionsFound: { title: "Títulos de seção claros", detail: "Encontramos {sections}." },
     layoutNotChecked: {
@@ -239,8 +237,7 @@ export default {
     movePhone: "Tire seu telefone do cabeçalho e coloque no texto principal.",
     addPhone: "Coloque seu telefone ao lado do seu e-mail.",
     moveContact: "Coloque seus contatos no corpo da página.",
-    addExperience:
-      "Se você teve empregos ou estágios, liste eles sob um título de “Experiência”.",
+    addExperience: "Se você teve empregos ou estágios, liste eles sob um título de “Experiência”.",
     nameExperience: "Coloque seus empregos sob um título claro, como “Experiência”.",
     addSkillsAndEducation: "Adicione seções curtas de “Habilidades” e “Formação”.",
     addSkills: "Adicione uma seção de “Habilidades” com as ferramentas que você usa.",

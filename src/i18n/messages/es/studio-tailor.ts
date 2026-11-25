@@ -339,7 +339,8 @@ export default {
         one: "{count} requisito obligatorio solo está en tu lista de habilidades: {names}",
         other: "{count} requisitos obligatorios solo están en tu lista de habilidades: {names}",
       },
-      listedReason: "Los filtros lo buscan en una línea sobre lo que hiciste. Muestra dónde lo usaste.",
+      listedReason:
+        "Los filtros lo buscan en una línea sobre lo que hiciste. Muestra dónde lo usaste.",
       spelled: "La oferta dice “{asked}”; tu currículum dice “{written}”",
       spelledReason:
         "Las búsquedas por palabra clave solo encuentran la forma escrita. Escribe las dos una vez: “{both}”.",

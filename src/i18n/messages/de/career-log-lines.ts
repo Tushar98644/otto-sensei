@@ -13,7 +13,8 @@ export default {
   changed: "Du hast es seitdem geändert",
   useUndo: "Nutz Rückgängig oben im Editor.",
   title: "Aus deinem Karrieretagebuch",
-  description: "Nimm die Zeilen an, die stimmen. Nichts kommt in deinen Lebenslauf, bevor du es tust.",
+  description:
+    "Nimm die Zeilen an, die stimmen. Nichts kommt in deinen Lebenslauf, bevor du es tust.",
   notNow: "Jetzt nicht",
   addCount: {
     one: "{count} Zeile hinzufügen",

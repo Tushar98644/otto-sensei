@@ -72,7 +72,9 @@ describe("the review's words", () => {
     const duty = byId.get("duty");
     expect(duty?.title).toBe("2 líneas suenan a descripción del puesto");
     expect(duty?.lines[0]?.place).toBe("Engineer");
-    const project = review.items.flatMap((item) => item.lines).find((line) => line.text === "Helped with the launch");
+    const project = review.items
+      .flatMap((item) => item.lines)
+      .find((line) => line.text === "Helped with the launch");
     expect(project?.place).toBe("Proyecto");
     expect(review.top.every((item) => review.items.includes(item))).toBe(true);
   });

@@ -19,7 +19,8 @@ export default {
     numbers: {
       label: "Algum número?",
       hint: "Usuários, %, dinheiro, tempo economizado. Aproximado serve.",
-      placeholder: "Cadastros 18% maiores em três semanas, cerca de 6 horas por semana economizadas",
+      placeholder:
+        "Cadastros 18% maiores em três semanas, cerca de 6 horas por semana economizadas",
     },
     learned: {
       label: "Algo que você aprendeu ou liderou?",
@@ -58,21 +59,21 @@ export default {
     free: "Grátis em todos os planos",
     next: "Próxima revisão",
     paused: "Pausado até {day}. As anteriores são puladas.",
-    asks: "O Otto pergunta {day} de cada mês, {how}.",
+    asks: "O Otto pergunta todo mês ({day}), {how}.",
     how: {
       email: "no sininho, no Início e por e-mail",
       bell: "no sininho e no Início",
     },
     nudge: "Um lembrete de um minuto, uma vez por mês",
     offIntro:
-      "Três perguntas rápidas {day}, no sininho e no Início. Desligado até você ligar.",
+      "Três perguntas rápidas por mês ({day}), no sininho e no Início. Desligado até você ligar.",
     offIntroEmail:
-      "Três perguntas rápidas {day}, no sininho e no Início, com um e-mail curto. Desligado até você ligar.",
+      "Três perguntas rápidas por mês ({day}), no sininho e no Início, com um e-mail curto. Desligado até você ligar.",
     change: "Mudar o dia ou pausar",
     off: "Desligado",
     turnOn: "Ligar as revisões",
     on: "As revisões mensais estão ligadas.",
-    day: "na {weekday} da {week} semana",
+    day: "{weekday} da {week} semana",
     weeks: {
       first: "primeira",
       second: "segunda",

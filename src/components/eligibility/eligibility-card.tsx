@@ -30,9 +30,7 @@ function FindingRow({ item }: { item: EligibilityFinding }) {
   return (
     <li className="flex flex-col gap-1.5 py-4 first:pt-0 last:pb-0">
       <div className="flex flex-wrap items-center gap-2">
-        <StatusPill status={VERDICT_STATUS[item.verdict]}>
-          {t.verdicts[item.verdict]}
-        </StatusPill>
+        <StatusPill status={VERDICT_STATUS[item.verdict]}>{t.verdicts[item.verdict]}</StatusPill>
         <span className="text-sm font-medium text-ink">{t.ruleLabels[item.rule]}</span>
       </div>
       <p className="text-sm/6 text-pretty text-ink">{item.note}</p>
@@ -173,11 +171,7 @@ export function EligibilityCard({ location, text }: EligibilityCardProps) {
           saved={work.updatedAt !== null}
         />
       ) : null}
-      <LazySignInDialog
-        open={signingIn}
-        onOpenChange={setSigningIn}
-        reason={t.signInReason}
-      />
+      <LazySignInDialog open={signingIn} onOpenChange={setSigningIn} reason={t.signInReason} />
     </section>
   );
 }
