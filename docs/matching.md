@@ -19,7 +19,7 @@ A job is shown only when it is the person's kind of work (`role-gate.ts`), howev
 - **A role named only by its kind** ("Any engineering role") shows jobs of that kind; **Any role** lets the skills decide, as before.
 - **Internships** are shown only when the person is looking for one (their level is Internship, picked or read from a latest title like "Software Engineer Intern").
 
-The hard filters stay: open, not a general application, posted within 90 days, in a place the person chose or naming none, remote when asked. The gate runs in the match index query (`poolOpenings` in `match-index.ts`), so the count of matches is of allowed jobs only, and again on every ranked job (`rankJobs`). The query keeps the best 300 by weighted skill overlap plus kind of role.
+The hard filters stay: open, not a general application, posted within 90 days, in a place the person chose or naming none, remote when asked. Filters can also keep hybrid or on-site jobs ("Hybrid" in the location), jobs at companies hiring now (a new job in 14 days, from `companies`), and jobs within 10 to 100 km of a city or of the person's own point (`near.ts`: the cities within the distance, by GeoNames id, against the opening's city or any copy's). A point comes rounded to about 1 km and a list near one is never cached, so it is never stored. The gate runs in the match index query (`poolOpenings` in `match-index.ts`), so the count of matches is of allowed jobs only, and again on every ranked job (`rankJobs`). The query keeps the best 300 by weighted skill overlap plus kind of role.
 
 ## Title vectors
 
@@ -82,3 +82,7 @@ On the 89,624-row copy of 2026-11-22, averaged over the five places (P@k: share 
 ## Feedback
 
 Every impression is logged per job and match request in `match_events` with its position, label, the variant and a hash of the resume's facts, and now the five score parts above (`features`, one byte each). Opens, saves, tailors, applies, "not a fit" (with the reason) and the asked-applied answers are logged against the same request. That is enough to fit the weights later the way LinkedIn does (a logistic model per kind of persona, then GLMix or gradient-boosted trees): impressions are the rows, the five parts the features, and an apply (or a save, then an open, weighted less) the label. Fit it on a few weeks of events, compare it with these hand weights on the next weeks' clicks as a second variant, and switch only if it wins. Nothing is trained yet.
+
+## Alerts
+
+A Pro search can become a job alert (`alerts.ts`, at most five per account in `user_settings.job_alerts`): its filters (a city, never a point), its Looking for choice and its resume. The daily run calls `/api/cron/job-alerts` after the weekly matches note; each alert is checked at most once a day, ranked like the Jobs tab over jobs posted in the last 7 days, and rings the bell (kind `job_matches`, no email) when some were first read since it last rang. Saved, applied and blocked jobs don't count. An account back on Free keeps its alerts, quiet.
