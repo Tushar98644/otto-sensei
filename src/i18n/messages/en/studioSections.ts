@@ -19,6 +19,12 @@ export default {
     location: "Location",
     locationHint: "City and country is enough.",
     locationPlaceholder: "Lisbon, Portugal",
+    language: {
+      label: "Resume language",
+      hint: "Sets the language for the checks, the headings and Otto's writing. Otto detects it unless you pick one.",
+      auto: "Detect it for me",
+      changed: "Changed the resume language",
+    },
   },
   links: {
     title: "Links",

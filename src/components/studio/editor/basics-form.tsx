@@ -7,6 +7,7 @@ import { useMessages } from "@/i18n/client";
 import type { Basics } from "@/lib/resume/schema";
 import { CHAR_LIMITS } from "./limits";
 import { LinksEditor } from "./links-editor";
+import { ResumeLanguage, SHOW_RESUME_LANGUAGE } from "./resume-language";
 import { editResume, useResumeValue } from "./use-editor";
 
 const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -100,6 +101,7 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
         </Field>
       </div>
       <LinksEditor resumeId={resumeId} links={basics.links} />
+      {SHOW_RESUME_LANGUAGE ? <ResumeLanguage resumeId={resumeId} /> : null}
     </div>
   );
 });

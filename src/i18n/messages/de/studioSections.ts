@@ -21,6 +21,12 @@ export default {
     location: "Ort",
     locationHint: "Stadt und Land reichen.",
     locationPlaceholder: "Hamburg, Deutschland",
+    language: {
+      label: "Sprache des Lebenslaufs",
+      hint: "Legt die Sprache für Prüfungen, Überschriften und Ottos Texte fest. Otto erkennt sie, wenn du keine wählst.",
+      auto: "Für mich erkennen",
+      changed: "Sprache des Lebenslaufs geändert",
+    },
   },
   links: {
     title: "Links",

@@ -21,6 +21,12 @@ export default {
     location: "Lieu",
     locationHint: "La ville et le pays suffisent.",
     locationPlaceholder: "Lyon, France",
+    language: {
+      label: "Langue du CV",
+      hint: "Définit la langue des vérifications, des titres et de ce qu’écrit Otto. Otto la détecte, sauf si tu en choisis une.",
+      auto: "La détecter pour moi",
+      changed: "A changé la langue du CV",
+    },
   },
   links: {
     title: "Liens",

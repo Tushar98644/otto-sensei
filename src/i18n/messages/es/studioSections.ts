@@ -21,6 +21,12 @@ export default {
     location: "Ubicación",
     locationHint: "Basta con ciudad y país.",
     locationPlaceholder: "Bogotá, Colombia",
+    language: {
+      label: "Idioma del currículum",
+      hint: "Define el idioma de las revisiones, los títulos y lo que escribe Otto. Otto lo detecta, salvo que elijas uno.",
+      auto: "Detectarlo por mí",
+      changed: "Cambió el idioma del currículum",
+    },
   },
   links: {
     title: "Enlaces",

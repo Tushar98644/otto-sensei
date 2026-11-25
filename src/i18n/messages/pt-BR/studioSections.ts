@@ -21,6 +21,12 @@ export default {
     location: "Localização",
     locationHint: "Cidade e país bastam.",
     locationPlaceholder: "Belo Horizonte, Brasil",
+    language: {
+      label: "Idioma do currículo",
+      hint: "Define o idioma das verificações, dos títulos e do que o Otto escreve. O Otto detecta, a menos que você escolha um.",
+      auto: "Detectar para mim",
+      changed: "Mudou o idioma do currículo",
+    },
   },
   links: {
     title: "Links",
