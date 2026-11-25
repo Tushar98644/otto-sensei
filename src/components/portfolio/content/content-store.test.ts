@@ -9,8 +9,16 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
 const toast = vi.hoisted(() => vi.fn());
 vi.mock("@/components/ui/toast", () => ({ toast, dismissToast: vi.fn() }));
 
-const { editContent, flushContent, loadContent, resetContentStore, useContentStore } =
-  await import("./content-store");
+const {
+  editContent,
+  flushContent,
+  loadContent,
+  resetContentStore,
+  setContentSaveWords,
+  useContentStore,
+} = await import("./content-store");
+const { default: en } = await import("@/i18n/messages/en");
+setContentSaveWords(en.portfolioContent);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

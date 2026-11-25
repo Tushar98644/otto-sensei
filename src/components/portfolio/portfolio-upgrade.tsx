@@ -9,12 +9,14 @@ import { OttoNote } from "@/components/mascot/otto-note";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { PRO_TRIAL } from "@/config/plans";
-import { trialSentence } from "@/lib/billing/prices";
+import { planPriceIn, trialPriceIn } from "@/components/account/local-prices";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { suggestSlug } from "@/lib/portfolio/slug";
 import { portfolioPath, type Portfolio, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
-import { PORTFOLIO_LINES } from "./lines";
 import { PreviewSourceBar, usePreviewSource } from "./preview-source";
 import { pageSample } from "./sample";
 import { TemplateGallery } from "./template-gallery";
@@ -31,6 +33,9 @@ export function PortfolioUpgrade({
   portfolio: Portfolio | null;
   candidates: readonly Resume[];
 }) {
+  const words = useMessages("portfolio");
+  const up = words.upgrade;
+  const format = useFormat();
   const { me } = useMe();
   const [open, setOpen] = useState(false);
   const [full, setFull] = useState<PortfolioTemplateId | null>(null);
@@ -45,29 +50,31 @@ export function PortfolioUpgrade({
     <section className="rounded-3xl bg-surface px-5 py-8 sm:px-8 sm:py-10">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
-          <Eyebrow className="mb-3">Hosted for you, no setup</Eyebrow>
+          <Eyebrow className="mb-3">{up.eyebrow}</Eyebrow>
           <h2 className="font-sans text-2xl/8 font-medium tracking-tight text-ink">
-            {portfolio ? "Your page is offline for now" : "A real portfolio, live at your own link"}
+            {portfolio ? up.offlineTitle : up.title}
           </h2>
           <p className="mt-2 text-base/7 text-pretty text-muted">
-            {portfolio
-              ? "Portfolios come with Pro and Max. Your page and its settings are kept, so it comes back as it was."
-              : `Your projects, work, writing and links in one of ${PORTFOLIO_TEMPLATE_IDS.length} designs, filled in from your resume.`}
+            {portfolio ? up.offline : fmt(up.pitch, { count: PORTFOLIO_TEMPLATE_IDS.length })}
           </p>
           <ul className="mt-4 flex flex-col gap-2 text-sm/6 text-ink">
             <li className="flex gap-2">
               <Check className="mt-1 size-4 shrink-0 text-pass" aria-hidden />
               <span>
-                Live at <span className="font-mono break-all">{url}</span>
+                {rich(
+                  up.liveAt,
+                  { b: (chunk) => <span className="font-mono break-all">{chunk}</span> },
+                  { url },
+                )}
               </span>
             </li>
             <li className="flex gap-2">
               <Check className="mt-1 size-4 shrink-0 text-pass" aria-hidden />
-              We host it: no domain, server or code to set up.
+              {up.hosted}
             </li>
             <li className="flex gap-2">
               <Check className="mt-1 size-4 shrink-0 text-pass" aria-hidden />
-              Your resume edits flow in, and you can switch designs any time.
+              {up.flows}
             </li>
           </ul>
         </div>
@@ -76,7 +83,13 @@ export function PortfolioUpgrade({
             {tryLabel}
           </Button>
           <p className="text-sm/5 text-subtle">
-            {trial ? trialSentence() : "Portfolios come with Pro and Max."}
+            {trial
+              ? fmt(up.trial, {
+                  price: trialPriceIn(format),
+                  days: PRO_TRIAL.days,
+                  plan: planPriceIn(format, PRO_TRIAL.plan, PRO_TRIAL.interval),
+                })
+              : up.comesWith}
           </p>
         </div>
       </div>
@@ -86,10 +99,10 @@ export function PortfolioUpgrade({
         className="mt-8"
         message={
           !own
-            ? PORTFOLIO_LINES.previewsSample
+            ? words.otto.previewsSample
             : choice.source === "own"
-              ? PORTFOLIO_LINES.previews
-              : PORTFOLIO_LINES.previewsThin
+              ? words.otto.previews
+              : words.otto.previewsThin
         }
       />
 
@@ -105,10 +118,10 @@ export function PortfolioUpgrade({
             size="sm"
             className="shrink-0"
             onClick={() => setFull(id)}
-            aria-label={`Preview ${name} full page`}
+            aria-label={fmt(words.previewFull, { name })}
           >
             <Expand aria-hidden />
-            Full page
+            {up.fullPage}
           </Button>
         )}
       />

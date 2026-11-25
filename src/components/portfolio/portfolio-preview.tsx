@@ -11,6 +11,8 @@ import {
   type CSSProperties,
 } from "react";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { PortfolioContentView } from "@/lib/portfolio/content";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { portfolioPath, type PortfolioTemplateId } from "@/lib/portfolio/types";
@@ -31,9 +33,9 @@ type PortfolioPreviewProps = {
 
 const NARROW_PANE = 560;
 
-const WIDTHS: readonly { value: PreviewWidth; label: string; Icon: typeof Monitor }[] = [
-  { value: "desktop", label: "Desktop", Icon: Monitor },
-  { value: "phone", label: "Phone", Icon: Smartphone },
+const WIDTHS: readonly { value: PreviewWidth; Icon: typeof Monitor }[] = [
+  { value: "desktop", Icon: Monitor },
+  { value: "phone", Icon: Smartphone },
 ];
 
 function useBoxSize() {
@@ -60,6 +62,7 @@ export const PortfolioPreview = memo(function PortfolioPreview({
   resumeHref,
   onExpand,
 }: PortfolioPreviewProps) {
+  const words = useMessages("portfolio").preview;
   const [picked, setPicked] = useState<PreviewWidth | null>(null);
   const [paneRef, pane] = useBoxSize();
   const [scrollerRef, box] = useBoxSize();
@@ -75,16 +78,16 @@ export const PortfolioPreview = memo(function PortfolioPreview({
   return (
     <section
       ref={paneRef}
-      aria-label="Preview"
+      aria-label={words.label}
       className="flex min-h-0 min-w-0 flex-1 flex-col gap-3"
     >
       <div className="flex min-w-0 items-center gap-3">
         <div
           role="group"
-          aria-label="Preview width"
+          aria-label={words.width}
           className="flex gap-1 rounded-xl bg-surface-strong p-1"
         >
-          {WIDTHS.map(({ value, label, Icon }) => (
+          {WIDTHS.map(({ value, Icon }) => (
             <button
               key={value}
               type="button"
@@ -93,14 +96,16 @@ export const PortfolioPreview = memo(function PortfolioPreview({
               className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control motion-safe:transition-colors"
             >
               <Icon aria-hidden className="size-4" />
-              {label}
+              {words[value]}
             </button>
           ))}
         </div>
-        <p className="min-w-0 flex-1 truncate text-sm/5 text-subtle">{name} · as visitors see it</p>
+        <p className="min-w-0 flex-1 truncate text-sm/5 text-subtle">
+          {fmt(words.asVisitors, { name })}
+        </p>
         <Button variant="ghost" size="sm" onClick={onExpand}>
           <Maximize2 aria-hidden />
-          <span className="max-xl:sr-only">Full screen</span>
+          <span className="max-xl:sr-only">{words.fullScreen}</span>
         </Button>
       </div>
 
@@ -142,7 +147,7 @@ export const PortfolioPreview = memo(function PortfolioPreview({
                 onClick={followPreviewLink}
                 tabIndex={0}
                 role="region"
-                aria-label={`Preview of your page in ${name}. Scroll to see all of it.`}
+                aria-label={fmt(words.region, { name })}
                 className="absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain -outline-offset-2"
               >
                 {zoom > 0 ? (

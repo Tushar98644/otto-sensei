@@ -1,31 +1,28 @@
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import type { ChecklistItem } from "@/lib/portfolio/content-uses";
-import { PORTFOLIO_SECTION_LABELS, type PortfolioSection } from "@/lib/portfolio/types";
+import type { PortfolioSection } from "@/lib/portfolio/types";
+import { joinAnd, lowerFor, type ContentMessages, type PortfolioMessages } from "../i18n";
 
-export const CONTENT_LINES = {
-  loading: "I'm pulling in your GitHub numbers. One moment.",
-  resumeOnly: "This design draws your resume only. What you add here shows in the richer designs.",
-  complete: "Everything this design uses is filled in. Have a look at the preview.",
-  missing: (missing: string) =>
-    `This design also shows your ${missing}. Add those and the page is done.`,
-} as const;
-
-export function missingList(items: readonly ChecklistItem[]): string {
+export function missingList(
+  words: ContentMessages,
+  format: Format,
+  items: readonly ChecklistItem[],
+): string {
   const names = items
     .filter((item) => !item.done && !item.hidden)
-    .map((item) => item.label.toLowerCase());
-  const shown = names.length > 3 ? [...names.slice(0, 2), "a few more"] : names;
-  if (shown.length <= 1) return shown[0] ?? "";
-  return `${shown.slice(0, -1).join(", ")} and ${shown.at(-1)}`;
+    .map((item) => lowerFor(format, item.label));
+  const shown = names.length > 3 ? [...names.slice(0, 2), words.checklist.aFewMore] : names;
+  return joinAnd(words.checklist.and, shown);
 }
 
 export function hiddenOnPage(
+  words: ContentMessages,
+  sections: PortfolioMessages["sections"],
   hidden: readonly PortfolioSection[],
-  sections: readonly PortfolioSection[],
+  wanted: readonly PortfolioSection[],
 ): string | undefined {
-  const off = sections
-    .filter((section) => hidden.includes(section))
-    .map((section) => PORTFOLIO_SECTION_LABELS[section]);
+  const off = wanted.filter((section) => hidden.includes(section)).map((s) => sections[s]);
   if (off.length === 0) return undefined;
-  const names = off.length === 1 ? off[0] : `${off.slice(0, -1).join(", ")} and ${off.at(-1)}`;
-  return `Hidden on your page: ${names}`;
+  return fmt(words.checklist.hiddenOnPage, { names: joinAnd(words.checklist.and, off) });
 }

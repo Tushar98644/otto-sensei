@@ -5,8 +5,10 @@ import { PortfolioViewBeacon } from "@/components/portfolio/view-beacon";
 import { PORTFOLIO_TEMPLATES } from "@/components/portfolio/templates/registry";
 import { JsonLd } from "@/components/site/json-ld";
 import { BRAND } from "@/config/brand";
+import { fmt } from "@/i18n/format";
+import { loadMessages } from "@/i18n/messages";
 import { profilePageJsonLd } from "@/lib/portfolio/json-ld";
-import { loadPublicPortfolio } from "@/lib/portfolio/page";
+import { loadPublicPortfolio, portfolioLocale } from "@/lib/portfolio/page";
 import { normalizeSlug } from "@/lib/portfolio/slug";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { DEFAULT_PORTFOLIO_TEMPLATE, portfolioPath } from "@/lib/portfolio/types";
@@ -39,10 +41,11 @@ const NO_INDEX: Metadata["robots"] = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const result = await loadPublicPortfolio(slug);
-  if (result.status !== "ok") return { title: { absolute: "Portfolio" }, robots: NO_INDEX };
+  const { page } = await loadMessages(portfolioLocale(result), "portfolio");
+  if (result.status !== "ok") return { title: { absolute: page.untitled }, robots: NO_INDEX };
   const { view, allowIndexing } = result.portfolio;
-  const title = view.name ? `${view.name} - Portfolio` : "Portfolio";
-  const description = portfolioDescription(view) || `A portfolio made with ${BRAND.name}.`;
+  const title = view.name ? fmt(page.title, { name: view.name }) : page.untitled;
+  const description = portfolioDescription(view) || fmt(page.description, { brand: BRAND.name });
   return {
     title: { absolute: title },
     description,

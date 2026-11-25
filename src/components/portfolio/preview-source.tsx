@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { readItem, writeItem } from "@/lib/browser-storage";
 import {
   isThinPage,
@@ -67,9 +69,9 @@ export function usePreviewSource(own: TemplateSample | null): PreviewChoice {
   return { source, sample: source === "own" ? own : null, canSwitch: own !== null };
 }
 
-const OPTIONS: readonly { value: PreviewSource; label: string }[] = [
-  { value: "own", label: "Your page" },
-  { value: "sample", label: "Sample page" },
+const OPTIONS: readonly { value: PreviewSource; label: "yours" | "sample" }[] = [
+  { value: "own", label: "yours" },
+  { value: "sample", label: "sample" },
 ];
 
 export function PreviewSourceSwitch({
@@ -79,10 +81,11 @@ export function PreviewSourceSwitch({
   source: PreviewSource;
   className?: string;
 }) {
+  const words = useMessages("portfolio").source;
   return (
     <div
       role="group"
-      aria-label="Page shown in the previews"
+      aria-label={words.group}
       className={cn("flex shrink-0 items-center rounded-full bg-surface-muted p-0.5", className)}
     >
       {OPTIONS.map(({ value, label }) => (
@@ -96,7 +99,7 @@ export function PreviewSourceSwitch({
             source === value && "bg-surface text-ink shadow-xs",
           )}
         >
-          {label}
+          {words[label]}
         </button>
       ))}
     </div>
@@ -112,14 +115,17 @@ export function PreviewSourceNote({
   short?: boolean;
   className?: string;
 }) {
+  const words = useMessages("portfolio").source;
   return (
     <p className={cn("text-xs/4 text-muted", className)}>
       {source === "own" ? (
-        "Your page, with your own content"
+        words.own
       ) : (
         <>
-          <span className="font-medium text-ink">{short ? "Sample:" : "Sample page:"}</span>{" "}
-          {short ? "a made-up person" : `${SAMPLE_NAME}, a made-up person`}
+          <span className="font-medium text-ink">
+            {short ? words.sampleShort : words.sampleLong}
+          </span>{" "}
+          {short ? words.madeUpShort : fmt(words.madeUpLong, { name: SAMPLE_NAME })}
         </>
       )}
     </p>

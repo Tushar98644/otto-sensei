@@ -1,5 +1,7 @@
 "use client";
 
+import type { Format } from "@/i18n/intl";
+import type { PluralForms } from "@/i18n/types";
 import type { PortfolioContent } from "@/lib/portfolio/content";
 import type { AutoContent } from "@/lib/portfolio/content-view";
 import { editContent } from "./content-store";
@@ -33,5 +35,5 @@ export function autoList<K extends AutoListKey>(
   };
 }
 
-export const count = (n: number, word: string) =>
-  n === 0 ? "Empty" : `${n} ${word}${n === 1 ? "" : "s"}`;
+export const count = (format: Format, empty: string, n: number, forms: PluralForms) =>
+  n === 0 ? empty : format.plural(forms, n);

@@ -1,6 +1,11 @@
-import { pluralize } from "@/lib/utils";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
+import type { PluralForms } from "@/i18n/types";
 import type { ContentSection, PortfolioContentView } from "./content";
 import type { PortfolioSection } from "./types";
+
+export type ChecklistCopy = Messages["portfolioContent"]["checklist"];
 
 export const CONTENT_FIELDS = [
   "pitch",
@@ -24,28 +29,6 @@ export const CONTENT_FIELDS = [
   "github",
 ] as const;
 export type ContentField = (typeof CONTENT_FIELDS)[number];
-
-export const CONTENT_FIELD_LABELS: Record<ContentField, string> = {
-  pitch: "Pitch",
-  disciplines: "What you do",
-  availability: "Availability",
-  location: "Location and time",
-  socials: "Social links",
-  about: "About",
-  now: "Now",
-  stats: "Headline numbers",
-  projectDetails: "Project write-ups",
-  categories: "Project categories",
-  jobHighlights: "Job highlights",
-  skillYears: "Years per skill",
-  milestones: "Milestones and hackathons",
-  talks: "Talks",
-  writing: "Writing",
-  testimonials: "Testimonials",
-  interests: "Interests",
-  shelf: "Bookshelf",
-  github: "GitHub",
-};
 
 export const REFERENCE_USES = {
   chiangV4: ["pitch", "about", "socials", "jobHighlights"],
@@ -209,98 +192,109 @@ export type ChecklistItem = {
   hidden: boolean;
 };
 
+// The editor's list of what a design draws, worded from the portfolioContent messages.
 export function contentChecklist(
   view: PortfolioContentView,
   fields: readonly ContentField[],
+  copy: ChecklistCopy,
+  format: Format,
   hidden: ReadonlySet<ContentField> = new Set(),
 ): ChecklistItem[] {
+  const notes = copy.notes;
   const projects = view.projects;
   const yearsKnown = view.skills.some((group) => group.items.some((item) => item.years !== null));
-  const count = (n: number, word: string, none: string) => (n > 0 ? pluralize(n, word) : none);
+  const count = (n: number, forms: PluralForms, none: string) =>
+    n > 0 ? format.plural(forms, n) : none;
   const check: Record<ContentField, () => { done: boolean; note: string }> = {
     pitch: () => ({
       done: view.pitch !== "",
-      note: view.pitch ? "From your summary" : "One sentence about what you do",
+      note: view.pitch ? notes.fromSummary : notes.pitch,
     }),
     disciplines: () => ({
       done: view.disciplines.length >= 2,
-      note: count(view.disciplines.length, "word", "A few words for what you do"),
+      note: count(view.disciplines.length, notes.words, notes.disciplines),
     }),
     availability: () => ({
       done: view.availability !== null,
-      note: view.availability?.short ?? "Say if you're open to work",
+      note: view.availability?.short ?? notes.availability,
     }),
     location: () => ({
       done: view.location?.timezone != null,
       note: view.location
         ? view.location.timezone
           ? view.location.label
-          : "Pick your time zone"
-        : "Add your city",
+          : notes.pickZone
+        : notes.addCity,
     }),
     socials: () => ({
       done: view.socials.length > 0,
-      note: count(view.socials.length, "link", "Add a link"),
+      note: count(view.socials.length, notes.links, notes.socials),
     }),
     about: () => ({
       done: view.about.length > 0,
-      note: count(view.about.length, "paragraph", "A few lines about you"),
+      note: count(view.about.length, notes.paragraphs, notes.about),
     }),
     now: () => ({
       done: view.now !== null,
-      note: view.now ? `${view.now.items.length} things` : "What you're building or learning",
+      note: view.now ? fmt(notes.things, { count: view.now.items.length }) : notes.now,
     }),
     stats: () => ({
       done: view.stats.length >= 3,
-      note: count(view.stats.length, "number", "Numbers you're proud of"),
+      note: count(view.stats.length, notes.numbers, notes.stats),
     }),
     projectDetails: () => ({
       done: projects.some((project) => project.details.length > 0),
-      note: "A longer write-up for your best project",
+      note: notes.projectDetails,
     }),
     categories: () => ({
       done: projects.length > 0 && projects.every((project) => project.category),
-      note: `${projects.filter((project) => project.category).length} of ${projects.length} projects`,
+      note: fmt(notes.categories, {
+        done: projects.filter((project) => project.category).length,
+        total: projects.length,
+      }),
     }),
     jobHighlights: () => ({
       done: view.experience.some((job) => job.highlight),
-      note: `${view.experience.filter((job) => job.highlight).length} of ${view.experience.length} jobs`,
+      note: fmt(notes.jobHighlights, {
+        done: view.experience.filter((job) => job.highlight).length,
+        total: view.experience.length,
+      }),
     }),
     skillYears: () => ({
       done: yearsKnown,
-      note: yearsKnown ? "Counted from your jobs" : "Years for your main skills",
+      note: yearsKnown ? notes.counted : notes.skillYears,
     }),
     milestones: () => ({
       done: view.milestones.length > 0,
-      note: count(view.milestones.length, "milestone", "Awards, hackathons, launches"),
+      note: count(view.milestones.length, notes.milestoneCount, notes.milestones),
     }),
     talks: () => ({
       done: view.talks.length > 0,
-      note: count(view.talks.length, "talk", "Talks you've given"),
+      note: count(view.talks.length, notes.talkCount, notes.talks),
     }),
     writing: () => ({
       done: view.writing.length > 0,
-      note: count(view.writing.length, "post", "Links to what you've written"),
+      note: count(view.writing.length, notes.posts, notes.writing),
     }),
     testimonials: () => ({
       done: view.testimonials.length > 0,
-      note: count(view.testimonials.length, "quote", "A line from someone you worked with"),
+      note: count(view.testimonials.length, notes.quotes, notes.testimonials),
     }),
     interests: () => ({
       done: view.interests.length > 0,
-      note: count(view.interests.length, "interest", "What you do outside work"),
+      note: count(view.interests.length, notes.interestCount, notes.interests),
     }),
     shelf: () => ({
       done: view.shelf.length > 0,
-      note: count(view.shelf.length, "item", "Books or albums you love"),
+      note: count(view.shelf.length, notes.items, notes.shelf),
     }),
     github: () => ({
       done: view.github !== null,
-      note: view.github ? `github.com/${view.github.username}` : "Connect your GitHub account",
+      note: view.github ? `github.com/${view.github.username}` : notes.github,
     }),
   };
   return fields.map((field) => {
-    const item = { field, label: CONTENT_FIELD_LABELS[field], ...check[field](), hidden: false };
-    return hidden.has(field) ? { ...item, hidden: true, note: "Hidden on your page" } : item;
+    const item = { field, label: copy.labels[field], ...check[field](), hidden: false };
+    return hidden.has(field) ? { ...item, hidden: true, note: notes.hidden } : item;
   });
 }

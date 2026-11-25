@@ -7,16 +7,22 @@ describe("the design picker's groups", () => {
     const groups = templateGroups(PORTFOLIO_TEMPLATE_IDS);
     const listed = groups.flatMap((group) => group.ids);
     expect([...listed].sort()).toEqual([...PORTFOLIO_TEMPLATE_IDS].sort());
-    expect(groups[0]).toEqual({ label: "Our picks", ids: ["paper", "gazette", "reel"] });
+    expect(groups[0]).toEqual({
+      id: "picks",
+      label: "Our picks",
+      ids: ["paper", "gazette", "reel"],
+    });
     expect(listed.slice(-2)).toEqual(["bento", "navy"]);
   });
 
   it("puts a design no group names at the end, and drops empty groups", () => {
     expect(templateGroups(["cv", "reel"])).toEqual([
-      { label: "Our picks", ids: ["reel"] },
-      { label: "More designs", ids: ["cv"] },
+      { id: "picks", label: "Our picks", ids: ["reel"] },
+      { id: "more", label: "More designs", ids: ["cv"] },
     ]);
-    expect(templateGroups(["navy"])).toEqual([{ label: "More designs", ids: ["navy"] }]);
+    expect(templateGroups(["navy"])).toEqual([
+      { id: "more", label: "More designs", ids: ["navy"] },
+    ]);
   });
 
   it("gives one flat order for stepping through the designs", () => {

@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { CONTENT_LINES, missingList } from "./lines";
+import { fmt } from "@/i18n/format";
+import { formatFor } from "@/i18n/intl";
+import en from "@/i18n/messages/en";
+import type { ChecklistItem } from "@/lib/portfolio/content-uses";
+import { missingList as missingIn } from "./lines";
+
+const W = en.portfolioContent;
+const CONTENT_LINES = {
+  ...W.checklist,
+  missing: (missing: string) => fmt(W.checklist.missing, { missing }),
+};
+const missingList = (items: readonly ChecklistItem[]) => missingIn(W, formatFor("en"), items);
 
 const words = (line: string) => line.trim().split(/\s+/).length;
 const item = (label: string, done = false, hidden = false) => ({
@@ -38,5 +49,11 @@ describe("Otto's lines above the content cards", () => {
 
   it("never asks for something the owner hid on the page", () => {
     expect(missingList([item("Pitch", false, true), item("Talks")])).toBe("talks");
+  });
+
+  it("keeps German nouns capitalized inside the sentence", () => {
+    expect(missingIn(W, formatFor("de"), [item("Vorträge"), item("Texte")])).toBe(
+      "Vorträge and Texte",
+    );
   });
 });

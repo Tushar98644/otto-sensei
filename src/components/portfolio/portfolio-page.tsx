@@ -16,9 +16,9 @@ import type { StepLoader } from "@/components/studio/step-loader";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMessages } from "@/i18n/client";
 import type { Resume } from "@/lib/resume/schema";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
-import { PORTFOLIO_ABOUT } from "./lines";
 import { makePortfolio, usePortfolio, usePortfolioStore } from "./portfolio-store";
 import { PORTFOLIO_ROUTE } from "./route";
 import { editorLoader, startLoader, upgradeLoader } from "./screens";
@@ -50,13 +50,14 @@ export function portfolioCandidates(resumes: readonly Resume[]): Resume[] {
 }
 
 function Screen({ children }: { children: ReactNode }) {
+  const words = useMessages("portfolio");
   return (
     <div className="flex flex-col gap-8">
       <header>
         <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-          Portfolio
+          {words.title}
         </h1>
-        <p className="mt-3 max-w-prose text-base/7 text-pretty text-muted">{PORTFOLIO_ABOUT}</p>
+        <p className="mt-3 max-w-prose text-base/7 text-pretty text-muted">{words.about}</p>
       </header>
       {children}
     </div>
@@ -92,6 +93,7 @@ function WorkspaceLoading() {
 const MAX_RESUME_ID_LENGTH = 64;
 
 export function PortfolioPage() {
+  const words = useMessages("portfolio");
   const router = useRouter();
   const asked = useSearchParams().get("resume");
   const fromResumeId = asked !== null && asked.length <= MAX_RESUME_ID_LENGTH ? asked : null;
@@ -124,24 +126,24 @@ export function PortfolioPage() {
   useEffect(() => {
     if (!ready || handled.current || !fromResumeId || locked) return;
     handled.current = true;
-    if (!portfolio && from) void makePortfolio(from);
+    if (!portfolio && from) void makePortfolio(from, words.store);
     const offered = portfolio !== null && from !== null && from.id !== portfolio.resumeId;
     if (!offered) router.replace(PORTFOLIO_ROUTE, { scroll: false });
-  }, [ready, fromResumeId, from, portfolio, router, locked]);
+  }, [ready, fromResumeId, from, portfolio, router, locked, words.store]);
 
   if (status === "error") {
     return (
       <Screen>
         <Alert
           variant="error"
-          title="Couldn't load your portfolio"
+          title={words.loadFailed}
           action={
             <Button size="sm" variant="secondary" onClick={retry}>
-              Try again
+              {words.tryAgain}
             </Button>
           }
         >
-          {error ?? "Check your connection, then try again."}
+          {error ?? words.checkConnection}
         </Alert>
       </Screen>
     );

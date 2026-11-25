@@ -1,10 +1,15 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderBare } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CONTENT_SECTIONS } from "@/lib/portfolio/content";
 import { portfolioViews } from "@/lib/portfolio/content-view";
 import { jordanContent, jordanGitHub, jordanV2Resume } from "@/lib/portfolio/fixtures/jordan";
 import { PORTFOLIO_SECTIONS, type PortfolioSection } from "@/lib/portfolio/types";
 import { ContentEditor } from "./content-editor";
+import { inEnglish } from "@/components/dashboard/messages-testing";
+
+// The English messages these components read, as the page would pass them.
+const renderToStaticMarkup = (node: ReactNode) => renderBare(inEnglish(node));
 
 function editor(hiddenSections: PortfolioSection[], showEmail = true) {
   const content = { ...jordanContent(), hidden: [...CONTENT_SECTIONS] };

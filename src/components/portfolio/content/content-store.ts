@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { create } from "zustand";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
@@ -10,6 +11,7 @@ import {
   type GitHubStats,
   type PortfolioContent,
 } from "@/lib/portfolio/content";
+import type { ContentMessages } from "../i18n";
 
 const SAVE_AFTER_MS = 900;
 
@@ -77,6 +79,17 @@ export async function loadContent(
   if (typed) void save();
 }
 
+// Saves run from timers, outside React: the editor hands over its words while it's open.
+let failWords: { title: string; detail: string } | null = null;
+
+export function setContentSaveWords(words: ContentMessages): void {
+  failWords = { title: words.saveFailed, detail: words.savedHere };
+}
+
+export function useContentSaveWords(words: ContentMessages): void {
+  useEffect(() => setContentSaveWords(words), [words]);
+}
+
 async function send(keepalive: boolean): Promise<void> {
   const { content, dirty, status } = useContentStore.getState();
   // Until the saved content is known, a save could overwrite it; the load sends the edits.
@@ -93,13 +106,13 @@ async function send(keepalive: boolean): Promise<void> {
       ...(sent === revision ? { dirty: false } : {}),
     });
   } catch (error) {
-    toast({
-      title: "Couldn't save that",
-      description: isApiError(error)
-        ? error.message
-        : "Check your connection. Your change is kept here.",
-      variant: "error",
-    });
+    if (failWords) {
+      toast({
+        title: failWords.title,
+        description: isApiError(error) ? error.message : failWords.detail,
+        variant: "error",
+      });
+    }
   } finally {
     useContentStore.setState({ saving: false });
   }

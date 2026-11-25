@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { webHref } from "@/lib/portfolio/content";
 import { cn } from "@/lib/utils";
 
 export function AutoNote({ auto, onReset }: { auto: boolean; onReset?: () => void }) {
-  if (auto) return <span className="text-xs/5 text-subtle">Filled in for you</span>;
+  const words = useMessages("portfolioContent").fields;
+  if (auto) return <span className="text-xs/5 text-subtle">{words.filledIn}</span>;
   if (!onReset) return null;
   return (
     <button
@@ -19,7 +22,7 @@ export function AutoNote({ auto, onReset }: { auto: boolean; onReset?: () => voi
       className="inline-flex items-center gap-1 rounded-md text-xs/5 text-muted underline decoration-border-strong underline-offset-2 hover:text-ink"
     >
       <RotateCcw className="size-3" aria-hidden />
-      Fill in for me
+      {words.fillIn}
     </button>
   );
 }
@@ -89,6 +92,7 @@ export function TagsField({
   hint?: string;
   onChange: (value: string[] | null) => void;
 }) {
+  const words = useMessages("portfolioContent").fields;
   const id = useId();
   const list = value ?? auto ?? [];
   const [draft, setDraft] = useState<string | null>(null);
@@ -107,7 +111,7 @@ export function TagsField({
       <Input
         id={id}
         value={draft ?? list.join(", ")}
-        placeholder="Separate with commas"
+        placeholder={words.commas}
         onFocus={() => setDraft(list.join(", "))}
         onBlur={() => setDraft(null)}
         onChange={(event) => {
@@ -121,7 +125,7 @@ export function TagsField({
           onChange(items);
         }}
       />
-      <p className="text-sm/5 text-subtle">{hint ?? `Up to ${max}.`}</p>
+      <p className="text-sm/5 text-subtle">{hint ?? fmt(words.upTo, { max })}</p>
     </div>
   );
 }
@@ -139,6 +143,7 @@ export function LinkField({
   placeholder?: string;
   onChange: (value: string | null) => void;
 }) {
+  const words = useMessages("portfolioContent").fields;
   const id = useId();
   const noteId = useId();
   const [draft, setDraft] = useState<string | null>(null);
@@ -176,7 +181,7 @@ export function LinkField({
       />
       {bad ? (
         <p id={noteId} className="text-sm/5 text-fail">
-          That isn&apos;t a web address yet.
+          {words.notWeb}
         </p>
       ) : null}
     </div>
@@ -191,7 +196,7 @@ type ListEditorProps<T extends { id: string }> = {
   items: readonly T[];
   max: number;
   addLabel: string;
-  noun: string;
+  removed: string;
   onChange: (items: T[], undo?: string) => void;
   create: () => T;
   title: (item: T) => string;
@@ -204,7 +209,7 @@ export function ListEditor<T extends { id: string }>({
   items,
   max,
   addLabel,
-  noun,
+  removed,
   onChange,
   create,
   title,
@@ -212,6 +217,7 @@ export function ListEditor<T extends { id: string }>({
   autoNote,
   empty,
 }: ListEditorProps<T>) {
+  const words = useMessages("portfolioContent").fields;
   const [dragging, setDragging] = useState<string | null>(null);
   const move = (from: number, to: number) => {
     if (to < 0 || to >= items.length || from === to) return;
@@ -251,12 +257,12 @@ export function ListEditor<T extends { id: string }>({
             <div className="flex items-center gap-1">
               <GripVertical className="size-4 shrink-0 cursor-grab text-subtle" aria-hidden />
               <p className="min-w-0 flex-1 truncate text-sm/6 font-medium text-ink">
-                {title(item) || "Untitled"}
+                {title(item) || words.untitled}
               </p>
               <Button
                 size="icon-sm"
                 variant="ghost"
-                aria-label={`Move ${title(item) || "item"} up`}
+                aria-label={fmt(words.moveUp, { name: title(item) || words.item })}
                 disabled={index === 0}
                 onClick={() => move(index, index - 1)}
               >
@@ -265,7 +271,7 @@ export function ListEditor<T extends { id: string }>({
               <Button
                 size="icon-sm"
                 variant="ghost"
-                aria-label={`Move ${title(item) || "item"} down`}
+                aria-label={fmt(words.moveDown, { name: title(item) || words.item })}
                 disabled={index === items.length - 1}
                 onClick={() => move(index, index + 1)}
               >
@@ -274,11 +280,11 @@ export function ListEditor<T extends { id: string }>({
               <Button
                 size="icon-sm"
                 variant="ghost"
-                aria-label={`Remove ${title(item) || "item"}`}
+                aria-label={fmt(words.remove, { name: title(item) || words.item })}
                 onClick={() =>
                   onChange(
                     items.filter((other) => other.id !== item.id),
-                    `${noun} removed`,
+                    removed,
                   )
                 }
               >
@@ -306,7 +312,7 @@ export function ListEditor<T extends { id: string }>({
           {addLabel}
         </Button>
       ) : (
-        <p className="text-sm/5 text-subtle">That&apos;s the most this list holds ({max}).</p>
+        <p className="text-sm/5 text-subtle">{fmt(words.full, { max })}</p>
       )}
     </div>
   );

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { formatFor } from "@/i18n/intl";
+import en from "@/i18n/messages/en";
 import { CONTENT_SECTIONS, emptyContent, type PortfolioContent } from "./content";
 import { contentChecklist, contentUsesFor, hiddenFields, REFERENCE_USES } from "./content-uses";
 import { PortfolioContentSchema, ProjectEntrySchema } from "./content-validation";
@@ -16,6 +18,8 @@ import { PORTFOLIO_SECTIONS } from "./types";
 import { portfolioView } from "./view";
 
 const NOW = Date.UTC(2026, 10, 8);
+const COPY = en.portfolioContent.checklist;
+const FORMAT = formatFor("en");
 const view = (showEmail = false) =>
   portfolioView(jordanV2Resume(), { showEmail, showPhone: false, hiddenSections: [] });
 
@@ -306,12 +310,14 @@ describe("the content view templates draw", () => {
     expect(contentUsesFor("navy")).toContain("pitch");
     expect(contentUsesFor("some-new-design").length).toBeGreaterThan(15);
     const rich = contentView({ view: view(), content: emptyContent(), github: null });
-    const items = contentChecklist(rich, REFERENCE_USES.cali);
+    const items = contentChecklist(rich, REFERENCE_USES.cali, COPY, FORMAT);
     expect(items.find((item) => item.field === "shelf")?.done).toBe(false);
     expect(items.find((item) => item.field === "about")?.done).toBe(true);
     expect(items.find((item) => item.field === "location")?.done).toBe(true);
     expect(
-      contentChecklist(jordanContentView(), REFERENCE_USES.cali).every((item) => item.done),
+      contentChecklist(jordanContentView(), REFERENCE_USES.cali, COPY, FORMAT).every(
+        (item) => item.done,
+      ),
     ).toBe(true);
   });
 });
@@ -383,7 +389,7 @@ describe("hidden sections", () => {
 
   it("mark what's hidden in the checklist instead of asking for it", () => {
     const hidden = hiddenFields(page.view.hidden, written.hidden);
-    const items = contentChecklist(editor.content, REFERENCE_USES.cali, hidden);
+    const items = contentChecklist(editor.content, REFERENCE_USES.cali, COPY, FORMAT, hidden);
     expect(items.every((item) => item.hidden)).toBe(true);
     expect(items.find((item) => item.field === "shelf")).toMatchObject({
       done: true,

@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormat, useMessages } from "@/i18n/client";
 import { CONTENT_LIMITS as L } from "@/lib/portfolio/content";
 import { autoList, count, type CardProps } from "./auto-list";
 import { editContent } from "./content-store";
@@ -9,24 +10,28 @@ import { FieldRow, ListEditor, newId } from "./fields";
 import { SectionCard, ShowRow } from "./section-card";
 
 export function WritingCard({ content, auto }: CardProps) {
+  const all = useMessages("portfolioContent");
+  const words = all.writing;
+  const fields = all.fields;
+  const format = useFormat();
   const writing = autoList(content, auto, "writing");
   const testimonials = content.testimonials;
   return (
     <SectionCard
-      title="Writing and kind words"
-      meta={`${count(writing.items.length, "post")} · ${count(testimonials.length, "quote")}`}
+      title={words.title}
+      meta={`${count(format, all.empty, writing.items.length, words.posts)} · ${count(format, all.empty, testimonials.length, words.quotes)}`}
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm font-medium text-ink">Writing</p>
+          <p className="text-sm font-medium text-ink">{words.heading}</p>
           {writing.note}
         </div>
         <ListEditor
           items={writing.items}
           max={L.writing}
-          noun="Post"
-          addLabel="Add a post"
-          empty="Links to posts and articles. Publications on your resume show up here."
+          removed={words.removed}
+          addLabel={words.add}
+          empty={words.empty}
           title={(item) => item.title}
           create={() => ({
             id: newId("w"),
@@ -41,14 +46,14 @@ export function WritingCard({ content, auto }: CardProps) {
           {(item, update) => (
             <>
               <Input
-                aria-label="Title"
-                placeholder="Postgres is a fine queue"
+                aria-label={fields.title}
+                placeholder={words.titlePlaceholder}
                 value={item.title}
                 maxLength={L.title}
                 onChange={(e) => update({ title: e.currentTarget.value })}
               />
               <Input
-                aria-label="Link"
+                aria-label={fields.link}
                 type="url"
                 placeholder="https://"
                 value={item.url}
@@ -57,19 +62,19 @@ export function WritingCard({ content, auto }: CardProps) {
               />
               <div className="grid grid-cols-3 gap-3">
                 <Input
-                  aria-label="Date"
-                  placeholder="Sep 2026"
+                  aria-label={words.date}
+                  placeholder={words.datePlaceholder}
                   value={item.date}
                   maxLength={L.date}
                   onChange={(e) => update({ date: e.currentTarget.value })}
                 />
                 <Input
-                  aria-label="Minutes to read"
+                  aria-label={words.minutes}
                   type="number"
                   inputMode="numeric"
                   min={1}
                   max={L.minutes}
-                  placeholder="8 min"
+                  placeholder={words.minutesPlaceholder}
                   value={item.minutes ?? ""}
                   onChange={(e) => {
                     const minutes = Math.round(Number(e.currentTarget.value));
@@ -77,8 +82,8 @@ export function WritingCard({ content, auto }: CardProps) {
                   }}
                 />
                 <Input
-                  aria-label="Where it ran"
-                  placeholder="Own blog"
+                  aria-label={words.publisher}
+                  placeholder={words.publisherPlaceholder}
                   value={item.publisher}
                   maxLength={L.label}
                   onChange={(e) => update({ publisher: e.currentTarget.value })}
@@ -87,16 +92,16 @@ export function WritingCard({ content, auto }: CardProps) {
             </>
           )}
         </ListEditor>
-        <ShowRow content={content} section="writing" label="Show writing on my page" />
+        <ShowRow content={content} section="writing" label={words.show} />
       </div>
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium text-ink">Testimonials</p>
+        <p className="text-sm font-medium text-ink">{words.testimonials}</p>
         <ListEditor
           items={testimonials}
           max={L.testimonials}
-          noun="Quote"
-          addLabel="Add a quote"
-          empty="A line from a manager, client or teammate, with their name."
+          removed={words.quoteRemoved}
+          addLabel={words.addQuote}
+          empty={words.quotesEmpty}
           title={(item) => item.name || item.quote.slice(0, 40)}
           create={() => ({ id: newId("q"), quote: "", name: "", role: "", url: "" })}
           onChange={(items, undo) => editContent((c) => ({ ...c, testimonials: items }), undo)}
@@ -104,24 +109,24 @@ export function WritingCard({ content, auto }: CardProps) {
           {(item, update) => (
             <>
               <Textarea
-                aria-label="What they said"
+                aria-label={words.said}
                 autoResize
-                placeholder="Jordan is the engineer you hand the scary migration to."
+                placeholder={words.saidPlaceholder}
                 value={item.quote}
                 maxLength={L.quote}
                 onChange={(e) => update({ quote: e.currentTarget.value })}
               />
               <FieldRow>
                 <Input
-                  aria-label="Their name"
+                  aria-label={words.name}
                   placeholder="Maya Okafor"
                   value={item.name}
                   maxLength={L.label}
                   onChange={(e) => update({ name: e.currentTarget.value })}
                 />
                 <Input
-                  aria-label="Their role"
-                  placeholder="VP Engineering, Ledgerly"
+                  aria-label={words.role}
+                  placeholder={words.rolePlaceholder}
                   value={item.role}
                   maxLength={L.title}
                   onChange={(e) => update({ role: e.currentTarget.value })}
@@ -130,7 +135,7 @@ export function WritingCard({ content, auto }: CardProps) {
             </>
           )}
         </ListEditor>
-        <ShowRow content={content} section="testimonials" label="Show testimonials on my page" />
+        <ShowRow content={content} section="testimonials" label={words.showQuotes} />
       </div>
     </SectionCard>
   );

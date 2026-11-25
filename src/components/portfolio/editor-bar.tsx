@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
 import { StatusPill } from "@/components/ui/status";
+import { useFormat, useMessages } from "@/i18n/client";
 import { canPublishPortfolio } from "@/lib/portfolio/plan";
 import { portfolioPath, type Portfolio } from "@/lib/portfolio/types";
 import { useContentStore } from "./content/content-store";
-import { PUBLISH_NOTE, saveLabel, viewsLabel } from "./lines";
+import { saveLabel, viewsLabel } from "./lines";
 import { setPublished, usePortfolioStore } from "./portfolio-store";
 import { usePortfolioUrl } from "./use-portfolio-url";
 
@@ -21,6 +22,9 @@ type EditorBarProps = {
 };
 
 export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
+  const words = useMessages("portfolio");
+  const format = useFormat();
+  const bar = words.bar;
   const { user } = useMe();
   const saving = usePortfolioStore((state) => state.saving);
   const writing = useContentStore((state) => state.saving || state.dirty);
@@ -30,22 +34,22 @@ export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
   const { copied, copy } = useCopyLink();
   const noteId = useId();
   const { published, views } = portfolio;
-  const note = !published && !canPublish ? PUBLISH_NOTE : null;
+  const note = !published && !canPublish ? words.publishNote : null;
 
   const main = published ? (
     <Button variant="secondary" onClick={() => copy(url)} disabled={!url} className="min-w-32">
       {copied ? <Check aria-hidden /> : <Link2 aria-hidden />}
-      {copied ? "Copied" : "Copy link"}
+      {copied ? bar.copied : bar.copyLink}
     </Button>
   ) : (
     <Button
-      onClick={() => void setPublished(true)}
+      onClick={() => void setPublished(true, words.store)}
       loading={saving}
       disabled={!canPublish}
       aria-describedby={note ? noteId : undefined}
     >
       <Globe aria-hidden />
-      Publish
+      {bar.publish}
     </Button>
   );
 
@@ -54,10 +58,14 @@ export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
       <div className="flex items-center gap-x-6 gap-y-3">
         <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center lg:gap-5">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink lg:text-3xl/9">
-            Portfolio
+            {words.title}
           </h1>
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm/5 text-subtle">
-            {published ? <StatusPill status="pass">Live</StatusPill> : <Badge>Draft</Badge>}
+            {published ? (
+              <StatusPill status="pass">{bar.live}</StatusPill>
+            ) : (
+              <Badge>{bar.draft}</Badge>
+            )}
             {published ? (
               <a
                 href={href}
@@ -66,7 +74,7 @@ export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
                 className="min-w-0 truncate font-mono text-muted underline decoration-border-strong underline-offset-4 hover:text-ink hover:decoration-ink"
               >
                 {portfolioPath(portfolio.slug)}
-                <span className="sr-only"> (opens in a new tab)</span>
+                <span className="sr-only"> {bar.newTab}</span>
               </a>
             ) : (
               <span className="min-w-0 truncate font-mono text-muted">
@@ -76,11 +84,11 @@ export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
             {published ? (
               <>
                 <span aria-hidden>·</span>
-                <span>{viewsLabel(views)}</span>
+                <span>{viewsLabel(words, format, views)}</span>
               </>
             ) : null}
             <span aria-hidden>·</span>
-            <span>{saveLabel(saving || writing, published)}</span>
+            <span>{saveLabel(words, saving || writing, published)}</span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -91,32 +99,32 @@ export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
               rel="noopener noreferrer"
               className={buttonClasses({ variant: "ghost", className: "max-lg:hidden" })}
             >
-              Open page
+              {bar.openPage}
               <ExternalLink aria-hidden />
-              <span className="sr-only">(opens in a new tab)</span>
+              <span className="sr-only">{bar.newTab}</span>
             </a>
           ) : null}
           {published ? (
             <Menu
-              label="Page actions"
+              label={bar.pageActions}
               align="end"
-              triggerLabel="More page actions"
+              triggerLabel={bar.moreActions}
               triggerClassName={buttonClasses({ variant: "ghost", size: "icon" })}
               trigger={<Ellipsis aria-hidden />}
               items={[
                 {
-                  label: "Open page",
+                  label: bar.openPage,
                   icon: ExternalLink,
                   onSelect: () => window.open(href, "_blank", "noopener,noreferrer"),
                 },
                 "separator",
                 {
-                  label: "Take down",
+                  label: bar.takeDown,
                   icon: EyeOff,
-                  description: "Visitors see the page is down. You can undo.",
+                  description: bar.takeDownHint,
                   tone: "danger",
                   disabled: saving,
-                  onSelect: () => void setPublished(false),
+                  onSelect: () => void setPublished(false, words.store),
                 },
               ]}
             />
@@ -130,14 +138,14 @@ export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
         </p>
       ) : null}
       <span aria-live="polite" className="sr-only">
-        {copied ? "Link copied" : ""}
+        {copied ? bar.linkCopied : ""}
       </span>
 
       <div className="fixed inset-x-4 bottom-4 z-20 flex justify-end lg:hidden">
         <div className="flex gap-1.5 rounded-2xl bg-surface p-1.5 shadow-float ring-1 ring-ink/5">
           <Button variant="secondary" onClick={onPreview}>
             <Smartphone aria-hidden />
-            Preview
+            {bar.preview}
           </Button>
           {main}
         </div>

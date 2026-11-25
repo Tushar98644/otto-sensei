@@ -8,19 +8,28 @@ import { useGitHubConnection } from "@/components/github/use-github-connection";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import { api, isApiError } from "@/lib/api/client";
 import type { GitHubStats, PortfolioContent } from "@/lib/portfolio/content";
 import { compactNumber } from "@/lib/portfolio/metrics";
 import { setGitHub } from "./content-store";
+import type { ContentMessages } from "../i18n";
 import { SectionCard, ShowRow } from "./section-card";
 
-const ago = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 const RETURN_TARGET = "portfolio";
+const AUTO = { numeric: "auto" } as const;
 
-function since(iso: string | null, now = Date.now()): string {
-  if (!iso) return "no public activity lately";
+function since(
+  words: ContentMessages["github"],
+  format: Format,
+  iso: string | null,
+  now = Date.now(),
+): string {
+  if (!iso) return words.quiet;
   const days = Math.round((Date.parse(iso) - now) / 86_400_000);
-  return `active ${ago.format(days, "day")}`;
+  return fmt(words.active, { when: format.relativeTime(days, "day", AUTO) });
 }
 
 // Only from the connected GitHub account, never a typed name: no showing someone else's stars.
@@ -31,6 +40,8 @@ export function GitHubCard({
   content: PortfolioContent;
   github: GitHubStats | null;
 }) {
+  const words = useMessages("portfolioContent").github;
+  const format = useFormat();
   const connection = useGitHubConnection(true);
   const [busy, setBusy] = useState(false);
   const { state } = connection;
@@ -38,11 +49,7 @@ export function GitHubCard({
 
   useGitHubReturn(RETURN_TARGET, (error) => {
     if (!error) {
-      toast({
-        title: "GitHub connected",
-        description: "Your page can show your GitHub numbers now.",
-        variant: "success",
-      });
+      toast({ title: words.connected, description: words.connectedDetail, variant: "success" });
     }
   });
 
@@ -53,7 +60,7 @@ export function GitHubCard({
       setGitHub(answer.github);
     } catch (error) {
       toast({
-        title: "Couldn't reach GitHub",
+        title: words.unreachable,
         description: isApiError(error) ? error.message : undefined,
         variant: "error",
       });
@@ -67,11 +74,15 @@ export function GitHubCard({
   }
 
   const meta = github
-    ? `★ ${compactNumber(github.totalStars)} · ${github.publicRepos} repos · ${since(github.activity.lastActiveAt)}`
+    ? fmt(words.meta, {
+        stars: compactNumber(github.totalStars),
+        repos: github.publicRepos,
+        activity: since(words, format, github.activity.lastActiveAt),
+      })
     : connected
-      ? "Not loaded yet"
+      ? words.notLoaded
       : state.status === "ready"
-        ? "Not connected"
+        ? words.notConnected
         : undefined;
 
   return (
@@ -87,64 +98,56 @@ export function GitHubCard({
               />
               <Button variant="secondary" loading={busy} onClick={() => void refresh()}>
                 <RefreshCw className="size-4" />
-                Refresh
+                {words.refresh}
               </Button>
             </div>
-            <p className="text-sm/5 text-subtle">
-              Public repos, stars, languages and recent activity from your connected account,
-              refreshed every few hours.
-            </p>
+            <p className="text-sm/5 text-subtle">{words.about}</p>
           </>
         ) : state.status === "ready" ? (
           <>
-            <p className="text-sm/6 text-muted">
-              Connect your GitHub to show your stars, repos and languages. Only your own account can
-              be shown.
-            </p>
+            <p className="text-sm/6 text-muted">{words.connectIntro}</p>
             <Button
               variant="secondary"
               className="self-start"
               loading={connection.busy === "connect"}
               onClick={() => void connection.connect(RETURN_TARGET)}
             >
-              Connect GitHub
+              {words.connect}
             </Button>
           </>
         ) : state.status === "failed" ? (
           <>
-            <p className="text-sm/6 text-muted">
-              Couldn&apos;t check your GitHub account just now.
-            </p>
+            <p className="text-sm/6 text-muted">{words.checkFailed}</p>
             <Button variant="secondary" className="self-start" onClick={connection.reload}>
-              Try again
+              {words.tryAgain}
             </Button>
           </>
         ) : (
-          <p className="text-sm/6 text-muted">Checking your GitHub account…</p>
+          <p className="text-sm/6 text-muted">{words.checking}</p>
         )}
         {connection.error ? <Alert variant="error">{connection.error}</Alert> : null}
       </div>
       {github ? (
         <dl className="grid grid-cols-3 gap-3 rounded-xl bg-surface-muted p-3 text-center">
           <div>
-            <dt className="text-xs/4 text-subtle">Stars</dt>
+            <dt className="text-xs/4 text-subtle">{words.stars}</dt>
             <dd className="text-lg/7 font-semibold text-ink tabular-nums">
               {compactNumber(github.totalStars)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs/4 text-subtle">Repos</dt>
+            <dt className="text-xs/4 text-subtle">{words.repos}</dt>
             <dd className="text-lg/7 font-semibold text-ink tabular-nums">{github.publicRepos}</dd>
           </div>
           <div>
-            <dt className="text-xs/4 text-subtle">Followers</dt>
+            <dt className="text-xs/4 text-subtle">{words.followers}</dt>
             <dd className="text-lg/7 font-semibold text-ink tabular-nums">
               {compactNumber(github.followers)}
             </dd>
           </div>
           {github.languages.length > 0 ? (
             <div className="col-span-3 text-left">
-              <dt className="sr-only">Languages</dt>
+              <dt className="sr-only">{words.languages}</dt>
               <dd className="text-sm/6 text-muted">
                 {github.languages
                   .map((language) => `${language.name} ${language.percent}%`)
@@ -154,7 +157,7 @@ export function GitHubCard({
           ) : null}
         </dl>
       ) : null}
-      <ShowRow content={content} section="github" label="Show GitHub numbers on my page" />
+      <ShowRow content={content} section="github" label={words.show} />
     </SectionCard>
   );
 }

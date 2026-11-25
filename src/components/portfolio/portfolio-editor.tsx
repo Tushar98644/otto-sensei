@@ -15,13 +15,15 @@ import { resumeLabel } from "@/components/studio/resume-label";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
+import { fmt } from "@/i18n/format";
+import { useFormat, useMessages } from "@/i18n/client";
 import type { Portfolio, PortfolioTemplateId } from "@/lib/portfolio/types";
 import { sectionsWithContent } from "@/lib/portfolio/view";
 import type { Resume } from "@/lib/resume/schema";
 import { ContentEditor } from "./content/content-editor";
 import { usePortfolioContent } from "./content/use-content";
 import { EditorBar } from "./editor-bar";
-import { PORTFOLIO_LINES, portfolioFacts } from "./lines";
+import { liveLine, portfolioFacts } from "./lines";
 import { PortfolioPreview } from "./portfolio-preview";
 import { savePortfolio, usePortfolioStore } from "./portfolio-store";
 import { SettingsCard } from "./settings-card";
@@ -33,13 +35,8 @@ const FullPortfolioPreview = lazy(() =>
   import("./full-preview").then((module) => ({ default: module.FullPortfolioPreview })),
 );
 
-const TABS = [
-  { value: "design", label: "Design" },
-  { value: "content", label: "Content" },
-  { value: "sections", label: "Sections" },
-  { value: "settings", label: "Settings" },
-] as const;
-type EditorTab = (typeof TABS)[number]["value"];
+const TABS = ["design", "content", "sections", "settings"] as const;
+type EditorTab = (typeof TABS)[number];
 
 const SIDE_BY_SIDE = "(min-width: 64rem)";
 
@@ -51,6 +48,8 @@ type PortfolioEditorProps = {
 };
 
 export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: PortfolioEditorProps) {
+  const words = useMessages("portfolio");
+  const format = useFormat();
   const saving = usePortfolioStore((state) => state.saving);
   const source = resumes.find((resume) => resume.id === portfolio.resumeId) ?? null;
   const behind = source !== null && source.updatedAt > portfolio.versionAt;
@@ -74,11 +73,11 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
     if (!portfolio.sync || !source || !behind || saving) return;
     if (pushed.current === source.updatedAt) return;
     pushed.current = source.updatedAt;
-    void savePortfolio({ resume: source });
-  }, [portfolio.sync, source, behind, saving]);
+    void savePortfolio({ resume: source }, words.store);
+  }, [portfolio.sync, source, behind, saving, words.store]);
 
   function changeTab(value: string) {
-    const next = TABS.find((item) => item.value === value)?.value ?? "design";
+    const next = TABS.find((item) => item === value) ?? "design";
     const body = bodyRef.current;
     const sideBySide = window.matchMedia(SIDE_BY_SIDE).matches;
     if (body && sideBySide) scrolled.current.set(tab, body.scrollTop);
@@ -91,13 +90,13 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
   }
 
   const message = !source
-    ? PORTFOLIO_LINES.noResume
+    ? words.otto.noResume
     : behind && !portfolio.sync
-      ? PORTFOLIO_LINES.behind
+      ? words.otto.behind
       : portfolio.published
-        ? PORTFOLIO_LINES.live(portfolio.views)
-        : PORTFOLIO_LINES.draft;
-  const facts = portfolioFacts({
+        ? liveLine(words, format, portfolio.views)
+        : words.otto.draft;
+  const facts = portfolioFacts(words, format, {
     projects: view.projects.length,
     jobs: view.experience.length,
     skills: view.skills.reduce((total, group) => total + group.items.length, 0),
@@ -118,10 +117,10 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
           <Tabs value={tab} onValueChange={changeTab} className="gap-0 lg:min-h-0 lg:flex-1">
             {/* Pinned under the phone's app bar (h-14 plus its section strip, 116px). */}
             <div className="sticky top-29 z-10 rounded-t-2xl border-b border-border bg-surface px-4 pt-4 pb-3 sm:px-6 lg:static">
-              <TabList aria-label="Edit your portfolio" className="flex w-full self-stretch">
+              <TabList aria-label={words.editLabel} className="flex w-full self-stretch">
                 {TABS.map((item) => (
-                  <Tab key={item.value} value={item.value} className="flex-1 px-2">
-                    {item.label}
+                  <Tab key={item} value={item} className="flex-1 px-2">
+                    {words.tabs[item]}
                   </Tab>
                 ))}
               </TabList>
@@ -133,7 +132,7 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
               {offer ? (
                 <Alert
                   className="mb-6"
-                  title={`Show “${resumeLabel(offer)}” instead?`}
+                  title={fmt(words.offer.title, { name: resumeLabel(offer) })}
                   action={
                     <div className="flex flex-wrap gap-2">
                       <Button
@@ -141,19 +140,22 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
                         variant="secondary"
                         loading={saving}
                         onClick={async () => {
-                          if (await savePortfolio({ resume: offer })) onOfferDone();
+                          if (await savePortfolio({ resume: offer }, words.store)) onOfferDone();
                         }}
                       >
-                        Use this resume
+                        {words.offer.use}
                       </Button>
                       <Button size="sm" variant="ghost" onClick={onOfferDone}>
-                        Keep the current one
+                        {words.offer.keep}
                       </Button>
                     </div>
                   }
                 >
-                  You have one portfolio. It now shows{" "}
-                  {source ? `“${resumeLabel(source)}”` : "another resume"}.
+                  {fmt(words.offer.shows, {
+                    current: source
+                      ? fmt(words.offer.quoted, { name: resumeLabel(source) })
+                      : words.offer.another,
+                  })}
                 </Alert>
               ) : null}
               <TabPanel value="design" keepMounted className="flex flex-col gap-8">
@@ -161,7 +163,7 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
                 <div className="border-t border-border pt-8">
                   <TemplatePicker
                     value={portfolio.template}
-                    onChange={(template) => void savePortfolio({ template })}
+                    onChange={(template) => void savePortfolio({ template }, words.store)}
                     own={preview}
                   />
                 </div>
@@ -177,7 +179,7 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
                   showEmail={portfolio.showEmail}
                   resume={source}
                   onResumeChange={(next) => {
-                    if (!portfolio.sync) void savePortfolio({ resume: next });
+                    if (!portfolio.sync) void savePortfolio({ resume: next }, words.store);
                   }}
                 />
               </TabPanel>
@@ -222,14 +224,14 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
           <FullPortfolioPreview
             id={full}
             own={own}
-            note={full === portfolio.template ? "In use on your page." : "Not on your page yet."}
+            note={full === portfolio.template ? words.inUseNote : words.notYetNote}
             resumeHref={resumeLink.href}
             action={
               full === portfolio.template
                 ? null
                 : {
-                    label: "Use this design",
-                    onSelect: () => void savePortfolio({ template: full }),
+                    label: words.useDesign,
+                    onSelect: () => void savePortfolio({ template: full }, words.store),
                   }
             }
             onChange={setFull}

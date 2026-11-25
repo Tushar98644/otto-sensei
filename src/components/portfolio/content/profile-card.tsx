@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import {
   CONTENT_LIMITS as L,
   socialHref,
@@ -39,6 +41,8 @@ export function ProfileCard({
   linksHidden,
   showEmail,
 }: CardProps & { linksHidden?: string; showEmail: boolean }) {
+  const words = useMessages("portfolioContent");
+  const intro = words.intro;
   const zones = useTimeZones();
   const zoneId = useId();
   const location = content.location;
@@ -48,18 +52,18 @@ export function ProfileCard({
     auto.availability ?? { open: false, text: "", short: "" };
 
   return (
-    <SectionCard title="Intro" meta={view.pitch ? "Pitch" : "No pitch yet"}>
+    <SectionCard title={intro.title} meta={view.pitch ? intro.pitch : intro.noPitch}>
       <TextField
-        label="Pitch"
+        label={intro.pitch}
         value={content.pitch}
         auto={auto.pitch}
         max={L.pitch}
         multiline
-        hint="One sentence, the first thing people read."
+        hint={intro.pitchHint}
         onChange={(value) => set("pitch", value)}
       />
       <TextField
-        label="Short intro"
+        label={intro.shortIntro}
         value={content.intro}
         auto={auto.intro}
         max={L.intro}
@@ -67,17 +71,17 @@ export function ProfileCard({
         onChange={(value) => set("intro", value)}
       />
       <TagsField
-        label="What you do"
+        label={intro.disciplines}
         value={content.disciplines}
         auto={auto.disciplines}
         max={L.disciplines}
-        hint="A few words some designs rotate through: Developer, Designer, Writer."
+        hint={intro.disciplinesHint}
         onChange={(value) => set("disciplines", value)}
       />
 
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm font-medium text-ink">Availability</p>
+          <p className="text-sm font-medium text-ink">{intro.availability}</p>
           <AutoNote
             auto={content.availability === null && auto.availability !== null}
             onReset={content.availability ? () => set("availability", null) : undefined}
@@ -86,15 +90,15 @@ export function ProfileCard({
         <div className="border-y border-border">
           <CheckRow
             checked={availability.open}
-            label="Open to work"
-            hint="Shows a small green dot on designs that have one."
+            label={intro.open}
+            hint={intro.openHint}
             onChange={(open) => set("availability", { ...availability, open })}
           />
         </div>
         <FieldRow>
           <Input
-            aria-label="Availability line"
-            placeholder="Open to senior roles from January"
+            aria-label={intro.line}
+            placeholder={intro.linePlaceholder}
             value={availability.text}
             maxLength={L.availability}
             onChange={(event) =>
@@ -102,8 +106,8 @@ export function ProfileCard({
             }
           />
           <Input
-            aria-label="Short version"
-            placeholder="Available Jan 2027"
+            aria-label={intro.short}
+            placeholder={intro.shortPlaceholder}
             value={availability.short}
             maxLength={L.availabilityShort}
             onChange={(event) =>
@@ -115,7 +119,7 @@ export function ProfileCard({
 
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm font-medium text-ink">Location and local time</p>
+          <p className="text-sm font-medium text-ink">{intro.location}</p>
           <AutoNote
             auto={location === null}
             onReset={location ? () => set("location", null) : undefined}
@@ -123,8 +127,8 @@ export function ProfileCard({
         </div>
         <FieldRow>
           <Input
-            aria-label="City"
-            placeholder="Lisbon, Portugal"
+            aria-label={intro.city}
+            placeholder={intro.cityPlaceholder}
             maxLength={L.place}
             value={location?.label ?? auto.location?.label ?? ""}
             onChange={(event) =>
@@ -138,7 +142,7 @@ export function ProfileCard({
           />
           <div className="flex flex-col gap-1">
             <Label htmlFor={zoneId} className="sr-only">
-              Time zone
+              {intro.zone}
             </Label>
             <Select
               id={zoneId}
@@ -152,9 +156,9 @@ export function ProfileCard({
                 })
               }
             >
-              <option value="">Time zone…</option>
+              <option value="">{intro.zonePick}</option>
               {browserZone && zones.includes(browserZone) ? (
-                <option value={browserZone}>{browserZone} (this device)</option>
+                <option value={browserZone}>{fmt(intro.thisDevice, { zone: browserZone })}</option>
               ) : null}
               {zones.map((zone) => (
                 <option key={zone} value={zone}>
@@ -166,17 +170,17 @@ export function ProfileCard({
         </FieldRow>
         <p className="text-sm/5 text-subtle">
           {view.location?.coords
-            ? `Pinned at ${view.location.city} for map tiles.`
+            ? fmt(intro.pinned, { city: view.location.city })
             : view.location
-              ? "No map pin for this place; clocks still work once the time zone is set."
-              : "Add your city for a clock or map tile."}
+              ? intro.noPin
+              : intro.addCity}
         </p>
-        <ShowRow content={content} section="location" label="Show my location and local time" />
+        <ShowRow content={content} section="location" label={intro.showLocation} />
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm font-medium text-ink">Links</p>
+          <p className="text-sm font-medium text-ink">{intro.links}</p>
           <AutoNote
             auto={content.socials === null}
             onReset={content.socials ? () => set("socials", null) : undefined}
@@ -186,12 +190,12 @@ export function ProfileCard({
         <ListEditor
           items={content.socials ?? auto.socials}
           max={L.socials}
-          noun="Link"
-          addLabel="Add a link"
-          empty="No links yet. GitHub, LinkedIn and your site come from your resume."
+          removed={intro.linkRemoved}
+          addLabel={intro.addLink}
+          empty={intro.noLinks}
           title={(item) =>
             !showEmail && socialHref(item.url)?.startsWith("mailto:")
-              ? `${item.label || item.url} (hidden: “Show my email” is off)`
+              ? fmt(intro.emailHidden, { label: item.label || item.url })
               : item.label || item.url
           }
           create={() => ({ id: newId("s"), label: "", url: "" })}
@@ -200,15 +204,15 @@ export function ProfileCard({
           {(item, update) => (
             <FieldRow>
               <Input
-                aria-label="Label"
+                aria-label={words.fields.label}
                 placeholder="GitHub"
                 value={item.label}
                 maxLength={L.label}
                 onChange={(e) => update({ label: e.currentTarget.value })}
               />
               <Input
-                aria-label="Address"
-                placeholder="https://github.com/you"
+                aria-label={intro.address}
+                placeholder={intro.addressPlaceholder}
                 value={item.url}
                 maxLength={L.url}
                 onChange={(e) => update({ url: e.currentTarget.value })}
@@ -226,29 +230,30 @@ export function AboutCard({
   auto,
   hidden,
 }: Omit<CardProps, "view"> & { hidden?: string }) {
+  const words = useMessages("portfolioContent");
+  const format = useFormat();
+  const copy = words.about;
   const about = content.about ?? auto.about;
   return (
     <SectionCard
-      title="About"
+      title={copy.title}
       hidden={hidden}
-      meta={
-        about.length > 0 ? `${about.length} paragraph${about.length === 1 ? "" : "s"}` : "Empty"
-      }
+      meta={about.length > 0 ? format.plural(copy.paragraphs, about.length) : words.empty}
     >
       <div className="flex flex-col gap-1.5">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm font-medium text-ink">About you</p>
+          <p className="text-sm font-medium text-ink">{copy.you}</p>
           <AutoNote
             auto={content.about === null}
             onReset={content.about ? () => set("about", null) : undefined}
           />
         </div>
         <Textarea
-          aria-label="About you"
+          aria-label={copy.you}
           autoResize
           className="max-h-96"
           maxLength={L.aboutParagraph * L.aboutParagraphs}
-          placeholder="Where you started, what you like working on, how you work."
+          placeholder={copy.placeholder}
           value={about.join("\n\n")}
           onChange={(event) =>
             set(
@@ -260,17 +265,15 @@ export function AboutCard({
             )
           }
         />
-        <p className="text-sm/5 text-subtle">
-          A blank line starts a new paragraph. Starts as your resume summary.
-        </p>
+        <p className="text-sm/5 text-subtle">{copy.hint}</p>
       </div>
       <TagsField
-        label="Words to highlight"
+        label={copy.highlights}
         value={content.highlights}
         auto={auto.highlights}
         max={L.highlights}
         maxLength={L.highlight}
-        hint="Phrases from the text above that designs mark in colour or bold."
+        hint={copy.highlightsHint}
         onChange={(value) => set("highlights", value)}
       />
     </SectionCard>

@@ -218,7 +218,8 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
   },
 };
 
-export type TemplateGroup = { label: string; ids: PortfolioTemplateId[] };
+export type TemplateGroupId = "picks" | "more";
+export type TemplateGroup = { id: TemplateGroupId; label: string; ids: PortfolioTemplateId[] };
 
 // The picker's first line, and the designs the home page shows.
 export const PORTFOLIO_PICKS = [
@@ -227,9 +228,14 @@ export const PORTFOLIO_PICKS = [
   "reel",
 ] as const satisfies readonly PortfolioTemplateId[];
 
-const PICKER_GROUPS: readonly { label: string; ids: readonly PortfolioTemplateId[] }[] = [
-  { label: "Our picks", ids: PORTFOLIO_PICKS },
+const PICKER_GROUPS: readonly {
+  id: TemplateGroupId;
+  label: string;
+  ids: readonly PortfolioTemplateId[];
+}[] = [
+  { id: "picks", label: "Our picks", ids: PORTFOLIO_PICKS },
   {
+    id: "more",
     label: "More designs",
     ids: [
       "dock",
@@ -249,7 +255,8 @@ const PICKER_GROUPS: readonly { label: string; ids: readonly PortfolioTemplateId
 ];
 
 export function templateGroups(ids: readonly PortfolioTemplateId[]): TemplateGroup[] {
-  const groups = PICKER_GROUPS.map(({ label, ids: listed }) => ({
+  const groups = PICKER_GROUPS.map(({ id, label, ids: listed }) => ({
+    id,
     label,
     ids: listed.filter((id) => ids.includes(id)),
   }));

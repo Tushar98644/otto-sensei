@@ -6,6 +6,9 @@ import { GitHubImportButton } from "@/components/github/github-import-button";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import {
   CONTENT_LIMITS as L,
   DEVICE_FRAMES,
@@ -20,17 +23,13 @@ import { compactNumber } from "@/lib/portfolio/metrics";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { CheckRow } from "../check-row";
+import type { ContentMessages } from "../i18n";
 import { editContent } from "./content-store";
 import { FieldRow, LinkField, TagsField, TextField } from "./fields";
 import { SectionCard } from "./section-card";
 
 type Row = { id: string; entry: ProjectEntry | null; base: AutoProject };
-
-const DEVICE_LABELS: Record<DeviceFrame, string> = {
-  auto: "Let the design choose",
-  laptop: "Laptop",
-  phone: "Phone",
-};
+type ProjectWords = ContentMessages["projects"];
 
 function blank(id: string, from: AutoProject["from"], name = ""): AutoProject {
   return {
@@ -56,6 +55,7 @@ export function projectRows(
   content: PortfolioContent,
   auto: AutoContent,
   github: GitHubStats | null,
+  stars: string,
 ): Row[] {
   const autoById = new Map(auto.projects.map((project) => [project.id, project]));
   const entries = new Map(content.projects.map((entry) => [entry.id, entry]));
@@ -75,7 +75,7 @@ export function projectRows(
       if (repo) {
         row.line = repo.description;
         row.stars = repo.stars;
-        row.outcome = repo.stars >= 10 ? `${compactNumber(repo.stars)} stars` : "";
+        row.outcome = repo.stars >= 10 ? fmt(stars, { count: compactNumber(repo.stars) }) : "";
         row.tech = repo.language ? [repo.language] : [];
         row.source = { href: repo.url, text: `github.com/${repo.fullName}`, repo: repo.fullName };
       }
@@ -123,7 +123,8 @@ export function ProjectsCard({
   resume = null,
   onResumeChange,
 }: ProjectsCardProps) {
-  const rows = projectRows(content, auto, github);
+  const words = useMessages("portfolioContent").projects;
+  const rows = projectRows(content, auto, github, words.stars);
   const [dragging, setDragging] = useState<string | null>(null);
   const shown = rows.filter((row) => !row.entry?.hidden);
   const described = shown.filter((row) => (row.entry?.line ?? row.base.line) !== "").length;
@@ -146,32 +147,28 @@ export function ProjectsCard({
 
   return (
     <SectionCard
-      title="Projects"
+      title={words.title}
       hidden={hidden}
-      meta={
-        shown.length > 0 ? `${shown.length} on the page · ${described} with a line` : "None yet"
-      }
+      meta={shown.length > 0 ? fmt(words.meta, { shown: shown.length, described }) : words.none}
       defaultOpen
     >
       {resume ? (
         <div className="flex flex-col gap-3 rounded-xl bg-surface-muted p-4">
           <p className="text-sm/6 text-muted">
-            <span className="font-medium text-ink">Work on GitHub?</span> Otto drafts projects from
-            your public repos and adds them to your resume, so they show here too.
+            {rich(words.github, {
+              b: (chunk) => <span className="font-medium text-ink">{chunk}</span>,
+            })}
           </p>
           <GitHubImportButton
             resumeId={resume.id}
-            label="Add projects from GitHub"
+            label={words.fromGitHub}
             size="sm"
             className="self-start"
             onAdded={onResumeChange}
           />
         </div>
       ) : null}
-      <p className="text-sm/6 text-muted">
-        Drag or use the arrows to change the order. Starred projects get the big spots in designs
-        that have them.
-      </p>
+      <p className="text-sm/6 text-muted">{words.order}</p>
       <ol className="flex flex-col gap-3">
         {rows.map((row, index) => (
           <li
@@ -194,6 +191,7 @@ export function ProjectsCard({
             className={cn("rounded-xl bg-surface-muted", dragging === row.id && "opacity-60")}
           >
             <ProjectRow
+              words={words}
               row={row}
               rows={rows}
               first={index === 0}
@@ -227,12 +225,12 @@ export function ProjectsCard({
           onClick={() =>
             saveRows(rows, (entries) => [
               ...entries,
-              newProjectEntry(`c:${crypto.randomUUID()}`, "New project"),
+              newProjectEntry(`c:${crypto.randomUUID()}`, words.newProject),
             ])
           }
         >
           <Plus className="size-4" />
-          Add a project
+          {words.add}
         </Button>
       </div>
     </SectionCard>
@@ -240,18 +238,21 @@ export function ProjectsCard({
 }
 
 function ProjectRow({
+  words,
   row,
   rows,
   first,
   last,
   onMove,
 }: {
+  words: ProjectWords;
   row: Row;
   rows: readonly Row[];
   first: boolean;
   last: boolean;
   onMove: (delta: number) => void;
 }) {
+  const fields = useMessages("portfolioContent").fields;
   const { entry, base } = row;
   const name = entry?.name ?? base.name;
   const featured = entry?.featured ?? base.featured;
@@ -269,13 +270,13 @@ function ProjectRow({
             hidden ? "text-subtle line-through" : "text-ink",
           )}
         >
-          {name || "Untitled project"}
+          {name || words.untitled}
         </span>
         <Button
           size="icon-sm"
           variant="ghost"
           aria-pressed={featured}
-          aria-label={featured ? `Unstar ${name}` : `Star ${name}`}
+          aria-label={fmt(featured ? words.unstar : words.star, { name })}
           onClick={(event) => {
             event.preventDefault();
             patch({ featured: !featured });
@@ -286,7 +287,7 @@ function ProjectRow({
         <Button
           size="icon-sm"
           variant="ghost"
-          aria-label={`Move ${name} up`}
+          aria-label={fmt(fields.moveUp, { name })}
           disabled={first}
           onClick={(e) => (e.preventDefault(), onMove(-1))}
         >
@@ -295,7 +296,7 @@ function ProjectRow({
         <Button
           size="icon-sm"
           variant="ghost"
-          aria-label={`Move ${name} down`}
+          aria-label={fmt(fields.moveDown, { name })}
           disabled={last}
           onClick={(e) => (e.preventDefault(), onMove(1))}
         >
@@ -305,10 +306,13 @@ function ProjectRow({
           <Button
             size="icon-sm"
             variant="ghost"
-            aria-label={hidden ? `Show ${name} on the page` : `Hide ${name} from the page`}
+            aria-label={fmt(hidden ? words.show : words.hide, { name })}
             onClick={(event) => {
               event.preventDefault();
-              patch({ hidden: !hidden }, hidden ? undefined : `${name || "Project"} hidden`);
+              patch(
+                { hidden: !hidden },
+                hidden ? undefined : fmt(words.hidden, { name: name || words.project }),
+              );
             }}
           >
             {hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -317,13 +321,13 @@ function ProjectRow({
           <Button
             size="icon-sm"
             variant="ghost"
-            aria-label={`Remove ${name}`}
+            aria-label={fmt(fields.remove, { name })}
             onClick={(event) => {
               event.preventDefault();
               saveRows(
                 rows,
                 (entries) => entries.filter((item) => item.id !== row.id),
-                `${name || "Project"} removed`,
+                fmt(words.removed, { name: name || words.project }),
               );
             }}
           >
@@ -333,14 +337,14 @@ function ProjectRow({
       </summary>
       <div className="flex flex-col gap-4 border-t border-border px-3 pt-4 pb-4 @sm:px-4">
         <TextField
-          label="Name"
+          label={words.name}
           value={entry?.name ?? null}
           auto={base.name}
           max={L.projectName}
           onChange={(value) => patch({ name: value })}
         />
         <TextField
-          label="One line"
+          label={words.line}
           value={entry?.line ?? null}
           auto={base.line}
           max={L.projectLine}
@@ -348,7 +352,7 @@ function ProjectRow({
           onChange={(value) => patch({ line: value })}
         />
         <TextField
-          label="Description"
+          label={words.description}
           value={entry?.description ?? null}
           auto={base.description}
           max={L.projectDescription}
@@ -357,33 +361,33 @@ function ProjectRow({
         />
         <FieldRow>
           <TextField
-            label="Category"
+            label={words.category}
             value={entry?.category ?? null}
             auto={base.category}
             max={L.category}
-            placeholder="Open source · CLI"
+            placeholder={words.categoryPlaceholder}
             onChange={(value) => patch({ category: value })}
           />
           <TextField
-            label="Years"
+            label={words.years}
             value={entry?.years ?? null}
             auto={base.years}
             max={L.years}
-            placeholder="2024 — Now"
+            placeholder={words.yearsPlaceholder}
             onChange={(value) => patch({ years: value })}
           />
         </FieldRow>
         <TextField
-          label="Outcome"
+          label={words.outcome}
           value={entry?.outcome ?? null}
           auto={base.outcome}
           max={L.outcome}
-          placeholder="4.2k stars · 600+ sites"
-          hint="Numbers people remember. Filled in from your lines and GitHub stars."
+          placeholder={words.outcomePlaceholder}
+          hint={words.outcomeHint}
           onChange={(value) => patch({ outcome: value })}
         />
         <TagsField
-          label="Built with"
+          label={words.builtWith}
           value={entry?.tech ?? null}
           auto={base.tech}
           max={L.tags}
@@ -391,13 +395,13 @@ function ProjectRow({
         />
         <FieldRow>
           <LinkField
-            label="Website"
+            label={words.website}
             value={entry?.website ?? null}
             auto={base.website?.href ?? ""}
             onChange={(value) => patch({ website: value })}
           />
           <LinkField
-            label="Source code"
+            label={words.source}
             value={entry?.source ?? null}
             auto={base.source?.href ?? ""}
             onChange={(value) => patch({ source: value })}
@@ -405,7 +409,7 @@ function ProjectRow({
         </FieldRow>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-ink" htmlFor={`device-${row.id}`}>
-            Device
+            {words.device}
           </label>
           <Select
             id={`device-${row.id}`}
@@ -414,30 +418,28 @@ function ProjectRow({
           >
             {DEVICE_FRAMES.map((frame) => (
               <option key={frame} value={frame}>
-                {DEVICE_LABELS[frame]}
+                {words.devices[frame]}
               </option>
             ))}
           </Select>
-          <p className="text-sm/5 text-subtle">
-            Designs with devices draw the project&apos;s name and line on its screen.
-          </p>
+          <p className="text-sm/5 text-subtle">{words.deviceHint}</p>
         </div>
         <TagsField
-          label="Your role"
+          label={words.role}
           value={entry?.roles ?? []}
           max={L.roles}
-          hint="Design, Front end, Payments."
+          hint={words.roleHint}
           onChange={(value) => patch({ roles: value ?? [] })}
         />
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-ink" htmlFor={`details-${row.id}`}>
-            Longer write-up <span className="font-normal text-muted">(optional)</span>
+            {words.writeUp} <span className="font-normal text-muted">{words.optional}</span>
           </label>
           <Textarea
             id={`details-${row.id}`}
             autoResize
             className="max-h-96"
-            placeholder="The problem, what you built, what changed. For designs with a page per project."
+            placeholder={words.writeUpPlaceholder}
             value={(entry?.details ?? []).join("\n\n")}
             maxLength={L.projectDetail * L.projectDetails}
             onChange={(event) =>
@@ -454,7 +456,7 @@ function ProjectRow({
           <div className="border-y border-border">
             <CheckRow
               checked={!hidden}
-              label="Show on my page"
+              label={words.showOnPage}
               onChange={(show) => patch({ hidden: !show })}
             />
           </div>

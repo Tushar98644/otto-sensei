@@ -1,4 +1,5 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderBare } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
 import { emptyContent } from "@/lib/portfolio/content";
 import { contentView } from "@/lib/portfolio/content-view";
@@ -9,6 +10,10 @@ import { portfolioView } from "@/lib/portfolio/view";
 import { FullPortfolioPreview } from "./full-preview";
 import type { TemplateSample } from "./live-template";
 import { loadTemplate } from "./templates/lazy";
+import { inEnglish } from "@/components/dashboard/messages-testing";
+
+// The English messages these components read, as the page would pass them.
+const renderToStaticMarkup = (node: ReactNode) => renderBare(inEnglish(node));
 
 const noop = () => {};
 

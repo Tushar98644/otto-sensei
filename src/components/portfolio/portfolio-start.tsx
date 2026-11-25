@@ -9,9 +9,10 @@ import { resumeLabel, tailoredLabel } from "@/components/studio/resume-label";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
-import { PORTFOLIO_LINES } from "./lines";
 import { makePortfolio, usePortfolioStore } from "./portfolio-store";
 import { PreviewSourceBar, usePreviewSource } from "./preview-source";
 import { pageSample } from "./sample";
@@ -22,12 +23,13 @@ const FullPortfolioPreview = lazy(() =>
 );
 
 function NoResumes() {
+  const words = useMessages("portfolio");
   const actions = useStudioActions();
   return (
     <section className="flex flex-col items-center rounded-3xl bg-surface px-6 py-12 text-center sm:py-16">
-      <Otto pose="wave" size={128} title="Otto the otter, waving" className="size-28 sm:size-32" />
-      <h2 className="mt-6 font-sans text-lg/7 font-medium text-ink">No resume yet</h2>
-      <p className="mt-2 max-w-md text-sm/6 text-pretty text-muted">{PORTFOLIO_LINES.noResumes}</p>
+      <Otto pose="wave" size={128} title={words.start.waving} className="size-28 sm:size-32" />
+      <h2 className="mt-6 font-sans text-lg/7 font-medium text-ink">{words.start.noResume}</h2>
+      <p className="mt-2 max-w-md text-sm/6 text-pretty text-muted">{words.otto.noResumes}</p>
       <div className="mt-6">
         <NewResumeMenu actions={actions} />
       </div>
@@ -36,6 +38,7 @@ function NoResumes() {
 }
 
 export function PortfolioStart({ candidates }: { candidates: readonly Resume[] }) {
+  const words = useMessages("portfolio");
   const selectId = useId();
   const saving = usePortfolioStore((state) => state.saving);
   const [picked, setPicked] = useState<string | null>(null);
@@ -50,7 +53,7 @@ export function PortfolioStart({ candidates }: { candidates: readonly Resume[] }
   const choose = (template: PortfolioTemplateId) => {
     if (saving) return;
     setChosen(template);
-    void makePortfolio(resume, template);
+    void makePortfolio(resume, words.store, template);
   };
 
   return (
@@ -58,15 +61,13 @@ export function PortfolioStart({ candidates }: { candidates: readonly Resume[] }
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
           <h2 className="font-sans text-2xl/8 font-medium tracking-tight text-ink">
-            Pick a design
+            {words.start.title}
           </h2>
-          <p className="mt-2 text-base/7 text-pretty text-muted">
-            You can switch designs any time. Nothing goes live until you publish.
-          </p>
+          <p className="mt-2 text-base/7 text-pretty text-muted">{words.start.intro}</p>
         </div>
         {candidates.length > 1 ? (
           <div className="flex w-full flex-col gap-2 sm:max-w-xs">
-            <Label htmlFor={selectId}>Make it from</Label>
+            <Label htmlFor={selectId}>{words.start.makeFrom}</Label>
             <Select
               id={selectId}
               value={resume.id}
@@ -85,7 +86,7 @@ export function PortfolioStart({ candidates }: { candidates: readonly Resume[] }
       <OttoNote
         size="sm"
         className="mt-8"
-        message={choice.source === "own" ? PORTFOLIO_LINES.pick : PORTFOLIO_LINES.pickThin}
+        message={choice.source === "own" ? words.otto.pick : words.otto.pickThin}
       />
 
       <PreviewSourceBar choice={choice} className="mt-6" />
@@ -102,9 +103,9 @@ export function PortfolioStart({ candidates }: { candidates: readonly Resume[] }
             disabled={saving && chosen !== id}
             loading={saving && chosen === id}
             onClick={() => choose(id)}
-            aria-label={`Use this design: ${name}`}
+            aria-label={fmt(words.useDesignNamed, { name })}
           >
-            Use this design
+            {words.useDesign}
           </Button>
         )}
       />
@@ -116,7 +117,7 @@ export function PortfolioStart({ candidates }: { candidates: readonly Resume[] }
             own={own}
             onChange={setFull}
             onClose={() => setFull(null)}
-            action={{ label: "Use this design", onSelect: () => choose(full) }}
+            action={{ label: words.useDesign, onSelect: () => choose(full) }}
           />
         </Suspense>
       ) : null}
