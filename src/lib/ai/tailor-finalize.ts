@@ -5,6 +5,7 @@ import {
   mustProofBulletIds,
   normalizeRequirements,
   withVerifiedQuotes,
+  type AskWords,
   type RawRequirement,
 } from "@/lib/tailor/requirements";
 import { hasInventedNumbers, type NumberLangs } from "./guards";
@@ -118,9 +119,10 @@ export function finalizeTailor(
   resume: Resume,
   input: TailorInput,
   langs?: NumberLangs,
+  asks?: AskWords,
 ): TailorResult {
   const resumeText = resumeToText(resume);
-  const requirements = withVerifiedQuotes(resume, normalizeRequirements(raw.requirements));
+  const requirements = withVerifiedQuotes(resume, normalizeRequirements(raw.requirements, asks));
   const keywords = matchKeywords(rankKeywords(requirementTerms(requirements)), resume, resumeText);
   const sources = [resumeText, input.jobText];
   return {

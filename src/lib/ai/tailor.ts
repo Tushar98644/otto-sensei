@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TEXT_LIMITS } from "@/config/plans";
 import type { Locale } from "@/i18n/config";
+import { loadMessages } from "@/i18n/messages";
 import { aiEnabled } from "@/lib/env";
 import { resumeLang } from "@/lib/resume/lang";
 import { resumeToText } from "@/lib/resume/ops";
@@ -158,7 +159,11 @@ export async function tailorResume(
     throw new AIError("too_long", `The resume is over ${MAX_RESUME_CHARS} characters`);
   }
   if (!job.jobText) return finalizeTailor(EMPTY_RAW, resume, job);
-  if (!aiEnabled()) return finalizeTailor(demoTailor(resume, job.jobText), resume, job);
+  // Questions follow the app's language when the AI's own isn't usable.
+  const asks = { ...(await loadMessages(ui, "studioTailor")).reasons.asks, keepCase: ui === "de" };
+  if (!aiEnabled()) {
+    return finalizeTailor(demoTailor(resume, job.jobText), resume, job, undefined, asks);
+  }
   const lang = resumeLang(resume);
   const languages: Languages = { resume: lang, ui, post: postLanguage(job.jobText, lang) };
 
@@ -179,5 +184,5 @@ export async function tailorResume(
     bulletOrder: resolveOrders(output.bulletOrder, refs),
     notes: output.notes.map((note) => withoutAliases(note, refs)),
   };
-  return finalizeTailor(raw, resume, job, guardLangs(languages.resume, languages.post));
+  return finalizeTailor(raw, resume, job, guardLangs(languages.resume, languages.post), asks);
 }

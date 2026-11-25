@@ -7,6 +7,7 @@ import type { Messages } from "@/i18n/messages";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusIcon, StatusPill } from "@/components/ui/status";
 import { countText } from "../count";
+import { useCheckText } from "../review/use-check-text";
 import type { ExportCheck } from "./use-export-check";
 
 type CheckCopy = Messages["studioDownload"]["check"];
@@ -46,6 +47,7 @@ export function ExportCheckResult({ check, ready }: ExportCheckResultProps) {
   const { report, original } = check;
   const t = useMessages("studioDownload").check;
   const format = useFormat();
+  const checkText = useCheckText();
   if (check.error) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-fail-soft py-2 pr-2 pl-4">
@@ -87,7 +89,7 @@ export function ExportCheckResult({ check, ready }: ExportCheckResultProps) {
       </div>
     );
   }
-  const open = report.checks.filter((item) => item.status !== "pass");
+  const open = report.checks.filter((item) => item.status !== "pass").map(checkText);
   const fails = report.counts.fail;
   return (
     <div className="flex flex-col gap-3">

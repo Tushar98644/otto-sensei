@@ -1,9 +1,13 @@
+import { fmt } from "@/i18n/format";
+import studioTailorEn from "@/i18n/messages/en/studio-tailor";
+import type { Translation } from "@/i18n/types";
 import { clip, clipWords, oneLine } from "@/lib/ai/text";
 import type {
   RequirementImportance,
   RequirementSource,
   TailorRequirement,
 } from "@/lib/ai/types";
+import type { BulletRef } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { snippetAround } from "./evidence";
 import { findTermIn, termKey } from "./keywords";
@@ -55,9 +59,16 @@ export type RequirementRow = TailorRequirement & { status: RequirementStatus; pr
 export type ProvenCount = { proven: number; total: number };
 export type ScreenerCounts = { must: ProvenCount; nice: ProvenCount };
 
+// Where a resume line sits, in the reader's language.
+export type ResumePlaces = Translation<typeof studioTailorEn.reasons.places>;
+export type ScreenerHeadlineWords = Translation<typeof studioTailorEn.reasons.headline>;
+
+export const ENGLISH_PLACES: ResumePlaces = studioTailorEn.reasons.places;
+
 export type ScreenerOptions = {
   declined?: ReadonlySet<string>;
   linked?: ReadonlyMap<string, string>;
+  places?: ResumePlaces;
 };
 
 type Line = ProofLine & { full: string; tokens: Token[]; words: string[] };
@@ -81,13 +92,18 @@ function cleanTerms(terms: readonly string[]): string[] {
   return out;
 }
 
-function cleanAsk(ask: string, text: string, terms: readonly string[]): string {
+// The question asked when the AI's own isn't one, in the app's language.
+export type AskWords = Translation<typeof studioTailorEn.reasons.asks> & { keepCase?: boolean };
+
+function cleanAsk(ask: string, text: string, terms: readonly string[], words: AskWords): string {
   const question = clipWords(oneLine(ask), ASK_CHARS);
   if (/[\p{L}].*\?$/u.test(question)) return question;
   const [term] = terms;
-  if (term) return `Have you used ${term}?`;
-  const phrase = text.replace(/^\p{Lu}(?=\p{Ll})/u, (letter) => letter.toLowerCase());
-  return `Do you have experience with ${phrase.replace(/[.?!]+$/u, "")}?`;
+  if (term) return fmt(words.used, { term });
+  const phrase = words.keepCase
+    ? text
+    : text.replace(/^\p{Lu}(?=\p{Ll})/u, (letter) => letter.toLowerCase());
+  return fmt(words.experience, { phrase: phrase.replace(/[.?!]+$/u, "") });
 }
 
 function readSource(value: string): RequirementSource {
@@ -95,7 +111,10 @@ function readSource(value: string): RequirementSource {
   return SOURCES.has(source) ? (source as RequirementSource) : "guess";
 }
 
-export function normalizeRequirements(raw: readonly RawRequirement[]): TailorRequirement[] {
+export function normalizeRequirements(
+  raw: readonly RawRequirement[],
+  asks: AskWords = studioTailorEn.reasons.asks,
+): TailorRequirement[] {
   const kept: Omit<TailorRequirement, "id">[] = [];
   const byText = new Map<string, number>();
   const byTerms = new Map<string, number>();
@@ -125,7 +144,7 @@ export function normalizeRequirements(raw: readonly RawRequirement[]): TailorReq
       source,
       terms,
       quote: terms.length ? "" : clipWords(oneLine(item.quote), QUOTE_CHARS),
-      ask: cleanAsk(item.ask, text, terms),
+      ask: cleanAsk(item.ask, text, terms, asks),
     });
   }
   const ordered = [
@@ -148,11 +167,29 @@ function joined(parts: readonly string[], separator: string): string {
     .join(separator);
 }
 
-function entryLabel(title: string, company: string): string {
-  return joined([title, company], " at ");
+export function entryLabel(title: string, company: string, places: ResumePlaces = ENGLISH_PLACES): string {
+  const [first = "", second] = [title, company].map((part) => part.trim()).filter(Boolean);
+  return second ? fmt(places.at, { title: first, company: second }) : first;
 }
 
-function resumeLines(resume: Resume): ResumeLines {
+type PlaceWords = Pick<ResumePlaces, "at" | "experience" | "project" | "education">;
+
+// A bullet's job, project or school as listBullets labels it, in the reader's words.
+export function refPlace(
+  ref: Pick<BulletRef, "section" | "parentLabel" | "roleTitle" | "company">,
+  places: PlaceWords,
+): string {
+  const named = [ref.roleTitle, ref.company].filter(Boolean);
+  if (ref.section === "experience") {
+    const [title = "", company] = named;
+    return company ? fmt(places.at, { title, company }) : title || places.experience;
+  }
+  if (ref.section === "projects") return ref.roleTitle || places.project;
+  if (ref.section === "education") return named.join(", ") || places.education;
+  return ref.parentLabel;
+}
+
+function resumeLines(resume: Resume, places: ResumePlaces = ENGLISH_PLACES): ResumeLines {
   const shown: Line[] = [];
   const listed: Line[] = [];
   const push = (list: Line[], line: Line | null) => {
@@ -163,35 +200,39 @@ function resumeLines(resume: Resume): ResumeLines {
     for (const bullet of items) {
       if (!bullet.text.trim()) continue;
       position += 1;
-      push(shown, makeLine(bullet.text, `${label}, line ${position}`, bullet.id));
+      const place = fmt(places.line, { place: label, number: position });
+      push(shown, makeLine(bullet.text, place, bullet.id));
     }
   };
   for (const job of resume.experience) {
-    bullets(job.bullets, entryLabel(job.title, job.company) || "Experience");
+    bullets(job.bullets, entryLabel(job.title, job.company, places) || places.experience);
   }
-  for (const project of resume.projects) bullets(project.bullets, project.name.trim() || "Project");
+  for (const project of resume.projects) {
+    bullets(project.bullets, project.name.trim() || places.project);
+  }
   for (const school of resume.education) {
-    bullets(school.bullets, joined([school.degree, school.school], ", ") || "Education");
+    bullets(school.bullets, joined([school.degree, school.school], ", ") || places.education);
   }
   for (const job of resume.experience) {
-    push(shown, makeLine(entryLabel(job.title, job.company), "Job title", null));
+    push(shown, makeLine(entryLabel(job.title, job.company, places), places.jobTitle, null));
   }
   for (const cert of resume.certifications) {
-    push(shown, makeLine(joined([cert.name, cert.issuer], ", "), "Certifications", null));
+    push(shown, makeLine(joined([cert.name, cert.issuer], ", "), places.certifications, null));
   }
   for (const school of resume.education) {
     const degree = joined([school.degree, school.field, school.school], ", ");
-    push(shown, makeLine(degree, "Education", null));
+    push(shown, makeLine(degree, places.education, null));
   }
   for (const paragraph of resume.summary.split(/\n+/)) {
-    push(shown, makeLine(paragraph, "Summary", null));
+    push(shown, makeLine(paragraph, places.summary, null));
   }
   for (const group of resume.skills) {
     const items = joined(group.items, ", ");
     const label = group.label.trim().replace(/:$/, "");
-    push(listed, makeLine(items, label ? `Skills: ${label}` : "Skills", null));
+    const place = label ? fmt(places.skillsGroup, { label }) : places.skills;
+    push(listed, makeLine(items, place, null));
   }
-  push(listed, makeLine(resume.basics.headline, "Headline", null));
+  push(listed, makeLine(resume.basics.headline, places.headline, null));
   return { shown, listed };
 }
 
@@ -308,7 +349,7 @@ export function screenerRows(
   requirements: readonly TailorRequirement[],
   options: ScreenerOptions = {},
 ): RequirementRow[] {
-  const lines = resumeLines(resume);
+  const lines = resumeLines(resume, options.places);
   return requirements.map((requirement) => {
     const proof = proofIn(lines, requirement, options.linked?.get(requirement.id));
     const declined = proof.status === "missing" && options.declined?.has(requirement.id) === true;
@@ -324,10 +365,13 @@ export function screenerCounts(rows: readonly RequirementRow[]): ScreenerCounts 
   return { must: count("must"), nice: count("nice") };
 }
 
-export function screenerHeadline({ must, nice }: ScreenerCounts): string {
+export function screenerHeadline(
+  { must, nice }: ScreenerCounts,
+  words: ScreenerHeadlineWords = studioTailorEn.reasons.headline,
+): string {
   const parts = [
-    must.total > 0 ? `Must-haves proven: ${must.proven} of ${must.total}` : null,
-    nice.total > 0 ? `Nice-to-haves: ${nice.proven} of ${nice.total}` : null,
+    must.total > 0 ? fmt(words.must, { proven: must.proven, total: must.total }) : null,
+    nice.total > 0 ? fmt(words.nice, { proven: nice.proven, total: nice.total }) : null,
   ].filter((part): part is string => part !== null);
-  return parts.join(" · ");
+  return parts.join(words.join);
 }

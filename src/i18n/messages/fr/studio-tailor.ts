@@ -275,6 +275,115 @@ export default {
     moveUp: "Nous remonterons ces lignes :",
     more: "Et {count} de plus.",
   },
+  reasons: {
+    places: {
+      at: "{title} chez {company}",
+      line: "{place}, ligne {number}",
+      experience: "Expérience",
+      project: "Projet",
+      education: "Formation",
+      jobTitle: "Intitulé de poste",
+      certifications: "Certifications",
+      summary: "Résumé",
+      skills: "Compétences",
+      skillsGroup: "Compétences : {label}",
+      headline: "Titre",
+    },
+    problems: {
+      duty: "ressemble à une fiche de poste",
+      "no-result": "ne dit pas ce qui a changé",
+      "weak-start": "commence faiblement",
+      "stock-phrase": "s’appuie sur une formule toute faite",
+      "first-person": "dit je ou nous",
+      tense: "est au présent pour un poste que tu as quitté",
+    },
+    years: {
+      one: " L’offre demande {asked}+ ans ; les dates de tes postes font environ {count} an.",
+      other: " L’offre demande {asked}+ ans ; les dates de tes postes font environ {count} ans.",
+    },
+    spelled:
+      " L’offre dit « {term} » et ta ligne le dit autrement. Certains systèmes ne cherchent que les mots exacts, donc écris aussi « {term} » une fois.",
+    added: "Ta nouvelle ligne le prouve. Elle va dans le CV adapté.",
+    onlyIn: "Seulement dans {where}. Montre-le aussi dans une ligne sur ce que tu as fait.",
+    onlyInPlaces: {
+      jobTitle: "un intitulé de poste",
+      certifications: "tes certifications",
+      education: "ta formation",
+      summary: "ton résumé",
+    },
+    shownOutside: "Montré {where}, pas dans un emploi.",
+    outsidePlaces: {
+      project: "dans ton projet {name}",
+      education: "dans ta formation",
+      other: "dans {name}",
+    },
+    atWork: " Si tu l’as utilisé au travail, dis-le dans cet emploi.",
+    shownWithProblem: "Montré chez {where}, mais cette ligne {problem}.",
+    shownAt: "Montré dans une ligne chez {where}.",
+    declined: "Tu as dit que tu ne l’as pas.",
+    otherForm:
+      "Ton CV dit « {written} » ; l’offre dit « {asked} ». Les recherches par mot-clé ne trouvent que la forme tapée, donc écris les deux une fois : « {both} ».",
+    listed:
+      "Seulement dans ton {list}. Aucune ligne d’emploi ne montre que tu l’utilises, et les filtres le cherchent dans ce que tu as fait.",
+    lists: {
+      headline: "titre",
+      skills: "liste de compétences",
+      group: "liste de compétences ({group})",
+    },
+    missingMust: "L’offre le demande, et rien dans ton CV ne le dit encore.",
+    missingNice: "Un plus pour ce poste. Rien dans ton CV ne le dit encore.",
+    lineNote: "Montre {names} ({kind}). {next}",
+    lineKinds: { must: "une exigence obligatoire", nice: "une exigence souhaitée" },
+    keepNearTop: "Garde-la vers le haut.",
+    fixFirst: {
+      missing: {
+        one: "{count} exigence obligatoire n’est pas dans ton CV : {names}",
+        other: "{count} exigences obligatoires ne sont pas dans ton CV : {names}",
+      },
+      missingReason: "Si tu l’as fait, dis où. Sinon, dis non, et rien n’est ajouté.",
+      listed: {
+        one: "{count} exigence obligatoire n’est que dans ta liste de compétences : {names}",
+        other: "{count} exigences obligatoires ne sont que dans ta liste de compétences : {names}",
+      },
+      listedReason:
+        "Les filtres la cherchent dans une ligne sur ce que tu as fait. Montre où tu l’as utilisée.",
+      spelled: "L’offre dit « {asked} » ; ton CV dit « {written} »",
+      spelledReason:
+        "Les recherches par mot-clé ne trouvent que la forme tapée. Écris les deux une fois : « {both} ».",
+      weak: {
+        one: "{count} ligne qui montre une exigence obligatoire manque de force",
+        other: "{count} lignes qui montrent des exigences obligatoires manquent de force",
+      },
+      title: "Ton titre ne nomme pas ce poste",
+      noSummary: "Pas de résumé en haut",
+      summary: "Ton résumé ne parle pas de ce poste",
+    },
+    headline: {
+      must: "Exigences obligatoires prouvées : {proven} sur {total}",
+      nice: "Souhaitées : {proven} sur {total}",
+      join: " · ",
+    },
+    title: {
+      headline: "Ton titre correspond à l’intitulé de l’offre, « {title} ».",
+      latest: "Ton dernier intitulé de poste correspond à celui de l’offre, « {title} ».",
+      missing:
+        "L’intitulé de l’offre est « {title} ». S’il te correspond, mets-le sous ton nom. Les recruteurs cherchent par intitulé de poste.",
+      differs:
+        "L’intitulé de l’offre est « {title} » ; ton titre dit « {headline} ». Si le poste te correspond, reprends son intitulé dans ton titre ou ton résumé. Ne change jamais l’intitulé d’un ancien poste.",
+    },
+    summary: {
+      missing:
+        "Tu n’as pas de résumé. Deux lignes en haut qui nomment ce poste et ce qui s’en rapproche le plus aident quelqu’un qui survole.",
+      names: "Ton résumé cite {what}.",
+      theTitle: "l’intitulé du poste",
+      differs: "Ton résumé ne cite ni ce poste ni ses exigences obligatoires.",
+      suggest: " Tu montres {names} dans tes lignes ; dis-le aussi en haut.",
+    },
+    asks: {
+      used: "As-tu déjà utilisé {term} ?",
+      experience: "As-tu de l’expérience avec {phrase} ?",
+    },
+  },
   skip: {
     note: "Pas d’offre en tête ? Télécharge-le tel quel.",
     action: "Passer à Télécharger",

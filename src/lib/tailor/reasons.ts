@@ -1,11 +1,17 @@
+import type { Locale } from "@/i18n/config";
+import { fmt, selectPlural } from "@/i18n/format";
+import lintEn from "@/i18n/messages/en/lint";
+import studioTailorEn from "@/i18n/messages/en/studio-tailor";
+import type { Translation } from "@/i18n/types";
 import { yearsOfExperience } from "@/lib/job-feed/profile";
+import { issueText, joinList, type LintMessages } from "@/lib/lint/i18n";
 import type { LintIssue, LintIssueId, ResumeLint } from "@/lib/lint/types";
 import { listBullets, resumeToText, type BulletRef } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { otherForm, type OtherForm } from "./acronyms";
 import { findTermIn } from "./keywords";
-import type { RequirementRow } from "./requirements";
-import { joinAnd, type SummaryCheck, type TitleCheck } from "./title-checks";
+import { refPlace, type RequirementRow } from "./requirements";
+import type { SummaryCheck, TitleCheck } from "./title-checks";
 import { foldCase, textTokens } from "./tokens";
 
 export type ReasonTone = "pass" | "warn" | "neutral";
@@ -16,14 +22,9 @@ export type RowReason = {
   form: OtherForm | null;
 };
 
-const LINE_PROBLEMS: Partial<Record<LintIssueId, string>> = {
-  duty: "reads like a job description",
-  "no-result": "doesn't say what changed",
-  "weak-start": "starts weak",
-  "stock-phrase": "leans on a stock phrase",
-  "first-person": "says I or we",
-  tense: "is in present tense for a job you've left",
-};
+export type ReasonWords = Translation<typeof studioTailorEn.reasons>;
+
+const LINE_PROBLEMS: Partial<Record<LintIssueId, string>> = studioTailorEn.reasons.problems;
 
 const YEARS_ASKED = /(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b/i;
 
@@ -31,7 +32,23 @@ export type ReasonContext = {
   resume: Resume;
   lint: ResumeLint;
   now: number;
+  // The reader's words; English when left out.
+  words?: ReasonWords;
+  lintWords?: LintMessages;
+  locale?: Locale;
 };
+
+function wordsOf(context: ReasonContext) {
+  return {
+    t: context.words ?? studioTailorEn.reasons,
+    lint: context.lintWords ?? lintEn,
+    locale: context.locale ?? "en",
+  };
+}
+
+function problemOf(id: LintIssueId, t: ReasonWords): string {
+  return (t.problems as Partial<Record<LintIssueId, string>>)[id] ?? "";
+}
 
 function refsById(resume: Resume): Map<string, BulletRef> {
   return new Map(listBullets(resume).map((ref) => [ref.bulletId, ref]));
@@ -60,7 +77,14 @@ function yearsNote(row: RequirementRow, context: ReasonContext): string | null {
   const years = yearsOfExperience(context.resume, context.now);
   if (years === null) return null;
   const whole = Math.floor(years);
-  return ` The post asks for ${asked[1]}+ years; your job dates add up to about ${whole} ${whole === 1 ? "year" : "years"}.`;
+  const { t, locale } = wordsOf(context);
+  return fmt(selectPlural(locale, t.years, whole), { asked: asked[1] ?? "", count: whole });
+}
+
+// The place a proof line names, as a kind, when it isn't a line about what you did.
+function placeKind(place: string, t: ReasonWords) {
+  const kinds = ["jobTitle", "certifications", "education", "summary"] as const;
+  return kinds.find((kind) => t.places[kind] === place) ?? null;
 }
 
 function provenReason(
@@ -70,23 +94,17 @@ function provenReason(
 ): RowReason {
   const { line, via } = row.proof;
   if (!line) return { text: "", tone: "pass", form: null };
-  if (via === "added") {
-    return {
-      text: "Your new line shows it. It goes into the tailored copy.",
-      tone: "pass",
-      form: null,
-    };
-  }
+  const { t } = wordsOf(context);
+  if (via === "added") return { text: t.added, tone: "pass", form: null };
   const exact = row.terms.length === 0 || hasExactForm(line.text, row.terms);
-  const spelled = exact
-    ? ""
-    : ` The post says "${row.terms[0]}" and your line says it another way. Some systems match exact words only, so use "${row.terms[0]}" once too.`;
+  const spelled = exact ? "" : fmt(t.spelled, { term: row.terms[0] ?? "" });
   const ref = line.bulletId ? refs.get(line.bulletId) : undefined;
   const years = yearsNote(row, context) ?? "";
   if (!ref) {
-    const where = line.place === "Job title" ? "a job title" : `your ${line.place.toLowerCase()}`;
+    const kind = placeKind(line.place, t);
+    const where = kind ? t.onlyInPlaces[kind] : `your ${line.place.toLowerCase()}`;
     return {
-      text: `Only in ${where}. Show it in a line about what you did, too.${spelled}${years}`,
+      text: `${fmt(t.onlyIn, { where })}${spelled}${years}`,
       tone: row.importance === "must" ? "warn" : "neutral",
       form: null,
     };
@@ -94,13 +112,13 @@ function provenReason(
   if (ref.section !== "experience") {
     const where =
       ref.section === "projects"
-        ? `in your project ${ref.parentLabel}`
+        ? fmt(t.outsidePlaces.project, { name: ref.parentLabel })
         : ref.section === "education"
-          ? "under your education"
-          : `in ${ref.parentLabel}`;
-    const atWork = row.importance === "must" ? " If you used it at work, say so in that job." : "";
+          ? t.outsidePlaces.education
+          : fmt(t.outsidePlaces.other, { name: ref.parentLabel });
+    const atWork = row.importance === "must" ? t.atWork : "";
     return {
-      text: `Shown ${where}, not in a job.${atWork}${spelled}${years}`,
+      text: `${fmt(t.shownOutside, { where })}${atWork}${spelled}${years}`,
       tone: "neutral",
       form: null,
     };
@@ -108,14 +126,11 @@ function provenReason(
   const where = ref.company.trim() || ref.parentLabel;
   const problem = lineProblem(context.lint.byBullet[ref.bulletId]);
   if (problem) {
-    return {
-      text: `Shown at ${where}, but that line ${LINE_PROBLEMS[problem.id]}.${spelled}${years}`,
-      tone: "warn",
-      form: null,
-    };
+    const text = fmt(t.shownWithProblem, { where, problem: problemOf(problem.id, t) });
+    return { text: `${text}${spelled}${years}`, tone: "warn", form: null };
   }
   return {
-    text: `Shown in a line at ${where}.${spelled}${years}`,
+    text: `${fmt(t.shownAt, { where })}${spelled}${years}`,
     tone: spelled ? "warn" : "pass",
     form: null,
   };
@@ -128,35 +143,38 @@ function reasonWith(
   text: string,
 ): RowReason {
   if (row.status === "proven") return provenReason(row, context, refs);
-  if (row.status === "declined")
-    return { text: "You said you don't have it.", tone: "neutral", form: null };
+  const { t } = wordsOf(context);
+  if (row.status === "declined") return { text: t.declined, tone: "neutral", form: null };
   const form =
     row.terms.map((term) => otherForm(term, text)).find((found) => found !== null) ?? null;
   if (form) {
-    return {
-      text: `Your resume says "${form.written}"; the post says "${form.asked}". Keyword searches find only the form typed, so write both once: "${form.both}".`,
-      tone: "warn",
-      form,
-    };
+    return { text: fmt(t.otherForm, { ...form }), tone: "warn", form };
   }
   if (row.status === "listed") {
-    const place = row.proof.line?.place ?? "Skills";
-    const group = place.startsWith("Skills: ") ? ` (${place.slice("Skills: ".length)})` : "";
-    const list = place === "Headline" ? "headline" : `Skills list${group}`;
-    return {
-      text: `Only in your ${list}. No job line shows you using it, and screeners look for it in what you did.`,
-      tone: "warn",
-      form: null,
-    };
+    const place = row.proof.line?.place ?? t.places.skills;
+    const group = skillsGroup(place, context.resume, t);
+    const list =
+      place === t.places.headline
+        ? t.lists.headline
+        : group
+          ? fmt(t.lists.group, { group })
+          : t.lists.skills;
+    return { text: fmt(t.listed, { list }), tone: "warn", form: null };
   }
   return {
-    text:
-      row.importance === "must"
-        ? "The post asks for this, and nothing in your resume says it yet."
-        : "A plus for this job. Nothing in your resume says it yet.",
+    text: row.importance === "must" ? t.missingMust : t.missingNice,
     tone: "neutral",
     form: null,
   };
+}
+
+// The group label a skills line names, found by building each group's place again.
+function skillsGroup(place: string, resume: Resume, t: ReasonWords): string | null {
+  for (const group of resume.skills) {
+    const label = group.label.trim().replace(/:$/, "");
+    if (label && fmt(t.places.skillsGroup, { label }) === place) return label;
+  }
+  return null;
 }
 
 export function rowReasons(
@@ -181,6 +199,7 @@ export function jobLines(
   rows: readonly RequirementRow[],
   context: ReasonContext,
 ): { lines: JobLine[]; unrelated: number } {
+  const { t, lint, locale } = wordsOf(context);
   const refs = listBullets(context.resume).filter(
     (ref) => (ref.section === "experience" || ref.section === "projects") && ref.text.trim(),
   );
@@ -216,14 +235,16 @@ export function jobLines(
     }
     proves.sort((a, b) => (a.importance === b.importance ? 0 : a.importance === "must" ? -1 : 1));
     const problem = lineProblem(context.lint.byBullet[ref.bulletId]);
-    const names = joinAnd(proves.slice(0, 2).map((p) => p.text));
-    const kind = proves[0]?.importance === "must" ? "a must-have" : "a nice-to-have";
-    const note = problem
-      ? `Shows ${names} (${kind}). ${problem.message}`
-      : `Shows ${names} (${kind}). Keep it near the top.`;
+    const names = joinList(
+      proves.slice(0, 2).map((p) => p.text),
+      locale,
+    );
+    const kind = t.lineKinds[proves[0]?.importance === "must" ? "must" : "nice"];
+    const next = problem ? issueText(problem, lint, locale) : t.keepNearTop;
+    const note = fmt(t.lineNote, { names, kind, next });
     lines.push({
       bulletId: ref.bulletId,
-      place: ref.parentLabel,
+      place: refPlace(ref, t.places),
       text: ref.text.trim(),
       proves,
       problem,
@@ -252,17 +273,23 @@ export function tailorFixFirst(input: {
   lines: readonly JobLine[];
   title: TitleCheck | null;
   summary: SummaryCheck;
+  words?: ReasonWords;
+  locale?: Locale;
 }): FixFirst[] {
   const { rows, reasons, lines, title, summary } = input;
+  const t = (input.words ?? studioTailorEn.reasons).fixFirst;
+  const locale = input.locale ?? "en";
+  const count = (forms: typeof t.missing, value: number, names: string) =>
+    fmt(selectPlural(locale, forms, value), { count: value, names });
   const must = rows.filter((row) => row.importance === "must");
   const items: FixFirst[] = [];
+  // German capitalizes nouns, so a requirement keeps its first letter there.
+  const lower = (text: string) =>
+    locale === "de" ? text : text.replace(/^\p{Lu}(?=\p{Ll})/u, (c) => c.toLowerCase());
   const names = (list: readonly RequirementRow[]) =>
-    joinAnd(
-      list
-        .slice(0, 3)
-        .map(
-          (row) => row.terms[0] ?? row.text.replace(/^\p{Lu}(?=\p{Ll})/u, (c) => c.toLowerCase()),
-        ),
+    joinList(
+      list.slice(0, 3).map((row) => row.terms[0] ?? lower(row.text)),
+      locale,
     );
 
   const spelled = must.filter((row) => row.status !== "proven" && reasons[row.id]?.form);
@@ -277,16 +304,16 @@ export function tailorFixFirst(input: {
   if (missing.length > 0) {
     items.push({
       key: "missing",
-      title: `${missing.length} ${missing.length === 1 ? "must-have isn't" : "must-haves aren't"} on your resume: ${names(missing)}`,
-      reason: "If you have done it, say where. If not, say no, and nothing is added.",
+      title: count(t.missing, missing.length, names(missing)),
+      reason: t.missingReason,
       action: first(missing),
     });
   }
   if (listed.length > 0) {
     items.push({
       key: "listed",
-      title: `${listed.length} ${listed.length === 1 ? "must-have is" : "must-haves are"} only in your Skills list: ${names(listed)}`,
-      reason: "Screeners look for it in a line about what you did. Show where you used it.",
+      title: count(t.listed, listed.length, names(listed)),
+      reason: t.listedReason,
       action: first(listed),
     });
   }
@@ -294,15 +321,15 @@ export function tailorFixFirst(input: {
     const form = reasons[spelled[0]?.id ?? ""]?.form;
     items.push({
       key: "spelled",
-      title: `The post says "${form?.asked}"; your resume says "${form?.written}"`,
-      reason: `Keyword searches find only the form typed. Write both once: "${form?.both}".`,
+      title: fmt(t.spelled, { asked: `${form?.asked}`, written: `${form?.written}` }),
+      reason: fmt(t.spelledReason, { both: `${form?.both}` }),
       action: first(spelled),
     });
   }
   if (weak.length > 0) {
     items.push({
       key: "weak",
-      title: `${weak.length} ${weak.length === 1 ? "line that shows a must-have reads" : "lines that show must-haves read"} weakly`,
+      title: count(t.weak, weak.length, ""),
       reason: weak[0]?.note ?? "",
       action: { kind: "line", bulletId: weak[0]?.bulletId ?? "" },
     });
@@ -310,7 +337,7 @@ export function tailorFixFirst(input: {
   if (title && title.status !== "match") {
     items.push({
       key: "title",
-      title: "Your headline doesn't name this job",
+      title: t.title,
       reason: title.text,
       action: { kind: "section", id: TITLE_SECTION_ID },
     });
@@ -318,10 +345,7 @@ export function tailorFixFirst(input: {
   if (summary.status !== "match") {
     items.push({
       key: "summary",
-      title:
-        summary.status === "missing"
-          ? "No summary at the top"
-          : "Your summary doesn't speak to this job",
+      title: summary.status === "missing" ? t.noSummary : t.summary,
       reason: summary.text,
       action: { kind: "section", id: TITLE_SECTION_ID },
     });

@@ -13,6 +13,7 @@ export const STUDIO_NAMESPACES = [
   "onboarding",
   "accountMenu",
   "lint",
+  "fileChecks",
   "share",
   "shareLinks",
   "formats",

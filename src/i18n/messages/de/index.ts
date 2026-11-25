@@ -9,6 +9,7 @@ import common from "./common";
 import dashboard from "./dashboard";
 import email from "./email";
 import emails from "./emails";
+import fileChecks from "./file-checks";
 import formats from "./formats";
 import github from "./github";
 import home from "./home";
@@ -52,6 +53,7 @@ const de: Translations = {
   dashboard,
   email,
   emails,
+  fileChecks,
   formats,
   github,
   home,

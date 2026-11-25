@@ -117,6 +117,7 @@ export default {
     stops: "Points finaux cohérents",
   },
   review: {
+    places: { experience: "Expérience", project: "Projet", education: "Formation" },
     groups: {
       duty: {
         title: {

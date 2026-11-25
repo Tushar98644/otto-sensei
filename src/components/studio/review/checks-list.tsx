@@ -7,6 +7,7 @@ import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import type { RecruiterCheck } from "@/lib/checks/types";
 import { countText } from "../count";
+import { useCheckText } from "./use-check-text";
 
 export type ChecksListProps = {
   checks: RecruiterCheck[];
@@ -69,8 +70,9 @@ function CheckGroup({ title, checks }: { title: string; checks: RecruiterCheck[]
   );
 }
 
-function CheckItem({ check }: { check: RecruiterCheck }) {
+function CheckItem({ check: written }: { check: RecruiterCheck }) {
   const t = useMessages("studio").checks;
+  const check = useCheckText()(written);
   return (
     <li className="flex flex-col gap-2 rounded-2xl bg-surface p-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

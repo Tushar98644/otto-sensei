@@ -257,6 +257,110 @@ export default {
     moveUp: "We'll move these lines up:",
     more: "And {count} more.",
   },
+  // The screener's own words (src/lib/tailor): where a requirement shows, why, and what to fix first.
+  reasons: {
+    places: {
+      at: "{title} at {company}",
+      line: "{place}, line {number}",
+      experience: "Experience",
+      project: "Project",
+      education: "Education",
+      jobTitle: "Job title",
+      certifications: "Certifications",
+      summary: "Summary",
+      skills: "Skills",
+      skillsGroup: "Skills: {label}",
+      headline: "Headline",
+    },
+    problems: {
+      duty: "reads like a job description",
+      "no-result": "doesn't say what changed",
+      "weak-start": "starts weak",
+      "stock-phrase": "leans on a stock phrase",
+      "first-person": "says I or we",
+      tense: "is in present tense for a job you've left",
+    },
+    years: {
+      one: " The post asks for {asked}+ years; your job dates add up to about {count} year.",
+      other: " The post asks for {asked}+ years; your job dates add up to about {count} years.",
+    },
+    spelled:
+      ' The post says "{term}" and your line says it another way. Some systems match exact words only, so use "{term}" once too.',
+    added: "Your new line shows it. It goes into the tailored copy.",
+    onlyIn: "Only in {where}. Show it in a line about what you did, too.",
+    onlyInPlaces: {
+      jobTitle: "a job title",
+      certifications: "your certifications",
+      education: "your education",
+      summary: "your summary",
+    },
+    shownOutside: "Shown {where}, not in a job.",
+    outsidePlaces: {
+      project: "in your project {name}",
+      education: "under your education",
+      other: "in {name}",
+    },
+    atWork: " If you used it at work, say so in that job.",
+    shownWithProblem: "Shown at {where}, but that line {problem}.",
+    shownAt: "Shown in a line at {where}.",
+    declined: "You said you don't have it.",
+    otherForm:
+      'Your resume says "{written}"; the post says "{asked}". Keyword searches find only the form typed, so write both once: "{both}".',
+    listed:
+      "Only in your {list}. No job line shows you using it, and screeners look for it in what you did.",
+    lists: { headline: "headline", skills: "Skills list", group: "Skills list ({group})" },
+    missingMust: "The post asks for this, and nothing in your resume says it yet.",
+    missingNice: "A plus for this job. Nothing in your resume says it yet.",
+    lineNote: "Shows {names} ({kind}). {next}",
+    lineKinds: { must: "a must-have", nice: "a nice-to-have" },
+    keepNearTop: "Keep it near the top.",
+    fixFirst: {
+      missing: {
+        one: "{count} must-have isn't on your resume: {names}",
+        other: "{count} must-haves aren't on your resume: {names}",
+      },
+      missingReason: "If you have done it, say where. If not, say no, and nothing is added.",
+      listed: {
+        one: "{count} must-have is only in your Skills list: {names}",
+        other: "{count} must-haves are only in your Skills list: {names}",
+      },
+      listedReason: "Screeners look for it in a line about what you did. Show where you used it.",
+      spelled: 'The post says "{asked}"; your resume says "{written}"',
+      spelledReason: 'Keyword searches find only the form typed. Write both once: "{both}".',
+      weak: {
+        one: "{count} line that shows a must-have reads weakly",
+        other: "{count} lines that show must-haves read weakly",
+      },
+      title: "Your headline doesn't name this job",
+      noSummary: "No summary at the top",
+      summary: "Your summary doesn't speak to this job",
+    },
+    headline: {
+      must: "Must-haves proven: {proven} of {total}",
+      nice: "Nice-to-haves: {proven} of {total}",
+      join: " · ",
+    },
+    title: {
+      headline: 'Your headline matches the post\'s title, "{title}".',
+      latest: 'Your latest job title matches the post\'s title, "{title}".',
+      missing:
+        'The post\'s title is "{title}". If it fits you, put it under your name. Recruiters search by job title.',
+      differs:
+        'The post\'s title is "{title}"; your headline says "{headline}". If the job fits you, use its title in your headline or summary. Never change a past job\'s title.',
+    },
+    summary: {
+      missing:
+        "You have no summary. Two lines at the top that name this job and your closest match help a reader who skims.",
+      names: "Your summary names {what}.",
+      theTitle: "the job title",
+      differs: "Your summary doesn't name this job or its must-haves.",
+      suggest: " You show {names} in your lines; say it up top too.",
+    },
+    asks: {
+      used: "Have you used {term}?",
+      experience: "Do you have experience with {phrase}?",
+    },
+  },
   skip: {
     note: "No job in mind? Download it as it is.",
     action: "Skip to download",

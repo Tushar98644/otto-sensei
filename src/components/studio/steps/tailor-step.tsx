@@ -47,7 +47,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { useFormat, useMessages } from "@/i18n/client";
+import { useFormat, useLocale, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import type { Messages } from "@/i18n/messages";
 import { TrackView } from "@/lib/analytics/track-view";
@@ -111,9 +111,14 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
     [source, result, savedChoices],
   );
   const [now] = useState(() => Date.now());
+  const lint = useMessages("lint");
+  const locale = useLocale();
   const screener = useMemo(
-    () => (result && choices ? buildScreener(source, result, choices, now) : null),
-    [source, result, choices, now],
+    () =>
+      result && choices
+        ? buildScreener(source, result, choices, now, { words: t.reasons, lint, locale })
+        : null,
+    [source, result, choices, now, t, lint, locale],
   );
 
   useEffect(() => {

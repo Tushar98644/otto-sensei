@@ -15,10 +15,11 @@ import { StatusPill } from "@/components/ui/status";
 import { FixFirst, type FixFirstEntry } from "@/components/studio/fix-first";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
 import { TrackView } from "@/lib/analytics/track-view";
-import type { RecruiterReport } from "@/lib/checks/types";
+import type { RecruiterCheck, RecruiterReport } from "@/lib/checks/types";
 import { MAX_TOP, reviewResume, type ResumeReview, type ReviewItem } from "@/lib/lint/review";
+import { localizeReview } from "@/lib/lint/review-text";
 import { nextPlan, PLANS, PRO_TRIAL } from "@/config/plans";
-import { useFormat, useMessages } from "@/i18n/client";
+import { useFormat, useLocale, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
@@ -33,6 +34,7 @@ import { RereadNote } from "../review/reread-note";
 import { HiringSystemsPanel } from "../review/hiring-systems-panel";
 import { openTarget, targetLabel } from "../review/open-target";
 import { ReadTextPanel } from "../review/read-text-panel";
+import { useCheckText } from "../review/use-check-text";
 import { reviewItemDomId, WordsChecks } from "../review/words-checks";
 import { STEP_BAR_CLASSES } from "../step-bar";
 import { useMediaQuery } from "../use-media-query";
@@ -53,7 +55,13 @@ export function ReviewStep() {
   const upgradeTo = nextPlan(user?.plan ?? "free");
   const sideBySide = useMediaQuery(SIDE_BY_SIDE);
   const [tab, setTab] = useState("checks");
-  const review = useMemo(() => (resume ? reviewResume(resume) : null), [resume]);
+  const lint = useMessages("lint");
+  const locale = useLocale();
+  const checkText = useCheckText();
+  const review = useMemo(
+    () => (resume ? localizeReview(reviewResume(resume), lint, locale) : null),
+    [resume, lint, locale],
+  );
   const studio = useMessages("studio");
   const t = studio.review;
   const format = useFormat();
@@ -160,7 +168,7 @@ export function ReviewStep() {
 
       {scanned ? null : (
         <FixFirst
-          items={fixFirstItems(studio, report, review, resume.id, showGroup)}
+          items={fixFirstItems(studio, report, review, resume.id, showGroup, checkText)}
           description={t.fixFirstDetail}
           empty={<StatusPill status="pass">{t.nothingUrgent}</StatusPill>}
         />
@@ -225,10 +233,12 @@ function fixFirstItems(
   review: ResumeReview,
   resumeId: string,
   showGroup: (id: ReviewItem["id"]) => void,
+  checkText: (check: RecruiterCheck) => RecruiterCheck,
 ): FixFirstEntry[] {
   const file = (status: "fail" | "warn") =>
     report.checks
       .filter((check) => check.status === status)
+      .map(checkText)
       .map((check) => ({ key: check.id, title: check.title, reason: check.fix ?? check.detail }));
   const words = (high: boolean) =>
     review.top

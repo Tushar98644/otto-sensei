@@ -1,5 +1,5 @@
 import { resumeLang } from "@/lib/resume/lang";
-import { listBullets } from "@/lib/resume/ops";
+import { listBullets, type BulletRef } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { findTermIn } from "@/lib/tailor/keywords";
 import { textTokens } from "@/lib/tailor/tokens";
@@ -15,11 +15,31 @@ export type ReviewTarget =
   | { kind: "summary" }
   | { kind: "basics" };
 
+export type ReviewMissing = "title" | "company" | "dates";
+
+// What rebuilds an item's or a line's words in the UI's language (review-text.ts); non-enumerable, so the English shape stays the same.
+export type ReviewItemCopy =
+  | { kind: "group"; id: LintIssueId; count: number }
+  | { kind: "summary"; variant: "both" | "firstPerson" | "stock" }
+  | { kind: "firstLook"; count: number }
+  | { kind: "headline" }
+  | { kind: "skills"; count: number; named: readonly string[]; rest: number };
+
+export type ReviewLineCopy =
+  | {
+      kind: "issue";
+      issue: LintIssue;
+      ref: Pick<BulletRef, "section" | "parentLabel" | "roleTitle" | "company">;
+    }
+  | { kind: "summary"; issues: readonly LintIssue[] }
+  | { kind: "firstLook"; title: string; company: string; missing: readonly ReviewMissing[] };
+
 export type ReviewLine = {
   target: ReviewTarget;
   place: string;
   text: string;
   message: string;
+  readonly copy?: ReviewLineCopy;
 };
 
 export type ReviewItem = {
@@ -30,6 +50,7 @@ export type ReviewItem = {
   lines: ReviewLine[];
   more: number;
   target: ReviewTarget | null;
+  readonly copy?: ReviewItemCopy;
 };
 
 export type ResumeReview = {
@@ -66,6 +87,14 @@ const RANK: Record<ReviewItemId, number> = {
 const FILLERS: readonly ReviewItemId[] = ["no-number", "punctuation"];
 
 type Group = { title: (count: number) => string; reason: string };
+
+function withCopy(value: ReviewItem, copy: ReviewItemCopy): ReviewItem {
+  return Object.defineProperty(value, "copy", { value: copy });
+}
+
+function lineWithCopy(value: ReviewLine, copy: ReviewLineCopy): ReviewLine {
+  return Object.defineProperty(value, "copy", { value: copy });
+}
 
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
 const lines = (count: number) => `${count} ${plural(count, "line", "lines")}`;
@@ -135,73 +164,99 @@ function summaryItem(resume: Resume): ReviewItem | null {
   const issues = lintSummary(resume.summary, resumeLang(resume));
   if (issues.length === 0) return null;
   const target: ReviewTarget = { kind: "summary" };
-  return {
-    id: "summary-voice",
-    severity: "high",
-    title:
-      issues.length > 1
-        ? "Your summary uses stock phrases and I"
-        : issues[0]?.id === "first-person"
-          ? "Your summary uses I or we"
-          : "Your summary uses stock phrases",
-    reason: "The top of the page gets read first, so it should sound like your lines: facts, no I.",
-    lines: [
-      {
-        target,
-        place: "Summary",
-        text: resume.summary.trim(),
-        message: issues.map((issue) => issue.message).join(" "),
-      },
-    ],
-    more: 0,
-    target,
-  };
+  const variant =
+    issues.length > 1 ? "both" : issues[0]?.id === "first-person" ? "firstPerson" : "stock";
+  const line = lineWithCopy(
+    {
+      target,
+      place: "Summary",
+      text: resume.summary.trim(),
+      message: issues.map((issue) => issue.message).join(" "),
+    },
+    { kind: "summary", issues },
+  );
+  return withCopy(
+    {
+      id: "summary-voice",
+      severity: "high",
+      title:
+        variant === "both"
+          ? "Your summary uses stock phrases and I"
+          : variant === "firstPerson"
+            ? "Your summary uses I or we"
+            : "Your summary uses stock phrases",
+      reason:
+        "The top of the page gets read first, so it should sound like your lines: facts, no I.",
+      lines: [line],
+      more: 0,
+      target,
+    },
+    { kind: "summary", variant },
+  );
 }
+
+const MISSING_WORDS: Record<ReviewMissing, string> = {
+  title: "job title",
+  company: "company",
+  dates: "dates",
+};
 
 function firstLookItem(resume: Resume): ReviewItem | null {
   const found: ReviewLine[] = [];
   for (const job of resume.experience) {
     if (job.hidden) continue;
-    const missing = [
-      job.title.trim() ? null : "job title",
+    const parts = [
+      job.title.trim() ? null : "title",
       job.company.trim() ? null : "company",
       job.startDate.trim() ? null : "dates",
-    ].filter((part): part is string => part !== null);
-    if (missing.length === 0) continue;
+    ].filter((part): part is ReviewMissing => part !== null);
+    if (parts.length === 0) continue;
+    const missing = parts.map((part) => MISSING_WORDS[part]);
     const label = [job.title, job.company].filter((part) => part.trim()).join(" at ") || "A job";
     const list =
       missing.length > 1 ? `${missing.slice(0, -1).join(", ")} or ${missing.at(-1)}` : missing[0];
-    found.push({
-      target: { kind: "entry", entryId: job.id },
-      place: label,
-      text: label,
-      message: `No ${list}.`,
-    });
+    found.push(
+      lineWithCopy(
+        {
+          target: { kind: "entry", entryId: job.id },
+          place: label,
+          text: label,
+          message: `No ${list}.`,
+        },
+        { kind: "firstLook", title: job.title, company: job.company, missing: parts },
+      ),
+    );
   }
   const [first] = found;
   if (!first) return null;
-  return {
-    id: "first-look",
-    severity: "high",
-    title: `${found.length} ${plural(found.length, "job is", "jobs are")} missing a title, company or dates`,
-    reason: "A recruiter's first look goes to your job titles, companies and dates.",
-    lines: found.slice(0, MAX_LINES),
-    more: Math.max(0, found.length - MAX_LINES),
-    target: first.target,
-  };
+  return withCopy(
+    {
+      id: "first-look",
+      severity: "high",
+      title: `${found.length} ${plural(found.length, "job is", "jobs are")} missing a title, company or dates`,
+      reason: "A recruiter's first look goes to your job titles, companies and dates.",
+      lines: found.slice(0, MAX_LINES),
+      more: Math.max(0, found.length - MAX_LINES),
+      target: first.target,
+    },
+    { kind: "firstLook", count: found.length },
+  );
 }
 
 function headlineItem(resume: Resume): ReviewItem | null {
   if (resume.basics.headline.trim()) return null;
-  return {
-    id: "headline",
-    severity: "low",
-    title: "No job title under your name",
-    reason: "Put the job you want at the top, so the reader knows what you're applying as.",
-    lines: [],
-    more: 0,
-    target: { kind: "basics" },
-  };
+  return withCopy(
+    {
+      id: "headline",
+      severity: "low",
+      title: "No job title under your name",
+      reason: "Put the job you want at the top, so the reader knows what you're applying as.",
+      lines: [],
+      more: 0,
+      target: { kind: "basics" },
+    },
+    { kind: "headline" },
+  );
 }
 
 function skillsItem(resume: Resume): ReviewItem | null {
@@ -226,15 +281,18 @@ function skillsItem(resume: Resume): ReviewItem | null {
   const rest = unshown.length - named.length;
   const list = rest > 0 ? `${named.join(", ")} and ${rest} more` : joinAnd(named);
   const first = listBullets(resume).find((ref) => ref.section === "experience" && ref.text.trim());
-  return {
-    id: "skills-unshown",
-    severity: "low",
-    title: `${unshown.length} ${plural(unshown.length, "skill is", "skills are")} only in your Skills list`,
-    reason: `${list}: no job or project line shows you using ${plural(unshown.length, "it", "them")}. Recruiters and screeners trust a skill more in a line about what you did.`,
-    lines: [],
-    more: 0,
-    target: first ? { kind: "line", bulletId: first.bulletId } : null,
-  };
+  return withCopy(
+    {
+      id: "skills-unshown",
+      severity: "low",
+      title: `${unshown.length} ${plural(unshown.length, "skill is", "skills are")} only in your Skills list`,
+      reason: `${list}: no job or project line shows you using ${plural(unshown.length, "it", "them")}. Recruiters and screeners trust a skill more in a line about what you did.`,
+      lines: [],
+      more: 0,
+      target: first ? { kind: "line", bulletId: first.bulletId } : null,
+    },
+    { kind: "skills", count: unshown.length, named, rest },
+  );
 }
 
 function joinAnd(items: readonly string[]): string {
@@ -251,27 +309,35 @@ function lineGroups(resume: Resume, lint: ResumeLint): ReviewItem[] {
       : [];
     for (const issue of issues) {
       const group = byId.get(issue.id) ?? { severity: issue.severity, lines: [] };
-      group.lines.push({
-        target: { kind: "line", bulletId: ref.bulletId },
-        place: ref.parentLabel,
-        text: ref.text.trim(),
-        message: issue.message,
-      });
+      group.lines.push(
+        lineWithCopy(
+          {
+            target: { kind: "line", bulletId: ref.bulletId },
+            place: ref.parentLabel,
+            text: ref.text.trim(),
+            message: issue.message,
+          },
+          { kind: "issue", issue, ref },
+        ),
+      );
       byId.set(issue.id, group);
     }
   }
   return [...byId].map(([id, group]) => {
     const cap = id === "no-number" ? MAX_NUMBER_LINES : MAX_LINES;
     const [first] = group.lines;
-    return {
-      id,
-      severity: group.severity,
-      title: GROUPS[id].title(group.lines.length),
-      reason: GROUPS[id].reason,
-      lines: group.lines.slice(0, cap),
-      more: Math.max(0, group.lines.length - cap),
-      target: first?.target ?? null,
-    };
+    return withCopy(
+      {
+        id,
+        severity: group.severity,
+        title: GROUPS[id].title(group.lines.length),
+        reason: GROUPS[id].reason,
+        lines: group.lines.slice(0, cap),
+        more: Math.max(0, group.lines.length - cap),
+        target: first?.target ?? null,
+      },
+      { kind: "group", id, count: group.lines.length },
+    );
   });
 }
 

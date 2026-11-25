@@ -114,6 +114,7 @@ export default {
     stops: "Einheitliche Punkte",
   },
   review: {
+    places: { experience: "Berufserfahrung", project: "Projekt", education: "Ausbildung" },
     groups: {
       duty: {
         title: {
