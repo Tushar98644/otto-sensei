@@ -34,6 +34,7 @@ import { LazyOutreachDialog } from "./lazy-outreach-dialog";
 import { useStudioActions } from "../use-studio-actions";
 import { AppliedAnnouncer, AppliedStrip } from "./applied-question";
 import { CLEARED, searchedOrNarrowed, type FilterMemory, type Point } from "./filter-memory";
+import { JobAlerts } from "./job-alerts";
 import { JobFiltersBar, type JobLayout } from "./job-filters";
 import { LazyCompanyPanel } from "./lazy-company-panel";
 import {
@@ -302,6 +303,19 @@ export function JobsPage() {
             onLayout={setLayout}
             point={point}
             onPoint={changePoint}
+            alerts={
+              pro === true && userId ? (
+                <JobAlerts
+                  userId={userId}
+                  filters={filters}
+                  memory={memory}
+                  point={point}
+                  choice={choice}
+                  role={lookingFor?.title ?? null}
+                  resumeId={resumeId}
+                />
+              ) : undefined
+            }
             onRemote={
               work.status === "ready"
                 ? (remote) => void changeLookingFor({ ...choice, remote })

@@ -176,6 +176,8 @@ export const userSettings = pgTable(
     locale: text("locale", { enum: LOCALES }),
     // The job post languages Looking for keeps (job-feed/job-langs.ts); null until the account picks them.
     jobLangs: text("job_langs", { enum: CONTENT_LANGS }).array(),
+    // Saved searches the bell watches (src/lib/job-feed/alerts.ts), at most five.
+    jobAlerts: jsonb("job_alerts").$type<unknown[]>(),
   },
   (t) => [
     index("user_settings_career_due_idx")

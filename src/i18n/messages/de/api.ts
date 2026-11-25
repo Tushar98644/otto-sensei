@@ -290,6 +290,14 @@ export default {
     savedGone: "Dieser gespeicherte Job ist nicht mehr da.",
     board: "Die Jobbörse dieser Stelle konnte nicht gelesen werden.",
     typeLess: "Gib höchstens {max} Zeichen ein.",
+    alertsSignIn: "Melde dich an, um deine Job-Alerts zu sehen.",
+    alertsFailed: "Deine Job-Alerts konnten nicht geladen werden. Bitte versuch es noch mal.",
+    alertBad:
+      "Dieser Alert hat nicht funktioniert. Wähle statt deines Standorts eine Stadt und versuch es noch mal.",
+    alertsFull:
+      "Du kannst bis zu {max} Job-Alerts behalten. Entferne einen, um einen neuen hinzuzufügen.",
+    alertSaveFailed: "Dieser Job-Alert konnte nicht gespeichert werden. Bitte versuch es noch mal.",
+    alertRemoveFailed: "Dieser Job-Alert konnte nicht entfernt werden. Bitte versuch es noch mal.",
     mapFailed: "Die Karte konnte gerade nicht geladen werden. Bitte versuch es noch mal.",
     companySignIn: "Melde dich an, um dieses Unternehmen zu sehen.",
     companyName: "Dieser Firmenname hat nicht funktioniert.",

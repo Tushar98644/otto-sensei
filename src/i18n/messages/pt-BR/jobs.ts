@@ -114,6 +114,18 @@ export default {
     known:
       "O que o Otto mostra vem das vagas abertas desta empresa. Investimento e tamanho da equipe não aparecem: não há uma fonte gratuita e confiável para isso.",
   },
+  alerts: {
+    title: "Alertas de vagas",
+    add: "Me avise de vagas novas como estas",
+    hint: "Uma vez por dia, o Otto toca o sino quando há vagas novas para esta busca. Sem e-mails.",
+    pickCity: "Para receber alertas perto de você, escolha uma cidade em vez da sua localização.",
+    remove: "Remover o alerta “{name}”",
+    full: "Você tem {count} alertas, o máximo possível.",
+    anyRole: "Qualquer cargo",
+    added: "Alerta salvo",
+    failed: "Não foi possível salvar o alerta",
+    removeFailed: "Não foi possível remover o alerta",
+  },
   map: {
     label: "Mapa das empresas por trás das suas combinações",
     loading: "Carregando o mapa…",

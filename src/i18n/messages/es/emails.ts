@@ -162,5 +162,9 @@ export default {
     pair: "{first} y {second}.",
     single: "{name}.",
     free: "En Free, Empleos muestra tus coincidencias más cercanas.",
+    alert: {
+      one: "{count} empleo nuevo para «{name}»",
+      other: "{count} empleos nuevos para «{name}»",
+    },
   },
 } satisfies Translation<Messages["emails"]>;

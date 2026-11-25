@@ -108,6 +108,18 @@ export default {
     known:
       "What Otto shows comes from this company's open jobs. Funding and team size aren't shown: there's no reliable free source for them.",
   },
+  alerts: {
+    title: "Job alerts",
+    add: "Alert me about new jobs like these",
+    hint: "Once a day, Otto rings the bell when new jobs match this search. No emails.",
+    pickCity: "To get alerts near you, pick a city instead of your location.",
+    remove: "Remove the alert “{name}”",
+    full: "You have {count} alerts, the most there can be.",
+    anyRole: "Any role",
+    added: "Alert saved",
+    failed: "Couldn't save the alert",
+    removeFailed: "Couldn't remove the alert",
+  },
   map: {
     label: "Map of the companies behind your matches",
     loading: "Loading the map…",

@@ -82,7 +82,7 @@ export async function defaultResume(db: Db, userId: string): Promise<Resume | nu
 }
 
 // New means Otto first read it after the last note: a feed's post date can be older than the day it was read.
-async function firstSeenAfter(db: Db, ids: string[], since: number): Promise<Set<string>> {
+export async function firstSeenAfter(db: Db, ids: string[], since: number): Promise<Set<string>> {
   if (ids.length === 0) return new Set();
   const rows = await listingRows(
     db,
@@ -92,7 +92,7 @@ async function firstSeenAfter(db: Db, ids: string[], since: number): Promise<Set
 }
 
 // Jobs the account already logged an application for, by job or by link, as the Jobs tab marks them.
-async function appliedTo(db: Db, userId: string): Promise<(job: MatchedJob) => boolean> {
+export async function appliedTo(db: Db, userId: string): Promise<(job: MatchedJob) => boolean> {
   const rows = await db
     .select({ jobId: applications.jobId, jobUrl: applications.jobUrl })
     .from(applications)
@@ -150,7 +150,7 @@ async function newMatchesFor(
   return { kind: "found", found: { fresh: listed.length, names, free } };
 }
 
-function jobName(job: Pick<MatchedJob, "title" | "company">, locale: Locale): string {
+export function jobName(job: Pick<MatchedJob, "title" | "company">, locale: Locale): string {
   const title = clip(job.title, NAME_CHARS);
   const company = clip(job.company, NAME_CHARS);
   return company ? fmt(emailMessages(locale).jobs.job, { title, company }) : title;

@@ -91,7 +91,7 @@ export default {
     locationOff:
       "La localisation est désactivée pour ce site. Autorise-la dans ton navigateur, ou choisis une ville.",
     nearHint:
-      "Pour les offres sur site et hybrides. Ta position reste dans ce navigateur : Otto la reçoit arrondie à environ 1 km pour trouver des offres proches, et ne l'enregistre jamais.",
+      "Pour les offres sur site et hybrides. Ta position reste dans ce navigateur : Otto la reçoit arrondie à environ 1 km pour trouver des offres proches, et ne l'enregistre jamais.",
   },
   company: {
     about: "À propos de {company}",
@@ -113,7 +113,19 @@ export default {
     failed: "Impossible de charger cette entreprise.",
     tryAgain: "Réessayer",
     known:
-      "Ce qu'Otto affiche vient des offres ouvertes de cette entreprise. Le financement et la taille de l'équipe ne sont pas affichés : il n'existe pas de source gratuite et fiable pour ça.",
+      "Ce qu'Otto affiche vient des offres ouvertes de cette entreprise. Le financement et la taille de l'équipe ne sont pas affichés : il n'existe pas de source gratuite et fiable pour ça.",
+  },
+  alerts: {
+    title: "Alertes d'offres",
+    add: "Préviens-moi des nouvelles offres comme celles-ci",
+    hint: "Une fois par jour, Otto fait sonner la cloche quand de nouvelles offres correspondent à cette recherche. Pas d'e-mails.",
+    pickCity: "Pour recevoir des alertes près de toi, choisis une ville plutôt que ta position.",
+    remove: "Supprimer l'alerte « {name} »",
+    full: "Tu as {count} alertes, le maximum possible.",
+    anyRole: "Tous les postes",
+    added: "Alerte enregistrée",
+    failed: "Impossible d'enregistrer l'alerte",
+    removeFailed: "Impossible de supprimer l'alerte",
   },
   map: {
     label: "Carte des entreprises derrière tes correspondances",

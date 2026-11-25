@@ -115,6 +115,18 @@ export default {
     known:
       "Lo que muestra Otto viene de los empleos abiertos de esta empresa. No se muestran la financiación ni el tamaño del equipo: no hay una fuente gratuita y fiable para eso.",
   },
+  alerts: {
+    title: "Alertas de empleo",
+    add: "Avísame de empleos nuevos como estos",
+    hint: "Una vez al día, Otto toca la campana cuando hay empleos nuevos para esta búsqueda. Sin correos.",
+    pickCity: "Para recibir alertas cerca de ti, elige una ciudad en vez de tu ubicación.",
+    remove: "Quitar la alerta «{name}»",
+    full: "Tienes {count} alertas, el máximo posible.",
+    anyRole: "Cualquier rol",
+    added: "Alerta guardada",
+    failed: "No se pudo guardar la alerta",
+    removeFailed: "No se pudo quitar la alerta",
+  },
   map: {
     label: "Mapa de las empresas detrás de tus coincidencias",
     loading: "Cargando el mapa…",

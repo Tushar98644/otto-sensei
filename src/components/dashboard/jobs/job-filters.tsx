@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, List, Map as MapIcon, Search, SlidersHorizontal, X } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,6 +103,7 @@ export type JobFiltersBarProps = {
   onLayout: (layout: JobLayout) => void;
   point: Point | null;
   onPoint: (point: Point | null) => void;
+  alerts?: ReactNode;
 };
 
 export function JobFiltersBar({
@@ -121,6 +122,7 @@ export function JobFiltersBar({
   onLayout,
   point,
   onPoint,
+  alerts,
 }: JobFiltersBarProps) {
   const { filters: t } = useMessages("jobs");
   const format = useFormat();
@@ -295,6 +297,7 @@ export function JobFiltersBar({
                 </label>
               ) : null}
             </div>
+            {alerts}
           </div>
         ) : null}
       </div>

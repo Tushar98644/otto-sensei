@@ -1,4 +1,5 @@
 import type { BillingHistoryResponse } from "@/lib/billing/history-types";
+import type { JobAlertsResponse, NewJobAlert } from "@/lib/job-feed/alert-types";
 import type {
   CareerEntryResponse,
   CareerLogResponse,
@@ -326,6 +327,11 @@ export const api = {
       cache: "no-store",
       signal,
     }),
+  jobAlerts: () => request<JobAlertsResponse>("/api/jobs/alerts", { cache: "no-store" }),
+  addJobAlert: (body: NewJobAlert) =>
+    request<JobAlertsResponse>("/api/jobs/alerts", postJson(body)),
+  removeJobAlert: (id: string) =>
+    request<JobAlertsResponse>(`/api/jobs/alerts/${encodeURIComponent(id)}`, { method: "DELETE" }),
   searchCities: (query: string, signal?: AbortSignal) =>
     request<CitySearchResponse>(`/api/jobs/cities?q=${encodeURIComponent(query)}`, { signal }),
   jobPost: (id: string) =>

@@ -129,6 +129,10 @@ jobs:
         id: job_matches
         continue-on-error: true
         run: bash .github/scripts/cron-call.sh job-matches
+      - name: Job alerts
+        id: job_alerts
+        continue-on-error: true
+        run: bash .github/scripts/cron-call.sh job-alerts
       - name: Career check-ins
         id: career_checkins
         continue-on-error: true
@@ -178,6 +182,7 @@ jobs:
             Match index|${{ steps.match_index.outcome }}
             Cleanup|${{ steps.cleanup.outcome }}
             Job matches|${{ steps.job_matches.outcome }}
+            Job alerts|${{ steps.job_alerts.outcome }}
             Career check-ins|${{ steps.career_checkins.outcome }}
             View alerts|${{ steps.view_alerts.outcome }}
             Trial reminders|${{ steps.trial_reminders.outcome }}

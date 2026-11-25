@@ -115,6 +115,18 @@ export default {
     known:
       "Was Otto zeigt, stammt aus den offenen Jobs dieses Unternehmens. Finanzierung und Teamgröße werden nicht gezeigt: Dafür gibt es keine verlässliche kostenlose Quelle.",
   },
+  alerts: {
+    title: "Job-Alerts",
+    add: "Benachrichtige mich über neue Jobs wie diese",
+    hint: "Einmal am Tag meldet sich Otto in der Glocke, wenn neue Jobs zu dieser Suche passen. Keine E-Mails.",
+    pickCity: "Für Alerts in deiner Nähe wähle eine Stadt statt deines Standorts.",
+    remove: "Den Alert „{name}“ entfernen",
+    full: "Du hast {count} Alerts, mehr geht nicht.",
+    anyRole: "Jede Rolle",
+    added: "Alert gespeichert",
+    failed: "Der Alert konnte nicht gespeichert werden",
+    removeFailed: "Der Alert konnte nicht entfernt werden",
+  },
   map: {
     label: "Karte der Unternehmen hinter deinen Treffern",
     loading: "Karte wird geladen…",

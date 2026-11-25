@@ -184,7 +184,7 @@ export default {
         posthog:
           "<b>PostHog</b> reçoit les événements d'utilisation décrits plus haut, pour que nous puissions voir quelles étapes aident et où les gens bloquent.",
         openFreeMap:
-          "<b>OpenFreeMap</b> fournit les tuiles de la carte quand tu ouvres la carte des offres, donc il reçoit ton adresse IP et les zones que tu regardes, y compris la zone autour de toi si tu utilises « Aller à ma position ». Nous ne lui envoyons rien d'autre.",
+          "<b>OpenFreeMap</b> fournit les tuiles de la carte quand tu ouvres la carte des offres, donc il reçoit ton adresse IP et les zones que tu regardes, y compris la zone autour de toi si tu utilises « Aller à ma position ». Nous ne lui envoyons rien d'autre.",
       },
       outro:
         "Ces prestataires peuvent traiter des données en dehors de ton pays, y compris aux États-Unis. Nous pouvons aussi partager des informations si la loi l'exige.",

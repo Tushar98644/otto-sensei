@@ -148,5 +148,6 @@ export default {
     pair: "{first} and {second}.",
     single: "{name}.",
     free: "On Free, Jobs shows your closest few.",
+    alert: { one: "{count} new job for “{name}”", other: "{count} new jobs for “{name}”" },
   },
 } as const;
