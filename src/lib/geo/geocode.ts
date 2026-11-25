@@ -44,6 +44,7 @@ const ALIASES: Record<string, string> = {
   cdmx: "mexico city",
   "ciudad de mexico": "mexico city",
   "tel aviv yafo": "tel aviv",
+  "hong kong sar": "hong kong",
 };
 
 // The country an alias means, so "Frankfurt" isn't Frankfurt (Oder) when the post names no country.
@@ -188,7 +189,7 @@ const NOT_A_CITY = new Set([
 const CITY_STATES = new Set(["singapore", "hong kong", "luxembourg", "monaco", "macau", "kuwait"]);
 
 const NOISE =
-  /\b(?:greater|metro(?:politan)?(?: area)?|area|region|office|hq|headquarters|campus|downtown|remote|hybrid|on ?site|in office)\b/g;
+  /\b(?:greater|metro(?:politan)?(?: area)?|area|region|office|hq|headquarters|campus|downtown|remote|hybrid|on ?site|in office|based)\b/g;
 
 function cityLike(key: string): boolean {
   if (!key) return false;
@@ -231,7 +232,7 @@ function hintsOf(parts: readonly string[], raw: readonly string[], countries: re
 }
 
 const SEGMENTS = /\s*(?:[;|·•\n]|\s\/\s|\bor\b|\band\b)\s*/i;
-const PARTS = /\s*(?:,|\s[-–—]\s|[()])\s*/;
+const PARTS = /\s*(?:,|\s[-–—]\s|[():>])\s*/;
 
 // The first city a job's location names, or null: "Austin, TX" is Austin, Texas; "Remote - US" is none.
 // `countries` are the country codes already read from it (job-places.ts), which settle a shared name.

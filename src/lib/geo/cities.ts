@@ -32,6 +32,8 @@ export function cityKey(text: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\bsaint\b/g, "st")
     .replace(/\bsainte\b/g, "ste")
+    .replace(/\bft\b/g, "fort")
+    .replace(/\bmt\b/g, "mount")
     .trim();
 }
 

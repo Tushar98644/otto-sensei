@@ -36,6 +36,10 @@ describe("geocode", () => {
     ["Singapore", ["SG"], "Singapore, SG"],
     ["St. Louis, MO", ["US"], "St. Louis, US-MO"],
     ["Saint Louis, Missouri", ["US"], "St. Louis, US-MO"],
+    ["Ft. Wayne, IN", ["US"], "Fort Wayne, US-IN"],
+    ["Bangkok based", ["TH"], "Bangkok, TH"],
+    ["United States > Madison : 1 Exact Lane", ["US"], "Madison, US-WI"],
+    ["HK - Hong Kong SAR", ["HK"], "Hong Kong, HK"],
   ])("%s", (location, countries, expected) => {
     expect(place(location, countries)).toBe(expected);
   });

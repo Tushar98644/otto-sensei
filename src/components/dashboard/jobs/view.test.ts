@@ -3,6 +3,7 @@ import type { Application } from "@/lib/applications/schema";
 import { emptyResume } from "@/lib/resume/schema";
 import { EN, FORMAT_EN } from "../messages-testing";
 import {
+  cityLabel,
   moreWithProCopy,
   appliedFor,
   checkedLabel,
@@ -156,5 +157,15 @@ describe("job card copy", () => {
     expect(
       placeParts({ location: "Berlin", remote: true, employmentType: "contract" }, EN.jobs),
     ).toEqual(["Remote", "Berlin", "Contract"]);
+  });
+});
+
+describe("cityLabel", () => {
+  it("names a US city by its state and any other by its country, in the reader's words", () => {
+    expect(cityLabel({ name: "Austin", country: "US", admin: "TX" })).toBe("Austin, TX");
+    expect(cityLabel({ name: "Berlin", country: "DE", admin: "16" })).toBe("Berlin, Germany");
+    expect(cityLabel({ name: "Berlin", country: "DE", admin: "16" }, (code) => `<${code}>`)).toBe(
+      "Berlin, <DE>",
+    );
   });
 });
