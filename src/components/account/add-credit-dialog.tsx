@@ -9,10 +9,15 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
-import { buysSentence, centsText, isTopupAmount, TOPUP_LIMITS } from "@/config/topup";
+import { isTopupAmount, TOPUP_LIMITS } from "@/config/topup";
+import { useFormat, useMessagesOr } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import EN_UPGRADE from "@/i18n/messages/en/upgrade";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import { errorMessage } from "./errors";
+import { buysIn, centsIn, usdIn } from "./local-prices";
 import { returnPathHere } from "./upgrade-return";
 import { refreshMe, useMe } from "./use-me";
 
@@ -28,18 +33,25 @@ type Choice = number | "other";
 const { minUsd, maxUsd, maxBalanceUsd, presetsUsd } = TOPUP_LIMITS;
 const DEFAULT_CHOICE: Choice = presetsUsd[1] ?? minUsd;
 
-function amountError(usd: number, roomUsd: number): string | null {
-  if (!isTopupAmount(usd)) return `Pick a whole-dollar amount from $${minUsd} to $${maxUsd}.`;
+type CreditWords = (typeof EN_UPGRADE)["credit"];
+
+function amountError(t: CreditWords, format: Format, usd: number, roomUsd: number): string | null {
+  const dollars = (amount: number) => usdIn(format, amount);
+  if (!isTopupAmount(usd)) return fmt(t.pick, { min: dollars(minUsd), max: dollars(maxUsd) });
   if (usd > roomUsd) {
     return roomUsd >= minUsd
-      ? `Your balance holds up to $${maxBalanceUsd}, so you can add up to $${roomUsd} now.`
-      : `Your balance holds up to $${maxBalanceUsd}. Use some, then add more.`;
+      ? fmt(t.room, { cap: dollars(maxBalanceUsd), room: dollars(roomUsd) })
+      : fmt(t.full, { cap: dollars(maxBalanceUsd) });
   }
   return null;
 }
 
 export function AddCreditDialog({ open, onOpenChange, next }: AddCreditDialogProps) {
   const { me } = useMe();
+  const words = useMessagesOr("upgrade", EN_UPGRADE);
+  const t = words.credit;
+  const format = useFormat();
+  const dollars = (amount: number) => usdIn(format, amount);
   const name = useId();
   const [choice, setChoice] = useState<Choice>(DEFAULT_CHOICE);
   const [other, setOther] = useState("");
@@ -59,7 +71,7 @@ export function AddCreditDialog({ open, onOpenChange, next }: AddCreditDialogPro
   const roomUsd = Math.floor((maxBalanceUsd * 100 - balance) / 100);
   const usd = choice === "other" ? Number(other.trim() || Number.NaN) : choice;
   const typing = choice === "other" && other.trim() === "";
-  const error = typing ? null : amountError(usd, roomUsd);
+  const error = typing ? null : amountError(t, format, usd, roomUsd);
   const ready = !typing && error === null;
   const mock = me?.billing.mode === "mock";
 
@@ -71,7 +83,7 @@ export function AddCreditDialog({ open, onOpenChange, next }: AddCreditDialogPro
       window.location.assign(url);
     } catch (failure) {
       setPending(false);
-      toast({ title: "Couldn't add credit", description: errorMessage(failure), variant: "error" });
+      toast({ title: t.failed, description: errorMessage(failure), variant: "error" });
       void refreshMe();
     }
   }
@@ -81,24 +93,24 @@ export function AddCreditDialog({ open, onOpenChange, next }: AddCreditDialogPro
       open={open}
       onOpenChange={onOpenChange}
       size="sm"
-      title="Add credit"
-      description="Used only once a month's allowance runs out. It never expires while your account exists."
-      illustration={<OttoNote size="sm" message={`${buysSentence(1)}.`} />}
+      title={t.title}
+      description={t.description}
+      illustration={<OttoNote size="sm" message={`${buysIn(t, format, 1)}.`} />}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Not now
+            {words.buttons.notNow}
           </Button>
           <Button onClick={() => void add()} loading={pending} disabled={!ready} data-autofocus>
             <CreditCard />
-            {ready ? `Add $${usd}` : "Add credit"}
+            {ready ? fmt(t.add, { amount: dollars(usd) }) : t.title}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-medium text-ink">Amount</legend>
+          <legend className="mb-2 text-sm font-medium text-ink">{t.amount}</legend>
           <div className="flex gap-1 rounded-xl bg-surface-muted p-1">
             {[...presetsUsd, "other" as const].map((option) => (
               <label key={option} className="relative min-w-0 flex-1">
@@ -111,7 +123,7 @@ export function AddCreditDialog({ open, onOpenChange, next }: AddCreditDialogPro
                   className="peer sr-only"
                 />
                 <span className="flex h-11 cursor-pointer items-center justify-center rounded-lg px-3 text-sm font-medium text-muted tabular-nums transition-colors peer-checked:bg-surface peer-checked:text-ink peer-checked:shadow-control peer-checked:ring-1 peer-checked:ring-ink/5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink hover:text-ink">
-                  {option === "other" ? "Other" : `$${option}`}
+                  {option === "other" ? t.other : dollars(option)}
                 </span>
               </label>
             ))}
@@ -119,8 +131,8 @@ export function AddCreditDialog({ open, onOpenChange, next }: AddCreditDialogPro
         </fieldset>
         {choice === "other" ? (
           <Field
-            label="Amount in dollars"
-            hint={`Whole dollars, $${minUsd} to $${maxUsd}.`}
+            label={t.amountLabel}
+            hint={fmt(t.hint, { min: dollars(minUsd), max: dollars(maxUsd) })}
             error={error ?? undefined}
           >
             <Input
@@ -138,20 +150,20 @@ export function AddCreditDialog({ open, onOpenChange, next }: AddCreditDialogPro
           <p className="text-sm/6 text-fail">{error}</p>
         ) : null}
         <p aria-live="polite" className={cn("text-sm/6 text-muted", !ready && "invisible")}>
-          {ready ? `${buysSentence(usd)}.` : buysSentence(minUsd)}
+          {ready ? `${buysIn(t, format, usd)}.` : buysIn(t, format, minUsd)}
         </p>
         {balance > 0 ? (
-          <p className="text-sm/6 text-muted">Your balance now: {centsText(balance)}.</p>
+          <p className="text-sm/6 text-muted">
+            {fmt(t.balanceNow, { balance: centsIn(format, balance) })}
+          </p>
         ) : null}
         {mock ? (
           <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
-            <Badge>Test mode</Badge>
-            No real payment. The credit is added right away.
+            <Badge>{words.billing.testMode}</Badge>
+            {t.mock}
           </p>
         ) : (
-          <p className="text-sm/6 text-subtle">
-            Plus any tax at checkout. Prepaid, and not refundable once used.
-          </p>
+          <p className="text-sm/6 text-subtle">{t.tax}</p>
         )}
       </div>
     </Dialog>

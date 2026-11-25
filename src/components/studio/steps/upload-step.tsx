@@ -12,7 +12,8 @@ import {
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { openFormat } from "@/components/formats/apply-format";
 import { ChosenFormatNote, useChosenFormat } from "@/components/formats/chosen-format-note";
-import { OTTO } from "@/components/mascot/lines";
+import type { OttoLines } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ type Otto = Messages["studio"]["otto"];
 
 export function UploadStep() {
   const studio = useMessages("studio");
+  const ottoLines = useOtto();
   const t = studio.upload;
   const { format, addResume } = useChosenFormat();
   const setActive = useStudioStore((s) => s.setActive);
@@ -103,7 +105,11 @@ export function UploadStep() {
       setStep("review");
     } catch (error) {
       if (!mounted.current) return;
-      setState({ status: "failed", message: describeError(studio.otto, error), file });
+      setState({
+        status: "failed",
+        message: describeError(studio.otto, error, ottoLines.errors),
+        file,
+      });
     }
   }
 
@@ -130,11 +136,12 @@ export function UploadStep() {
         const message =
           error instanceof LocalImportError
             ? uploadFailed(studio.otto, localImportError(t, error))
-            : OTTO.errors.generic;
+            : ottoLines.errors.generic;
         setState({ status: "failed", message, file: null });
       }
     } catch {
-      if (mounted.current) setState({ status: "failed", message: OTTO.errors.generic, file: null });
+      if (mounted.current)
+        setState({ status: "failed", message: ottoLines.errors.generic, file: null });
     }
   }
 
@@ -188,7 +195,7 @@ export function UploadStep() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <OttoNote
-        message={full && state.status === "idle" ? OTTO.limit.tool("resumes", false) : otto}
+        message={full && state.status === "idle" ? ottoLines.limit.tool("resumes", false) : otto}
       >
         {retryFile ? (
           <Button variant="secondary" onClick={() => void upload(retryFile)}>
@@ -270,10 +277,10 @@ function ottoFor(otto: Otto, state: UploadState): string {
   }
 }
 
-function describeError(otto: Otto, error: unknown): string {
-  if (isApiError(error, "rate_limited")) return OTTO.errors.rateLimited;
+function describeError(otto: Otto, error: unknown, errors: OttoLines["errors"]): string {
+  if (isApiError(error, "rate_limited")) return errors.rateLimited;
   if (isApiError(error)) return uploadFailed(otto, error.message);
-  return OTTO.errors.generic;
+  return errors.generic;
 }
 
 function localImportError(t: Messages["studio"]["upload"], error: LocalImportError): string {

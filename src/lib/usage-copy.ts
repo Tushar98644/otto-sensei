@@ -68,6 +68,7 @@ export function usageCopy(words: UsageWords, format: Format) {
   return {
     thisPeriod: (period: PeriodLike) => words.thisPeriod[kindOf(period)],
     perPeriod: (period: PeriodLike) => words.perPeriod[kindOf(period)],
+    resetWhen: when,
     resetSentence: (period: UsagePeriod | null | undefined, timeZone?: string) =>
       period?.kind === "trial"
         ? fmt(words.trialStarts, { day: day(period, timeZone) })

@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import EN_COMMON from "@/i18n/messages/en/common";
 import { RootDocument, rootMetadata } from "./root-document";
 
 // Page views need the router, which a static render doesn't have.
@@ -38,7 +39,7 @@ describe("rootMetadata", () => {
 describe("RootDocument", () => {
   it("writes the language on <html> and the skip link first", () => {
     const html = renderToStaticMarkup(
-      <RootDocument lang="pt-BR" skipLabel="Pular para o conteúdo">
+      <RootDocument lang="pt-BR" skipLabel="Pular para o conteúdo" referral={EN_COMMON.referral}>
         <main id="main" />
       </RootDocument>,
     );

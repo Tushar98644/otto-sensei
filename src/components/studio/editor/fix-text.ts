@@ -1,10 +1,9 @@
-import { OTTO } from "@/components/mascot/lines";
+import { OTTO_EN, type OttoLines } from "@/components/mascot/lines";
 import { PLANS, type PlanId, type Usage, type UsagePeriod } from "@/config/plans";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
 import type { FixInput } from "@/lib/ai/types";
-import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { isApiError } from "@/lib/api/client";
 import { resetSentenceIn, thisPeriodIn } from "../usage";
 
@@ -12,6 +11,7 @@ export type FixWords = {
   t: Messages["studioEditor"];
   usage: Messages["studio"]["usage"];
   format: Format;
+  otto?: OttoLines;
 };
 
 export const FIX_ANSWER_LIMITS = { count: 5, questionChars: 300, answerChars: 500 } as const;
@@ -84,11 +84,11 @@ export function buildAnswers(
     .slice(0, FIX_ANSWER_LIMITS.count);
 }
 
-export function fixErrorMessage(error: unknown): string {
-  if (isApiError(error, "network_error")) return OTTO.errors.offline;
-  if (isApiError(error, "rate_limited")) return OTTO.errors.rateLimited;
-  if (isApiError(error, "ai_unavailable")) return OTTO.errors.aiUnavailable;
-  return OTTO.errors.generic;
+export function fixErrorMessage(error: unknown, otto: OttoLines = OTTO_EN): string {
+  if (isApiError(error, "network_error")) return otto.errors.offline;
+  if (isApiError(error, "rate_limited")) return otto.errors.rateLimited;
+  if (isApiError(error, "ai_unavailable")) return otto.errors.aiUnavailable;
+  return otto.errors.generic;
 }
 
 export function problemMessage(
@@ -99,28 +99,29 @@ export function problemMessage(
   period?: UsagePeriod | null,
   plan?: PlanId | null,
 ): string {
+  const otto = words.otto ?? OTTO_EN;
   switch (problem.kind) {
     case "limit":
-      if (problem.budget) return budgetReachedText(period);
+      if (problem.budget) return otto.budget(period);
       return plan === "free"
-        ? OTTO.limit.freeUsed("fix", limit)
-        : OTTO.limit.reached("fix", limit, period);
+        ? otto.limit.freeUsed("fix", limit)
+        : otto.limit.reached("fix", limit, period);
     case "signin":
-      return signedIn ? words.t.otto.signedInAgain : OTTO.signIn.reason("fix");
+      return signedIn ? words.t.otto.signedInAgain : otto.signIn.reason("fix");
     case "error":
       return problem.message;
   }
 }
 
 export function fixAllowanceText(
-  { t, usage: u, format }: FixWords,
+  { t, usage: u, format, otto = OTTO_EN }: FixWords,
   usage: Usage | null | undefined,
   plan: PlanId | null | undefined,
   period?: UsagePeriod | null,
   trial = true,
 ): string | null {
   if (!plan || !usage) return null;
-  if (usage.limit === 0) return OTTO.limit.none("fix", trial);
+  if (usage.limit === 0) return otto.limit.none("fix", trial);
   const left = Math.max(0, usage.limit - usage.used);
   if (left === 0) {
     const none = fmt(t.allowance.none, {

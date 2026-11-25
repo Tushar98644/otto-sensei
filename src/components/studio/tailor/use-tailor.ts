@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { useAccountGate } from "@/components/account/account-gate";
 import { useMe } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
+import type { OttoLines } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import type { UsagePeriod } from "@/config/plans";
 import { useMessages } from "@/i18n/client";
 import type { Messages } from "@/i18n/messages";
-import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { isApiError, isBudgetReached } from "@/lib/api/client";
 import type { Resume } from "@/lib/resume/schema";
 import { loadResult, sameRun, type SavedResult, type TailorDraft } from "./session";
@@ -44,16 +44,17 @@ function errorMessage(
   error: unknown,
   tailorLimit: number | undefined,
   period: UsagePeriod | null | undefined,
+  otto: OttoLines,
 ): string {
-  if (isApiError(error, "network_error")) return OTTO.errors.offline;
-  if (isApiError(error, "rate_limited")) return OTTO.errors.rateLimited;
-  if (isApiError(error, "ai_unavailable")) return OTTO.errors.aiUnavailable;
-  if (isBudgetReached(error)) return budgetReachedText(period);
-  if (isApiError(error, "limit_reached")) return OTTO.limit.reached("tailor", tailorLimit, period);
+  if (isApiError(error, "network_error")) return otto.errors.offline;
+  if (isApiError(error, "rate_limited")) return otto.errors.rateLimited;
+  if (isApiError(error, "ai_unavailable")) return otto.errors.aiUnavailable;
+  if (isBudgetReached(error)) return otto.budget(period);
+  if (isApiError(error, "limit_reached")) return otto.limit.reached("tailor", tailorLimit, period);
   if (isApiError(error, "unauthorized")) return t.signedOut;
   if (isApiError(error, "ai_refused")) return t.refused;
   if (isApiError(error, "bad_request")) return t.badPost;
-  return OTTO.errors.generic;
+  return otto.errors.generic;
 }
 
 export function useTailorRun(source: Resume): TailorRun {
@@ -66,13 +67,14 @@ export function useTailorRun(source: Resume): TailorRun {
   const [cancelled, setCancelled] = useState(false);
   const busy = useRef(false);
   const t = useMessages("studioTailor").errors;
+  const otto = useOtto();
 
   const signIn = () =>
-    gate.requireUser(OTTO.signIn.reason("tailor"), { kind: compareActionKind(source.id) });
+    gate.requireUser(otto.signIn.reason("tailor"), { kind: compareActionKind(source.id) });
 
   function report(caught: unknown) {
     if (!gate.handleApiError(caught, "tailor"))
-      setError(errorMessage(t, caught, me?.usage?.tailor.limit, me?.period));
+      setError(errorMessage(t, caught, me?.usage?.tailor.limit, me?.period, otto));
   }
 
   const settle = useEffectEvent(

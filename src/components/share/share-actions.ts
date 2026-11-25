@@ -2,6 +2,8 @@
 
 import { toast } from "@/components/ui/toast";
 import { undoToast, type UndoHandle } from "@/components/ui/undo-toast";
+import type { Messages } from "@/i18n/messages";
+import EN_SHARE_LINKS from "@/i18n/messages/en/share-links";
 import { api, isApiError } from "@/lib/api/client";
 import type { Resume } from "@/lib/resume/schema";
 import { sharePath, type SharedLink } from "@/lib/share/types";
@@ -11,9 +13,11 @@ import { dropShare, ensureShares, putShare } from "./share-store";
 // Re-sharing cancels a pending turn-off, so its held DELETE can't hit the new link.
 const pendingTurnOffs = new Map<string, UndoHandle>();
 
-function messageOf(error: unknown): string {
+export type ShareActionWords = Messages["shareLinks"]["actions"];
+
+function messageOf(error: unknown, t: ShareActionWords): string {
   if (isApiError(error) || error instanceof Error) return error.message;
-  return "Something went wrong. Please try again.";
+  return t.fallback;
 }
 
 export function absolute(link: SharedLink): string {
@@ -44,12 +48,13 @@ export async function shareAndCopy(
   resume: Resume,
   owner: string,
   onSettings: () => void,
+  t: ShareActionWords = EN_SHARE_LINKS.actions,
 ): Promise<SharedLink | null> {
   pendingTurnOffs.get(resume.id)?.undo();
   const made = (async () => {
     // A live link's settings must be known before saving over it.
     const links = await ensureShares(owner).catch(() => {
-      throw new Error("Couldn't check the links you already made. Check your connection, then try again.");
+      throw new Error(t.checkFailed);
     });
     const existing = links.find((item) => item.resumeId === resume.id);
     const options = existing
@@ -63,26 +68,28 @@ export async function shareAndCopy(
   try {
     const link = await made;
     toast({
-      title: copied ? "Copied" : "Link ready",
-      description: copied
-        ? "Your share link is on the clipboard. Anyone with it can read this resume."
-        : "Copy it from the link settings.",
+      title: copied ? t.copied : t.ready,
+      description: copied ? t.onClipboard : t.fromSettings,
       variant: "success",
-      action: { label: "Settings", onAction: onSettings },
+      action: { label: t.settings, onAction: onSettings },
     });
     if (!copied) onSettings();
     return link;
   } catch (error) {
-    toast({ title: "Couldn't make the link", description: messageOf(error), variant: "error" });
+    toast({ title: t.makeFailed, description: messageOf(error, t), variant: "error" });
     return null;
   }
 }
 
-export function turnOffWithUndo(link: SharedLink): void {
+export function turnOffWithUndo(
+  link: SharedLink,
+  t: ShareActionWords = EN_SHARE_LINKS.actions,
+): void {
   dropShare(link.id);
   const handle = undoToast({
-    title: "Link turned off",
-    description: "Anyone who opens it now sees that it doesn't work.",
+    title: t.turnedOff,
+    description: t.turnedOffNote,
+    undoLabel: t.undo,
     onUndo: () => {
       pendingTurnOffs.delete(link.resumeId);
       putShare(link);
@@ -91,7 +98,7 @@ export function turnOffWithUndo(link: SharedLink): void {
       pendingTurnOffs.delete(link.resumeId);
       api.revokeShare(link.id, options).catch((error: unknown) => {
         putShare(link);
-        toast({ title: "Couldn't turn off the link", description: messageOf(error), variant: "error" });
+        toast({ title: t.turnOffFailed, description: messageOf(error, t), variant: "error" });
       });
     },
   });

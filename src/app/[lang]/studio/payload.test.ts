@@ -3,8 +3,9 @@ import { LOCALES } from "@/i18n/config";
 import { pickMessages } from "@/i18n/server";
 import { STUDIO_NAMESPACES } from "./namespaces";
 
-// The studio page carries these messages in its HTML (about 57 KB in English, 66 KB in German today).
-const BUDGET_BYTES = 72_000;
+// The studio page carries these messages in its HTML (about 73 KB in English, 85 KB in French and German today).
+// Raised from 72 KB when the sign-in, upgrade and share dialogs, Otto's limit lines and the app's shared words joined it.
+const BUDGET_BYTES = 100_000;
 
 async function payloadBytes(locale: (typeof LOCALES)[number]): Promise<number> {
   const messages = await pickMessages(locale, STUDIO_NAMESPACES);

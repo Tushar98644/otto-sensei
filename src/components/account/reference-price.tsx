@@ -1,16 +1,15 @@
+"use client";
+
 import {
   REFERENCE_MONTHLY_USD,
   SHOW_REFERENCE_PRICES,
   type BillingInterval,
   type PaidPlanId,
 } from "@/config/plans";
+import { useFormat, useMessagesOr } from "@/i18n/client";
+import EN_UPGRADE from "@/i18n/messages/en/upgrade";
 import { cn } from "@/lib/utils";
-
-const usd = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  trailingZeroDisplay: "stripIfInteger",
-});
+import { usdIn } from "./local-prices";
 
 export function ReferencePrice({
   plan,
@@ -21,11 +20,13 @@ export function ReferencePrice({
   interval: BillingInterval;
   className?: string;
 }) {
+  const { referencePrice } = useMessagesOr("upgrade", EN_UPGRADE).offer;
+  const format = useFormat();
   if (!SHOW_REFERENCE_PRICES || interval !== "month") return null;
   return (
     <s className={cn("font-normal text-subtle tabular-nums", className)}>
-      <span className="sr-only">Reference price </span>
-      {usd.format(REFERENCE_MONTHLY_USD[plan])}
+      <span className="sr-only">{`${referencePrice} `}</span>
+      {usdIn(format, REFERENCE_MONTHLY_USD[plan])}
     </s>
   );
 }

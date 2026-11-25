@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { signedOutNote } from "@/components/account/copy";
+import { useSignedOutNote } from "@/components/account/use-sign-in-words";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
@@ -206,6 +206,7 @@ function AccountRow({
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const shortcut = useCommandPaletteShortcut();
+  const signedOutNote = useSignedOutNote();
 
   async function signOut() {
     setSigningOut(true);

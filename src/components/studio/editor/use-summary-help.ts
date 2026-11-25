@@ -83,7 +83,7 @@ export function useSummaryHelp(resumeId: string, focusInput: () => void) {
         });
       } catch (error) {
         if (id !== requestRef.current) return;
-        let message = fixErrorMessage(error);
+        let message = fixErrorMessage(error, words.otto);
         if (gateRef.current.handleApiError(error, "fix")) {
           const limited = { kind: "limit", budget: isBudgetReached(error) } as const;
           message =

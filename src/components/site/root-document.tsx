@@ -6,6 +6,7 @@ import { TITLE_SUFFIX } from "@/components/site/page-metadata";
 import { Toaster } from "@/components/ui/toast";
 import { BRAND } from "@/config/brand";
 import { openGraphLocale, type Locale } from "@/i18n/config";
+import type { Messages } from "@/i18n/messages";
 import { Analytics } from "@/lib/analytics/analytics";
 import { appUrl } from "@/lib/env";
 
@@ -61,10 +62,12 @@ export const ROOT_VIEWPORT: Viewport = {
 export function RootDocument({
   lang,
   skipLabel,
+  referral,
   children,
 }: {
   lang: string;
   skipLabel: string;
+  referral: Messages["common"]["referral"];
   children: ReactNode;
 }) {
   return (
@@ -80,7 +83,7 @@ export function RootDocument({
         <LoadingScreenHost>{children}</LoadingScreenHost>
         <Toaster />
         <Analytics />
-        <ReferralTracker />
+        <ReferralTracker words={referral} />
       </body>
     </html>
   );

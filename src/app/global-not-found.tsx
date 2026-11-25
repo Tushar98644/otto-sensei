@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export default async function GlobalNotFound() {
   const common = await loadMessages(DEFAULT_LOCALE, "common");
   return (
-    <RootDocument lang={DEFAULT_LOCALE} skipLabel={common.skipToContent}>
+    <RootDocument lang={DEFAULT_LOCALE} skipLabel={common.skipToContent} referral={common.referral}>
       {await NotFoundPage({ locale: DEFAULT_LOCALE, fonts: <NotFoundFonts /> })}
     </RootDocument>
   );

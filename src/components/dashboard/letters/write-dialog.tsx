@@ -8,7 +8,7 @@ import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { WritingStyleHint } from "@/components/settings/writing-style-hint";
 import { JobForm } from "@/components/studio/tailor/job-form";
-import { writingAllowance } from "@/components/studio/tailor/writing-allowance";
+import { useOtto } from "@/components/mascot/use-otto";
 import type { TailorDraft } from "@/components/studio/tailor/session";
 import { useWriting } from "@/components/studio/tailor/use-writing";
 import { Alert } from "@/components/ui/alert";
@@ -132,6 +132,7 @@ export function WriteDialog({
   const words = copyFor(t);
   const targetWords = useTargetWords();
   const { user, me, loading } = useMe();
+  const otto = useOtto();
   const actions = useStudioActions();
   const [kind, setKind] = useState(firstKind);
   const [draft, setDraft] = useState(start?.draft ?? EMPTY_DRAFT);
@@ -195,7 +196,7 @@ export function WriteDialog({
     DRAFT_FIELDS.some((field) => (draft[field] ?? "") !== (started[field] ?? ""));
   const allowance = loading
     ? null
-    : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
+    : otto.writing(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
 
   // A post read for the picked job lands in state first, so the write sends it.
   useEffect(() => {

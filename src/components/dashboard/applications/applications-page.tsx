@@ -6,7 +6,7 @@ import { errorMessage } from "@/components/account/errors";
 import { LazyCareerLogOffer, useCareerLogOfferSettled } from "@/components/career-log/lazy-offer";
 import { roomForApplication, useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
-import { OTTO } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { useNow } from "@/components/studio/use-now";
@@ -90,6 +90,7 @@ export function ApplicationsPage() {
   const opened = useRef(0);
   const full = pro === false && items.length >= applicationLimit("free");
   const tryPro = useTryProLabel();
+  const otto = useOtto();
   const { tracking } = useEmailTracking();
   const trackingPanel = <Lazy loader={emailTrackingPanel} wanted props={{}} />;
   const trackingReady = useLazy(emailTrackingPanel, true) !== null;
@@ -207,7 +208,7 @@ export function ApplicationsPage() {
       </header>
 
       {full ? (
-        <OttoNote live={false} message={OTTO.limit.tool("tracker", false)}>
+        <OttoNote live={false} message={otto.limit.tool("tracker", false)}>
           <Button onClick={() => openUpgradePrompt("tracker")}>{tryPro}</Button>
         </OttoNote>
       ) : null}

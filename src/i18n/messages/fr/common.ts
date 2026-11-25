@@ -9,4 +9,12 @@ export default {
     description:
       "Vérifie et corrige ton CV avec Otto, trouve des offres classées selon ton profil, suis chaque candidature depuis ta boîte mail, prépare tes entretiens et partage un site portfolio. Téléchargements gratuits, toujours.",
   },
+  referral: {
+    rewardedTitle: "Ton ami et toi avez reçu des extras",
+    rewarded:
+      "Vous recevez chacun {fix} corrections de ligne en plus, et {tailor} versions adaptées sur Pro ou Max.",
+    pendingTitle: "Tu as rejoint Otto grâce à une invitation",
+    pending:
+      "Vérifie un CV, et vous recevez tous les deux {fix} corrections de ligne en plus, et {tailor} versions adaptées sur Pro ou Max.",
+  },
 } satisfies Translation<Messages["common"]>;

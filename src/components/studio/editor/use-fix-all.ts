@@ -7,7 +7,8 @@ import {
   type AccountGate,
 } from "@/components/account/account-gate";
 import { meSnapshot, patchMe, refreshMe } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
+import type { OttoLines } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import type { Feature } from "@/config/plans";
@@ -54,7 +55,7 @@ const CLOSED: FixAllState = { open: false, items: [], capped: 0, stop: null };
 const NO_IDS: ReadonlySet<string> = new Set();
 
 // Mirrors useFixFlow's send(): one request per line, and the gate opens sign-in or the trial prompt.
-async function askOtto(request: FixRequest, gate: AccountGate): Promise<Asked> {
+async function askOtto(request: FixRequest, gate: AccountGate, otto: OttoLines): Promise<Asked> {
   const known = recallFix(request);
   if (known) return { response: known };
   try {
@@ -76,7 +77,7 @@ async function askOtto(request: FixRequest, gate: AccountGate): Promise<Asked> {
       };
     }
     return {
-      problem: { kind: "error", message: fixErrorMessage(error) },
+      problem: { kind: "error", message: fixErrorMessage(error, otto) },
       halt: isApiError(error, "rate_limited") || isApiError(error, "network_error"),
     };
   }
@@ -97,13 +98,16 @@ export function useFixAll(resumeId: string) {
   const format = useFormat();
   const [state, setState] = useState<FixAllState>(CLOSED);
   const [upsell, setUpsell] = useState<Upsell>({ open: false });
+  const otto = useOtto();
   const gateRef = useRef(gate);
+  const ottoRef = useRef(otto);
   const sessionRef = useRef(0);
   const runRef = useRef<Run>({ halted: true });
   const startingRef = useRef(false);
 
   useEffect(() => {
     gateRef.current = gate;
+    ottoRef.current = otto;
   });
 
   const update = useCallback((bulletId: string, patch: Partial<FixAllItem>) => {
@@ -127,6 +131,7 @@ export function useFixAll(resumeId: string) {
       const asked = await askOtto(
         { bullet: item.text, role: item.role, answers, ...(lang ? { lang } : {}) },
         gateRef.current,
+        ottoRef.current,
       );
       return sessionRef.current === session ? asked : null;
     },
@@ -167,7 +172,7 @@ export function useFixAll(resumeId: string) {
     startingRef.current = true;
     try {
       const signedIn = await gateRef.current
-        .requireUser(OTTO.signIn.reason("fix"), { kind: `fix-all:${resumeId}` })
+        .requireUser(ottoRef.current.signIn.reason("fix"), { kind: `fix-all:${resumeId}` })
         .catch(() => false);
       if (!signedIn) return;
       if (!meSnapshot().me?.user) await refreshMe();

@@ -5,7 +5,9 @@ import { useCallback, useEffect, useRef } from "react";
 import { DEFAULT_NEXT_PATH, safeNextPath, withPageHash } from "@/components/account/next-path";
 import { SignInForm } from "@/components/account/sign-in-form";
 import { SignInFormSkeleton } from "@/components/account/sign-in-form-skeleton";
+import type { LegalLinks } from "@/components/account/sign-in-terms";
 import { useMe } from "@/components/account/use-me";
+import type { SignInWords } from "@/components/account/use-sign-in-words";
 import { OttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 
 const ALREADY_SIGNED_IN_PATH = DEFAULT_NEXT_PATH;
@@ -13,9 +15,13 @@ const ALREADY_SIGNED_IN_PATH = DEFAULT_NEXT_PATH;
 export function LoginForm({
   googleFailed,
   signingIn,
+  words,
+  legal,
 }: {
   googleFailed: string;
   signingIn: string;
+  words: SignInWords;
+  legal: LegalLinks;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -50,6 +56,8 @@ export function LoginForm({
 
   return (
     <SignInForm
+      words={words}
+      legal={legal}
       autoFocus
       next={safeNextPath(requestedNext, DEFAULT_NEXT_PATH)}
       initialError={failed ? googleFailed : undefined}

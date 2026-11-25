@@ -18,6 +18,7 @@ import lint from "./lint";
 import login from "./login";
 import matchCheck from "./match-check";
 import onboarding from "./onboarding";
+import otto from "./otto";
 import portfolio from "./portfolio";
 import portfolioContent from "./portfolio-content";
 import prep from "./prep";
@@ -25,6 +26,7 @@ import pricing from "./pricing";
 import product from "./product";
 import seo from "./seo";
 import share from "./share";
+import shareLinks from "./share-links";
 import signIn from "./sign-in";
 import site from "./site";
 import studio from "./studio";
@@ -32,6 +34,7 @@ import studioDownload from "./studio-download";
 import studioEditor from "./studio-editor";
 import studioSections from "./studio-sections";
 import studioTailor from "./studio-tailor";
+import upgrade from "./upgrade";
 
 // The source of truth: every other locale is checked against these, key by key.
 const en = {
@@ -55,6 +58,7 @@ const en = {
   login,
   matchCheck,
   onboarding,
+  otto,
   portfolio,
   portfolioContent,
   prep,
@@ -62,6 +66,7 @@ const en = {
   product,
   seo,
   share,
+  shareLinks,
   signIn,
   site,
   studio,
@@ -69,6 +74,7 @@ const en = {
   studioEditor,
   studioSections,
   studioTailor,
+  upgrade,
 } as const;
 
 export default en;

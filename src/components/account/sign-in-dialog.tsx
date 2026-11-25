@@ -2,9 +2,8 @@
 
 import { OttoNote } from "@/components/mascot/otto-note";
 import { Dialog } from "@/components/ui/dialog";
-import { BRAND } from "@/config/brand";
-import { ACCOUNT_OTTO } from "./copy";
 import { SignInForm } from "./sign-in-form";
+import { useSignInWords } from "./use-sign-in-words";
 
 export type SignInDialogProps = {
   open: boolean;
@@ -14,8 +13,6 @@ export type SignInDialogProps = {
   onGoogleRedirect?: () => void;
 };
 
-const DEFAULT_REASON = `A free account lets ${BRAND.mascotName} fix lines and tailor your resume.`;
-
 export function SignInDialog({
   open,
   onOpenChange,
@@ -23,14 +20,15 @@ export function SignInDialog({
   onSignedIn,
   onGoogleRedirect,
 }: SignInDialogProps) {
+  const t = useSignInWords();
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
       size="sm"
-      title="Sign in"
-      description={reason || DEFAULT_REASON}
-      illustration={<OttoNote size="sm" live={false} message={ACCOUNT_OTTO.signInDialog} />}
+      title={t.signIn}
+      description={reason || t.dialog.reason}
+      illustration={<OttoNote size="sm" live={false} message={t.dialog.otto} />}
     >
       <SignInForm
         onGoogleRedirect={onGoogleRedirect}

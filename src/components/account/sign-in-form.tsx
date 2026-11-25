@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { track } from "@/lib/analytics/client";
 import { api, isApiError } from "@/lib/api/client";
 import type { SessionUser } from "@/lib/auth/types";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import { cn } from "@/lib/utils";
 import { errorMessage } from "./errors";
 import { GoogleSignIn, googleUnavailable } from "./google-sign-in";
-import { SignInTerms } from "./sign-in-terms";
+import { SignInTerms, type LegalLinks } from "./sign-in-terms";
 import {
   CODE_LENGTH,
   EMAIL_MAX_LENGTH,
@@ -20,6 +22,7 @@ import {
   looksLikeEmail,
 } from "./sign-in-rules";
 import { useCooldown } from "./use-cooldown";
+import { useSignInWords, type SignInWords } from "./use-sign-in-words";
 import { patchMe, refreshMe, useMe } from "./use-me";
 
 type Step = "email" | "code" | "done";
@@ -36,6 +39,8 @@ function placementOf(failure: unknown): ErrorPlacement {
 }
 
 export type SignInFormProps = {
+  words?: SignInWords;
+  legal?: LegalLinks;
   onSignedIn?: (user: SessionUser) => void;
   onGoogleRedirect?: () => void;
   next?: string;
@@ -45,6 +50,8 @@ export type SignInFormProps = {
 };
 
 export function SignInForm({
+  words,
+  legal,
   onSignedIn,
   onGoogleRedirect,
   next,
@@ -52,6 +59,7 @@ export function SignInForm({
   autoFocus = false,
   className,
 }: SignInFormProps) {
+  const t = useSignInWords(words);
   // Google is the faster way in, so it takes the forest key; email does only when Google can't work.
   const emailVariant = googleUnavailable(useMe().me?.auth.mode) ? "primary" : "secondary";
   const [step, setStep] = useState<Step>("email");
@@ -102,8 +110,8 @@ export function SignInForm({
       setStep("code");
       setStatus(
         kind === "send"
-          ? `We sent a ${CODE_LENGTH}-digit code to ${address}.`
-          : `We sent a new code to ${address}.`,
+          ? fmt(t.sent, { length: CODE_LENGTH, email: address })
+          : fmt(t.sentNew, { email: address }),
       );
       startResendCooldown();
       if (kind === "send") track("signup_started", { method: "email" });
@@ -119,7 +127,7 @@ export function SignInForm({
     if (busy.current) return;
     const address = email.trim();
     if (!looksLikeEmail(address)) {
-      showError("Enter your email address, like name@example.com.", emailRef);
+      showError(t.badEmail, emailRef);
       return;
     }
     void run("send", () => sendCode(address, "send"));
@@ -133,7 +141,7 @@ export function SignInForm({
   function verify(value: string) {
     if (busy.current) return;
     if (value.length !== CODE_LENGTH) {
-      showError(`Enter the ${CODE_LENGTH}-digit code from the email.`, codeRef);
+      showError(fmt(t.badCode, { length: CODE_LENGTH }), codeRef);
       return;
     }
     void run("verify", async () => {
@@ -180,16 +188,17 @@ export function SignInForm({
   const resendLocked = resendIn > 0 || pending !== null;
   const resendLabel =
     pending === "resend"
-      ? "Sending…"
+      ? t.sending
       : resendIn > 0
-        ? `Resend code in ${resendIn}s`
-        : "Resend code";
+        ? fmt(t.resendIn, { seconds: resendIn })
+        : t.resend;
 
   return (
     <div className={cn("flex flex-col", className)}>
       {step === "email" ? (
         <form noValidate onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
           <GoogleSignIn
+            words={t}
             next={next}
             disabled={pending !== null}
             onError={(message) => showError(message, undefined, "form")}
@@ -197,10 +206,10 @@ export function SignInForm({
           />
           <div className="flex items-center gap-3 text-xs text-subtle" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
-            or
+            {t.or}
             <span className="h-px flex-1 bg-border" />
           </div>
-          <Field label="Email" error={fieldError}>
+          <Field label={t.email} error={fieldError}>
             <Input
               ref={emailRef}
               type="email"
@@ -214,7 +223,7 @@ export function SignInForm({
               autoCapitalize="none"
               spellCheck={false}
               maxLength={EMAIL_MAX_LENGTH}
-              placeholder="you@example.com"
+              placeholder={t.emailPlaceholder}
               enterKeyHint="send"
               required
               autoFocus={focusEmail}
@@ -228,9 +237,9 @@ export function SignInForm({
             loading={pending === "send"}
             className="w-full"
           >
-            Email me a code
+            {t.emailMe}
           </Button>
-          <SignInTerms />
+          <SignInTerms words={t} links={legal} />
         </form>
       ) : null}
 
@@ -244,19 +253,24 @@ export function SignInForm({
           className="flex flex-col gap-4"
         >
           <p className="text-sm text-muted">
-            {sends > 1 ? "We sent a new code to " : `We sent a ${CODE_LENGTH}-digit code to `}
-            <span className="font-medium break-all text-ink">{email}</span>.
-            {sends > 1 ? " Only the newest one works." : null}
+            {rich(
+              sends > 1 ? t.codeSentNew : t.codeSent,
+              { b: (chunk) => <span className="font-medium break-all text-ink">{chunk}</span> },
+              { length: CODE_LENGTH, email },
+            )}
           </p>
           {devCode ? (
             <Alert>
-              Dev mode: your code is{" "}
-              <strong className="font-semibold tabular-nums">{devCode}</strong>
+              {rich(
+                t.devCode,
+                { b: (chunk) => <strong className="font-semibold tabular-nums">{chunk}</strong> },
+                { code: devCode },
+              )}
             </Alert>
           ) : null}
           <Field
-            label={`${CODE_LENGTH}-digit code`}
-            hint={`Type or paste it. You're signed in as soon as all ${CODE_LENGTH} digits are in.`}
+            label={fmt(t.codeLabel, { length: CODE_LENGTH })}
+            hint={fmt(t.codeHint, { length: CODE_LENGTH })}
             error={fieldError}
           >
             <Input
@@ -274,7 +288,7 @@ export function SignInForm({
           </Field>
           {formAlert}
           <Button type="submit" loading={pending === "verify"} className="w-full">
-            Sign in
+            {t.signIn}
           </Button>
           <div className="flex flex-wrap items-center justify-between gap-x-4">
             <Button
@@ -286,13 +300,13 @@ export function SignInForm({
               {resendLabel}
             </Button>
             <Button variant="link" onClick={changeEmail} className={LINK_BUTTON}>
-              Use a different email
+              {t.otherEmail}
             </Button>
           </div>
         </form>
       ) : null}
 
-      {step === "done" ? <Alert variant="success" title="You're signed in." /> : null}
+      {step === "done" ? <Alert variant="success" title={t.done} /> : null}
 
       <p role="status" className="sr-only">
         {status}

@@ -3,8 +3,8 @@
 import { ArrowLeft, CreditCard } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
+import { useOtto } from "@/components/mascot/use-otto";
 import { upgradeHref } from "@/components/site/routes";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Dialog, type DialogSize } from "@/components/ui/dialog";
@@ -15,29 +15,34 @@ import {
   nextPlan,
   planIncludes,
   PLANS,
+  PRO_TRIAL,
   type BillingInterval,
   type Feature,
   type PaidPlanId,
   type PlanId,
   type ProTool,
 } from "@/config/plans";
-import { buysSentence, centsText, TOPUP_LIMITS } from "@/config/topup";
+import { TOPUP_LIMITS } from "@/config/topup";
+import { useFormat, useMessagesOr } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import EN_APP from "@/i18n/messages/en/app";
+import EN_UPGRADE from "@/i18n/messages/en/upgrade";
 import type { SessionUser } from "@/lib/auth/types";
-import { budgetReachedText } from "@/lib/ai-budget-copy";
-import { trialHeadline } from "@/lib/billing/prices";
 import { isKeptTool } from "@/lib/plan-limits-copy";
 import { TRASH_DAYS } from "@/lib/store/history";
-import { resetWhen, thisPeriod } from "@/lib/usage-copy";
+import { periodNoun, usageCopy } from "@/lib/usage-copy";
 import { BillingNote } from "./billing-note";
-import { ACCOUNT_OTTO, alreadyOnPlanToast, SUPPORT_MAILTO, UPGRADE_SIGN_IN_TITLE } from "./copy";
+import { SUPPORT_MAILTO } from "./copy";
 import { LazyAddCreditDialog } from "./lazy-dialogs";
+import { buysIn, centsIn, usdIn } from "./local-prices";
 import { PlanOffer } from "./plan-offer";
 import { SignInForm } from "./sign-in-form";
-import { PAYMENT_ISSUE_NOTICE, resumeFirstNotice, trialUpgradeNotice } from "./trial-upgrade";
+import { useTrialUpgradeCopy } from "./trial-upgrade";
 import { afterUpgradeSignIn, upgradeOffer } from "./upgrade-offer";
 import { returnPathHere } from "./upgrade-return";
 import { useBillingRedirect } from "./use-billing-redirect";
 import { useMe } from "./use-me";
+import { useSignInWords } from "./use-sign-in-words";
 
 export type ReplaceOffer = { title: string; onReplace: () => void };
 
@@ -82,6 +87,12 @@ export function UpgradeDialog({
   startAtSignIn = false,
 }: UpgradeDialogProps) {
   const { me, user, loading } = useMe();
+  const t = useMessagesOr("upgrade", EN_UPGRADE);
+  const signInWords = useSignInWords();
+  const otto = useOtto();
+  const format = useFormat();
+  const periods = usageCopy(useMessagesOr("app", EN_APP).usage, format);
+  const trialCopy = useTrialUpgradeCopy();
   const checkout = useBillingRedirect("checkout");
   const portal = useBillingRedirect("portal");
   const firstStage: Stage = startAtSignIn ? "sign-in" : "pitch";
@@ -120,17 +131,17 @@ export function UpgradeDialog({
   // A paid plan at its number of resumes or applications: its line names the next plan itself.
   const full = tool && isKeptTool(tool) && isPaidPlan(current);
   let limitLine: string | null = null;
-  if (tool && current === "free") limitLine = OTTO.limit.tool(tool, trialOnOffer);
-  else if (full) limitLine = OTTO.limit.full(tool, current, held, target !== null);
+  if (tool && current === "free") limitLine = otto.limit.tool(tool, trialOnOffer);
+  else if (full) limitLine = otto.limit.full(tool, current, held, target !== null);
   else if (feature) {
     limitLine =
       current === "free"
         ? planIncludes("free", feature)
-          ? OTTO.limit.freeUsed(feature, me?.usage?.[feature].limit)
-          : OTTO.limit.none(feature, trialOnOffer)
+          ? otto.limit.freeUsed(feature, me?.usage?.[feature].limit)
+          : otto.limit.none(feature, trialOnOffer)
         : budget
-          ? budgetReachedText(period)
-          : OTTO.limit.reached(feature, me?.usage?.[feature].limit, period);
+          ? otto.budget(period)
+          : otto.limit.reached(feature, me?.usage?.[feature].limit, period);
   }
   const close = () => onOpenChange(false);
   // Past the allowance or the AI budget, a paid plan can also add credit; Pro still sees Max first.
@@ -138,8 +149,13 @@ export function UpgradeDialog({
   const creditOffer = feature !== undefined && credit?.usable === true;
   const creditLine = creditOffer ? (
     <p className="text-sm/6 text-muted">
-      {`Or add credit from $${TOPUP_LIMITS.minUsd}: ${buysSentence(1)}.`}
-      {credit.balanceCents > 0 ? ` Your balance: ${centsText(credit.balanceCents)}.` : ""}
+      {fmt(t.creditFrom, {
+        min: usdIn(format, TOPUP_LIMITS.minUsd),
+        buys: buysIn(t.credit, format, 1),
+      })}
+      {credit.balanceCents > 0
+        ? ` ${fmt(t.balance, { balance: centsIn(format, credit.balanceCents) })}`
+        : ""}
     </p>
   ) : null;
   const maxFirst = creditOffer && current === "pro" && credit.monthCents > MAX_OVER_PRO_CENTS;
@@ -152,14 +168,14 @@ export function UpgradeDialog({
           setAdding(true);
         }}
       >
-        Add credit
+        {t.buttons.addCredit}
       </Button>
     ) : null;
   const replaceNoteId = useId();
   const replacing = tool === "resumes" && current === "free" ? (replace ?? null) : null;
   const replaceNote = replacing ? (
     <p id={replaceNoteId} className="text-sm/6 text-muted">
-      {`Or replace “${replacing.title}” with the new one. The old one waits in Recently deleted for ${TRASH_DAYS} days, in this browser only.`}
+      {fmt(t.replace, { title: replacing.title, days: TRASH_DAYS })}
     </p>
   ) : null;
   // Closed first: the modal leaves the page inert, and the replacement may open a file picker there.
@@ -172,7 +188,7 @@ export function UpgradeDialog({
         replacing.onReplace();
       }}
     >
-      Replace it
+      {t.buttons.replace}
     </Button>
   ) : null;
 
@@ -195,7 +211,10 @@ export function UpgradeDialog({
     if (step === "already") {
       // A host that names next goes back there and says this on the way.
       if (!next) {
-        toast({ title: alreadyOnPlanToast(PLANS[signedIn.plan].name), variant: "success" });
+        toast({
+          title: fmt(t.toast.alreadyOn, { plan: PLANS[signedIn.plan].name }),
+          variant: "success",
+        });
       }
       close();
       return;
@@ -224,9 +243,10 @@ export function UpgradeDialog({
   const size: DialogSize = offer.cards.length > 1 ? "lg" : "sm";
   const notNow = (
     <Button variant="secondary" onClick={close}>
-      Not now
+      {t.buttons.notNow}
     </Button>
   );
+  const upgradeTo = (to: PaidPlanId) => fmt(t.title.upgradeTo, { plan: PLANS[to].name });
 
   let view: View;
   if (!target) {
@@ -234,25 +254,25 @@ export function UpgradeDialog({
       message:
         limitLine ??
         (current === "max"
-          ? ACCOUNT_OTTO.alreadyMax
-          : `You're on ${PLANS[current].name}, the biggest plan on sale here. Email us if you need more.`),
+          ? t.otto.alreadyMax
+          : fmt(t.otto.biggest, { plan: PLANS[current].name })),
       title: feature
-        ? `You've reached ${thisPeriod(period)}'s limit`
-        : `You're on ${PLANS[current].name}`,
+        ? t.title.reached[periodNoun(period)]
+        : fmt(t.title.onPlan, { plan: PLANS[current].name }),
       description: feature
-        ? `It resets ${resetWhen(period)}. Need more before then? ${creditOffer ? "Add credit, or email us." : "Email us."}`
+        ? fmt(creditOffer ? t.resetsCredit : t.resets, { when: periods.resetWhen(period) })
         : undefined,
       body: creditLine ?? undefined,
       footer: (
         <>
           <Button variant="secondary" onClick={close}>
-            Close
+            {t.buttons.close}
           </Button>
           <a
             href={SUPPORT_MAILTO}
             className={buttonClasses(creditOffer ? { variant: "secondary" } : undefined)}
           >
-            Email us
+            {t.buttons.emailUs}
           </a>
           {addCredit("primary")}
         </>
@@ -260,9 +280,9 @@ export function UpgradeDialog({
     };
   } else if (stage === "sign-in" && !user && !billingOff) {
     view = {
-      message: ACCOUNT_OTTO.upgradeSignIn,
-      title: target.trial ? UPGRADE_SIGN_IN_TITLE.trial : UPGRADE_SIGN_IN_TITLE.upgrade,
-      description: "Use Google or a 6-digit email code. No password.",
+      message: signInWords.upgrade.otto,
+      title: target.trial ? signInWords.upgrade.trial : signInWords.upgrade.upgrade,
+      description: signInWords.upgrade.description,
       body: (
         <SignInForm
           autoFocus
@@ -273,15 +293,17 @@ export function UpgradeDialog({
       footer: (
         <Button variant="ghost" onClick={() => setStage("pitch")}>
           <ArrowLeft />
-          Back
+          {t.buttons.back}
         </Button>
       ),
     };
   } else if (paymentIssue || resumeFirst) {
-    const notice = paymentIssue ? PAYMENT_ISSUE_NOTICE : resumeFirstNotice(target.plan, onTrial);
+    const notice = paymentIssue
+      ? trialCopy.paymentIssue
+      : trialCopy.resumeFirstNotice(target.plan, onTrial);
     view = {
       message: limitLine ?? notice,
-      title: paymentIssue ? "Update your card" : `Upgrade to ${PLANS[target.plan].name}`,
+      title: paymentIssue ? t.title.updateCard : upgradeTo(target.plan),
       description: limitLine ? notice : undefined,
       body: replaceNote ?? undefined,
       footer: (
@@ -290,7 +312,7 @@ export function UpgradeDialog({
           {replaceKey}
           <Button onClick={() => void portal.go()} loading={portal.pending} data-autofocus>
             <CreditCard />
-            Manage billing
+            {t.buttons.manageBilling}
           </Button>
         </>
       ),
@@ -299,32 +321,40 @@ export function UpgradeDialog({
     const upgrading = current !== "free";
     view = {
       message: billingOff
-        ? (limitLine ?? ACCOUNT_OTTO.billingOff)
+        ? (limitLine ?? t.otto.billingOff)
         : limitLine && upgrading && !full
-          ? `${limitLine} ${PLANS[target.plan].name} has more.${maxFirst && credit ? ` ${monthCreditLine(credit.monthCents)}` : ""}`
-          : (limitLine ?? (target.trial ? OTTO.upgrade.trial : ACCOUNT_OTTO.upgradePitch)),
+          ? fmt(t.otto.hasMore, { line: limitLine, plan: PLANS[target.plan].name }) +
+            (maxFirst && credit
+              ? ` ${fmt(t.otto.monthCredit, {
+                  spent: centsIn(format, credit.monthCents),
+                  extra: centsIn(format, MAX_OVER_PRO_CENTS),
+                  max: PLANS.max.name,
+                  pro: PLANS.pro.name,
+                })}`
+              : "")
+          : (limitLine ?? (target.trial ? otto.upgrade.trial : t.otto.pitch)),
       title: upgrading
-        ? `Upgrade to ${PLANS[target.plan].name}`
+        ? upgradeTo(target.plan)
         : offer.cards.length > 1
-          ? "Choose your plan"
+          ? t.title.choose
           : target.trial
-            ? trialHeadline()
-            : `Upgrade to ${PLANS[target.plan].name}`,
+            ? fmt(t.title.trial, { plan: PLANS[PRO_TRIAL.plan].name, days: PRO_TRIAL.days })
+            : upgradeTo(target.plan),
       description: !upgrading
-        ? "Cancel anytime from your account."
+        ? t.cancelAnytime
         : onTrial
-          ? trialUpgradeNotice(target.plan, target.interval)
-          : "Your subscription changes in place: you pay only the difference, never twice.",
+          ? trialCopy.notice(target.plan, target.interval)
+          : t.inPlace,
       body: pitch,
       size,
       footer: billingOff ? (
         <>
           <Button variant="secondary" onClick={close}>
-            Close
+            {t.buttons.close}
           </Button>
           {replaceKey}
           <a href={SUPPORT_MAILTO} className={buttonClasses()} data-autofocus>
-            Email us
+            {t.buttons.emailUs}
           </a>
         </>
       ) : (
@@ -358,8 +388,3 @@ export function UpgradeDialog({
 }
 
 const MAX_OVER_PRO_CENTS = (PLANS.max.priceUsd - PLANS.pro.priceUsd) * 100;
-
-// Credit past Max's extra cost this month means Max would have been cheaper.
-function monthCreditLine(monthCents: number): string {
-  return `You've added ${centsText(monthCents)} of credit this month, more than the ${centsText(MAX_OVER_PRO_CENTS)} ${PLANS.max.name} costs over ${PLANS.pro.name}.`;
-}

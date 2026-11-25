@@ -18,18 +18,22 @@ import lint from "./lint";
 import login from "./login";
 import matchCheck from "./match-check";
 import onboarding from "./onboarding";
+import otto from "./otto";
 import portfolio from "./portfolio";
 import portfolioContent from "./portfolio-content";
 import prep from "./prep";
 import pricing from "./pricing";
 import product from "./product";
 import share from "./share";
+import shareLinks from "./share-links";
+import signIn from "./sign-in";
 import site from "./site";
 import studio from "./studio";
 import studioDownload from "./studio-download";
 import studioEditor from "./studio-editor";
 import studioSections from "./studio-sections";
 import studioTailor from "./studio-tailor";
+import upgrade from "./upgrade";
 
 // Spanish (neutral Latin American, tú): list each namespace here as its file lands.
 const es: Translations = {
@@ -52,18 +56,22 @@ const es: Translations = {
   login,
   matchCheck,
   onboarding,
+  otto,
   portfolio,
   portfolioContent,
   prep,
   pricing,
   product,
   share,
+  shareLinks,
+  signIn,
   site,
   studio,
   studioDownload,
   studioEditor,
   studioSections,
   studioTailor,
+  upgrade,
 };
 
 export default es;

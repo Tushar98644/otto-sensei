@@ -4,8 +4,8 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { nearestLimit } from "@/components/account/near-limit";
 import type { Me } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
+import { useOtto } from "@/components/mascot/use-otto";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -23,7 +23,6 @@ import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
-import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { cn } from "@/lib/utils";
 import { shortDay } from "./plan-copy";
 
@@ -102,6 +101,7 @@ export function UsageMeters({
   const account = useMessages("account");
   const words = account.usage;
   const format = useFormat();
+  const otto = useOtto();
   const [all, setAll] = useState(false);
   const { usage, period, aiBudget } = me;
   const free = plan === "free";
@@ -136,7 +136,7 @@ export function UsageMeters({
         <OttoNote
           size="sm"
           live={false}
-          message={OTTO.limit.near(near.feature, near.used, near.limit, period)}
+          message={otto.limit.near(near.feature, near.used, near.limit, period)}
         >
           {next && onUpgrade ? (
             <Button variant="link" onClick={onUpgrade} className="text-sm">
@@ -145,7 +145,7 @@ export function UsageMeters({
           ) : null}
         </OttoNote>
       ) : null}
-      {budgetUsed ? <p className="text-sm/6 text-muted">{budgetReachedText(period)}</p> : null}
+      {budgetUsed ? <p className="text-sm/6 text-muted">{otto.budget(period)}</p> : null}
       {free ? (
         <p className="text-sm/6 text-muted">{fmt(words.proOnly, { pro: PLANS.pro.name })}</p>
       ) : usage ? (
