@@ -4,6 +4,7 @@ import { LOCALE_COOKIE, localeCookieOptions } from "@/i18n/routing";
 import { limitHourlyWrites } from "@/lib/api/limits";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { LanguageChangeSchema, saveLanguage } from "@/lib/account/language";
+import { setAuthLocale } from "@/lib/auth/admin";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
@@ -38,6 +39,8 @@ export async function PUT(req: Request): Promise<Response> {
       log.info("language.after_account_deleted");
       return fail("unauthorized", SIGN_IN, 401, NO_STORE);
     }
+    // For the sign-in code email; the app's own language is already saved if this fails.
+    await setAuthLocale(user.id, locale);
     (await cookies()).set(LOCALE_COOKIE, locale, localeCookieOptions());
     log.info("language.chosen", { locale });
     return ok({ locale }, { headers: NO_STORE });

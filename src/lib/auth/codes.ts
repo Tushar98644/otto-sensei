@@ -1,10 +1,12 @@
 import { isAuthApiError, type AuthError as SupabaseAuthError } from "@supabase/supabase-js";
 import { EMAIL_LIMITS, IP_LIMITS } from "@/config/plans";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/config";
 import { log, maskEmail } from "@/lib/log";
 import { rateLimit, waitText } from "@/lib/rate-limit";
 import { createSupabaseServerClient, type ServerSupabase } from "@/lib/supabase/server";
 import { HOUR_MS } from "@/lib/time";
 import { ensureUser, toSessionUser } from "@/lib/users";
+import { AUTH_LOCALE_KEY } from "./code-email";
 import { DevCodeError, requestDevCode, verifyDevCode } from "./dev";
 import { devAuthActive } from "./dev-mode";
 import { normalizeEmail } from "./policy";
@@ -69,11 +71,12 @@ function sendFailure(error: SupabaseAuthError): AuthError {
   return new AuthError("email_send_failed", AUTH_MESSAGES.email_send_failed);
 }
 
-// Never looks the address up, so the response is the same with or without an account.
+// Never looks the address up, so the response is the same with or without an account. A new account's code email reads in `locale`.
 export async function requestLoginCode(
   email: string,
   ip: string,
   now = Date.now(),
+  locale: Locale = DEFAULT_LOCALE,
 ): Promise<{ devCode?: string }> {
   const address = normalizeEmail(email);
   const supabase = devAuthActive() ? null : await requireSupabase();
@@ -92,9 +95,11 @@ export async function requestLoginCode(
   }
 
   if (!supabase) return { devCode: await requestDevCode(address, now) };
+  // Supabase stores data only when this creates the account; English sends exactly what it always did.
+  const data = locale === DEFAULT_LOCALE ? {} : { data: { [AUTH_LOCALE_KEY]: locale } };
   const { error } = await supabase.auth.signInWithOtp({
     email: address,
-    options: { shouldCreateUser: true },
+    options: { shouldCreateUser: true, ...data },
   });
   if (error) throw sendFailure(error);
   log.info("auth.code_sent", { to: maskEmail(address) });
