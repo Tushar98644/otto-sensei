@@ -42,6 +42,7 @@ import studioSections from "./studio-sections";
 import studioTailor from "./studio-tailor";
 import ui from "./ui";
 import upgrade from "./upgrade";
+import workProfile from "./work-profile";
 
 // The source of truth: every other locale is checked against these, key by key.
 const en = {
@@ -89,6 +90,7 @@ const en = {
   studioTailor,
   ui,
   upgrade,
+  workProfile,
 } as const;
 
 export default en;

@@ -6,11 +6,21 @@ import {
 } from "@/lib/eligibility/profile";
 import type { SetupGuess } from "./types";
 
-export function countryHint(guess: SetupGuess | null, country: string): string | undefined {
+type HintWords = { resume: string; device: string; home: string };
+
+const ENGLISH_HINTS: HintWords = {
+  resume: "Guessed from your resume.",
+  device: "Guessed from this device's time zone.",
+  home: "Set to Yes for {region} because you live there. Change it if your visa says otherwise.",
+};
+
+export function countryHint(
+  guess: SetupGuess | null,
+  country: string,
+  words: Omit<HintWords, "home"> = ENGLISH_HINTS,
+): string | undefined {
   if (!guess || guess.country !== country) return undefined;
-  return guess.from === "resume"
-    ? "Guessed from your resume."
-    : "Guessed from this device's time zone.";
+  return guess.from === "resume" ? words.resume : words.device;
 }
 
 export function guessedRegion(
@@ -29,6 +39,12 @@ export function onlyGuessedRights(guess: SetupGuess | null, profile: WorkProfile
   );
 }
 
-export function homeRegionNote(region: WorkRegion): string {
-  return `Set to Yes for ${REGION_NAMES[region]} because you live there. Change it if your visa says otherwise.`;
+export function homeRegionNote(
+  region: WorkRegion,
+  words: { hints: Pick<HintWords, "home">; regionNames: Record<WorkRegion, string> } = {
+    hints: ENGLISH_HINTS,
+    regionNames: REGION_NAMES,
+  },
+): string {
+  return words.hints.home.replace("{region}", words.regionNames[region]);
 }

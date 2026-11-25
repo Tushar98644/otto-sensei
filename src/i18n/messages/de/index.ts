@@ -42,6 +42,7 @@ import studioSections from "./studio-sections";
 import studioTailor from "./studio-tailor";
 import ui from "./ui";
 import upgrade from "./upgrade";
+import workProfile from "./work-profile";
 
 // German (du): list each namespace here as its file lands.
 const de: Translations = {
@@ -88,6 +89,7 @@ const de: Translations = {
   studioTailor,
   ui,
   upgrade,
+  workProfile,
 };
 
 export default de;

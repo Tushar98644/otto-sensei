@@ -16,6 +16,7 @@ export const STUDIO_NAMESPACES = [
   "fileChecks",
   "matchCheck",
   "careerLogLines",
+  "workProfile",
   "share",
   "shareLinks",
   "formats",

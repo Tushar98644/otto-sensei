@@ -137,6 +137,8 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   fr: new Set([
+    "regions.ca",
+    "card.verdicts.ok",
     "reader.styleParts.tones.direct",
     "reader.styleParts.lengths.standard",
     "result.places.certifications",
@@ -222,6 +224,7 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   de: new Set([
+    "card.verdicts.ok",
     "lines.dialog.job",
     "lines.dialog.jobNumber",
     "jobNumber",

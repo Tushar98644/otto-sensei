@@ -1,0 +1,82 @@
+// Where someone can work (src/components/eligibility, src/components/setup): the work profile and the studio's eligibility card.
+export default {
+  regions: {
+    us: "United States",
+    uk: "United Kingdom",
+    eu: "European Union",
+    ca: "Canada",
+  },
+  // A region inside a sentence: "Set to Yes for the US".
+  regionNames: { us: "the US", uk: "the UK", eu: "the EU", ca: "Canada" },
+  fields: {
+    country: "Country you live in",
+    chooseCountry: "Choose a country",
+    timeZone: "Time zone",
+    chooseZone: "Choose a time zone",
+    rightsTitle: "Can you work there without visa sponsorship?",
+    rightsHint: "Yes if you're a citizen or resident there, or your visa already lets you work.",
+    openTo: "Open to",
+    fullTime: "Full-time jobs",
+    contract: "Contract work",
+    remoteOnly: "Remote jobs only",
+  },
+  rights: { yes: "Yes", visa: "Need a visa", notSet: "Not set" },
+  form: {
+    pickType: "Pick full-time, contract or both.",
+    saving: "Saving…",
+    saved: "Saved. Only you can see it.",
+    failed: "Not saved: {reason}",
+    failedFallback: "something went wrong.",
+    idle: "Saves as you go.",
+    looksRight: "Looks right",
+    tryAgain: "Try again",
+  },
+  hints: {
+    resume: "Guessed from your resume.",
+    device: "Guessed from this device's time zone.",
+    home: "Set to Yes for {region} because you live there. Change it if your visa says otherwise.",
+  },
+  dialog: {
+    title: "Where you can work",
+    description: "Where you live, your time zone and your visa needs. Only you can see this.",
+    done: "Done",
+  },
+  prompt: {
+    guessed:
+      "Otto set Yes for {region} because you seem to live there. Check it, and add any visa needs.",
+    add: "Add where you can work, and Jobs flags posts that say they can't hire you.",
+    check: "Check where you can work",
+    addButton: "Add where you can work",
+  },
+  // The dashboard's setup list, once hidden.
+  setupHidden: {
+    title: "Setup list hidden",
+    description: "Every setting stays on the Account page.",
+  },
+  card: {
+    eyebrow: "Before you apply",
+    title: "Can they hire you from here?",
+    rules: { one: "{count} rule in this post", other: "{count} rules in this post" },
+    checked: ", checked against your work profile",
+    none: "No rules found about where you live, visas, hours or job type. Otto only spots plain phrases, so skim the post too.",
+    loadFailed: "Couldn't load your work profile, so these aren't checked against it.",
+    signedOut: "Sign in and add your work profile to check these for you.",
+    addProfile: "Add your work profile to check these for you.",
+    gaps: "Fill in the rest of your work profile to answer the ones marked Check.",
+    tryAgain: "Try again",
+    signIn: "Sign in",
+    edit: "Edit work profile",
+    add: "Add work profile",
+    signInReason: "Sign in to save a work profile. Otto checks job posts against it.",
+    jobLocation: "Job location: {place}",
+    postSays: "The post says: ",
+    verdicts: { ok: "OK", check: "Check", blocked: "Likely blocked" },
+    ruleLabels: {
+      location: "Where you live",
+      authorization: "Right to work",
+      sponsorship: "Visa sponsorship",
+      time_zone: "Time zone",
+      work_type: "Job type",
+    },
+  },
+} as const;

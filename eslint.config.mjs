@@ -186,7 +186,6 @@ const COPY_ELSEWHERE = [
   "src/components/account/plan-picker.tsx",
   // Still English: the leftover sweep didn't reach these yet (docs/i18n.md, Known gaps).
   "src/components/recap/**",
-  "src/components/eligibility/**",
   "src/components/portfolio/templates/**",
 ];
 

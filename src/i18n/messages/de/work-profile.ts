@@ -1,0 +1,97 @@
+import type { Messages } from "..";
+import type { Translation } from "../../types";
+
+export default {
+  regions: {
+    us: "Vereinigte Staaten",
+    uk: "Vereinigtes Königreich",
+    eu: "Europäische Union",
+    ca: "Kanada",
+  },
+  regionNames: {
+    us: "die USA",
+    uk: "das Vereinigte Königreich",
+    eu: "die EU",
+    ca: "Kanada",
+  },
+  fields: {
+    country: "Land, in dem du lebst",
+    chooseCountry: "Land wählen",
+    timeZone: "Zeitzone",
+    chooseZone: "Zeitzone wählen",
+    rightsTitle: "Darfst du dort ohne Visa-Sponsoring arbeiten?",
+    rightsHint: "Ja, wenn du dort Staatsbürger oder ansässig bist oder dein Visum dir das Arbeiten schon erlaubt.",
+    openTo: "Offen für",
+    fullTime: "Vollzeitjobs",
+    contract: "Freie Mitarbeit",
+    remoteOnly: "Nur Remote-Jobs",
+  },
+  rights: {
+    yes: "Ja",
+    visa: "Visum nötig",
+    notSet: "Nicht gesetzt",
+  },
+  form: {
+    pickType: "Wähl Vollzeit, freie Mitarbeit oder beides.",
+    saving: "Speichert…",
+    saved: "Gespeichert. Nur du kannst es sehen.",
+    failed: "Nicht gespeichert: {reason}",
+    failedFallback: "Etwas ist schiefgelaufen.",
+    idle: "Speichert beim Ausfüllen.",
+    looksRight: "Passt",
+    tryAgain: "Nochmal versuchen",
+  },
+  hints: {
+    resume: "Aus deinem Lebenslauf erraten.",
+    device: "Aus der Zeitzone dieses Geräts erraten.",
+    home: "Ja für {region}, weil du dort lebst. Ändere es, wenn dein Visum etwas anderes sagt.",
+  },
+  dialog: {
+    title: "Wo du arbeiten darfst",
+    description: "Wo du lebst, deine Zeitzone und deine Visumsfragen. Nur du kannst das sehen.",
+    done: "Fertig",
+  },
+  prompt: {
+    guessed: "Otto hat Ja für {region} gesetzt, weil du wohl dort lebst. Prüf es und ergänz, ob du ein Visum brauchst.",
+    add: "Gib an, wo du arbeiten darfst, dann markiert Jobs Anzeigen, die dich nicht einstellen können.",
+    check: "Prüfen, wo du arbeiten darfst",
+    addButton: "Angeben, wo du arbeiten darfst",
+  },
+  setupHidden: {
+    title: "Einrichtungsliste ausgeblendet",
+    description: "Alle Einstellungen bleiben auf der Konto-Seite.",
+  },
+  card: {
+    eyebrow: "Bevor du dich bewirbst",
+    title: "Können sie dich von hier aus einstellen?",
+    rules: {
+      one: "{count} Regel in dieser Anzeige",
+      other: "{count} Regeln in dieser Anzeige",
+    },
+    checked: ", mit deinem Arbeitsprofil abgeglichen",
+    none: "Keine Regeln zu Wohnort, Visum, Arbeitszeiten oder Jobart gefunden. Otto erkennt nur klare Formulierungen, also überflieg die Anzeige auch selbst.",
+    loadFailed: "Dein Arbeitsprofil hat nicht geladen, deshalb ist das nicht damit abgeglichen.",
+    signedOut: "Melde dich an und leg dein Arbeitsprofil an, dann prüfen wir das für dich.",
+    addProfile: "Leg dein Arbeitsprofil an, dann prüfen wir das für dich.",
+    gaps: "Füll den Rest deines Arbeitsprofils aus, um die mit Prüfen markierten zu beantworten.",
+    tryAgain: "Nochmal versuchen",
+    signIn: "Anmelden",
+    edit: "Arbeitsprofil bearbeiten",
+    add: "Arbeitsprofil anlegen",
+    signInReason: "Melde dich an, um ein Arbeitsprofil zu speichern. Otto gleicht Stellenanzeigen damit ab.",
+    jobLocation: "Arbeitsort: {place}",
+    postSays: "Die Anzeige sagt: ",
+    verdicts: {
+      ok: "OK",
+      check: "Prüfen",
+      blocked: "Wahrscheinlich ausgeschlossen",
+    },
+    ruleLabels: {
+      location: "Wo du lebst",
+      authorization: "Arbeitserlaubnis",
+      sponsorship: "Visa-Sponsoring",
+      time_zone: "Zeitzone",
+      work_type: "Jobart",
+    },
+  },
+} satisfies Translation<Messages["workProfile"]>;

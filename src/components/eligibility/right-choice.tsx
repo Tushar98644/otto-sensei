@@ -1,13 +1,14 @@
 "use client";
 
 import { useId } from "react";
-import { REGION_LABELS, type WorkRegion, type WorkRight } from "@/lib/eligibility/profile";
+import { useMessages } from "@/i18n/client";
+import type { WorkRegion, WorkRight } from "@/lib/eligibility/profile";
 import { cn } from "@/lib/utils";
 
-const CHOICES: Array<{ value: WorkRight | null; label: string }> = [
-  { value: "authorized", label: "Yes" },
-  { value: "sponsorship", label: "Need a visa" },
-  { value: null, label: "Not set" },
+const CHOICES: Array<{ value: WorkRight | null; key: "yes" | "visa" | "notSet" }> = [
+  { value: "authorized", key: "yes" },
+  { value: "sponsorship", key: "visa" },
+  { value: null, key: "notSet" },
 ];
 
 const SEGMENT = cn(
@@ -25,10 +26,11 @@ export type RightChoiceProps = {
 
 export function RightChoice({ region, value, onChange }: RightChoiceProps) {
   const id = useId();
+  const t = useMessages("workProfile");
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <span id={`${id}-label`} className="text-sm font-medium text-ink">
-        {REGION_LABELS[region]}
+        {t.regions[region]}
       </span>
       <div
         role="radiogroup"
@@ -36,7 +38,7 @@ export function RightChoice({ region, value, onChange }: RightChoiceProps) {
         className="grid grid-cols-3 gap-1 rounded-xl bg-surface-muted p-1 sm:w-80"
       >
         {CHOICES.map((choice) => (
-          <label key={choice.label} className={SEGMENT}>
+          <label key={choice.key} className={SEGMENT}>
             <input
               type="radio"
               name={`${id}-right`}
@@ -45,7 +47,7 @@ export function RightChoice({ region, value, onChange }: RightChoiceProps) {
               onChange={() => onChange(choice.value)}
               className="sr-only"
             />
-            {choice.label}
+            {t.rights[choice.key]}
           </label>
         ))}
       </div>

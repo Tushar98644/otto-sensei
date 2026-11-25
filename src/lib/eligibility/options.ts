@@ -1,3 +1,4 @@
+import { intlLocale, type Locale } from "@/i18n/config";
 import { COUNTRY_CODES, countryName } from "./places";
 import { isTimeZone } from "./profile";
 
@@ -6,11 +7,15 @@ import { formatOffset, offsetMinutes } from "./time";
 
 export type Option = { value: string; label: string };
 
-export function countryOptions(): Option[] {
-  const collator = new Intl.Collator("en");
-  return COUNTRY_CODES.map((code) => ({ value: code, label: countryName(code) })).sort((a, b) =>
-    collator.compare(a.label, b.label),
-  );
+// Country names in the reader's language, sorted their way.
+export function countryOptions(locale: Locale = "en"): Option[] {
+  const tag = intlLocale(locale);
+  const collator = new Intl.Collator(tag);
+  const names = locale === "en" ? null : new Intl.DisplayNames([tag], { type: "region" });
+  return COUNTRY_CODES.map((code) => ({
+    value: code,
+    label: names ? (names.of(code) ?? countryName(code)) : countryName(code),
+  })).sort((a, b) => collator.compare(a.label, b.label));
 }
 
 export function timeZoneOptions(now: number, keep = ""): Option[] {
