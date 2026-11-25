@@ -58,6 +58,8 @@ export default {
         writingStyle:
           "<b>Tu estilo de escritura.</b> Si configuras uno, guardamos el tono, la extensión, la ortografía y la despedida que eliges, y las notas que le escribes a Otto. Dan forma a tus cartas de presentación, respuestas de postulación y mensajes de contacto. Nadie más los ve.",
         jobs: "<b>Empleos que comparas y guardas.</b> Para ordenarte las vacantes, tu navegador envía las habilidades, los títulos de puesto y los años de experiencia que lee de tu currículum, nunca el currículum en sí ni tus datos de contacto. Los usamos solo para esa solicitud y no los guardamos ni los enviamos a una IA. Si guardas un empleo, guardamos cuál y cuándo. Los empleos vienen de las páginas públicas de empleo y de las fuentes de empleo de las empresas, cada uno enlazado a su oferta original.",
+        jobsNear:
+          "<b>Empleos cerca de ti y el mapa.</b> Si buscas empleos cerca de tu ubicación, tu navegador te pregunta primero y luego nos envía tu posición redondeada a cerca de 1 km para esa única búsqueda. No la guardamos: no queda con tu cuenta, ni en nuestros registros, ni en las listas guardadas del día. La ciudad que eliges para buscar cerca y tus demás filtros se recuerdan solo en tu navegador. Lo que una tarjeta de empleo dice de la empresa (cuántos empleos tiene abiertos, dónde está la mayoría, si está contratando ahora) viene de las ofertas de empleo públicas, no de ti.",
         files:
           "<b>Archivos que subes.</b> Los leemos en memoria para extraer el texto y hacer las revisiones. No guardamos los archivos.",
         usage:
@@ -181,6 +183,8 @@ export default {
           "<b>Sentry</b> recibe informes de errores cuando algo falla, después de quitarles los correos, los números de teléfono y el texto de los currículums.",
         posthog:
           "<b>PostHog</b> recibe los eventos de uso de arriba, para que podamos ver qué pasos ayudan y dónde se traban las personas.",
+        openFreeMap:
+          "<b>OpenFreeMap</b> sirve las imágenes del mapa cuando abres el mapa de Empleos, así que recibe tu dirección IP y las zonas que ves, incluida la zona a tu alrededor si usas “Ir a mi ubicación”. No le enviamos nada más.",
       },
       outro:
         "Estos proveedores pueden procesar datos fuera de tu país, incluso en Estados Unidos. También podemos compartir información si la ley lo exige.",

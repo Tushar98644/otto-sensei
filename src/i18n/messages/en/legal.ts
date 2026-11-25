@@ -56,6 +56,8 @@ export default {
         writingStyle:
           "<b>Your writing style.</b> If you set one, we store the tone, length, spelling and sign-off you pick and any notes you write for Otto. They shape your cover letters, application answers and outreach messages. Nobody else sees them.",
         jobs: "<b>Jobs you match and save.</b> To rank open jobs for you, your browser sends the skills, job titles and years of experience it reads from your resume, never the resume itself or your contact details. We use them for that one request and don't store them or send them to an AI. If you save a job, we store which one and when. The jobs themselves come from companies' public careers pages and job feeds, each linked to its original post.",
+        jobsNear:
+          "<b>Jobs near you and the map.</b> If you search for jobs near your location, your browser asks you first, then sends us your position rounded to about 1 km for that one search. We don't store it: it isn't kept with your account, in our logs or in the day's saved lists. A city you pick to search near, and your other filters, are remembered in your browser only. What a job card says about the company (how many jobs it has open, where most of them are, whether it's hiring now) comes from the public job posts, not from you.",
         files:
           "<b>Files you upload.</b> We read them in memory to pull out the text and run the checks. We don't store the files.",
         usage:
@@ -178,6 +180,8 @@ export default {
           "<b>Sentry</b> receives error reports when something breaks, with emails, phone numbers and resume text removed first.",
         posthog:
           "<b>PostHog</b> receives the usage events above, so we can see which steps help and where people get stuck.",
+        openFreeMap:
+          "<b>OpenFreeMap</b> serves the map's tiles when you open the Jobs map, so it receives your IP address and which areas you view, including the area around you if you use “Go to my location”. We send it nothing else.",
       },
       outro:
         "These providers may process data outside your country, including in the United States. We may also share information if the law requires it.",

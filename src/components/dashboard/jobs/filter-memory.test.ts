@@ -13,7 +13,24 @@ describe("parseFilterMemory", () => {
   it("keeps a search, a posting window, the eligibility switch and the picked resume", () => {
     expect(
       parseFilterMemory({ q: " design ", postedWithin: 7, eligibleOnly: true, resumeId: "cv-1" }),
-    ).toEqual({ q: "design", postedWithin: 7, eligibleOnly: true, resumeId: "cv-1" });
+    ).toEqual({ ...NO_MEMORY, q: "design", postedWithin: 7, eligibleOnly: true, resumeId: "cv-1" });
+  });
+
+  it("keeps a work mode, hiring now and a city with its distance, never a point", () => {
+    const city = { id: 2950159, name: "Berlin", country: "DE", admin: "16" };
+    expect(
+      parseFilterMemory({
+        workMode: "hybrid",
+        hiring: true,
+        nearCity: city,
+        nearKm: 50,
+        lat: 52.5,
+        lng: 13.4,
+      }),
+    ).toEqual({ ...NO_MEMORY, workMode: "hybrid", hiring: true, nearCity: city, nearKm: 50 });
+    expect(
+      parseFilterMemory({ workMode: "space", nearCity: { id: -1, name: "X" }, nearKm: 7 }),
+    ).toEqual(NO_MEMORY);
   });
 
   it("drops anything stored badly, so a broken entry opens the defaults", () => {
@@ -27,7 +44,7 @@ describe("parseFilterMemory", () => {
 });
 
 describe("memoryFilters", () => {
-  const memory = { q: "react", postedWithin: 30, eligibleOnly: true, resumeId: null } as const;
+  const memory = { ...NO_MEMORY, q: "react", postedWithin: 30, eligibleOnly: true } as const;
 
   it("never narrows by role, level or place: the Looking for line does that", () => {
     const filters = memoryFilters(
@@ -41,6 +58,28 @@ describe("memoryFilters", () => {
       eligibleOnly: true,
       remote: true,
     });
+  });
+
+  it("asks for jobs near a remembered city, or near the page's own rounded point", () => {
+    const city = { id: 2950159, name: "Berlin", country: "DE", admin: "16" };
+    const near = { ...memory, nearCity: city, nearKm: 10 as const };
+    expect(memoryFilters(near, { remote: false, profileReady: true }).near).toEqual({
+      city: city.id,
+      lat: null,
+      lng: null,
+      km: 10,
+    });
+    expect(
+      memoryFilters(near, {
+        remote: false,
+        profileReady: true,
+        point: { lat: 52.520_08, lng: 13.404_95 },
+      }).near,
+    ).toEqual({ city: null, lat: 52.52, lng: 13.4, km: 10 });
+    expect(
+      memoryFilters({ ...memory, workMode: "onsite" }, { remote: true, profileReady: true })
+        .workMode,
+    ).toBeNull();
   });
 
   it("asks for jobs you can take only once there's a work profile to check them against", () => {

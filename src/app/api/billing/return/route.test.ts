@@ -197,7 +197,7 @@ describe("security headers", () => {
     const rules = (await nextConfig.headers?.()) ?? [];
     expect(rules.map((rule) => rule.source)).toEqual(["/:path*"]);
     const policy = rules[0]?.headers.find((header) => header.key === "Permissions-Policy");
-    expect(policy?.value).toBe("camera=(), microphone=(self), geolocation=(), payment=()");
+    expect(policy?.value).toBe("camera=(), microphone=(self), geolocation=(self), payment=()");
     expect(JSON.stringify(rules)).not.toMatch(/paddle/i);
   });
 });

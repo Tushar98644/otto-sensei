@@ -16,7 +16,7 @@ import { rememberShownMatches } from "@/lib/queries/matches-memory";
 import { JOB_MATCHES_STALE_MS } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
-import { memoryFilters, NO_MEMORY, type FilterMemory } from "./filter-memory";
+import { memoryFilters, NO_MEMORY, type FilterMemory, type Point } from "./filter-memory";
 
 // Only the resume's skills, titles and years are sent (matchProfileOf).
 
@@ -100,10 +100,15 @@ function matchesBody(
   return { ...request, deviceTimeZone: deviceTimeZone() };
 }
 
-export function pageFilters(memory: FilterMemory, work: WorkProfile | null): JobFilters {
+export function pageFilters(
+  memory: FilterMemory,
+  work: WorkProfile | null,
+  point: Point | null = null,
+): JobFilters {
   return memoryFilters(memory, {
     remote: work?.remoteOnly === true,
     profileReady: work !== null && isProfileStarted(work),
+    point,
   });
 }
 
@@ -196,5 +201,5 @@ export function useJobMatches({
     if (queryKey) rememberShownMatches(queryKey, shown, shownAt);
   }, [shown, queryKey, shownAt]);
 
-  return { state, retry, patch, profile, lookingFor };
+  return { state, retry, patch, profile, lookingFor, body };
 }

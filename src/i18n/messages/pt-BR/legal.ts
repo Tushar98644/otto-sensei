@@ -59,6 +59,8 @@ export default {
         writingStyle:
           "<b>Seu estilo de escrita.</b> Se você define um, armazenamos o tom, o tamanho, a ortografia e a despedida que você escolhe e as anotações que você escreve para o Otto. Eles moldam suas cartas de apresentação, respostas de candidatura e mensagens de contato. Ninguém mais os vê.",
         jobs: "<b>Vagas que você compara e salva.</b> Para ranquear vagas abertas para você, seu navegador envia as habilidades, os cargos e os anos de experiência que ele lê do seu currículo, nunca o currículo em si nem seus dados de contato. Usamos esses dados só para essa solicitação e não os armazenamos nem os enviamos para uma IA. Se você salva uma vaga, armazenamos qual e quando. As vagas em si vêm das páginas de carreiras públicas e dos feeds de vagas das empresas, cada uma com link para o anúncio original.",
+        jobsNear:
+          "<b>Vagas perto de você e o mapa.</b> Se você busca vagas perto da sua localização, seu navegador pergunta antes e depois nos envia sua posição arredondada para cerca de 1 km, só para essa busca. Não a guardamos: ela não fica com sua conta, nos nossos registros nem nas listas salvas do dia. A cidade que você escolhe para buscar por perto e seus outros filtros ficam lembrados só no seu navegador. O que um cartão de vaga diz sobre a empresa (quantas vagas tem abertas, onde está a maioria, se está contratando agora) vem das vagas públicas, não de você.",
         files:
           "<b>Arquivos que você envia.</b> Nós os lemos na memória para extrair o texto e fazer as verificações. Não armazenamos os arquivos.",
         usage:
@@ -181,6 +183,8 @@ export default {
           "<b>Sentry</b> recebe relatórios de erro quando algo quebra, com e-mails, números de telefone e texto de currículo removidos antes.",
         posthog:
           "<b>PostHog</b> recebe os eventos de uso acima, para vermos quais passos ajudam e onde as pessoas travam.",
+        openFreeMap:
+          "<b>OpenFreeMap</b> fornece as imagens do mapa quando você abre o mapa de Vagas, então recebe seu endereço IP e as áreas que você vê, incluindo a área ao seu redor se você usar “Ir para minha localização”. Não enviamos mais nada a ele.",
       },
       outro:
         "Esses provedores podem processar dados fora do seu país, inclusive nos Estados Unidos. Também podemos compartilhar informações se a lei exigir.",

@@ -58,6 +58,8 @@ export default {
         writingStyle:
           "<b>Dein Schreibstil.</b> Wenn du einen festlegst, speichern wir den Ton, die Länge, die Schreibweise und die Grußformel, die du wählst, und alle Notizen, die du für Otto schreibst. Sie prägen deine Anschreiben, Antworten auf Bewerbungsfragen und Kontaktnachrichten. Niemand sonst sieht sie.",
         jobs: "<b>Jobs, die du abgleichst und speicherst.</b> Um offene Jobs für dich zu sortieren, sendet dein Browser die Fähigkeiten, Jobtitel und Berufsjahre, die er aus deinem Lebenslauf liest, nie den Lebenslauf selbst oder deine Kontaktdaten. Wir nutzen sie nur für diese eine Anfrage und speichern sie weder noch senden wir sie an eine KI. Wenn du einen Job speicherst, speichern wir, welchen und wann. Die Jobs selbst stammen von öffentlichen Karriereseiten und Job-Feeds der Unternehmen, jeweils mit Link zur Originalanzeige.",
+        jobsNear:
+          "<b>Jobs in deiner Nähe und die Karte.</b> Wenn du Jobs in der Nähe deines Standorts suchst, fragt dich dein Browser zuerst und schickt uns dann deine Position, auf etwa 1 km gerundet, nur für diese eine Suche. Wir speichern sie nicht: Sie wird weder bei deinem Konto noch in unseren Logs noch in den gespeicherten Listen des Tages abgelegt. Eine Stadt, die du für die Umkreissuche wählst, und deine anderen Filter merkt sich nur dein Browser. Was eine Jobkarte über das Unternehmen sagt (wie viele Jobs es offen hat, wo die meisten sind, ob es gerade einstellt), stammt aus den öffentlichen Stellenanzeigen, nicht von dir.",
         files:
           "<b>Dateien, die du hochlädst.</b> Wir lesen sie im Arbeitsspeicher, um den Text herauszuziehen und die Prüfungen durchzuführen. Wir speichern die Dateien nicht.",
         usage:
@@ -181,6 +183,8 @@ export default {
           "<b>Sentry</b> erhält Fehlerberichte, wenn etwas nicht funktioniert, wobei E-Mails, Telefonnummern und Lebenslauftext vorher entfernt werden.",
         posthog:
           "<b>PostHog</b> erhält die oben genannten Nutzungsereignisse, damit wir sehen, welche Schritte helfen und wo Leute hängen bleiben.",
+        openFreeMap:
+          "<b>OpenFreeMap</b> liefert die Kartenkacheln, wenn du die Jobkarte öffnest, und erhält dabei deine IP-Adresse und die Bereiche, die du ansiehst, auch den Bereich um dich herum, wenn du „Zu meinem Standort“ nutzt. Wir schicken ihm sonst nichts.",
       },
       outro:
         "Diese Anbieter können Daten außerhalb deines Landes verarbeiten, auch in den USA. Wir können Informationen außerdem weitergeben, wenn das Gesetz es verlangt.",
