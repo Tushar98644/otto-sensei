@@ -1,7 +1,12 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderBare } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "@/lib/queries/keys";
 import type { SharedLink } from "@/lib/share/types";
+import { inEnglish } from "@/components/dashboard/messages-testing";
+
+// The English messages these components read, as the page would pass them.
+const renderToStaticMarkup = (node: ReactNode) => renderBare(inEnglish(node));
 
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),

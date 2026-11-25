@@ -8,6 +8,7 @@ import { useNow } from "@/components/studio/use-now";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
 import { api, isApiError } from "@/lib/api/client";
 import type { SharedLink } from "@/lib/share/types";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,9 @@ export function ShareOwnerBar({ slug }: { slug: string }) {
 }
 
 function Bar({ link }: { link: SharedLink }) {
+  const share = useMessages("share");
+  const words = share.owner;
+  const format = useFormat();
   const router = useRouter();
   const now = useNow();
   const panelId = useId();
@@ -52,8 +56,8 @@ function Bar({ link }: { link: SharedLink }) {
       if (isApiError(error, "not_found")) dropShare(link.id);
       else putShare(link);
       toast({
-        title: "Couldn't save that",
-        description: isApiError(error) ? error.message : "Check your connection, then try again.",
+        title: words.saveFailed,
+        description: isApiError(error) ? error.message : words.checkConnection,
         variant: "error",
       });
     } finally {
@@ -68,11 +72,13 @@ function Bar({ link }: { link: SharedLink }) {
   }
 
   return (
-    <section aria-label="Your link" className="rounded-2xl bg-surface px-4 py-3 sm:px-5">
+    <section aria-label={words.label} className="rounded-2xl bg-surface px-4 py-3 sm:px-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <div className="min-w-0 flex-1">
-          <p className="text-sm/5 font-medium text-ink">Only you see this bar</p>
-          <p className="text-sm/5 text-subtle">{now > 0 ? viewFacts(link, now) : " "}</p>
+          <p className="text-sm/5 font-medium text-ink">{words.onlyYou}</p>
+          <p className="text-sm/5 text-subtle">
+            {now > 0 ? viewFacts(link, now, share.facts, format) : " "}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -82,7 +88,7 @@ function Bar({ link }: { link: SharedLink }) {
             aria-controls={panelId}
             onClick={() => setOpen((value) => !value)}
           >
-            Link settings
+            {words.settings}
             <ChevronDown
               aria-hidden
               className={cn("motion-safe:transition-transform", open && "rotate-180")}
@@ -90,7 +96,7 @@ function Bar({ link }: { link: SharedLink }) {
           </Button>
           <Button variant="secondary" size="sm" loading={opening} onClick={() => void edit()}>
             <PenLine aria-hidden />
-            Edit
+            {words.edit}
           </Button>
         </div>
       </div>
@@ -99,6 +105,7 @@ function Bar({ link }: { link: SharedLink }) {
           value={{ showContact: link.showContact, allowIndexing: link.allowIndexing }}
           onChange={(patch) => void change(patch)}
           disabled={busy}
+          copy={share.options}
         />
       </div>
     </section>

@@ -4,12 +4,15 @@ import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 
 // The footer is a plain <a>: only a full page load lets the root layout's invite tracker read ?ref.
+// Drawn on the server, so its one word comes from the page in its language.
 export function SharePageFrame({
   children,
   homeHref = ROUTES.home,
+  madeWith,
 }: {
   children: ReactNode;
   homeHref?: string;
+  madeWith: string;
 }) {
   return (
     <main id="main" className="min-h-dvh bg-surface-muted px-4 pt-4 pb-10 sm:px-6 sm:pt-8 sm:pb-16">
@@ -22,7 +25,7 @@ export function SharePageFrame({
           >
             <OttoMark className="size-6" />
             <span>
-              Made with{" "}
+              {madeWith}{" "}
               <span className="font-medium text-ink underline decoration-border-strong underline-offset-4 group-hover:decoration-ink">
                 {BRAND.name}
               </span>

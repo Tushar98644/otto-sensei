@@ -3,6 +3,7 @@
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
 import { defaultPageSize } from "@/lib/pdf/page-size";
 import { preloadPdfRenderer, renderResumePdf } from "@/lib/pdf/render";
 import { suggestedFileName } from "@/lib/resume/ops";
@@ -21,6 +22,7 @@ function saveFile(blob: Blob, fileName: string): void {
 }
 
 export function DownloadPdfButton({ resume }: { resume: Resume }) {
+  const words = useMessages("share").download;
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -41,7 +43,7 @@ export function DownloadPdfButton({ resume }: { resume: Resume }) {
   return (
     <div className="flex shrink-0 items-center gap-3">
       <p role="status" className="text-sm/5 text-fail-ink max-sm:sr-only">
-        {failed ? "That didn't work. Try again." : ""}
+        {failed ? words.failed : ""}
       </p>
       <Button
         onClick={download}
@@ -50,7 +52,7 @@ export function DownloadPdfButton({ resume }: { resume: Resume }) {
         onFocus={preloadPdfRenderer}
       >
         <Download aria-hidden />
-        {failed ? "Try again" : "Download PDF"}
+        {failed ? words.tryAgain : words.pdf}
       </Button>
     </div>
   );
