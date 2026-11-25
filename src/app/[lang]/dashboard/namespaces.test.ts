@@ -6,7 +6,8 @@ import { DASHBOARD_NAMESPACES, PAGE_NAMESPACES } from "./namespaces";
 
 // MessagesFor puts these into every full dashboard load (about 66 KB in English and 77 KB in German today); a page's own namespaces come on top (Interview prep about 15 KB more, Applications about 7 KB). Room for the rest of the dashboard, not for a stray namespace.
 // Raised from 90 KB when the sign-in, upgrade and share dialogs, Otto's limit lines, the bell, feedback and the first-run tour joined the layout.
-const BUDGET_BYTES = 110_000;
+// Raised to 115 KB for the Jobs map, company panel, filters and alerts (French and German reached about 111 KB with Interview prep).
+const BUDGET_BYTES = 115_000;
 
 async function payloadBytes(locale: Locale, namespaces: readonly Namespace[]): Promise<number> {
   return Buffer.byteLength(JSON.stringify(await pickMessages(locale, namespaces)));
