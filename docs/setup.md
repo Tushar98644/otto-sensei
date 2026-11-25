@@ -250,6 +250,8 @@ Already pasted the older template? Paste this one again to add his head.
 scripts/email-templates.ts --apply` writes both templates with a block per language (Spanish,
 Portuguese, French, German; English for everyone else), picked by the account's `otto_locale` (see
 `docs/i18n.md`). Without `--apply` it only shows what is saved.
+Both templates were set this way on 2026-11-25 (pasted in the dashboard, no token): keep the subject
+within Supabase's 255-character limit (`compactSubject()` in `src/lib/auth/code-email.ts`).
 
 ---
 
