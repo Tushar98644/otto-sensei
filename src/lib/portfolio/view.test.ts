@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { planCopy } from "@/app/[lang]/(marketing)/_components/plan-features";
+import { planCopy as planCopyIn } from "@/app/[lang]/(marketing)/_components/plan-features";
+import type { AllowancePeriod, PlanId } from "@/config/plans";
+import { formatFor } from "@/i18n/intl";
+import { englishMessages } from "@/i18n/messages";
 import { emptyResume } from "@/lib/resume/schema";
 import { sampleResume } from "./testing";
 import { canBuildPortfolio, canPublishPortfolio } from "./plan";
 import { DEFAULT_PORTFOLIO_SETTINGS } from "./types";
 import { portfolioView, sectionsWithContent } from "./view";
+
+const planCopy = (plan: PlanId, period?: AllowancePeriod) =>
+  planCopyIn(englishMessages().pricing, formatFor("en"), plan, period);
 
 const defaults = {
   showEmail: DEFAULT_PORTFOLIO_SETTINGS.showEmail,

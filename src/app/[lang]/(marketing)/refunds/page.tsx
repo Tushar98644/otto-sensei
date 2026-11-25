@@ -2,130 +2,152 @@ import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { IntentLink } from "@/components/site/intent-link";
-import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
 import { buttonClasses } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
 import { PRO_TRIAL } from "@/config/plans";
-import { LegalPage, type LegalSection } from "../_components/legal-page";
+import { fmt } from "@/i18n/format";
+import { englishMessages } from "@/i18n/messages";
+import type { Localize } from "@/i18n/pages";
+import { getLocalize, localizedMetadata, requirePublished } from "@/i18n/publish";
+import { rich } from "@/i18n/rich";
+import { getFormat, getMessages } from "@/i18n/server";
+import {
+  LegalPage,
+  richList,
+  type LegalMessages,
+  type LegalSection,
+} from "../_components/legal-page";
 import { MERCHANT } from "../_components/merchant";
-import { formatUsd } from "../_components/plan-features";
+import { usd } from "../_components/price-copy";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Refund policy: cancelling Pro and Max",
-  description: `Refunds for Pro and Max plans are handled by ${MERCHANT.name}, our merchant of record, under its buyer terms. Cancel anytime and you won't be charged again.`,
-  path: ROUTES.refunds,
-});
+const PATH = ROUTES.refunds;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = (await getMessages("legal")).refunds;
+  return localizedMetadata({
+    title: meta.title,
+    description: fmt(meta.description, { merchant: MERCHANT.name }),
+    path: PATH,
+  });
+}
 
 const BILLING_HREF = `${ROUTES.account}#plan`;
 
 const MAILTO = `mailto:${BRAND.supportEmail}`;
 
-const SUMMARY = [
-  <>
-    Cancel anytime from your account page. You keep your plan until the end of the period
-    you&apos;ve paid for.
-  </>,
-  <>
-    The {PRO_TRIAL.days}-day Pro trial costs {formatUsd(PRO_TRIAL.priceUsd)}, charged when it
-    starts. Cancel before it ends and you won&apos;t pay anything more.
-  </>,
-  <>
-    To ask for a refund, contact {MERCHANT.name} through its{" "}
-    <TextLink href={MERCHANT.buyerHelpUrl}>buyer help page</TextLink>, or{" "}
-    <TextLink href={MAILTO}>email us</TextLink> from the address you sign in with.
-  </>,
-];
+function refundSections(t: LegalMessages, href: Localize, trialPrice: string): LegalSection[] {
+  const en = englishMessages().legal.refunds;
+  const r = t.refunds;
+  const values = { merchant: MERCHANT.name, email: BRAND.supportEmail };
+  const trial = { days: PRO_TRIAL.days, price: trialPrice };
+  const buyerHelp = (chunk: string) => <a href={MERCHANT.buyerHelpUrl}>{chunk}</a>;
+  return [
+    {
+      title: r.pay.title,
+      anchor: en.pay.title,
+      body: (
+        <>
+          <p>{fmt(t.disclosure, values)}</p>
+          <p>{fmt(r.pay.receipt, values)}</p>
+        </>
+      ),
+    },
+    {
+      title: r.refunds.title,
+      anchor: en.refunds.title,
+      body: (
+        <p>
+          {rich(
+            r.refunds.body,
+            {
+              link: (chunk, index) =>
+                index === 0 ? <a href={MERCHANT.buyerTermsUrl}>{chunk}</a> : buyerHelp(chunk),
+            },
+            values,
+          )}
+        </p>
+      ),
+    },
+    {
+      title: r.cancel.title,
+      anchor: en.cancel.title,
+      body: (
+        <>
+          <p>
+            {rich(r.cancel.anytime, {
+              link: (chunk) => <Link href={href(ROUTES.account)}>{chunk}</Link>,
+            })}
+          </p>
+          <p>{fmt(r.cancel.trial, trial)}</p>
+        </>
+      ),
+    },
+    {
+      title: r.deleting.title,
+      anchor: en.deleting.title,
+      body: <p>{r.deleting.body}</p>,
+    },
+    {
+      title: r.questions.title,
+      anchor: en.questions.title,
+      body: (
+        <>
+          <p>
+            {rich(
+              r.questions.email,
+              {
+                link: (chunk, index) =>
+                  index === 0 ? <a href={MAILTO}>{chunk}</a> : buyerHelp(chunk),
+              },
+              values,
+            )}
+          </p>
+          <p>{r.questions.rights}</p>
+        </>
+      ),
+    },
+  ];
+}
 
-const SECTIONS: readonly LegalSection[] = [
-  {
-    title: "Who you pay",
-    body: (
-      <>
-        <p>{MERCHANT.disclosure}</p>
-        <p>
-          After each payment, {MERCHANT.name} emails you a receipt with a link to download your
-          invoice.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: "Refunds",
-    body: (
-      <p>
-        Refund requests are handled by {MERCHANT.name} under its{" "}
-        <a href={MERCHANT.buyerTermsUrl}>buyer terms</a>. To ask for one, contact {MERCHANT.name}{" "}
-        through its <a href={MERCHANT.buyerHelpUrl}>buyer help page</a>, or email us from the
-        address you sign in with and we&apos;ll pass your request on.
-      </p>
-    ),
-  },
-  {
-    title: "Cancel anytime",
-    body: (
-      <>
-        <p>
-          Cancel from your <Link href={ROUTES.account}>account page</Link> whenever you like. You
-          keep your plan until the end of the period you&apos;ve paid for, then your account moves
-          to the Free plan. Your resumes stay yours either way.
-        </p>
-        <p>
-          The {PRO_TRIAL.days}-day Pro trial costs {formatUsd(PRO_TRIAL.priceUsd)}, charged when it
-          starts. Cancel before the trial ends and you won&apos;t pay anything more; otherwise your
-          first Pro payment is taken when it ends. If you start Max during the trial, the full Max
-          price is charged right away and the {formatUsd(PRO_TRIAL.priceUsd)} trial charge
-          isn&apos;t taken off.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: "Deleting your account",
-    body: (
-      <p>
-        Deleting your account cancels your paid plan right away, and you won&apos;t be charged
-        again. It ends at that moment rather than at the end of the period you&apos;ve paid for.
-      </p>
-    ),
-  },
-  {
-    title: "Questions about a charge",
-    body: (
-      <>
-        <p>
-          Email <a href={MAILTO}>{BRAND.supportEmail}</a> from the address you sign in with. For a
-          payment itself, you can also contact {MERCHANT.name} through its{" "}
-          <a href={MERCHANT.buyerHelpUrl}>buyer help page</a>.
-        </p>
-        <p>
-          This policy doesn&apos;t affect any rights you have under consumer laws where you live.
-        </p>
-      </>
-    ),
-  },
-];
-
-export default function RefundsPage() {
+export default async function RefundsPage() {
+  await requirePublished(PATH);
+  const t = await getMessages("legal");
+  const format = await getFormat();
+  const href = await getLocalize();
+  const trialPrice = usd(format, PRO_TRIAL.priceUsd);
+  const summary = richList(
+    englishMessages().legal.refunds.summary,
+    t.refunds.summary,
+    { merchant: MERCHANT.name, days: PRO_TRIAL.days, price: trialPrice },
+    {
+      ask: {
+        link: (chunk, index) => (
+          <TextLink href={index === 0 ? MERCHANT.buyerHelpUrl : MAILTO}>{chunk}</TextLink>
+        ),
+      },
+    },
+  );
   return (
     <LegalPage
-      title="Refund policy"
+      t={t.page}
+      format={format}
+      path={PATH}
+      title={t.refunds.title}
       intro={
         <p>
-          {MERCHANT.name} is our merchant of record, and your card statement shows the charge under
-          their name, starting with <strong>{MERCHANT.statementPrefix}</strong>. Here&apos;s how
-          payments, refunds and cancelling work on Pro and Max.
+          {rich(t.refunds.intro, {}, { merchant: MERCHANT.name, prefix: MERCHANT.statementPrefix })}
         </p>
       }
-      summary={SUMMARY}
+      summary={summary.map(([, item]) => item)}
       action={
-        <IntentLink href={BILLING_HREF} className={buttonClasses()}>
-          Manage billing
+        <IntentLink href={href(BILLING_HREF)} className={buttonClasses()}>
+          {t.refunds.manageBilling}
           <ArrowRight />
         </IntentLink>
       }
-      sections={SECTIONS}
+      sections={refundSections(t, href, trialPrice)}
     />
   );
 }

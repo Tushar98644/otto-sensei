@@ -5,11 +5,13 @@ import {
   FREE_TEMPLATES,
   PLANS,
   resumeLimit,
-  type Feature,
   type PlanId,
 } from "@/config/plans";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
+import type { PricingMessages } from "../../_components/price-copy";
 
 export type PlanCell = string | boolean;
 
@@ -17,22 +19,7 @@ export type PlanRow = { label: string; detail?: string; cells: Record<PlanId, Pl
 
 export type PlanRowGroup = { title: string; rows: PlanRow[] };
 
-const count = new Intl.NumberFormat("en-US");
-
-const AI_ROWS: Record<Feature, { label: string; detail?: string }> = {
-  tailor: { label: "Tailored versions", detail: "Your resume rewritten for one job" },
-  letter: {
-    label: "Letters and interview prep",
-    detail: "Cover letters, outreach messages, answers and prep, counted together",
-  },
-  fix: { label: "Line fixes with Otto" },
-  import: {
-    label: "Uploads read by AI",
-    detail: "Past this, and on Free, the basic reader reads them",
-  },
-  draft: { label: "First drafts from your notes" },
-  github: { label: "Project drafts from GitHub" },
-};
+export type TableMessages = PricingMessages["table"];
 
 const paid = (value: PlanCell, free: PlanCell = false): Record<PlanId, PlanCell> => ({
   free,
@@ -40,56 +27,63 @@ const paid = (value: PlanCell, free: PlanCell = false): Record<PlanId, PlanCell>
   max: value,
 });
 
-const perPlan = (limit: (plan: PlanId) => number): Record<PlanId, PlanCell> => ({
-  free: count.format(limit("free")),
-  pro: count.format(limit("pro")),
-  max: count.format(limit("max")),
-});
-
-export function planRows(): PlanRowGroup[] {
+export function planRows(t: TableMessages, format: Format): PlanRowGroup[] {
+  const perPlan = (limit: (plan: PlanId) => number): Record<PlanId, PlanCell> => ({
+    free: format.number(limit("free")),
+    pro: format.number(limit("pro")),
+    max: format.number(limit("max")),
+  });
+  const rows = t.rows;
   return [
     {
-      title: "Otto's AI help, each month",
+      title: t.groups.ai,
       rows: FEATURES.map((feature) => ({
-        ...AI_ROWS[feature],
+        ...t.ai[feature],
         cells: {
-          free: PLANS.free.limits[feature] > 0 ? count.format(PLANS.free.limits[feature]) : false,
-          pro: count.format(PLANS.pro.limits[feature]),
-          max: count.format(PLANS.max.limits[feature]),
+          free: PLANS.free.limits[feature] > 0 ? format.number(PLANS.free.limits[feature]) : false,
+          pro: format.number(PLANS.pro.limits[feature]),
+          max: format.number(PLANS.max.limits[feature]),
         },
       })),
     },
     {
-      title: "Resumes and downloads",
+      title: t.groups.resumes,
       rows: [
-        { label: "Recruiter view and editing by hand", cells: paid(true, true) },
+        { label: rows.recruiterView, cells: paid(true, true) },
+        { label: rows.resumes, detail: rows.resumesDetail, cells: perPlan(resumeLimit) },
         {
-          label: "Resumes",
-          detail: "Tailored versions count as resumes",
-          cells: perPlan(resumeLimit),
+          label: rows.formats,
+          cells: paid(
+            fmt(rows.allFormats, { count: format.number(TEMPLATE_IDS.length) }),
+            format.number(FREE_TEMPLATES.length),
+          ),
         },
+        { label: rows.pdf, cells: paid(true, true) },
+        { label: rows.word, cells: paid(true) },
+        { label: rows.share, cells: paid(true) },
         {
-          label: "Formats",
-          cells: paid(`All ${TEMPLATE_IDS.length}`, count.format(FREE_TEMPLATES.length)),
-        },
-        { label: "PDF downloads", cells: paid(true, true) },
-        { label: "Word (.docx) downloads", cells: paid(true) },
-        { label: "Share links", cells: paid(true) },
-        {
-          label: "Portfolio site",
-          detail: `${PORTFOLIO_TEMPLATE_IDS.length} designs, made from your resume`,
+          label: rows.portfolio,
+          detail: fmt(rows.portfolioDetail, {
+            count: format.number(PORTFOLIO_TEMPLATE_IDS.length),
+          }),
           cells: paid(true),
         },
       ],
     },
     {
-      title: "Jobs and applications",
+      title: t.groups.jobs,
       rows: [
-        { label: "Job matches", cells: paid("All", `${FREE_JOB_MATCHES} closest`) },
-        { label: "Filters and saved jobs", cells: paid(true) },
-        { label: "Tracked applications", cells: perPlan(applicationLimit) },
-        { label: "Follow-up reminders", cells: paid(true, true) },
-        { label: "Where each job can hire from", cells: paid(true) },
+        {
+          label: rows.matches,
+          cells: paid(
+            rows.allMatches,
+            fmt(rows.closestMatches, { count: format.number(FREE_JOB_MATCHES) }),
+          ),
+        },
+        { label: rows.filters, cells: paid(true) },
+        { label: rows.tracked, cells: perPlan(applicationLimit) },
+        { label: rows.reminders, cells: paid(true, true) },
+        { label: rows.hireFrom, cells: paid(true) },
       ],
     },
   ];

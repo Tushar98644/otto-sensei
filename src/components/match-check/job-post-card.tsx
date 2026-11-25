@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { fmt } from "@/i18n/format";
+import matchCheckEn from "@/i18n/messages/en/match-check";
+import type { MatchCheckMessages } from "@/lib/match-check/copy";
 import { isJobLink, isPostText, type JobMode } from "./inputs";
 import type { HiringSystemLink } from "./job-link";
 import type { JobLinkReader } from "./use-job-link";
@@ -18,20 +21,22 @@ const QUIET_LINK = "min-h-11 self-start text-sm text-muted hover:text-ink";
 
 const pasted = (event: ClipboardEvent) => event.clipboardData.getData("text").trim();
 
+type LinkWords = MatchCheckMessages["link"];
+
 // A new tab, so the resume and post pasted here are still here after reading the guide.
-function SystemLine({ system }: { system: HiringSystemLink }) {
+function SystemLine({ system, t }: { system: HiringSystemLink; t: LinkWords }) {
   return (
     <p className="text-sm/6 text-muted">
-      This job uses {system.name}.{" "}
+      {fmt(t.system, { name: system.name })}{" "}
       <a
         href={system.href}
         target="_blank"
         rel="noopener"
         className="inline-flex items-center gap-0.5 rounded-sm font-medium text-ink underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-ink"
       >
-        Read the {system.name} guide
+        {fmt(t.guide, { name: system.name })}
         <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
-        <span className="sr-only"> (opens in a new tab)</span>
+        <span className="sr-only"> {t.newTab}</span>
       </a>
     </p>
   );
@@ -42,9 +47,10 @@ type LinkPanelProps = {
   linkRef: RefObject<HTMLInputElement | null>;
   error: string | null;
   onShowText: () => void;
+  t: LinkWords;
 };
 
-function LinkPanel({ reader, linkRef, error, onShowText }: LinkPanelProps) {
+function LinkPanel({ reader, linkRef, error, onShowText, t }: LinkPanelProps) {
   const { read, reading } = reader;
   const posting = read?.ok && !reading ? read.posting : null;
   const meta = posting ? [posting.company, posting.location].filter(Boolean).join(" · ") : "";
@@ -53,16 +59,7 @@ function LinkPanel({ reader, linkRef, error, onShowText }: LinkPanelProps) {
   const shownError = reading ? null : (reader.error ?? (unread ? null : error));
   return (
     <div className="flex flex-col gap-3">
-      <Field
-        label="Job link"
-        hideLabel
-        error={shownError}
-        hint={
-          shownError
-            ? null
-            : "Paste the link and Otto reads it at once. Works with most job sites, but not LinkedIn or Indeed."
-        }
-      >
+      <Field label={t.label} hideLabel error={shownError} hint={shownError ? null : t.hint}>
         <Input
           ref={linkRef}
           type="url"
@@ -92,35 +89,35 @@ function LinkPanel({ reader, linkRef, error, onShowText }: LinkPanelProps) {
       </Field>
       <p aria-live="polite" className="sr-only">
         {reading
-          ? "Otto is reading the job post."
+          ? t.readingStatus
           : posting
-            ? `Read the job: ${posting.title || "untitled"}.`
+            ? fmt(t.readStatus, { title: posting.title || t.untitledStatus })
             : (shownError ?? "")}
       </p>
       {reading ? (
         <p className="flex items-center gap-2 text-sm text-ink">
           <Spinner />
-          Otto is reading the job post…
+          {t.reading}
         </p>
       ) : null}
       {posting && read?.ok ? (
         <div className="flex flex-col rounded-xl bg-surface-muted px-4 py-3">
-          <Eyebrow>From the link</Eyebrow>
+          <Eyebrow>{t.from}</Eyebrow>
           <p className="mt-2 text-sm/6 font-semibold break-words text-ink">
-            {posting.title || "Untitled job"}
+            {posting.title || t.untitled}
           </p>
           {meta ? <p className="text-sm/6 text-muted">{meta}</p> : null}
-          {read.system ? <SystemLine system={read.system} /> : null}
+          {read.system ? <SystemLine system={read.system} t={t} /> : null}
           <Button variant="link" onClick={onShowText} className={QUIET_LINK}>
-            See the text Otto read
+            {t.seeText}
           </Button>
         </div>
       ) : null}
       {read && !read.ok && !reading ? (
         <div className="flex flex-col">
-          {read.system ? <SystemLine system={read.system} /> : null}
+          {read.system ? <SystemLine system={read.system} t={t} /> : null}
           <Button variant="link" onClick={onShowText} className={QUIET_LINK}>
-            Paste the job text instead
+            {t.pasteInstead}
           </Button>
         </div>
       ) : null}
@@ -141,6 +138,7 @@ export type JobPostCardProps = {
   onFocus: () => void;
   onShowText: () => void;
   onPasteLink: (link: string) => void;
+  t?: MatchCheckMessages;
 };
 
 export function JobPostCard({
@@ -156,6 +154,7 @@ export function JobPostCard({
   onFocus,
   onShowText,
   onPasteLink,
+  t = matchCheckEn,
 }: JobPostCardProps) {
   return (
     <Card>
@@ -164,26 +163,26 @@ export function JobPostCard({
         onValueChange={(value) => onModeChange(value === "link" ? "link" : "paste")}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-sans text-base/6 font-semibold text-ink">The job post</h2>
-          <TabList aria-label="How to add the job post">
+          <h2 className="font-sans text-base/6 font-semibold text-ink">{t.post.title}</h2>
+          <TabList aria-label={t.post.tabs}>
             <Tab value="paste">
               <ClipboardPaste aria-hidden />
-              Paste text
+              {t.pasteText}
             </Tab>
             <Tab value="link" onFocus={reader.prepare} onPointerEnter={reader.prepare}>
               <Link2 aria-hidden />
-              Paste a link
+              {t.post.link}
             </Tab>
           </TabList>
         </div>
         <TabPanel value="paste" tabIndex={-1}>
-          <Field label="Job post text" hideLabel error={error} hint={hint}>
+          <Field label={t.post.label} hideLabel error={error} hint={hint}>
             <Textarea
               ref={textRef}
               value={text}
               rows={6}
               spellCheck={false}
-              placeholder="Paste the job post here, or its link"
+              placeholder={t.post.placeholder}
               className="min-h-40 sm:min-h-72"
               onFocus={onFocus}
               onChange={(event) => onTextChange(event.target.value)}
@@ -197,7 +196,13 @@ export function JobPostCard({
           </Field>
         </TabPanel>
         <TabPanel value="link" tabIndex={-1}>
-          <LinkPanel reader={reader} linkRef={linkRef} error={error} onShowText={onShowText} />
+          <LinkPanel
+            reader={reader}
+            linkRef={linkRef}
+            error={error}
+            onShowText={onShowText}
+            t={t.link}
+          />
         </TabPanel>
       </Tabs>
     </Card>

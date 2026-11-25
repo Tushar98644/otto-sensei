@@ -6,6 +6,10 @@ import { formatBytes } from "@/components/ui/file-check";
 import { Spinner } from "@/components/ui/spinner";
 import { UPLOAD_ACCEPT } from "@/components/studio/upload/upload-handoff";
 import { UPLOAD_LIMITS } from "@/config/plans";
+import { fmt } from "@/i18n/format";
+import { formatFor, type Format } from "@/i18n/intl";
+import matchCheckEn from "@/i18n/messages/en/match-check";
+import type { MatchCheckMessages } from "@/lib/match-check/copy";
 
 export type UploadState =
   | { status: "idle" }
@@ -13,22 +17,19 @@ export type UploadState =
   | { status: "read"; file: File; text: string; words: number }
   | { status: "failed"; message: string };
 
-const GENERIC = "Something went wrong reading that file. Try again, or paste the text instead.";
-const PICTURE_ONLY =
-  "That file is only a picture, so hiring software sees a blank page. Paste your resume text instead.";
-
-const count = new Intl.NumberFormat("en-US");
-
 // The check route reads the file the way hiring software does and keeps nothing; it's rate-limited per device.
-export async function readResumeFile(file: File): Promise<UploadState> {
+export async function readResumeFile(
+  file: File,
+  t: MatchCheckMessages = matchCheckEn,
+): Promise<UploadState> {
   const { api, isApiError } = await import("@/lib/api/client");
   try {
     const { report } = await api.checkFile(file, file.name);
     const text = report.readText.trim();
-    if (!text) return { status: "failed", message: PICTURE_ONLY };
+    if (!text) return { status: "failed", message: t.upload.pictureOnly };
     return { status: "read", file, text, words: report.wordCount };
   } catch (error) {
-    return { status: "failed", message: isApiError(error) ? error.message : GENERIC };
+    return { status: "failed", message: isApiError(error) ? error.message : t.upload.failed };
   }
 }
 
@@ -37,10 +38,20 @@ export type ResumeUploadProps = {
   invalid: boolean;
   onFile: (file: File) => void;
   onReject: (message: string) => void;
+  t?: MatchCheckMessages;
+  format?: Format;
 };
 
-export function ResumeUpload({ state, invalid, onFile, onReject }: ResumeUploadProps) {
+export function ResumeUpload({
+  state,
+  invalid,
+  onFile,
+  onReject,
+  t = matchCheckEn,
+  format = formatFor("en"),
+}: ResumeUploadProps) {
   const reading = state.status === "reading";
+  const words = t.upload;
   return (
     <div className="flex flex-col gap-3">
       <Dropzone
@@ -49,28 +60,28 @@ export function ResumeUpload({ state, invalid, onFile, onReject }: ResumeUploadP
         accept={UPLOAD_ACCEPT}
         maxBytes={UPLOAD_LIMITS.maxBytes}
         disabled={reading}
-        label="Upload your resume, a PDF or Word file"
+        label={words.label}
         className={invalid ? "min-h-40 border-fail sm:min-h-72" : "min-h-40 sm:min-h-72"}
       >
         {state.status === "reading" ? (
           <p className="flex items-center gap-2 text-sm text-ink" role="status">
             <Spinner />
-            Reading {state.file.name}…
+            {fmt(words.reading, { name: state.file.name })}
           </p>
         ) : state.status === "read" ? (
           <>
             <CircleCheck className="size-6 text-pass" aria-hidden />
             <p className="font-medium break-all text-ink">{state.file.name}</p>
             <p className="text-sm text-muted">
-              Read {count.format(state.words)} words. Choose another file to swap it.
+              {fmt(words.read, { words: format.number(state.words) })}
             </p>
           </>
         ) : (
           <>
             <FileUp className="size-6 text-ink" aria-hidden />
-            <p className="font-medium text-ink">Drop your resume here, or choose a file</p>
+            <p className="font-medium text-ink">{words.drop}</p>
             <p className="text-sm text-muted">
-              PDF or Word (.docx), up to {formatBytes(UPLOAD_LIMITS.maxBytes)}
+              {fmt(words.formats, { size: formatBytes(UPLOAD_LIMITS.maxBytes) })}
             </p>
           </>
         )}
@@ -82,7 +93,7 @@ export function ResumeUpload({ state, invalid, onFile, onReject }: ResumeUploadP
       ) : null}
       <p className="flex items-start gap-2 text-sm text-muted">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-pass" aria-hidden />
-        Your file is read on our server for its text, then thrown away. We don&apos;t store it.
+        {words.kept}
       </p>
     </div>
   );

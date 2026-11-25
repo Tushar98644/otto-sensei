@@ -1,43 +1,59 @@
 import type { Metadata } from "next";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
-import { pageMetadata } from "@/components/site/page-metadata";
-import { PLANS } from "@/config/plans";
-import { planPrice } from "@/lib/billing/prices";
-import { PORTFOLIO_PAGE, RELATED } from "@/lib/seo-pages/pages";
+import { fmt } from "@/i18n/format";
+import { getLocalize, localizedMetadata, requirePublished } from "@/i18n/publish";
+import { getFormat, getLocale, getMessages } from "@/i18n/server";
+import { PORTFOLIO_PAGE } from "@/lib/seo-pages/pages";
 import { displayItalic } from "../_components/display-italic";
-import { FeaturePage, withTrial } from "../_components/feature-page";
-import { PORTFOLIO } from "./content";
+import { FeaturePage } from "../_components/feature-page";
+import { priceCopy } from "../_components/price-copy";
+import {
+  PLAN_NAMES,
+  productMeta,
+  publishedRelated,
+  relatedLinks,
+  withTrial,
+} from "../_components/product-copy";
+import { portfolioContent } from "./content";
 
-export const metadata: Metadata = pageMetadata(PORTFOLIO_PAGE);
+const PATH = PORTFOLIO_PAGE.path;
 
-export default function PortfolioWebsiteBuilderPage() {
-  const { pro } = PLANS;
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = productMeta(await getMessages("product"), await getFormat(), "portfolio");
+  return localizedMetadata({ ...meta, path: PATH });
+}
+
+export default async function PortfolioWebsiteBuilderPage() {
+  await requirePublished(PATH);
+  const t = await getMessages("product");
+  const format = await getFormat();
+  const href = await getLocalize();
+  const prices = priceCopy(await getMessages("pricing"), format);
+  const page = t.portfolio;
+  const related = await publishedRelated(["coverLetters", "tracker", "interviewPrep", "examples"]);
   return (
     <FeaturePage
-      path={PORTFOLIO_PAGE.path}
-      crumb="Portfolio website builder"
-      eyebrow={`Portfolio · ${pro.name}`}
+      language={await getLocale()}
+      t={t.common}
+      href={href}
+      path={PATH}
+      crumb={page.crumb}
+      eyebrow={fmt(page.eyebrow, { pro: PLAN_NAMES.pro })}
       title={
         <>
-          From resume to portfolio website,{" "}
-          <em className={displayItalic.className}>hosted at your own link.</em>
+          {page.title} <em className={displayItalic.className}>{page.titleEm}</em>
         </>
       }
-      content={PORTFOLIO}
-      action={{ href: PORTFOLIO_ROUTE, label: "Make my portfolio" }}
+      content={portfolioContent(page, format, prices)}
+      action={{ href: PORTFOLIO_ROUTE, label: page.action }}
       planNote={withTrial(
-        `Comes with ${pro.name}, ${planPrice("pro", "month")} a month with hosting included.`,
+        t.common,
+        prices,
+        fmt(page.planNote, { pro: PLAN_NAMES.pro, price: prices.planPrice("pro", "month") }),
       )}
-      check={{
-        title: "Start from a resume that reads well",
-        text: "Your portfolio is built from your resume, so check it first: see what hiring software reads from your file, or match it to a job. Both are free.",
-      }}
-      closing={{
-        title: "Your resume, as a site of its own.",
-        pose: "wave",
-        art: "Otto the otter, waving",
-      }}
-      related={[RELATED.coverLetters, RELATED.tracker, RELATED.interviewPrep, RELATED.examples]}
+      check={page.check}
+      closing={{ ...page.closing, pose: "wave" }}
+      related={relatedLinks(t.related, format, href, related)}
     />
   );
 }

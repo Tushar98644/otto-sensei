@@ -35,14 +35,14 @@ afterEach(() => {
 describe("credit copy on the public pages", () => {
   it("says nothing about credit while it isn't on sale", async () => {
     creditOn(false);
-    const terms = text(renderToStaticMarkup(<TermsPage />));
+    const terms = text(renderToStaticMarkup(await TermsPage()));
     const pricing = text(renderToStaticMarkup(await PricingPage()));
     for (const body of [terms, pricing]) expect(body).not.toMatch(/prepaid credit|add credit/i);
   });
 
   it("spells out credit in the terms, the pricing line and the FAQ once it is", async () => {
     creditOn(true);
-    const terms = text(renderToStaticMarkup(<TermsPage />));
+    const terms = text(renderToStaticMarkup(await TermsPage()));
     expect(terms).toContain(
       "A paid Pro or Max plan past any trial can add prepaid credit, from $5 to $100 at a time in whole dollars, plus any taxes.",
     );

@@ -1,15 +1,22 @@
 import { ROUTES } from "@/components/site/routes";
-import { applicationLimit, FEATURE_LABELS, PLANS, PRO_TRIAL, resumeLimit } from "@/config/plans";
+import { applicationLimit, PLANS, PRO_TRIAL, resumeLimit } from "@/config/plans";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import { trialOffered } from "@/lib/billing/intervals";
-import { planPrice, trialPrice } from "@/lib/billing/prices";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { displayItalic } from "./display-italic";
+import type { HomeProps } from "./home-copy";
+import type { PriceCopy } from "./price-copy";
 import { Section, SectionHeader, SectionLink } from "./section";
 
-const count = new Intl.NumberFormat("en-US");
+const plan = (chunk: string) => <strong className="font-medium text-ink">{chunk}</strong>;
 
-export function PricingTeaser() {
+export function PricingTeaser({ t, format, href, prices }: HomeProps & { prices: PriceCopy }) {
+  const words = t.pricingTeaser;
   const { free, pro } = PLANS;
+  const close = trialOffered()
+    ? fmt(words.trial, { days: format.number(PRO_TRIAL.days), price: prices.trialPrice() })
+    : prices.cancelAnytime;
   return (
     <Section
       labelledBy="pricing-teaser-title"
@@ -17,30 +24,40 @@ export function PricingTeaser() {
     >
       <SectionHeader
         id="pricing-teaser-title"
-        eyebrow="Pricing"
+        eyebrow={words.eyebrow}
         title={
           <>
-            Free for the basics.{" "}
-            <em className={cn("block", displayItalic.className)}>More when the hunt gets busy.</em>
+            {words.title} <em className={cn("block", displayItalic.className)}>{words.titleEm}</em>
           </>
         }
       />
       <ul role="list" className="mt-8 flex max-w-prose flex-col gap-3 text-lg/7 text-muted">
         <li>
-          <strong className="font-medium text-ink">{free.name}:</strong> check, fix and download{" "}
-          {pluralize(resumeLimit("free"), "resume")} as a PDF, with {free.limits.fix}{" "}
-          {FEATURE_LABELS.fix} a month from Otto.
+          {rich(
+            words.free,
+            { b: plan },
+            {
+              plan: free.name,
+              resumes: format.plural(words.resumes, resumeLimit("free")),
+              fixes: format.number(free.limits.fix),
+            },
+          )}
         </li>
         <li>
-          <strong className="font-medium text-ink">
-            {pro.name}, {planPrice("pro", "month")} a month:
-          </strong>{" "}
-          tailoring, cover letters, every job match, up to {count.format(resumeLimit("pro"))}{" "}
-          resumes and {count.format(applicationLimit("pro"))} tracked applications.{" "}
-          {trialOffered() ? `Try ${PRO_TRIAL.days} days for ${trialPrice()}.` : "Cancel anytime."}
+          {rich(
+            words.pro,
+            { b: plan },
+            {
+              plan: pro.name,
+              price: prices.planPrice("pro", "month"),
+              resumes: format.plural(words.resumes, resumeLimit("pro")),
+              applications: format.plural(words.trackedApplications, applicationLimit("pro")),
+              close,
+            },
+          )}
         </li>
       </ul>
-      <SectionLink href={ROUTES.pricing}>See pricing</SectionLink>
+      <SectionLink href={href(ROUTES.pricing)}>{words.link}</SectionLink>
     </Section>
   );
 }

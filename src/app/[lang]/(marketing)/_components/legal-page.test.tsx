@@ -2,8 +2,13 @@ import { readFileSync } from "node:fs";
 import Link from "next/link";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { formatFor } from "@/i18n/intl";
+import { englishMessages } from "@/i18n/messages";
 import { pickReading } from "./legal-contents";
-import { headingId, LegalPage, SHORT_VERSION, withHeadingIds } from "./legal-page";
+import { headingId, LegalPage, SHORT_VERSION_ID, withHeadingIds } from "./legal-page";
+
+const t = englishMessages().legal.page;
+const english = { t, format: formatFor("en"), path: "/terms" };
 
 const h2Ids = (html: string) => [...html.matchAll(/<h2 id="([^"]+)"/g)].map((match) => match[1]);
 const anchors = (html: string) => [...html.matchAll(/href="#([^"]+)"/g)].map((match) => match[1]);
@@ -28,6 +33,11 @@ describe("withHeadingIds", () => {
     ]).map((section) => section.id);
     expect(ids).toEqual(["contact", "contact-2", "short-version-2", "main-2", "section"]);
   });
+
+  it("takes the id from the English title when one is given", () => {
+    const ids = withHeadingIds([{ title: "Quiénes somos", anchor: "Who we are" }, { title: "Ñ" }]);
+    expect(ids.map((section) => section.id)).toEqual(["who-we-are", "section"]);
+  });
 });
 
 describe("LegalPage", () => {
@@ -37,18 +47,21 @@ describe("LegalPage", () => {
   ];
 
   it("gives each section a heading id and links to all of them from the contents", () => {
-    const html = renderToStaticMarkup(<LegalPage title="Terms" sections={sections} />);
+    const html = renderToStaticMarkup(<LegalPage {...english} title="Terms" sections={sections} />);
     expect(h2Ids(html)).toEqual(["who-we-are", "dont-misuse-it"]);
     // One list for wide screens and one folded under the title on phones.
     expect(anchors(html)).toEqual(["who-we-are", "dont-misuse-it", "who-we-are", "dont-misuse-it"]);
     expect(html.match(/<nav aria-label="Contents"/g)).toHaveLength(2);
     expect(html).toContain("<details");
-    expect(html).not.toContain(SHORT_VERSION.id);
+    expect(html).not.toContain(SHORT_VERSION_ID);
+    expect(html).toContain("Last updated:");
+    expect(html).not.toContain("translation");
   });
 
   it("puts the short version first, under the intro, with its action", () => {
     const html = renderToStaticMarkup(
       <LegalPage
+        {...english}
         title="Refunds"
         intro={<p>Intro line.</p>}
         summary={["First fact.", "Second fact."]}
@@ -56,8 +69,8 @@ describe("LegalPage", () => {
         sections={sections}
       />,
     );
-    expect(h2Ids(html)).toEqual([SHORT_VERSION.id, "who-we-are", "dont-misuse-it"]);
-    expect(anchors(html).slice(0, 3)).toEqual([SHORT_VERSION.id, "who-we-are", "dont-misuse-it"]);
+    expect(h2Ids(html)).toEqual([SHORT_VERSION_ID, "who-we-are", "dont-misuse-it"]);
+    expect(anchors(html).slice(0, 3)).toEqual([SHORT_VERSION_ID, "who-we-are", "dont-misuse-it"]);
     const intro = html.indexOf("Intro line.");
     const summary = html.indexOf("First fact.");
     const action = html.indexOf("Manage billing");
@@ -66,6 +79,23 @@ describe("LegalPage", () => {
     expect(intro).toBeLessThan(summary);
     expect(summary).toBeLessThan(action);
     expect(action).toBeLessThan(firstSection);
+  });
+
+  it("says on a translation that the English version applies, linking to it", () => {
+    const html = renderToStaticMarkup(
+      <LegalPage
+        {...english}
+        format={formatFor("es")}
+        updated="2026-11-23"
+        title="Términos"
+        sections={sections}
+      />,
+    );
+    expect(html).toContain("If it differs from the");
+    const link = /<a ([^>]*)>English version<\/a>/.exec(html)?.[1];
+    expect(link).toContain('href="/terms"');
+    expect(link).toMatch(/hreflang="en"/i);
+    expect(html).toContain("23 de noviembre de 2026");
   });
 });
 

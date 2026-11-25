@@ -1,36 +1,51 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ACCOUNT_OTTO } from "@/components/account/copy";
-import { loginHeading, type LoginVariant } from "@/components/account/login-heading";
+import type { LoginVariant } from "@/components/account/login-heading";
 import { SignInFormSkeleton } from "@/components/account/sign-in-form-skeleton";
 import { OttoNote } from "@/components/mascot/otto-note";
-import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
+import type { Messages } from "@/i18n/messages";
+import { localizedMetadata } from "@/i18n/publish";
+import { rich } from "@/i18n/rich";
+import { getMessages } from "@/i18n/server";
 import { trialOffered } from "@/lib/billing/intervals";
 import { LoginForm } from "./login-form";
 
-export const loginMetadata = pageMetadata({
-  title: "Sign in",
-  description:
-    "Sign in with Google or your email. No password needed: we can send you a 6-digit code.",
-  path: ROUTES.login,
-  noindex: true,
-});
+export type LoginMessages = Messages["login"];
 
-export function LoginScreen({ variant }: { variant: LoginVariant | null }) {
+export async function loginMetadata(): Promise<Metadata> {
+  const { meta } = await getMessages("login");
+  return localizedMetadata({
+    title: meta.title,
+    description: meta.description,
+    path: ROUTES.login,
+    noindex: true,
+  });
+}
+
+// loginHeading() in this language; `trial`: the Pro trial is on offer.
+export function loginTitle(
+  t: LoginMessages["heading"],
+  variant: LoginVariant | null,
+  trial: boolean,
+): string {
+  if (variant === "trial") return trial ? t.trial : t.upgrade;
+  return variant ? t[variant] : t.signIn;
+}
+
+export function LoginScreen({ t, variant }: { t: LoginMessages; variant: LoginVariant | null }) {
+  const studio = (chunk: string) => <TextLink href={ROUTES.studio}>{chunk}</TextLink>;
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-8 px-4 py-16 sm:py-24">
       <h1 className="font-display text-4xl/10 font-normal tracking-tight text-balance text-ink sm:text-5xl/13">
-        {loginHeading(variant, trialOffered())}
+        {loginTitle(t.heading, variant, trialOffered())}
       </h1>
-      <OttoNote live={false} message={ACCOUNT_OTTO.login} />
+      <OttoNote live={false} message={t.otto} />
       <Suspense fallback={<SignInFormSkeleton />}>
-        <LoginForm />
+        <LoginForm googleFailed={t.googleFailed} signingIn={t.signingIn} />
       </Suspense>
-      <p className="text-sm text-balance text-muted">
-        Only checking a resume? <TextLink href={ROUTES.studio}>Open the studio</TextLink>. No
-        account needed.
-      </p>
+      <p className="text-sm text-balance text-muted">{rich(t.studio, { link: studio })}</p>
     </div>
   );
 }

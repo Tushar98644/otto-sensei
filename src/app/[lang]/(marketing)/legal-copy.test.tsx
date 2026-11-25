@@ -6,7 +6,7 @@ import { MERCHANT } from "./_components/merchant";
 import AcceptableUsePage from "./acceptable-use/page";
 import PricingPage from "./pricing/page";
 import PrivacyPage from "./privacy/page";
-import RefundsPage, { metadata as refundsMetadata } from "./refunds/page";
+import RefundsPage, { generateMetadata as refundsMetadataOf } from "./refunds/page";
 import TermsPage from "./terms/page";
 
 vi.mock("next/font/google", () => {
@@ -39,10 +39,11 @@ const text = (html: string) =>
 const hrefs = (html: string) =>
   [...html.matchAll(/href="([^"]+)"/g)].map((match) => decode(match[1]!));
 
-const terms = renderToStaticMarkup(<TermsPage />);
-const refunds = renderToStaticMarkup(<RefundsPage />);
-const privacy = renderToStaticMarkup(<PrivacyPage />);
-const acceptableUse = renderToStaticMarkup(<AcceptableUsePage />);
+const terms = renderToStaticMarkup(await TermsPage());
+const refunds = renderToStaticMarkup(await RefundsPage());
+const privacy = renderToStaticMarkup(await PrivacyPage());
+const acceptableUse = renderToStaticMarkup(await AcceptableUsePage());
+const refundsMetadata = await refundsMetadataOf();
 const pricingHtml = async () => renderToStaticMarkup(await PricingPage());
 
 const trialFee = `$${PRO_TRIAL.priceUsd}`;

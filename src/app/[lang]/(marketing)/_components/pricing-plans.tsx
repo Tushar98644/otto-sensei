@@ -2,7 +2,6 @@
 
 import { useId, useState, type ReactNode } from "react";
 import { useMe } from "@/components/account/use-me";
-import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
 import {
   isPaidPlan,
@@ -14,25 +13,28 @@ import {
   type PaidPlanId,
   type PlanId,
 } from "@/config/plans";
-import { INTERVAL_NAMES, yearlySavingsPercent } from "@/lib/billing/prices";
+import type { Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
+import { formatFor, type Format } from "@/i18n/intl";
+import { rich } from "@/i18n/rich";
+import { yearlySavingsPercent } from "@/lib/billing/prices";
 import type { JobCounts } from "@/lib/job-feed/counts";
 import { cn } from "@/lib/utils";
 import { PlanCard, plansPanelClasses, type PlanPrice } from "./plan-card";
-import { planCards, type PlanViewer } from "./plan-ctas";
-import { formatUsd, plansOnSale } from "./plan-features";
+import { planCards, type PlanMessages, type PlanViewer } from "./plan-ctas";
+import { planCopy, plansOnSale } from "./plan-features";
+import { usd } from "./price-copy";
 
 export type PricingPlansProps = {
+  t: PlanMessages;
+  locale: Locale;
+  termsHref: string;
   offer: Record<PaidPlanId, readonly BillingInterval[]>;
   trial?: boolean;
   headingAs?: "h2" | "h3";
   otto?: ReactNode;
   jobCounts?: JobCounts;
   className?: string;
-};
-
-const PERIOD: Record<BillingInterval, { short: string; spoken: string }> = {
-  month: { short: "/month", spoken: "per month" },
-  year: { short: "/year", spoken: "per year" },
 };
 
 // Phones stack the lead card first, so desktop puts each card back in plan order.
@@ -56,21 +58,38 @@ export function usePlanViewer(): { viewer: PlanViewer | null; trial: boolean | n
   };
 }
 
-function priceOf(plan: PlanId, interval: BillingInterval): PlanPrice {
-  if (!isPaidPlan(plan)) return { amount: formatUsd(0), ...periodOf("month") };
-  const price: PlanPrice = { amount: formatUsd(PRICES_USD[plan][interval]), ...periodOf(interval) };
+function priceOf(
+  t: PlanMessages,
+  format: Format,
+  plan: PlanId,
+  interval: BillingInterval,
+): PlanPrice {
+  const period = (of: BillingInterval) => ({
+    period: t.plans.period[of].short,
+    spoken: t.plans.period[of].spoken,
+  });
+  if (!isPaidPlan(plan)) return { amount: usd(format, 0), ...period("month") };
+  const price: PlanPrice = {
+    amount: usd(format, PRICES_USD[plan][interval]),
+    ...period(interval),
+  };
   if (interval === "month" && SHOW_REFERENCE_PRICES) {
-    price.reference = formatUsd(REFERENCE_MONTHLY_USD[plan]);
-    price.badge = `${referenceDiscountPercent(plan)}% off`;
+    price.reference = usd(format, REFERENCE_MONTHLY_USD[plan]);
+    price.badge = fmt(t.plans.discount, {
+      percent: format.number(referenceDiscountPercent(plan)),
+    });
   }
   if (interval === "year") {
     const savings = yearlySavingsPercent(plan);
-    if (savings > 0) price.badge = `Save ${savings}% vs monthly`;
+    if (savings > 0) price.badge = fmt(t.plans.yearlySavings, { percent: format.number(savings) });
   }
   return price;
 }
 
 export function PricingPlans({
+  t,
+  locale,
+  termsHref,
   offer,
   trial: trialOnSale = false,
   headingAs,
@@ -79,10 +98,13 @@ export function PricingPlans({
   className,
 }: PricingPlansProps) {
   const name = useId();
+  const format = formatFor(locale);
   const { viewer, trial } = usePlanViewer();
   const [picked, setPicked] = useState<BillingInterval>("month");
   const plans = plansOnSale(offer);
   const { cards, intervals, first } = planCards({
+    t,
+    format,
     plans,
     offer,
     picked,
@@ -107,7 +129,7 @@ export function PricingPlans({
           ) : null}
           {intervals.length > 1 ? (
             <fieldset className="self-center">
-              <legend className="sr-only">How often to pay</legend>
+              <legend className="sr-only">{t.plans.howOften}</legend>
               <div className="flex gap-1 rounded-xl bg-surface-muted p-1">
                 {intervals.map((interval) => (
                   <label key={interval} className="relative">
@@ -120,7 +142,7 @@ export function PricingPlans({
                       className="peer sr-only"
                     />
                     <span className="flex h-11 cursor-pointer items-center justify-center rounded-lg px-4 text-sm font-medium text-muted transition-colors peer-checked:bg-surface peer-checked:text-ink peer-checked:shadow-control peer-checked:ring-1 peer-checked:ring-ink/5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink hover:text-ink">
-                      {INTERVAL_NAMES[interval]}
+                      {t.prices.intervalNames[interval]}
                     </span>
                   </label>
                 ))}
@@ -134,25 +156,23 @@ export function PricingPlans({
           <PlanCard
             key={card.plan}
             planId={card.plan}
+            copy={planCopy(t, format, card.plan, "month", jobCounts)}
+            labels={t.plans}
             headingAs={headingAs}
             badge={card.badge}
-            price={priceOf(card.plan, card.interval)}
+            price={priceOf(t, format, card.plan, card.interval)}
             cta={card.cta}
             manage={card.manage}
             notes={card.notes}
-            jobCounts={jobCounts}
             className={first ? DESKTOP_ORDER[card.plan] : undefined}
           />
         ))}
       </div>
       <p className="text-center text-sm text-muted">
-        Fair limits on every AI feature, all listed in the{" "}
-        <TextLink href={ROUTES.terms}>terms</TextLink>.
+        {rich(t.plans.fairLimits, {
+          link: (chunk) => <TextLink href={termsHref}>{chunk}</TextLink>,
+        })}
       </p>
     </div>
   );
-}
-
-function periodOf(interval: BillingInterval): { period: string; spoken: string } {
-  return { period: PERIOD[interval].short, spoken: PERIOD[interval].spoken };
 }

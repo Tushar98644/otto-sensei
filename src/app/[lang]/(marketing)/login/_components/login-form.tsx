@@ -10,13 +10,17 @@ import { OttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 
 const ALREADY_SIGNED_IN_PATH = DEFAULT_NEXT_PATH;
 
-const GOOGLE_FAILED = "Google sign-in didn't finish. Try again, or use your email.";
-
-export function LoginForm() {
+export function LoginForm({
+  googleFailed,
+  signingIn,
+}: {
+  googleFailed: string;
+  signingIn: string;
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const requestedNext = params.get("next");
-  const googleFailed = params.get("error") === "google";
+  const failed = params.get("error") === "google";
   const { user, loading } = useMe();
   // Both the store update and onSignedIn announce the same sign-in; navigate once.
   const leaving = useRef(false);
@@ -42,13 +46,13 @@ export function LoginForm() {
 
   if (loading) return <SignInFormSkeleton />;
 
-  if (user) return <OttoLoadingScreen detail="Signing you in" />;
+  if (user) return <OttoLoadingScreen detail={signingIn} />;
 
   return (
     <SignInForm
       autoFocus
       next={safeNextPath(requestedNext, DEFAULT_NEXT_PATH)}
-      initialError={googleFailed ? GOOGLE_FAILED : undefined}
+      initialError={failed ? googleFailed : undefined}
       onSignedIn={() => leave(DEFAULT_NEXT_PATH)}
     />
   );

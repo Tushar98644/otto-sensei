@@ -1,43 +1,64 @@
 import type { Metadata } from "next";
-import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { PLANS } from "@/config/plans";
-import { planPrice } from "@/lib/billing/prices";
-import { COVER_LETTER_PAGE, RELATED } from "@/lib/seo-pages/pages";
+import { fmt } from "@/i18n/format";
+import { getLocalize, localizedMetadata, requirePublished } from "@/i18n/publish";
+import { getFormat, getLocale, getMessages } from "@/i18n/server";
+import { COVER_LETTER_PAGE } from "@/lib/seo-pages/pages";
 import { displayItalic } from "../_components/display-italic";
-import { FeaturePage, withTrial } from "../_components/feature-page";
-import { LETTERS } from "./content";
+import { FeaturePage } from "../_components/feature-page";
+import { priceCopy } from "../_components/price-copy";
+import {
+  PLAN_NAMES,
+  productMeta,
+  publishedRelated,
+  relatedLinks,
+  withTrial,
+} from "../_components/product-copy";
+import { letterContent } from "./content";
 
-export const metadata: Metadata = pageMetadata(COVER_LETTER_PAGE);
+const PATH = COVER_LETTER_PAGE.path;
 
-export default function CoverLetterGeneratorPage() {
-  const { pro } = PLANS;
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = productMeta(await getMessages("product"), await getFormat(), "coverLetters");
+  return localizedMetadata({ ...meta, path: PATH });
+}
+
+export default async function CoverLetterGeneratorPage() {
+  await requirePublished(PATH);
+  const t = await getMessages("product");
+  const format = await getFormat();
+  const href = await getLocalize();
+  const prices = priceCopy(await getMessages("pricing"), format);
+  const page = t.coverLetters;
+  const related = await publishedRelated(["tracker", "interviewPrep", "portfolio", "examples"]);
   return (
     <FeaturePage
-      path={COVER_LETTER_PAGE.path}
-      crumb="Cover letter generator"
-      eyebrow={`Cover letters · ${pro.name}`}
+      language={await getLocale()}
+      t={t.common}
+      href={href}
+      path={PATH}
+      crumb={page.crumb}
+      eyebrow={fmt(page.eyebrow, { pro: PLAN_NAMES.pro })}
       title={
         <>
-          An AI cover letter generator{" "}
-          <em className={displayItalic.className}>that sticks to your facts.</em>
+          {page.title} <em className={displayItalic.className}>{page.titleEm}</em>
         </>
       }
-      content={LETTERS}
-      action={{ href: ROUTES.dashboardLetters, label: "Write a cover letter" }}
+      content={letterContent(page, format, href, prices)}
+      action={{ href: ROUTES.dashboardLetters, label: page.action }}
       planNote={withTrial(
-        `Comes with ${pro.name}, ${planPrice("pro", "month")} a month for ${pro.limits.letter} letters, messages, answers and interview preps.`,
+        t.common,
+        prices,
+        fmt(page.planNote, {
+          pro: PLAN_NAMES.pro,
+          price: prices.planPrice("pro", "month"),
+          letters: format.number(PLANS.pro.limits.letter),
+        }),
       )}
-      check={{
-        title: "Check the match before you write",
-        text: "A letter lands better when your resume already shows what the post asks for. The job match check and the recruiter view are free, with no card.",
-      }}
-      closing={{
-        title: "A letter for every job, from your own resume.",
-        pose: "point",
-        art: "Otto the otter, pointing at a letter",
-      }}
-      related={[RELATED.tracker, RELATED.interviewPrep, RELATED.portfolio, RELATED.examples]}
+      check={page.check}
+      closing={{ ...page.closing, pose: "point" }}
+      related={relatedLinks(t.related, format, href, related)}
     />
   );
 }

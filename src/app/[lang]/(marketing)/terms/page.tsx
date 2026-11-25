@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import {
   AI_TOKEN_BUDGETS,
   applicationLimit,
-  FEATURE_LABELS,
   FEATURES,
   FREE_JOB_MATCHES,
   PLAN_ORDER,
@@ -17,63 +15,87 @@ import {
 } from "@/config/plans";
 import { TOPUP_LIMITS } from "@/config/topup";
 import { creditOffered } from "@/lib/billing/intervals";
-import { tokensInWords } from "@/lib/ai-budget-copy";
-import { pluralize } from "@/lib/utils";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import { englishMessages } from "@/i18n/messages";
+import type { Localize } from "@/i18n/pages";
+import { getLocalize, localizedMetadata, requirePublished } from "@/i18n/publish";
+import { rich } from "@/i18n/rich";
+import { getFormat, getMessages } from "@/i18n/server";
 import { TRANSCRIBE_LIMITS } from "@/app/api/transcribe/limits";
-import { LegalPage, type LegalSection } from "../_components/legal-page";
+import {
+  Bullets,
+  LegalPage,
+  richList,
+  type LegalMessages,
+  type LegalSection,
+} from "../_components/legal-page";
 import { MERCHANT } from "../_components/merchant";
-import { formatUsd } from "../_components/plan-features";
+import { usd } from "../_components/price-copy";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Terms of service: plans, limits and cancelling",
-  description: `The rules for using ${BRAND.name}, in plain English: your content stays yours, what each plan includes and costs, its monthly limits and how to cancel.`,
-  path: ROUTES.terms,
-});
+const PATH = ROUTES.terms;
 
-const count = new Intl.NumberFormat("en-US");
-
-function sentenceCase(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = (await getMessages("legal")).terms;
+  return localizedMetadata({
+    title: meta.title,
+    description: fmt(meta.description, { brand: BRAND.name }),
+    path: PATH,
+  });
 }
 
-function Limit({ value }: { value: number }) {
-  if (value > 0) return count.format(value);
+const MAILTO = `mailto:${BRAND.supportEmail}`;
+
+type TermsMessages = LegalMessages["terms"];
+
+const LONG_COMPACT: Intl.NumberFormatOptions = {
+  notation: "compact",
+  compactDisplay: "long",
+  maximumFractionDigits: 1,
+};
+
+function tokensInWords(t: TermsMessages, format: Format, tokens: number): string {
+  return tokens === 500_000 ? t.plans.atLimit.halfMillion : format.number(tokens, LONG_COMPACT);
+}
+
+function Limit({ value, t, format }: { value: number; t: TermsMessages; format: Format }) {
+  if (value > 0) return format.number(value);
   return (
     <>
       <span aria-hidden>–</span>
-      <span className="sr-only">None</span>
+      <span className="sr-only">{t.plans.table.none}</span>
     </>
   );
 }
 
-function LimitsTable() {
+function LimitsTable({ t, format }: { t: TermsMessages; format: Format }) {
+  const table = t.plans.table;
   return (
     <table>
       <thead>
         <tr>
-          <th scope="col">Each month</th>
+          <th scope="col">{table.eachMonth}</th>
           {PLAN_ORDER.map((plan) => (
             <th key={plan} scope="col">
               {PLANS[plan].name}
             </th>
           ))}
-          {/* No-break spaces: on phones the header may break only after the comma. */}
           <th scope="col" className="sm:whitespace-nowrap">
-            {"Pro\u00a0trial, in\u00a0total"}
+            {table.trial}
           </th>
         </tr>
       </thead>
       <tbody>
         {FEATURES.map((feature) => (
           <tr key={feature}>
-            <th scope="row">{sentenceCase(FEATURE_LABELS[feature])}</th>
+            <th scope="row">{table.features[feature]}</th>
             {PLAN_ORDER.map((plan) => (
               <td key={plan}>
-                <Limit value={PLANS[plan].limits[feature]} />
+                <Limit value={PLANS[plan].limits[feature]} t={t} format={format} />
               </td>
             ))}
             <td>
-              <Limit value={PRO_TRIAL.limits[feature]} />
+              <Limit value={PRO_TRIAL.limits[feature]} t={t} format={format} />
             </td>
           </tr>
         ))}
@@ -82,314 +104,226 @@ function LimitsTable() {
   );
 }
 
-const SUMMARY = [
-  "Your resumes and anything you write or upload stay yours.",
-  "Otto's checks and suggestions are guidance, not a guarantee of an interview or a job.",
-  `Pro costs ${formatUsd(PRICES_USD.pro.month)} a month or ${formatUsd(PRICES_USD.pro.year)} a year. New accounts can try it for ${PRO_TRIAL.days} days for ${formatUsd(PRO_TRIAL.priceUsd)}, once per person.`,
-  "Cancel anytime from your account page, and you keep your plan until the end of the period you paid for.",
-  "If a paid plan ends, nothing you made is deleted.",
-];
+type TermsProps = { t: LegalMessages; format: Format; href: Localize };
 
-const MAILTO = `mailto:${BRAND.supportEmail}`;
-
-// Only while credit is on sale, like the pricing page's line about it.
-function CreditTerms() {
-  if (!creditOffered()) return null;
-  return (
-    <li>
-      A paid {PLANS.pro.name} or {PLANS.max.name} plan past any trial can add prepaid credit, from $
-      {TOPUP_LIMITS.minUsd} to ${TOPUP_LIMITS.maxUsd} at a time in whole dollars, plus any taxes. It
-      pays for AI help only once a month&apos;s allowance for that help, or the AI budget, runs out,
-      at the prices shown at the time it&apos;s used. Credit is prepaid and isn&apos;t refundable
-      once used. It doesn&apos;t expire while your account exists, can be used only while
-      you&apos;re on a paid plan, and is removed when your account is deleted.
-    </li>
-  );
+function termsSections({ t, format, href }: TermsProps): LegalSection[] {
+  const en = englishMessages().legal.terms;
+  const terms = t.terms;
+  const { plans, payments } = terms;
+  const count = (value: number) => format.number(value);
+  const trialPrice = usd(format, PRO_TRIAL.priceUsd);
+  const values = {
+    brand: BRAND.name,
+    email: BRAND.supportEmail,
+    merchant: MERCHANT.name,
+    pro: PLANS.pro.name,
+    max: PLANS.max.name,
+  };
+  const mail = { link: (chunk: string) => <a href={MAILTO}>{chunk}</a> };
+  const pageLink = (path: string) => ({
+    link: (chunk: string) => <Link href={href(path)}>{chunk}</Link>,
+  });
+  const buyerTerms = (chunk: string) => <a href={MERCHANT.buyerTermsUrl}>{chunk}</a>;
+  const includes = {
+    ...values,
+    fixes: count(PLANS.free.limits.fix),
+    resumes: format.plural(plans.resumes, resumeLimit("free")),
+    matches: count(FREE_JOB_MATCHES),
+    applications: format.plural(plans.trackedApplications, applicationLimit("free")),
+    proResumes: count(resumeLimit("pro")),
+    proApplications: count(applicationLimit("pro")),
+    maxResumes: count(resumeLimit("max")),
+    maxApplications: count(applicationLimit("max")),
+  };
+  return [
+    {
+      title: terms.who.title,
+      anchor: en.who.title,
+      body: <p>{rich(terms.who.body, mail, values)}</p>,
+    },
+    {
+      title: terms.service.title,
+      anchor: en.service.title,
+      body: (
+        <>
+          <p>{fmt(terms.service.asIs, values)}</p>
+          <p>{terms.service.guidance}</p>
+        </>
+      ),
+    },
+    {
+      title: terms.account.title,
+      anchor: en.account.title,
+      body: <p>{fmt(terms.account.body, values)}</p>,
+    },
+    {
+      title: terms.content.title,
+      anchor: en.content.title,
+      body: (
+        <>
+          <p>{rich(terms.content.yours, pageLink(ROUTES.privacy))}</p>
+          <p>{terms.content.rights}</p>
+        </>
+      ),
+    },
+    {
+      title: terms.misuse.title,
+      anchor: en.misuse.title,
+      body: (
+        <>
+          <Bullets items={richList(en.misuse.items, terms.misuse.items)} />
+          <p>{terms.misuse.outro}</p>
+        </>
+      ),
+    },
+    {
+      title: terms.ai.title,
+      anchor: en.ai.title,
+      body: (
+        <>
+          <p>{terms.ai.intro}</p>
+          <Bullets items={richList(en.ai.items, terms.ai.items)} />
+          <p>{rich(terms.ai.outro, pageLink(ROUTES.acceptableUse))}</p>
+        </>
+      ),
+    },
+    {
+      title: plans.title,
+      anchor: en.plans.title,
+      body: (
+        <>
+          <h3>{plans.includes.title}</h3>
+          <ul>
+            <li>{rich(plans.includes.free, {}, includes)}</li>
+            <li>{rich(plans.includes.paid, {}, includes)}</li>
+            <li>{rich(plans.includes.ends)}</li>
+          </ul>
+          <h3>{plans.resets.title}</h3>
+          <p>{plans.resets.intro}</p>
+          <Bullets items={richList(en.plans.resets.items, plans.resets.items)} />
+          <p>{plans.resets.next}</p>
+          <LimitsTable t={terms} format={format} />
+          <h3>{plans.atLimit.title}</h3>
+          <p>{plans.atLimit.pauses}</p>
+          <p>
+            {fmt(plans.atLimit.budget, {
+              ...values,
+              proTokens: tokensInWords(terms, format, AI_TOKEN_BUDGETS.pro),
+              maxTokens: tokensInWords(terms, format, AI_TOKEN_BUDGETS.max),
+              trialTokens: tokensInWords(terms, format, AI_TOKEN_BUDGETS.trial),
+            })}
+          </p>
+          <h3>{plans.voice.title}</h3>
+          <p>
+            {fmt(plans.voice.body, {
+              ...values,
+              freeClips: count(TRANSCRIBE_LIMITS.daily.calls.free),
+              proClips: count(TRANSCRIBE_LIMITS.daily.calls.pro),
+              maxClips: count(TRANSCRIBE_LIMITS.daily.calls.max),
+            })}
+          </p>
+        </>
+      ),
+    },
+    {
+      title: payments.title,
+      anchor: en.payments.title,
+      body: (
+        <ul>
+          <li>
+            {fmt(payments.prices, {
+              proMonth: usd(format, PRICES_USD.pro.month),
+              proYear: usd(format, PRICES_USD.pro.year),
+              maxMonth: usd(format, PRICES_USD.max.month),
+              maxYear: usd(format, PRICES_USD.max.year),
+            })}
+          </li>
+          <li>
+            {fmt(payments.trial, {
+              days: PRO_TRIAL.days,
+              price: trialPrice,
+              proMonth: usd(format, PRICES_USD.pro.month),
+            })}
+          </li>
+          <li>
+            {rich(
+              payments.merchant,
+              { link: buyerTerms },
+              { disclosure: fmt(t.disclosure, { merchant: MERCHANT.name }) },
+            )}
+          </li>
+          <li>{rich(payments.renewal, pageLink(ROUTES.account), { price: trialPrice })}</li>
+          {creditOffered() ? (
+            <li>
+              {fmt(payments.credit, {
+                ...values,
+                min: usd(format, TOPUP_LIMITS.minUsd),
+                maxUsd: usd(format, TOPUP_LIMITS.maxUsd),
+              })}
+            </li>
+          ) : null}
+          <li>{payments.failed}</li>
+          <li>{payments.changes}</li>
+          <li>
+            {rich(
+              payments.refunds,
+              {
+                link: (chunk, index) =>
+                  index === 0 ? (
+                    buyerTerms(chunk)
+                  ) : (
+                    <Link href={href(ROUTES.refunds)}>{chunk}</Link>
+                  ),
+              },
+              values,
+            )}
+          </li>
+        </ul>
+      ),
+    },
+    {
+      title: terms.ending.title,
+      anchor: en.ending.title,
+      body: <p>{fmt(terms.ending.body, values)}</p>,
+    },
+    {
+      title: terms.liability.title,
+      anchor: en.liability.title,
+      body: <p>{fmt(terms.liability.body, values)}</p>,
+    },
+    {
+      title: terms.changes.title,
+      anchor: en.changes.title,
+      body: <p>{fmt(terms.changes.body, values)}</p>,
+    },
+    {
+      title: terms.contact.title,
+      anchor: en.contact.title,
+      body: <p>{rich(terms.contact.body, mail, values)}</p>,
+    },
+  ];
 }
 
-const SECTIONS: readonly LegalSection[] = [
-  {
-    title: "Who we are",
-    body: (
-      <p>
-        {BRAND.name} is the business that runs this site and sells its plans, and the party these
-        terms are with. You can reach us at <a href={MAILTO}>{BRAND.supportEmail}</a>.
-      </p>
-    ),
-  },
-  {
-    title: "The service",
-    body: (
-      <>
-        <p>
-          {BRAND.name} lets you check, edit and tailor your resume and download it as a PDF. We
-          provide it as is. We work hard to keep it accurate and online, but we can&apos;t promise
-          it will always be error-free or available.
-        </p>
-        <p>
-          Otto&apos;s checks and suggestions are guidance, not a guarantee. Hiring software differs
-          between employers, and no tool can promise you an interview or a job. You decide what goes
-          on your resume, so read every suggestion before you keep it.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: "Your account",
-    body: (
-      <p>
-        You sign in with a code sent to your email. Keep your email account secure, since anyone who
-        can read it can sign in as you. You must be at least 16 to use {BRAND.name}.
-      </p>
-    ),
-  },
-  {
-    title: "Your content is yours",
-    body: (
-      <>
-        <p>
-          Your resumes and anything you write or upload stay yours. You give us permission to store
-          and process them only to run the service for you, for example to check a file, back up
-          your resumes, or send text to our AI provider when you ask Otto for help. Our{" "}
-          <Link href={ROUTES.privacy}>privacy policy</Link> explains how.
-        </p>
-        <p>Only upload content you have the right to use.</p>
-      </>
-    ),
-  },
-  {
-    title: "Don't misuse it",
-    body: (
-      <>
-        <ul>
-          <li>
-            Don&apos;t try to break, overload or get around the service or its limits, for example
-            with scripts, bots or many accounts.
-          </li>
-          <li>Don&apos;t copy, resell or scrape the service.</li>
-          <li>Don&apos;t upload anything illegal, harmful, or someone else&apos;s private data.</li>
-          <li>Don&apos;t use it to pretend to be someone else.</li>
-        </ul>
-        <p>We may suspend or close accounts that break these rules.</p>
-      </>
-    ),
-  },
-  {
-    title: "The AI writing tools",
-    body: (
-      <>
-        <p>
-          The AI tools (line fixes, tailoring, summaries, cover letters, outreach messages, answers
-          to application questions, interview prep and Build with Otto) are for job-search writing
-          only.
-        </p>
-        <ul>
-          <li>
-            Don&apos;t use them to create sexual, sexually explicit or other NSFW (not safe for
-            work) content of any kind.
-          </li>
-          <li>
-            Don&apos;t use them to create hateful, harassing, violent, illegal or deceptive content.
-          </li>
-        </ul>
-        <p>
-          The AI is set up to refuse such requests and leave such material out. Automated safety
-          checks also block sexual or explicit content in what Otto writes and on pages you publish.
-          We may remove content that breaks this rule and suspend or close the account that asked
-          for it. Our <Link href={ROUTES.acceptableUse}>acceptable use policy</Link> has the full
-          list.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: "Plans and their limits",
-    body: (
-      <>
-        <h3>What each plan includes</h3>
-        <ul>
-          <li>
-            <strong>Free:</strong> the basic reader for uploads, the recruiter view, editing by
-            hand, {PLANS.free.limits.fix} line fixes a month with Otto (summary help counts as one),{" "}
-            {pluralize(resumeLimit("free"), "resume")}, the Classic and Compact formats, PDF
-            downloads, the {FREE_JOB_MATCHES} closest job matches and{" "}
-            {pluralize(applicationLimit("free"), "tracked application")} with its reminder.
-          </li>
-          <li>
-            <strong>Pro and Max</strong> add more line fixes and the rest of Otto&apos;s AI help
-            (tailoring, letters, answers, interview prep, Build with Otto, GitHub drafts and AI
-            reading of uploads), the other formats, Word downloads, every job match with filters and
-            saved jobs, share links, the work-rights check and portfolios. {PLANS.pro.name} and the
-            trial keep up to {count.format(resumeLimit("pro"))} resumes and track up to{" "}
-            {count.format(applicationLimit("pro"))} applications; {PLANS.max.name} keeps up to{" "}
-            {count.format(resumeLimit("max"))} and tracks up to{" "}
-            {count.format(applicationLimit("max"))}. Tailored versions count as resumes.
-          </li>
-          <li>
-            <strong>If a paid plan ends,</strong> nothing you made is deleted. You can still open,
-            edit and download it, and links you shared stay up, but you can&apos;t add more until
-            you upgrade again. Moving to a smaller plan works the same way: resumes and applications
-            past its limits stay, and you can add more once you&apos;re under them.
-          </li>
-        </ul>
-        <h3>When limits reset</h3>
-        <p>Each plan has a limit for each thing Otto does with AI, shown in the table below.</p>
-        <ul>
-          <li>
-            <strong>Free:</strong> line fixes reset at the start of each calendar month (UTC).
-          </li>
-          <li>
-            <strong>Monthly plans:</strong> the limits run from one renewal to the next and reset
-            when your plan renews.
-          </li>
-          <li>
-            <strong>Yearly plans:</strong> the same limits per month, reset on the day of the month
-            the plan started. In a shorter month they reset on its last day: a plan started on the
-            31st resets on the 30th of a 30-day month.
-          </li>
-          <li>
-            <strong>The Pro trial:</strong> its own smaller limits for the whole trial.
-          </li>
-          <li>Unused limits don&apos;t carry over.</li>
-          <li>
-            <strong>Invite extras</strong> add to the current month or trial. On Free, the extra
-            line fixes count that calendar month; the extra tailored versions count once you start a
-            trial or upgrade that month, and extras you haven&apos;t used move with you when you do.
-          </li>
-        </ul>
-        <p>Your account page shows the date your limits next reset.</p>
-        <LimitsTable />
-        <h3>At a limit</h3>
-        <p>
-          That feature pauses until your limits reset (on Free, at the start of the next month; on a
-          monthly plan, at your next renewal; on a yearly plan, on the next monthly reset day; on
-          the trial, until Pro starts), or until you move to a bigger plan. Moving up from Pro to
-          Max between renewals doesn&apos;t reset a limit: what you used this month counts on the
-          new plan. Uploads never stop: past the AI reads, the basic reader reads your file instead.
-          Editing, recruiter checks and PDF downloads have no limit on any plan.
-        </p>
-        <p>
-          Each paid plan also has a monthly AI budget ({tokensInWords(AI_TOKEN_BUDGETS.pro)} tokens
-          on {PLANS.pro.name}, {tokensInWords(AI_TOKEN_BUDGETS.max)} on {PLANS.max.name},{" "}
-          {tokensInWords(AI_TOKEN_BUDGETS.trial)} on the trial) that covers full use of the limits
-          above and only stops automated or abusive use.
-        </p>
-        <h3>Voice typing</h3>
-        <p>
-          Voice typing is free and unlimited in browsers with built-in speech (Chrome, Edge and
-          Safari). In other browsers, like Brave and Firefox, it uses our speech service: up to{" "}
-          {TRANSCRIBE_LIMITS.daily.calls.free} clips a day on Free,{" "}
-          {TRANSCRIBE_LIMITS.daily.calls.pro} on {PLANS.pro.name} and the trial, and{" "}
-          {TRANSCRIBE_LIMITS.daily.calls.max} on {PLANS.max.name}, each up to 2 minutes.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: "Payments and cancelling",
-    body: (
-      <ul>
-        <li>
-          Pro costs {formatUsd(PRICES_USD.pro.month)} a month or {formatUsd(PRICES_USD.pro.year)} a
-          year. Max costs {formatUsd(PRICES_USD.max.month)} a month or{" "}
-          {formatUsd(PRICES_USD.max.year)} a year. Prices are in US dollars, plus any taxes where
-          you live.
-        </li>
-        <li>
-          New accounts can have a {PRO_TRIAL.days}-day Pro trial for {formatUsd(PRO_TRIAL.priceUsd)}
-          , once per person. You add a card at checkout, and the {formatUsd(PRO_TRIAL.priceUsd)}{" "}
-          (plus any taxes) is charged when the trial starts. When the trial ends, Pro starts at{" "}
-          {formatUsd(PRICES_USD.pro.month)} a month unless you cancel before then. During the trial
-          a portfolio can be built and previewed, but it goes public only on a paid plan.
-        </li>
-        <li>
-          {MERCHANT.disclosure} Its <a href={MERCHANT.buyerTermsUrl}>buyer terms</a> also apply to
-          the purchase.
-        </li>
-        <li>
-          A paid plan renews every period you picked until you cancel. Cancel anytime from your{" "}
-          <Link href={ROUTES.account}>account page</Link>, and you keep it until the end of the
-          period you paid for. You can move up from Pro to Max on the billing period you already
-          have: your subscription changes in place, so you&apos;re never billed twice, and the
-          difference for the rest of the period is charged right away. During the Pro trial you can
-          start Max instead: the trial ends at once, the full Max price for the period you pick
-          (plus any taxes) is charged right away to your card on file, and the{" "}
-          {formatUsd(PRO_TRIAL.priceUsd)} trial charge isn&apos;t taken off. To move to Pro, or
-          between monthly and yearly, cancel and pick the new plan once your current period ends. If
-          you drop to Free, your published portfolio goes offline, and its data is kept in case you
-          come back.
-        </li>
-        <CreditTerms />
-        <li>
-          If a payment fails when your plan renews or your trial ends, you keep the plan for a few
-          days while the payment is tried again. If it still fails, your account moves to Free until
-          you update your card from your account page and the payment goes through.
-        </li>
-        <li>
-          Prices and limits may change. If your plan&apos;s price or limits change, we&apos;ll email
-          you before the change applies to you, so you can cancel first if you prefer.
-        </li>
-        <li>
-          Refund requests are handled by {MERCHANT.name} under its{" "}
-          <a href={MERCHANT.buyerTermsUrl}>buyer terms</a>. Our{" "}
-          <Link href={ROUTES.refunds}>refund page</Link> explains how to ask.
-        </li>
-      </ul>
-    ),
-  },
-  {
-    title: "Ending things",
-    body: (
-      <p>
-        You can stop using {BRAND.name} and delete your account at any time. We may suspend or close
-        an account that breaks these terms, and we&apos;ll tell you why when we can. We may also
-        change or stop parts of the service over time.
-      </p>
-    ),
-  },
-  {
-    title: "Limits on our liability",
-    body: (
-      <p>
-        As far as the law allows, {BRAND.name} isn&apos;t liable for indirect losses, such as a
-        missed job opportunity or lost income. Our total liability to you is limited to what you
-        paid us in the 12 months before the claim. Nothing in these terms limits rights you have
-        under consumer protection laws where you live.
-      </p>
-    ),
-  },
-  {
-    title: "Changes to these terms",
-    body: (
-      <p>
-        We may update these terms. When we do, we&apos;ll change the date at the top, and for
-        important changes we&apos;ll email signed-in users before they take effect. Using{" "}
-        {BRAND.name} after a change means you accept the new terms.
-      </p>
-    ),
-  },
-  {
-    title: "Contact",
-    body: (
-      <p>
-        Questions about these terms? Email <a href={MAILTO}>{BRAND.supportEmail}</a>.
-      </p>
-    ),
-  },
-];
-
-export default function TermsPage() {
+export default async function TermsPage() {
+  await requirePublished(PATH);
+  const t = await getMessages("legal");
+  const format = await getFormat();
+  const href = await getLocalize();
+  const summary = richList(englishMessages().legal.terms.summary, t.terms.summary, {
+    month: usd(format, PRICES_USD.pro.month),
+    year: usd(format, PRICES_USD.pro.year),
+    days: PRO_TRIAL.days,
+    trialPrice: usd(format, PRO_TRIAL.priceUsd),
+  });
   return (
     <LegalPage
-      title="Terms of service"
-      intro={
-        <p>
-          These terms are the agreement between you and {BRAND.name} when you use this site. By
-          using it, you agree to them. We kept them short and plain on purpose.
-        </p>
-      }
-      summary={SUMMARY}
-      sections={SECTIONS}
+      t={t.page}
+      format={format}
+      path={PATH}
+      title={t.terms.title}
+      intro={<p>{fmt(t.terms.intro, { brand: BRAND.name })}</p>}
+      summary={summary.map(([, item]) => item)}
+      sections={termsSections({ t, format, href })}
     />
   );
 }

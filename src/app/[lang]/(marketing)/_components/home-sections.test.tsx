@@ -5,7 +5,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HeaderActions } from "@/components/site/account-link";
 import { HERO_CTA_ID } from "@/components/site/hero-cta-in-view";
+import { headerCopy } from "@/components/site/site-header";
 import { applicationLimit, PLAN_ORDER, PLANS, resumeLimit } from "@/config/plans";
+import { formatFor } from "@/i18n/intl";
+import { englishMessages } from "@/i18n/messages";
 import { trialOffered } from "@/lib/billing/intervals";
 import { extensionAccess } from "@/lib/extension/plan";
 import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
@@ -13,20 +16,25 @@ import { PORTFOLIO_PICKS, PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templa
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { suggestedFileName } from "@/lib/resume/ops";
 import { createSampleResume } from "@/lib/resume/sample";
+import { ENGLISH_JSON_LD } from "@/lib/seo/json-ld";
+import { HOME_PAGE } from "@/lib/seo-pages/pages";
+import { generateMetadata } from "../page";
 import { EmailTrackingShowcase } from "./email-tracking-showcase";
 import { ExtensionShowcase } from "./extension-showcase";
-import { Faq } from "./faq";
+import { Faq, homeFaq } from "./faq";
 import { FinalCta } from "./final-cta";
-import { Hero } from "./hero";
+import { Hero, heroCtaCopy } from "./hero";
 import { HeroCta } from "./hero-cta";
 import { HeroDemo } from "./hero-demo";
 import { HowItWorks } from "./how-it-works";
 import { InterviewPrepShowcase } from "./interview-prep-showcase";
 import { JobsShowcase } from "./jobs-showcase";
 import { PortfolioShowcase } from "./portfolio-showcase";
+import { priceCopy } from "./price-copy";
 import { PricingTeaser } from "./pricing-teaser";
 import { PrimaryCta } from "./primary-cta";
 import { SectionLink } from "./section";
+import { homeJsonLdLocale } from "./website-json-ld";
 import { WontDo } from "./wont-do";
 
 vi.mock("next/font/google", () => ({
@@ -36,7 +44,10 @@ vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: vi.fn(() => "/"),
 }));
-vi.mock("@/lib/billing/intervals", () => ({ trialOffered: vi.fn(() => true) }));
+vi.mock("@/lib/billing/intervals", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/billing/intervals")>()),
+  trialOffered: vi.fn(() => true),
+}));
 const extensionStore = vi.hoisted(() => ({ url: null as string | null }));
 vi.mock("@/lib/extension/store", () => ({
   get CHROME_STORE_URL() {
@@ -54,15 +65,49 @@ const text = (html: string) =>
 const realStore =
   await vi.importActual<typeof import("@/lib/extension/store")>("@/lib/extension/store");
 
+const EN = englishMessages();
+const SAME = (path: string) => path;
+const HOME = { t: EN.home, format: formatFor("en"), href: SAME };
+const PRICES = priceCopy(EN.pricing, HOME.format);
+const FAQ = homeFaq(HOME.t, HOME.format, SAME, PRICES);
+const HEADER = await headerCopy("en");
+
 beforeEach(() => {
   vi.mocked(usePathname).mockReturnValue("/");
   vi.mocked(trialOffered).mockReturnValue(true);
   extensionStore.url = realStore.CHROME_STORE_URL;
 });
 
+describe("the home page's words", () => {
+  it("keep the English title and description of HOME_PAGE", async () => {
+    const meta = await generateMetadata();
+    expect(HOME_PAGE.absoluteTitle).toBe(true);
+    expect(meta.title).toEqual({ absolute: HOME_PAGE.title });
+    expect(meta.description).toBe(HOME_PAGE.description);
+    expect(meta.alternates?.canonical).toBe(HOME_PAGE.path);
+  });
+
+  it("describe the site in the JSON-LD as the English pages always have", () => {
+    expect(homeJsonLdLocale("en", EN.common.brand.description, SAME)).toEqual(ENGLISH_JSON_LD);
+  });
+
+  it("describe the designs shown as the portfolio templates do", () => {
+    expect(Object.keys(HOME.t.portfolio.templates).sort()).toEqual([...PORTFOLIO_PICKS].sort());
+    for (const id of PORTFOLIO_PICKS) {
+      expect(HOME.t.portfolio.templates[id]).toBe(PORTFOLIO_TEMPLATE_INFO[id].description);
+    }
+  });
+
+  it("ask every question in the messages, in order", () => {
+    expect(FAQ.map((item) => item.question)).toEqual(
+      Object.values(HOME.t.faq.items).map((item) => item.question),
+    );
+  });
+});
+
 describe("the hero's call to action", () => {
   it("asks for the file, says what happens to it and offers the job match check", () => {
-    const html = renderToStaticMarkup(<HeroCta />);
+    const html = renderToStaticMarkup(<HeroCta copy={heroCtaCopy(HOME.t, SAME)} />);
     expect(html).toContain(`id="${HERO_CTA_ID}"`);
     expect(html).toContain('href="/studio"');
     expect(text(html)).toContain("Check my resume");
@@ -71,8 +116,15 @@ describe("the hero's call to action", () => {
     expect(text(html)).toContain("Have a job post? Check your match");
   });
 
+  it("links the job match check in the page's language", () => {
+    const html = renderToStaticMarkup(
+      <HeroCta copy={heroCtaCopy(HOME.t, (path) => `/es${path}`)} />,
+    );
+    expect(html).toContain('href="/es/job-match"');
+  });
+
   it("goes back to the resume this browser already holds", () => {
-    const html = renderToStaticMarkup(<PrimaryCta savedTitle="Design lead" />);
+    const html = renderToStaticMarkup(<PrimaryCta copy={HOME.t.cta} savedTitle="Design lead" />);
     expect(html).toContain('href="/studio"');
     expect(text(html)).toBe("Continue with Design lead");
   });
@@ -80,7 +132,7 @@ describe("the hero's call to action", () => {
 
 describe("the hero's example", () => {
   it("lets phones switch between the two windows, starting on what software reads", () => {
-    const html = renderToStaticMarkup(<HeroDemo />);
+    const html = renderToStaticMarkup(<HeroDemo t={HOME.t} />);
     expect(html).toContain('<button type="button" aria-pressed="false"');
     expect(text(html)).toContain("What you see What software reads");
     expect(html.match(/aria-pressed="true"[^>]*>What software reads/)).not.toBeNull();
@@ -90,14 +142,14 @@ describe("the hero's example", () => {
 
 describe("the header's button", () => {
   it("waits on the home page until the hero's own button scrolls away", () => {
-    const html = renderToStaticMarkup(<HeaderActions />);
+    const html = renderToStaticMarkup(<HeaderActions copy={HEADER} />);
     expect(html).toMatch(/class="[^"]*\binvisible\b[^"]*"[^>]*>Check my resume/);
     expect(html).toContain("max-md:h-10");
   });
 
   it("shows straight away on every other page", () => {
     vi.mocked(usePathname).mockReturnValue("/pricing");
-    const html = renderToStaticMarkup(<HeaderActions />);
+    const html = renderToStaticMarkup(<HeaderActions copy={HEADER} />);
     expect(html).toContain("Check my resume");
     expect(html).not.toMatch(/\binvisible\b/);
   });
@@ -105,7 +157,7 @@ describe("the header's button", () => {
 
 describe("the pricing teaser", () => {
   it("is two lines and a link, with the trial when it's on sale", () => {
-    const html = renderToStaticMarkup(<PricingTeaser />);
+    const html = renderToStaticMarkup(<PricingTeaser {...HOME} prices={PRICES} />);
     expect(html.match(/<li/g)).toHaveLength(2);
     expect(text(html)).toContain(
       "Free: check, fix and download 1 resume as a PDF, with 3 line fixes a month from Otto.",
@@ -120,7 +172,7 @@ describe("the pricing teaser", () => {
 
   it("drops the trial when it isn't offered", () => {
     vi.mocked(trialOffered).mockReturnValue(false);
-    const html = renderToStaticMarkup(<PricingTeaser />);
+    const html = renderToStaticMarkup(<PricingTeaser {...HOME} prices={PRICES} />);
     expect(text(html)).not.toMatch(/\$1\b|Try \d+ days/);
     expect(text(html)).toContain("Cancel anytime.");
   });
@@ -134,16 +186,16 @@ describe("the home page's sections", () => {
   });
 
   it("tell in step 5 that every format reads top to bottom", () => {
-    expect(text(renderToStaticMarkup(<HowItWorks />))).toContain(
+    expect(text(renderToStaticMarkup(<HowItWorks {...HOME} />))).toContain(
       "Every format reads top to bottom, with headings on their own lines, on Letter or A4.",
     );
   });
 
   it("give Interview prep its own section, which the hero's button jumps to", () => {
-    const hero = renderToStaticMarkup(<Hero jobCounts={JOB_COUNTS_FALLBACK} />);
+    const hero = renderToStaticMarkup(<Hero {...HOME} jobCounts={JOB_COUNTS_FALLBACK} />);
     expect(hero).toMatch(/href="#interview-prep"[^>]*>.*Interview prep/);
     expect(hero).not.toContain('href="#features"');
-    const html = renderToStaticMarkup(<InterviewPrepShowcase />);
+    const html = renderToStaticMarkup(<InterviewPrepShowcase {...HOME} />);
     expect(html).toContain('id="interview-prep"');
     expect(html).toMatch(
       /<h2 id="interview-prep-title"[^>]*>Know what they&#x27;ll ask,.*and what you&#x27;ll say\.<\/em><\/h2>/,
@@ -163,7 +215,7 @@ const count = new Intl.NumberFormat("en-US");
 
 describe("the home page's copy", () => {
   it("takes Free's and Pro's resume and application numbers from the plans", () => {
-    const teaser = text(renderToStaticMarkup(<PricingTeaser />));
+    const teaser = text(renderToStaticMarkup(<PricingTeaser {...HOME} prices={PRICES} />));
     expect(teaser).toContain(`download ${resumeLimit("free")} resume as a PDF`);
     expect(teaser).toContain(
       `up to ${count.format(resumeLimit("pro"))} resumes and ${count.format(applicationLimit("pro"))} tracked applications`,
@@ -172,7 +224,7 @@ describe("the home page's copy", () => {
   });
 
   it("shows Our picks in the portfolio showcase, in order, and counts every design", () => {
-    const html = renderToStaticMarkup(<PortfolioShowcase />);
+    const html = renderToStaticMarkup(<PortfolioShowcase {...HOME} />);
     const shown = [...html.matchAll(/alt="A portfolio page in the ([^"]+) design"/g)].map(
       (match) => match[1],
     );
@@ -182,7 +234,7 @@ describe("the home page's copy", () => {
   });
 
   it("says what interview prep makes: questions, stories from the resume, a craft round and practice", () => {
-    const html = renderToStaticMarkup(<InterviewPrepShowcase />);
+    const html = renderToStaticMarkup(<InterviewPrepShowcase {...HOME} />);
     const prep = text(html);
     expect(html.match(/<h3 /g)).toHaveLength(3);
     expect(prep).toContain("Then come questions for you to ask them.");
@@ -195,7 +247,7 @@ describe("the home page's copy", () => {
   });
 
   it("keeps Letters and the career log on the page, beside interview prep", () => {
-    const html = renderToStaticMarkup(<InterviewPrepShowcase />);
+    const html = renderToStaticMarkup(<InterviewPrepShowcase {...HOME} />);
     const also = text(html.slice(html.indexOf('id="also-in-otto"')));
     expect(also).toContain("Also in Otto");
     expect(also).toContain(
@@ -207,7 +259,9 @@ describe("the home page's copy", () => {
   });
 
   it("says jobs are of the person's own kind of work, read for meaning, from boards worldwide", () => {
-    const jobs = text(renderToStaticMarkup(<JobsShowcase jobCounts={JOB_COUNTS_FALLBACK} />));
+    const jobs = text(
+      renderToStaticMarkup(<JobsShowcase {...HOME} jobCounts={JOB_COUNTS_FALLBACK} />),
+    );
     expect(jobs).toContain("shows only jobs in your line of work, best fit first");
     expect(jobs).toContain(
       "so a Software Engineer sees Backend Developer posts but not support or sales ones",
@@ -216,23 +270,36 @@ describe("the home page's copy", () => {
     expect(jobs).toContain("in the US, the UK, Australia, Latin America, Europe and more");
   });
 
+  it("writes the open-job count in the page's language", () => {
+    const de = { ...HOME, format: formatFor("de") };
+    const jobs = text(
+      renderToStaticMarkup(<JobsShowcase {...de} jobCounts={{ open: 81_234, matchable: 0 }} />),
+    );
+    expect(jobs).toContain("81.000+ open jobs");
+    const hero = text(
+      renderToStaticMarkup(<Hero {...de} jobCounts={{ open: 50, matchable: 0 }} />),
+    );
+    expect(hero).toContain("Open jobs");
+    expect(hero).not.toMatch(/\d+\+ open jobs/);
+  });
+
   it("never advertises email reminders, and Otto for Chrome only as coming soon until it's in the store", () => {
-    const hero = text(renderToStaticMarkup(<Hero jobCounts={JOB_COUNTS_FALLBACK} />));
+    const hero = text(renderToStaticMarkup(<Hero {...HOME} jobCounts={JOB_COUNTS_FALLBACK} />));
     const others = [
-      <HowItWorks key="how" />,
-      <JobsShowcase key="jobs" jobCounts={JOB_COUNTS_FALLBACK} />,
-      <EmailTrackingShowcase key="email" />,
-      <InterviewPrepShowcase key="interview" />,
-      <PortfolioShowcase key="portfolio" />,
-      <WontDo key="wont" />,
-      <PricingTeaser key="pricing" />,
-      <Faq key="faq" />,
-      <FinalCta key="cta" />,
+      <HowItWorks key="how" {...HOME} />,
+      <JobsShowcase key="jobs" {...HOME} jobCounts={JOB_COUNTS_FALLBACK} />,
+      <EmailTrackingShowcase key="email" {...HOME} />,
+      <InterviewPrepShowcase key="interview" {...HOME} />,
+      <PortfolioShowcase key="portfolio" {...HOME} />,
+      <WontDo key="wont" {...HOME} />,
+      <PricingTeaser key="pricing" {...HOME} prices={PRICES} />,
+      <Faq key="faq" t={HOME.t} items={FAQ} />,
+      <FinalCta key="cta" {...HOME} />,
     ]
       .map((section) => text(renderToStaticMarkup(section)))
       .join(" ");
     expect(others).not.toMatch(/chrome|extension/i);
-    const extension = text(renderToStaticMarkup(<ExtensionShowcase />));
+    const extension = text(renderToStaticMarkup(<ExtensionShowcase {...HOME} />));
     const comingSoon = realStore.CHROME_STORE_URL === null;
     expect(/coming soon/i.test(extension)).toBe(comingSoon);
     expect(/add to chrome/i.test(extension)).toBe(!comingSoon);
@@ -254,12 +321,12 @@ describe("Otto for Chrome on the home page", () => {
   it("sits after the Jobs section, email tracking and interview prep, before the portfolio", () => {
     const page = readFileSync(fileURLToPath(new URL("../page.tsx", import.meta.url)), "utf8");
     expect(page).toMatch(
-      /<JobsShowcase [^>]*\/>\s*<EmailTrackingShowcase \/>\s*<InterviewPrepShowcase \/>\s*<ExtensionShowcase \/>\s*<PortfolioShowcase \/>/,
+      /<JobsShowcase [^>]*\/>\s*<EmailTrackingShowcase [^>]*\/>\s*<InterviewPrepShowcase [^>]*\/>\s*<ExtensionShowcase [^>]*\/>\s*<PortfolioShowcase [^>]*\/>/,
     );
   });
 
   it("says what it does, with the plans for each tool taken from its own rules", () => {
-    const html = renderToStaticMarkup(<ExtensionShowcase />);
+    const html = renderToStaticMarkup(<ExtensionShowcase {...HOME} />);
     const copy = text(html);
     expect(html).toContain('aria-labelledby="extension-showcase-title"');
     expect(html).toMatch(
@@ -293,7 +360,7 @@ describe("Otto for Chrome on the home page", () => {
   });
 
   it("draws Fill with Otto as the extension does it, with the sample person and the panel's own words", () => {
-    const html = renderToStaticMarkup(<ExtensionShowcase />);
+    const html = renderToStaticMarkup(<ExtensionShowcase {...HOME} />);
     const copy = text(html).replace(/ \./g, ".");
     const sample = createSampleResume();
     const [first, last] = sample.basics.name.split(" ");
@@ -320,7 +387,7 @@ describe("Otto for Chrome on the home page", () => {
 
   it("says it's coming soon, with no install button or store link, while the store listing isn't set", () => {
     extensionStore.url = null;
-    const html = renderToStaticMarkup(<ExtensionShowcase />);
+    const html = renderToStaticMarkup(<ExtensionShowcase {...HOME} />);
     const copy = text(html);
     expect(copy).toContain("Otto for Chrome · coming soon");
     expect(copy).toContain("Coming soon Not in the Chrome Web Store yet.");
@@ -331,7 +398,7 @@ describe("Otto for Chrome on the home page", () => {
 
   it("offers Add to Chrome, linking to the store, once the listing is set", () => {
     extensionStore.url = STORE_URL;
-    const html = renderToStaticMarkup(<ExtensionShowcase />);
+    const html = renderToStaticMarkup(<ExtensionShowcase {...HOME} />);
     const copy = text(html);
     expect(html).toContain(`href="${STORE_URL}" target="_blank" rel="noopener noreferrer"`);
     expect(copy).toContain("Add to Chrome (opens in a new tab)");

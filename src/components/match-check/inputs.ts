@@ -1,6 +1,10 @@
 import type { TailorDraft } from "@/components/studio/tailor/session";
 import { TEXT_LIMITS } from "@/config/plans";
+import { fmt } from "@/i18n/format";
+import { formatFor, type Format } from "@/i18n/intl";
+import matchCheckEn from "@/i18n/messages/en/match-check";
 import { normalizeJobUrl } from "@/lib/applications/schema";
+import type { MatchCheckMessages } from "@/lib/match-check/copy";
 import type { LinkRead } from "./job-link";
 import type { UploadState } from "./resume-upload";
 
@@ -10,26 +14,35 @@ export type JobMode = "paste" | "link";
 const MIN_RESUME_CHARS = 100;
 export const MIN_POST_CHARS = 80;
 
-export function resumeProblem(mode: ResumeMode, text: string, upload: UploadState): string | null {
+export function resumeProblem(
+  mode: ResumeMode,
+  text: string,
+  upload: UploadState,
+  t: MatchCheckMessages = matchCheckEn,
+): string | null {
+  const problems = t.resume.problems;
   if (mode === "upload") {
-    if (upload.status === "reading") return "Wait a moment while Otto reads your file.";
-    return upload.status === "read" ? null : "Choose your resume file, or paste the text instead.";
+    if (upload.status === "reading") return problems.reading;
+    return upload.status === "read" ? null : problems.noFile;
   }
   const length = text.trim().length;
-  if (length === 0) return "Paste your resume first.";
-  if (length < MIN_RESUME_CHARS) return "That's a bit short. Paste your whole resume.";
-  if (length > TEXT_LIMITS.resumeChars)
-    return "That's longer than a resume. Paste just your resume.";
+  if (length === 0) return problems.empty;
+  if (length < MIN_RESUME_CHARS) return problems.short;
+  if (length > TEXT_LIMITS.resumeChars) return problems.long;
   return null;
 }
 
-export function postProblem(text: string): string | null {
+export function postProblem(
+  text: string,
+  t: MatchCheckMessages = matchCheckEn,
+  format: Format = formatFor("en"),
+): string | null {
+  const problems = t.post.problems;
   const length = text.trim().length;
-  if (length === 0) return "Paste the job post first.";
-  if (length < MIN_POST_CHARS)
-    return "That's a bit short. Paste the whole job post, not just the title.";
+  if (length === 0) return problems.empty;
+  if (length < MIN_POST_CHARS) return problems.short;
   if (length > TEXT_LIMITS.jobPostChars) {
-    return `That's over ${TEXT_LIMITS.jobPostChars.toLocaleString("en-US")} characters. Cut the company intro or the benefits.`;
+    return fmt(problems.long, { max: format.number(TEXT_LIMITS.jobPostChars) });
   }
   return null;
 }
@@ -51,10 +64,12 @@ export function jobLinkParam(value: string | null): string | null {
   return (value && normalizeJobUrl(value)) || null;
 }
 
-export function privacyNote(mode: ResumeMode, jobMode: JobMode): string {
-  return mode === "paste" && jobMode === "paste"
-    ? "Pasted text is checked in your browser and never leaves it."
-    : "The check runs in your browser. Nothing is stored.";
+export function privacyNote(
+  mode: ResumeMode,
+  jobMode: JobMode,
+  t: MatchCheckMessages = matchCheckEn,
+): string {
+  return mode === "paste" && jobMode === "paste" ? t.privacy.pasted : t.privacy.uploaded;
 }
 
 // A post read from a link keeps its posting, so Tailor shows the job and its hiring system.

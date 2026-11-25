@@ -61,7 +61,7 @@ export function calendarMonth(day: string): string {
 }
 
 // A title too long for a search result keeps its keywords and drops the brand.
-function fitTitle(title: string): Pick<SeoPage, "title" | "absoluteTitle"> {
+export function fitTitle(title: string): Pick<SeoPage, "title" | "absoluteTitle"> {
   return `${title}${TITLE_SUFFIX}`.length <= SEO_LIMITS.title
     ? { title }
     : { title, absoluteTitle: true };

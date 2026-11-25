@@ -4,8 +4,11 @@ import common from "./common";
 import dashboard from "./dashboard";
 import emails from "./emails";
 import home from "./home";
+import jobMatch from "./job-match";
 import jobs from "./jobs";
+import legal from "./legal";
 import login from "./login";
+import matchCheck from "./match-check";
 import portfolio from "./portfolio";
 import pricing from "./pricing";
 import product from "./product";
@@ -21,8 +24,11 @@ const en = {
   dashboard,
   emails,
   home,
+  jobMatch,
   jobs,
+  legal,
   login,
+  matchCheck,
   portfolio,
   pricing,
   product,

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PLANS, PRICES_USD } from "@/config/plans";
+import { formatFor } from "@/i18n/intl";
+import { englishMessages } from "@/i18n/messages";
 import { TEMPLATE_LIST } from "@/lib/pdf/templates";
 import { nodeText } from "@/lib/seo/node-text";
 import { ATS_GUIDES, GENERAL_ADVICE, guideHeadline, isIndexed } from "@/lib/seo-pages/ats";
@@ -7,20 +9,38 @@ import { COMPETITORS, compareTitle, ottoReasons } from "@/lib/seo-pages/compare"
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { calendarDate, calendarMonth, exampleHeadline } from "@/lib/seo-pages/pages";
 import { SEO_PATHS } from "@/lib/seo-pages/paths";
-import { HOME_FAQ } from "../[lang]/(marketing)/_components/faq";
-import { LETTERS } from "../[lang]/(marketing)/cover-letter-generator/content";
-import { INTERVIEW_PREP } from "../[lang]/(marketing)/interview-prep/content";
-import { TRACKER } from "../[lang]/(marketing)/job-application-tracker/content";
-import { JOB_MATCH_FAQ } from "../[lang]/(marketing)/job-match/faq";
-import { PORTFOLIO } from "../[lang]/(marketing)/portfolio-website-builder/content";
-import { BILLING_FAQ } from "../[lang]/(marketing)/pricing/billing-faq";
-import { BUILDER_FAQ, INDIA_NOTES } from "../[lang]/(marketing)/resume-builder/content";
+import { homeFaq } from "../[lang]/(marketing)/_components/faq";
+import { priceCopy } from "../[lang]/(marketing)/_components/price-copy";
+import { letterContent } from "../[lang]/(marketing)/cover-letter-generator/content";
+import { prepContent } from "../[lang]/(marketing)/interview-prep/content";
+import { trackerContent } from "../[lang]/(marketing)/job-application-tracker/content";
+import { jobMatchFaq } from "../[lang]/(marketing)/job-match/faq";
+import { portfolioContent } from "../[lang]/(marketing)/portfolio-website-builder/content";
+import { billingFaq } from "../[lang]/(marketing)/pricing/billing-faq";
+import { builderContent } from "../[lang]/(marketing)/resume-builder/content";
 import { COMMON, TEMPLATES_FAQ } from "../[lang]/(marketing)/resume-templates/content";
 import { llmsFullTxt } from "./full-text";
 
 const BASE = "https://www.ottosensei.com";
 const text = llmsFullTxt(BASE, { pro: ["month", "year"], max: ["month"] });
+const EN = englishMessages();
+const FORMAT = formatFor("en");
+const PRICES = priceCopy(EN.pricing, FORMAT);
+const SAME = (path: string) => path;
+const LETTERS = letterContent(EN.product.coverLetters, FORMAT, SAME, PRICES);
+const TRACKER = trackerContent(EN.product.tracker, FORMAT, SAME, PRICES);
+const INTERVIEW_PREP = prepContent(EN.product.interviewPrep, FORMAT, PRICES);
+const PORTFOLIO = portfolioContent(EN.product.portfolio, FORMAT, PRICES);
+const { faq: BUILDER_FAQ, india: INDIA_NOTES } = builderContent(
+  EN.product.builder,
+  FORMAT,
+  SAME,
+  PRICES,
+);
 const TOOLS = [LETTERS, TRACKER, INTERVIEW_PREP, PORTFOLIO];
+const JOB_MATCH_FAQ = jobMatchFaq(englishMessages().jobMatch.faq, formatFor("en"), (path) => path);
+const BILLING_FAQ = billingFaq(EN.pricing, FORMAT, SAME);
+const HOME_FAQ = homeFaq(EN.home, FORMAT, SAME, PRICES);
 
 describe("llms-full.txt", () => {
   it("opens with a title and the same product summary as llms.txt", () => {

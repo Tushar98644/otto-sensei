@@ -6,8 +6,11 @@ import { OttoNote } from "@/components/mascot/otto-note";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { TEXT_LIMITS } from "@/config/plans";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/config";
+import { formatFor } from "@/i18n/intl";
+import matchCheckEn from "@/i18n/messages/en/match-check";
 import type { MatchCheck } from "@/lib/match-check/check";
-import { matchOtto } from "@/lib/match-check/copy";
+import { matchOtto, type MatchCheckMessages } from "@/lib/match-check/copy";
 import { JOB_MATCH_PARAM } from "@/lib/seo-pages/paths";
 import {
   jobDraft,
@@ -34,7 +37,15 @@ type Typed = { mode: ResumeMode; resume: string; jobMode: JobMode; job: string }
 const loadChecker = () => import("@/lib/match-check/from-text");
 const loadSample = () => import("./sample");
 
-export function JobMatchTool() {
+// The page passes its language's words and locale from the server; the browser gets no other messages.
+export function JobMatchTool({
+  t = matchCheckEn,
+  locale = DEFAULT_LOCALE,
+}: {
+  t?: MatchCheckMessages;
+  locale?: Locale;
+}) {
+  const format = formatFor(locale);
   const [mode, setMode] = useState<ResumeMode>("paste");
   const [resumeText, setResumeText] = useState("");
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
@@ -64,10 +75,11 @@ export function JobMatchTool() {
       setJobText(text);
       showPost();
     },
+    t,
   });
 
-  const resumeError = submitted ? resumeProblem(mode, resumeText, upload) : null;
-  const jobError = submitted ? postProblem(jobText) : null;
+  const resumeError = submitted ? resumeProblem(mode, resumeText, upload, t) : null;
+  const jobError = submitted ? postProblem(jobText, t, format) : null;
   const resumeUsed = mode === "upload" ? (upload.status === "read" ? upload.text : "") : resumeText;
   const stale = result !== null && (result.resume !== resumeUsed || result.job !== jobText);
   const usingSample =
@@ -105,7 +117,7 @@ export function JobMatchTool() {
   async function readFile(file: File) {
     const id = ++uploadId.current;
     setUpload({ status: "reading", file });
-    const next = await readResumeFile(file);
+    const next = await readResumeFile(file, t);
     if (id === uploadId.current) setUpload(next);
   }
 
@@ -129,7 +141,7 @@ export function JobMatchTool() {
       jobMode === "link" &&
       reader.read?.ok !== true &&
       (reader.link.trim() !== "" || jobText.trim() === "");
-    if (resumeProblem(mode, resumeText, upload)) {
+    if (resumeProblem(mode, resumeText, upload, t)) {
       // The link is read meanwhile, so the post is ready by the time the resume is.
       if (needsRead) void reader.readLink();
       if (mode === "paste") resumeRef.current?.focus();
@@ -148,7 +160,7 @@ export function JobMatchTool() {
       job = outcome.text;
       read = outcome.read;
     }
-    if (postProblem(job)) {
+    if (postProblem(job, t, format)) {
       if (jobMode === "paste") jobRef.current?.focus();
       else linkRef.current?.focus();
       return;
@@ -208,12 +220,12 @@ export function JobMatchTool() {
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
           <p className="flex items-start gap-2 text-sm text-muted">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-pass" aria-hidden />
-            {privacyNote(mode, jobMode)}
+            {privacyNote(mode, jobMode, t)}
           </p>
           {usingSample ? (
             <Button variant="ghost" size="sm" onClick={leaveSample}>
               <RotateCcw />
-              {typed ? "Put back my text" : "Clear the sample"}
+              {typed ? t.sample.putBack : t.sample.clear}
             </Button>
           ) : (
             <Button
@@ -224,7 +236,7 @@ export function JobMatchTool() {
               onClick={() => void trySample()}
             >
               <FileText />
-              Try with a sample
+              {t.sample.try}
             </Button>
           )}
         </div>
@@ -237,9 +249,10 @@ export function JobMatchTool() {
             error={resumeError}
             hint={
               <TextHint
-                text="Copy it from your file or your profile, headings and all."
+                text={t.resume.hint}
                 length={resumeText.trim().length}
                 max={TEXT_LIMITS.resumeChars}
+                format={format}
               />
             }
             textRef={resumeRef}
@@ -247,6 +260,8 @@ export function JobMatchTool() {
             onFile={(file) => void readFile(file)}
             onReject={(message) => setUpload({ status: "failed", message })}
             onFocus={() => void loadChecker()}
+            t={t}
+            format={format}
           />
           <JobPostCard
             mode={jobMode}
@@ -256,9 +271,10 @@ export function JobMatchTool() {
             error={jobError}
             hint={
               <TextHint
-                text="Paste all of it: duties, requirements and nice-to-haves."
+                text={t.post.hint}
                 length={jobText.trim().length}
                 max={TEXT_LIMITS.jobPostChars}
+                format={format}
               />
             }
             textRef={jobRef}
@@ -267,19 +283,20 @@ export function JobMatchTool() {
             onFocus={() => void loadChecker()}
             onShowText={showPost}
             onPasteLink={readPastedLink}
+            t={t}
           />
         </div>
         <div className="max-sm:sticky max-sm:bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:z-10 max-sm:rounded-2xl max-sm:bg-surface max-sm:p-1.5 max-sm:shadow-float max-sm:ring-1 max-sm:ring-ink/5 sm:mt-2">
           <Button type="submit" size="lg" loading={checking} className="w-full sm:w-auto">
             <ScanSearch />
-            Check the match
+            {t.submit}
           </Button>
         </div>
       </form>
 
       {failed ? (
-        <Alert variant="error" title="The check didn't load">
-          Check your connection, then try again.
+        <Alert variant="error" title={t.failed.title}>
+          {t.failed.body}
         </Alert>
       ) : null}
       {result ? (
@@ -288,13 +305,18 @@ export function JobMatchTool() {
           tabIndex={-1}
           className="flex scroll-mt-24 flex-col gap-4 outline-hidden"
         >
-          <OttoNote message={matchOtto(result.check)} />
+          <OttoNote message={matchOtto(result.check, t, format)} />
           {stale ? (
-            <Alert variant="warn" title="You've changed the text since this check">
-              Check the match again to update it.
+            <Alert variant="warn" title={t.stale.title}>
+              {t.stale.body}
             </Alert>
           ) : null}
-          <MatchResult check={result.check} footer={<StudioCta handoff={result.handoff} />} />
+          <MatchResult
+            check={result.check}
+            t={t}
+            format={format}
+            footer={<StudioCta handoff={result.handoff} t={t} format={format} />}
+          />
         </div>
       ) : null}
     </div>
