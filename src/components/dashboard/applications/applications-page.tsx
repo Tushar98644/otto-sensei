@@ -150,9 +150,7 @@ export function ApplicationsPage() {
   }
 
   function setStatus(application: Application, next: ApplicationStatus) {
-    setAnnouncement(
-      fmt(t.page.statusChanged, { company: application.company, status: t.statuses[next] }),
-    );
+    setAnnouncement(`${application.company}: ${t.statuses[next]}`);
     changeApplication(application, { status: next }).catch((error: unknown) => {
       setAnnouncement("");
       toast({

@@ -6,11 +6,12 @@ import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { copyText } from "@/components/ui/copy-text";
+import { useFormat, useMessages } from "@/i18n/client";
+import type { Format } from "@/i18n/intl";
 import type { Resume } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
 import type { Writing } from "@/lib/writings/schema";
+import { formatDay, type ApplicationsMessages } from "../../i18n";
 import { KIND_NAMES } from "../../letters/entries";
-import { formatDay } from "../view";
 import { HubCard } from "./hub-sections";
 
 export type HubLetter = {
@@ -24,11 +25,15 @@ export type HubLetter = {
   onCopy: boolean;
 };
 
-export function hubTally(letters: readonly HubLetter[]): string {
+export function hubTally(
+  letters: readonly HubLetter[],
+  { hub }: ApplicationsMessages,
+  format: Format,
+): string {
   return (["letter", "answer", "outreach"] as const)
     .map((kind) => {
       const count = letters.filter((letter) => letter.kind === kind).length;
-      return count ? pluralize(count, KIND_NAMES[kind].one) : null;
+      return count ? format.plural(hub.tally[kind], count) : null;
     })
     .filter(Boolean)
     .join(" · ");
@@ -83,7 +88,10 @@ export function LettersCard({
   onWrite: () => void;
   onOutreach: () => void;
 }) {
-  const meta = letters.length ? hubTally(letters) : undefined;
+  const t = useMessages("applications");
+  const { hub } = t;
+  const format = useFormat();
+  const meta = letters.length ? hubTally(letters, t, format) : undefined;
   const messaged = letters.some((letter) => letter.kind === "outreach");
   const proBadge =
     pro === false ? (
@@ -92,7 +100,7 @@ export function LettersCard({
       </Badge>
     ) : null;
   return (
-    <HubCard id="letters" title="Letters and messages" meta={meta}>
+    <HubCard id="letters" title={hub.letters} meta={meta}>
       {letters.length > 0 ? (
         <ul className="divide-y divide-border border-y border-border">
           {letters.map((letter) => (
@@ -102,8 +110,8 @@ export function LettersCard({
             >
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2 text-xs/5 text-subtle">
-                  <Badge>{KIND_NAMES[letter.kind].label}</Badge>
-                  {letter.onCopy ? "On your tailored copy" : formatDay(letter.at, now || letter.at)}
+                  <Badge>{hub.kinds[letter.kind]}</Badge>
+                  {letter.onCopy ? hub.onCopy : formatDay(format, letter.at, now || letter.at)}
                 </p>
                 {letter.question || letter.subject ? (
                   <p className="mt-1.5 text-sm/6 font-medium text-ink">
@@ -121,25 +129,23 @@ export function LettersCard({
                 onClick={() => void copyText(letter.text, KIND_NAMES[letter.kind].copy)}
               >
                 <Copy aria-hidden />
-                {letter.kind === "outreach" ? "Copy email" : "Copy"}
+                {letter.kind === "outreach" ? hub.copyEmail : hub.copy}
               </Button>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm/6 text-muted">
-          No letter or message yet. What you write for this job shows up here by itself.
-        </p>
+        <p className="text-sm/6 text-muted">{hub.noLetters}</p>
       )}
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="secondary" size="sm" onClick={onWrite}>
           <PenLine aria-hidden />
-          Write a cover letter
+          {hub.writeLetter}
           {proBadge}
         </Button>
         <Button variant="secondary" size="sm" onClick={onOutreach}>
           <Send aria-hidden />
-          {messaged ? "Open your outreach message" : "Write an outreach message"}
+          {messaged ? hub.openOutreach : hub.writeOutreach}
           {messaged ? null : proBadge}
         </Button>
         {letters.length > 0 ? (
@@ -151,7 +157,7 @@ export function LettersCard({
               className: "text-muted hover:text-ink",
             })}
           >
-            All letters and messages
+            {hub.allLetters}
           </Link>
         ) : null}
       </div>

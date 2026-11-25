@@ -7,7 +7,9 @@ import {
   type ApplicationStatus,
   type StatusEvent,
 } from "@/lib/applications/status";
-import { formatDay } from "../view";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import { formatDay, type ApplicationsMessages } from "../../i18n";
 
 export type TimelineStep = {
   status: ApplicationStatus;
@@ -27,7 +29,9 @@ function lastAt(history: readonly StatusEvent[], status: ApplicationStatus): num
 
 export function timelineSteps(application: Timed, history: readonly StatusEvent[]): TimelineStep[] {
   const ended = !isStage(application.status);
-  const reached = stageIndex(isStage(application.status) ? application.status : application.stageReached);
+  const reached = stageIndex(
+    isStage(application.status) ? application.status : application.stageReached,
+  );
   const steps: TimelineStep[] = [];
   APPLICATION_STAGES.forEach((stage, index) => {
     if (index > reached) {
@@ -53,31 +57,31 @@ export function nextStepLine(
   application: Pick<Application, "status" | "followUpAt">,
   hasPrep: boolean,
   now: number,
+  { nextStep: t }: ApplicationsMessages,
+  format: Format,
 ): string {
   switch (application.status) {
     case "applied": {
       const state = now === 0 ? "none" : followUpState(application, now);
-      if (state === "due") return "It's time to follow up. A short, friendly note to the recruiter is enough.";
+      if (state === "due") return t.dueApplied;
       if (state === "scheduled" && application.followUpAt !== null) {
-        return `Waiting to hear back. I'll remind you to follow up on ${formatDay(application.followUpAt, now)}.`;
+        return fmt(t.scheduled, { day: formatDay(format, application.followUpAt, now) });
       }
-      return "Waiting to hear back. Move it on here when they reply.";
+      return t.waiting;
     }
     case "interview": {
       const state = now === 0 ? "none" : followUpState(application, now);
-      if (state === "due") return "It's time to follow up. A short note after an interview keeps you in mind.";
+      if (state === "due") return t.dueInterview;
       if (state === "scheduled" && application.followUpAt !== null) {
-        return `Waiting to hear back. I'll remind you to follow up on ${formatDay(application.followUpAt, now)}.`;
+        return fmt(t.scheduled, { day: formatDay(format, application.followUpAt, now) });
       }
-      return hasPrep
-        ? "Your prep is ready. Practice your answers out loud before the day."
-        : "You have an interview. I can make prep from this job and the resume you sent.";
+      return hasPrep ? t.prepReady : t.interview;
     }
     case "offer":
-      return "You have an offer. Read it closely and take the time you need.";
+      return t.offer;
     case "rejected":
-      return "They said no this time. It still counts in your record of what works.";
+      return t.rejected;
     case "no_reply":
-      return "No answer so far. It stays here in case they write back.";
+      return t.noReply;
   }
 }
