@@ -1,15 +1,17 @@
 "use client";
 
-import { ChevronDown, CornerDownRight, Lightbulb, Play, Ruler, TriangleAlert } from "lucide-react";
+import { ChevronDown, CornerDownRight, Lightbulb, Ruler, TriangleAlert } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { TechnicalQuestion } from "@/lib/insights/prep";
-import { kindLabel, type RoleFocus } from "@/lib/insights/prep-focus";
-import { cn, pluralize } from "@/lib/utils";
+import type { RoleFocus } from "@/lib/insights/prep-focus";
+import { kindName } from "@/lib/insights/prep-view";
+import { cn } from "@/lib/utils";
 import type { PracticeMark } from "./practice-store";
-import { MarkChip } from "./prep-question";
+import { MarkChip, PractiseButton } from "./prep-question";
 import { ResumeSlip } from "./prep-story";
 import { Speaker, WithBlanks } from "./speech";
 
@@ -41,10 +43,12 @@ export function AssumeNote({ text, className }: { text: string; className?: stri
 
 // Covers, pitfalls and probes are general know-how; only the resume slip is about the person.
 export function TechnicalNotes({ item }: { item: TechnicalQuestion }) {
+  const t = useMessages("prep");
+  const format = useFormat();
   return (
     <>
       {item.covers.length > 0 ? (
-        <Note label="What a strong answer covers" hint="General know-how, not facts about you">
+        <Note label={t.technical.covers} hint={t.technical.coversHint}>
           <ul className="flex flex-col gap-1.5">
             {item.covers.map((cover) => (
               <li key={cover} className="flex gap-3 text-base/7 text-pretty text-ink">
@@ -58,7 +62,7 @@ export function TechnicalNotes({ item }: { item: TechnicalQuestion }) {
         </Note>
       ) : null}
       {item.pitfalls.length > 0 ? (
-        <Note label="Common pitfalls">
+        <Note label={t.technical.pitfalls}>
           <ul className="flex flex-col gap-1.5">
             {item.pitfalls.map((pitfall) => (
               <li key={pitfall} className="flex gap-3 text-base/7 text-pretty text-ink">
@@ -70,12 +74,12 @@ export function TechnicalNotes({ item }: { item: TechnicalQuestion }) {
         </Note>
       ) : null}
       {item.probes.length > 0 ? (
-        <Note label={item.probes.length === 1 ? "Follow-up probe" : "Follow-up probes"}>
+        <Note label={format.plural(t.technical.probes, item.probes.length)}>
           <ul className="flex flex-col gap-1.5">
             {item.probes.map((probe) => (
               <li key={probe} className="flex gap-2 text-base/7 text-pretty text-ink">
                 <CornerDownRight aria-hidden className="mt-1.5 size-4 shrink-0 text-muted" />
-                <span>“{probe}”</span>
+                <span>{fmt(t.quote, { text: probe })}</span>
               </li>
             ))}
           </ul>
@@ -101,20 +105,22 @@ export function TechnicalCard({
   mark?: PracticeMark;
   onPractise?: () => void;
 }) {
+  const t = useMessages("prep");
+  const format = useFormat();
   const [open, setOpen] = useState(false);
   const notesId = useId();
   const inside = [
-    item.covers.length > 0 ? pluralize(item.covers.length, "point") : "",
-    item.pitfalls.length > 0 ? pluralize(item.pitfalls.length, "pitfall") : "",
-    item.probes.length > 0 ? pluralize(item.probes.length, "probe") : "",
-    item.resume ? "your line" : "",
+    item.covers.length > 0 ? format.plural(t.count.points, item.covers.length) : "",
+    item.pitfalls.length > 0 ? format.plural(t.count.pitfalls, item.pitfalls.length) : "",
+    item.probes.length > 0 ? format.plural(t.count.probes, item.probes.length) : "",
+    item.resume ? t.technical.yourLine : "",
   ]
     .filter(Boolean)
     .join(" · ");
   return (
     <li className="break-inside-avoid">
       <FolderCard
-        tab={kindLabel(focus, item.kind)}
+        tab={kindName(focus, item.kind, t)}
         tabEnd={
           item.topic ? (
             <span className="max-w-48 truncate text-xs/4 text-subtle sm:max-w-72">
@@ -126,25 +132,14 @@ export function TechnicalCard({
       >
         <div className="p-5 sm:p-6">
           <div className="flex items-center gap-x-3">
-            <Speaker meta={`Question ${number} of ${total}`} />
+            <Speaker meta={fmt(t.question.of, { number, total })} />
             <div className="ml-auto flex items-center gap-2 print:hidden">
               {mark ? <MarkChip mark={mark} /> : null}
-              {onPractise ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onPractise}
-                  className="-mr-1.5 text-muted hover:text-ink"
-                >
-                  <Play aria-hidden />
-                  <span className="max-sm:sr-only">Practice</span>
-                  <span className="sr-only"> question {number}</span>
-                </Button>
-              ) : null}
+              {onPractise ? <PractiseButton number={number} onPractise={onPractise} /> : null}
             </div>
           </div>
           <h3 className="mt-4 font-display text-2xl/8 font-normal text-pretty text-ink">
-            “{item.question}”
+            {fmt(t.quote, { text: item.question })}
           </h3>
           {item.assume ? <AssumeNote text={item.assume} className="mt-4" /> : null}
         </div>
@@ -163,7 +158,7 @@ export function TechnicalCard({
                 open && "rotate-180",
               )}
             />
-            How to answer
+            {t.question.howTo}
             {inside ? (
               <span className="ml-auto hidden pl-2 text-xs/5 font-normal text-subtle sm:block">
                 {inside}

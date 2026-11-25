@@ -29,12 +29,12 @@ import { FolderCard } from "@/components/ui/folder-card";
 import { Select } from "@/components/ui/select";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import { nextPlan, PLANS, TEXT_LIMITS } from "@/config/plans";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api, isApiError } from "@/lib/api/client";
 import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
 import {
   AUTO_FOCUS,
-  FOCUS_COPY,
-  LEVEL_COPY,
   PREP_LEVELS,
   previewFocus,
   ROLE_FOCUSES,
@@ -43,6 +43,7 @@ import {
 import { prepJobSource, prepResume } from "@/lib/insights/prep-view";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
+import type { PrepMessages } from "../../i18n";
 import { prepAllowance, startsByItself, titleOnlyPost } from "./prep-start";
 
 const MIN_POST_CHARS = 80;
@@ -76,8 +77,8 @@ function dropStartParam() {
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
-function pickedLabel(guess: string | null): string {
-  return guess ? `Pick from the job (${guess})` : "Pick from the job";
+function pickedLabel(guess: string | null, { form }: PrepMessages): string {
+  return guess ? fmt(form.picked, { guess }) : form.pickedPlain;
 }
 
 function hostOf(url: string): string {
@@ -121,6 +122,10 @@ export function PrepForm({
   autoStart = false,
   startPasting = false,
 }: PrepFormProps) {
+  const words = useMessages("prep");
+  const t = words.form;
+  const app = useMessages("app");
+  const format = useFormat();
   const fallback = useMemo(() => prepResume(target, resumes), [target, resumes]);
   const [resumeId, setResumeId] = useState<string | null>(null);
   const resume = resumes.find((item) => item.id === resumeId) ?? fallback;
@@ -147,7 +152,7 @@ export function PrepForm({
   const fromTitle = needsPaste && pasted.trim() === "" && titlePost !== null;
   const pastedTooShort = needsPaste && !fromTitle && pasted.trim().length < MIN_POST_CHARS;
   const usage = me?.usage?.letter;
-  const allowance = prepAllowance(usage, me?.period);
+  const allowance = prepAllowance(usage, me?.period, app, format);
   const facts = {
     asked: autoStart,
     usage,
@@ -172,7 +177,7 @@ export function PrepForm({
       if (titlePost) return { text: titlePost, fromTitle: true };
       if (live()) {
         setPasting(true);
-        setLinkNote(`${errorMessage(caught)} Paste the job post below instead.`);
+        setLinkNote(fmt(t.linkFailed, { error: errorMessage(caught) }));
       }
       return null;
     }
@@ -243,25 +248,23 @@ export function PrepForm({
 
   if (!resume) {
     return (
-      <OttoNote message="I need a resume to build stories from. Add one, then come back here.">
+      <OttoNote message={t.needResume}>
         <Link href={ROUTES.studio} className="text-sm font-medium text-ink underline">
-          Add a resume
+          {t.addResume}
         </Link>
       </OttoNote>
     );
   }
 
   const resumeFact = (
-    <Fact icon={FileText} label="Stories from">
+    <Fact icon={FileText} label={t.storiesFrom}>
       <span className="font-medium">{resumeTitle(resume)}</span>
-      {resume.id === target.resumeId ? (
-        <span className="text-muted">, the version you sent</span>
-      ) : null}
+      {resume.id === target.resumeId ? <span className="text-muted">{t.versionSent}</span> : null}
       {resumes.length > 1 && !picking ? (
         <>
           {" · "}
           <button type="button" className={QUIET_LINK} onClick={() => change("resume")}>
-            Use another resume
+            {t.anotherResume}
           </button>
         </>
       ) : null}
@@ -275,26 +278,26 @@ export function PrepForm({
     focus.role === "auto" ? preview.focus : focus.role === "none" ? null : focus.role;
   const shownLevel = focus.level === "auto" ? preview.level : focus.level;
   const focusFact = (
-    <Fact icon={Braces} label="Technical round">
+    <Fact icon={Braces} label={t.technical}>
       {shownFocus === "post" ? (
-        "Picked from the job post"
+        t.fromPost
       ) : shownFocus ? (
         <>
-          <span className="font-medium">{FOCUS_COPY[shownFocus].label}</span>
+          <span className="font-medium">{words.focus[shownFocus].label}</span>
           {shownLevel === "post" ? (
-            <span className="text-muted">, level from the post</span>
+            <span className="text-muted">{t.levelFromPost}</span>
           ) : (
-            <span className="text-muted"> · {LEVEL_COPY[shownLevel]}</span>
+            <span className="text-muted"> · {words.levels[shownLevel]}</span>
           )}
         </>
       ) : (
-        <span className="text-muted">None for this kind of role</span>
+        <span className="text-muted">{t.noneForRole}</span>
       )}
       {!tuning ? (
         <>
           {" · "}
           <button type="button" className={QUIET_LINK} onClick={() => setTuning(true)}>
-            {shownFocus === null ? "Add one" : "Change"}
+            {shownFocus === null ? t.addOne : t.change}
           </button>
         </>
       ) : null}
@@ -303,20 +306,19 @@ export function PrepForm({
 
   const host = source.kind === "link" ? hostOf(source.url) : "";
   const jobFact = needsPaste ? null : (
-    <Fact icon={Link2} label="Job post">
+    <Fact icon={Link2} label={t.jobPost}>
       {source.kind === "saved" ? (
-        "Saved with your tailored copy"
+        t.savedWithCopy
       ) : (
         <>
-          Read from its link{host ? <span className="text-muted"> on {host}</span> : null}
-          {titlePost ? (
-            <span className="text-muted">, or the job title if it won&apos;t open</span>
-          ) : null}
+          {t.readFromLink}
+          {host ? <span className="text-muted">{fmt(t.onHost, { host })}</span> : null}
+          {titlePost ? <span className="text-muted">{t.orTitle}</span> : null}
         </>
       )}
       {" · "}
       <button type="button" className={QUIET_LINK} onClick={() => change("paste")}>
-        Paste it instead
+        {t.pasteInstead}
       </button>
     </Fact>
   );
@@ -324,7 +326,7 @@ export function PrepForm({
   if (auto || deciding || busy) {
     return (
       <FolderCard
-        tab={<h2 className={TAB_HEADING}>Working on it</h2>}
+        tab={<h2 className={TAB_HEADING}>{t.working}</h2>}
         tone="lavender"
         bodyClassName="flex flex-col gap-6 p-5 sm:p-8"
       >
@@ -345,7 +347,7 @@ export function PrepForm({
   return (
     <form onSubmit={submit}>
       <FolderCard
-        tab={<h2 className={TAB_HEADING}>Ready when you are</h2>}
+        tab={<h2 className={TAB_HEADING}>{t.ready}</h2>}
         tone="lavender"
         bodyClassName="p-2"
       >
@@ -353,23 +355,18 @@ export function PrepForm({
           <StoryArt className="h-40 sm:h-full sm:min-h-64" />
           <div className="flex min-w-0 flex-col gap-5 px-2 pt-3 pb-2 sm:px-4 sm:py-5 lg:px-6">
             <div className="flex flex-col gap-2">
-              <Eyebrow>Otto plays the interviewer</Eyebrow>
+              <Eyebrow>{t.eyebrow}</Eyebrow>
               <p className="font-display text-2xl/8 font-normal tracking-tight text-pretty text-ink sm:text-3xl/9">
-                Likely questions, round by round, and stories from your own lines
+                {t.pitch}
               </p>
             </div>
-            {stoppedLate ? (
-              <Alert role="note">
-                Stopped waiting for that prep. It had already started, so it still counts toward
-                your allowance.
-              </Alert>
-            ) : null}
+            {stoppedLate ? <Alert role="note">{t.stoppedLate}</Alert> : null}
             <ul className="flex flex-col gap-3">
               {picking && resumes.length > 1 ? (
                 <li>
                   <Field
-                    label="Resume to build stories from"
-                    hint={resume.id === target.resumeId ? "The version you sent." : undefined}
+                    label={t.resumeLabel}
+                    hint={resume.id === target.resumeId ? t.resumeHint : undefined}
                   >
                     <Select value={resume.id} onChange={(event) => setResumeId(event.target.value)}>
                       {resumes.map((item) => (
@@ -386,10 +383,7 @@ export function PrepForm({
               {jobFact}
               {tuning ? (
                 <li className="grid gap-3 sm:grid-cols-2">
-                  <Field
-                    label="Technical round"
-                    hint="Otto reads the job title and post to pick one."
-                  >
+                  <Field label={t.technical} hint={t.technicalHint}>
                     <Select
                       value={focus.role}
                       onChange={(event) =>
@@ -403,19 +397,20 @@ export function PrepForm({
                         {pickedLabel(
                           preview.focus === "post" || preview.focus === null
                             ? null
-                            : FOCUS_COPY[preview.focus].label,
+                            : words.focus[preview.focus].label,
+                          words,
                         )}
                       </option>
                       {ROLE_FOCUSES.map((role) => (
                         <option key={role} value={role}>
-                          {FOCUS_COPY[role].label}
+                          {words.focus[role].label}
                         </option>
                       ))}
-                      <option value="none">No technical round</option>
+                      <option value="none">{t.noTechnical}</option>
                     </Select>
                   </Field>
                   {focus.role !== "none" ? (
-                    <Field label="Level" hint="Sets how deep the questions go.">
+                    <Field label={t.level} hint={t.levelHint}>
                       <Select
                         value={focus.level}
                         onChange={(event) =>
@@ -426,11 +421,14 @@ export function PrepForm({
                         }
                       >
                         <option value="auto">
-                          {pickedLabel(preview.level === "post" ? null : LEVEL_COPY[preview.level])}
+                          {pickedLabel(
+                            preview.level === "post" ? null : words.levels[preview.level],
+                            words,
+                          )}
                         </option>
                         {PREP_LEVELS.map((level) => (
                           <option key={level} value={level}>
-                            {LEVEL_COPY[level]}
+                            {words.levels[level]}
                           </option>
                         ))}
                       </Select>
@@ -444,18 +442,9 @@ export function PrepForm({
 
             {needsPaste ? (
               <Field
-                label="The job post"
-                hint={
-                  linkNote ||
-                  (titlePost
-                    ? "Paste the whole post for sharper questions, or leave it empty and Otto works from the job title."
-                    : "Paste the whole post: what they do, what they ask for.")
-                }
-                error={
-                  pasted.trim() !== "" && pastedTooShort
-                    ? "That's too short to be a job post. Paste all of it."
-                    : undefined
-                }
+                label={t.post}
+                hint={linkNote || (titlePost ? t.postHintTitle : t.postHint)}
+                error={pasted.trim() !== "" && pastedTooShort ? t.tooShort : undefined}
               >
                 <VoiceTextarea
                   value={pasted}
@@ -463,7 +452,7 @@ export function PrepForm({
                   onDictate={setPasted}
                   rows={6}
                   maxLength={TEXT_LIMITS.jobPostChars}
-                  placeholder="About the role…"
+                  placeholder={t.postPlaceholder}
                 />
               </Field>
             ) : null}
@@ -473,7 +462,7 @@ export function PrepForm({
                 {error.message}{" "}
                 {error.upgrade && upgradeTo ? (
                   <Link href={upgradeLink(me, upgradeTo)} className="font-medium underline">
-                    Upgrade to {PLANS[upgradeTo].name}
+                    {fmt(t.upgrade, { plan: PLANS[upgradeTo].name })}
                   </Link>
                 ) : null}
               </Alert>
@@ -482,12 +471,12 @@ export function PrepForm({
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Button type="submit" disabled={pastedTooShort} className="max-sm:flex-1">
-                  {fromTitle ? "Prepare from the job title" : "Make my prep"}
+                  {fromTitle ? t.fromTitle : t.make}
                   <ArrowRight aria-hidden />
                 </Button>
                 {onCancel ? (
                   <Button type="button" variant="ghost" onClick={onCancel}>
-                    Keep the current one
+                    {t.keepCurrent}
                   </Button>
                 ) : null}
               </div>

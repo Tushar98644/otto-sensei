@@ -9,13 +9,21 @@ export type UndoToastOptions = {
   description?: string;
   onUndo: () => void;
   onCommit?: (options: { keepalive: boolean }) => void;
+  // The Undo key in the reader's language.
+  undoLabel?: string;
 };
 
 export type UndoHandle = {
   undo: () => void;
 };
 
-export function undoToast({ title, description, onUndo, onCommit }: UndoToastOptions): UndoHandle {
+export function undoToast({
+  title,
+  description,
+  onUndo,
+  onCommit,
+  undoLabel = "Undo",
+}: UndoToastOptions): UndoHandle {
   if (typeof window === "undefined") return { undo: () => {} };
   let settled = false;
 
@@ -41,7 +49,7 @@ export function undoToast({ title, description, onUndo, onCommit }: UndoToastOpt
     title,
     description,
     durationMs: UNDO_MS,
-    action: { label: "Undo", onAction: onUndo },
+    action: { label: undoLabel, onAction: onUndo },
     onClose: (reason) => {
       if (reason === "action") drop();
       else commit(false);

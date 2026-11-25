@@ -1,17 +1,27 @@
-import { FEATURE_LABELS, type Usage, type UsagePeriod } from "@/config/plans";
-import { resetSentence, thisPeriod } from "@/lib/usage-copy";
+import type { Usage, UsagePeriod } from "@/config/plans";
+import { fmt } from "@/i18n/format";
+import { formatFor, type Format } from "@/i18n/intl";
+import EN_APP from "@/i18n/messages/en/app";
+import type { Messages } from "@/i18n/messages";
+import { usageCopy } from "@/lib/usage-copy";
 
-const count = new Intl.NumberFormat("en-US");
+const EN_FORMAT = formatFor("en");
 
+// What one prep costs from the letter allowance; English unless the reader's words are given.
 export function prepAllowance(
   usage: Usage | null | undefined,
   period?: UsagePeriod | null,
+  words: Messages["app"] = EN_APP,
+  format: Format = EN_FORMAT,
 ): string | null {
   if (!usage || usage.limit <= 0) return null;
   const left = Math.max(0, usage.limit - usage.used);
-  const pool = `${count.format(usage.limit)} ${FEATURE_LABELS.letter}`;
-  if (left === 0) return `You've used all ${pool} ${thisPeriod(period)}. ${resetSentence(period)}`;
-  return `Uses 1 of your ${pool} ${thisPeriod(period)}. ${count.format(left)} left.`;
+  const copy = usageCopy(words.usage, format);
+  const feature = words.features.letter;
+  const pool = fmt(words.usage.pool, { count: format.number(usage.limit), feature });
+  const values = { pool, period: copy.thisPeriod(period) };
+  if (left === 0) return fmt(words.usage.usedAll, { ...values, reset: copy.resetSentence(period) });
+  return fmt(words.usage.usesOne, { ...values, left: format.number(left) });
 }
 
 export type StartFacts = {

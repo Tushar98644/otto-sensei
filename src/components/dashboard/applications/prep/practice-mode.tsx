@@ -19,6 +19,9 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { Field } from "@/components/ui/field";
 import { Kbd } from "@/components/ui/kbd";
 import { VoiceTextarea } from "@/components/ui/voice-field";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
 import { practiceSteps } from "@/lib/insights/prep-view";
 import { cn } from "@/lib/utils";
@@ -61,8 +64,14 @@ const SEGMENT: Record<PracticeMark | "none", string> = {
   none: "bg-surface-strong",
 };
 
+const GOT_NUMBER = { b: (chunk: string) => <span className="font-medium text-ink">{chunk}</span> };
+const SPOKEN_ONLY = { b: (chunk: string) => <span className="sr-only">{chunk}</span> };
+const PLAIN = { b: (chunk: string) => chunk };
+
 export function PracticeMode({ prep, target, storageKey, startAt, onClose }: PracticeModeProps) {
-  const steps = useMemo(() => practiceSteps(prep), [prep]);
+  const words = useMessages("prep");
+  const t = words.practice;
+  const steps = useMemo(() => practiceSteps(prep, words), [prep, words]);
   const record = usePractice(storageKey);
   const all = useMemo(() => steps.map((_, index) => index), [steps]);
   const [queue, setQueue] = useState<number[]>(all);
@@ -87,10 +96,9 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
     step?.kind === "general" && step.item.story !== null
       ? prep.stories[step.item.story]
       : undefined;
-  const role = [target.role || prep.job.title, target.company || prep.job.company]
-    .filter(Boolean)
-    .join(" at ");
+  const title = target.role || prep.job.title;
   const company = target.company || prep.job.company;
+  const role = title && company ? fmt(t.roleAt, { role: title, company }) : title || company;
   const got = steps.filter((item) => record.marks[item.item.question] === "got").length;
   const left = all.filter((index) => record.marks[steps[index]!.item.question] !== "got");
 
@@ -168,16 +176,16 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
             {company ? <CompanyMark name={company} size="sm" /> : null}
             <div className="min-w-0 flex-1">
               <p id={titleId} className="truncate text-sm/5 font-medium text-ink">
-                Practice
+                {t.title}
               </p>
               {role ? <p className="truncate text-xs/4 text-subtle">{role}</p> : null}
             </div>
             <p className="hidden text-sm/5 text-muted tabular-nums sm:block">
-              <span className="font-medium text-ink">{got}</span> of {steps.length} got it
+              {rich(t.gotOf, GOT_NUMBER, { got, total: steps.length })}
             </p>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X aria-hidden />
-              End
+              {t.end}
             </Button>
           </div>
           <div aria-hidden className="mx-auto flex w-full max-w-4xl gap-1 px-4 sm:px-8">
@@ -196,7 +204,9 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
 
         {/* Outside the keyed step so the live region persists and each count is read out. */}
         <p className="sr-only" aria-live="polite" aria-atomic>
-          {step ? `Question ${step.number} of ${steps.length}` : `${got} of ${steps.length} got it`}
+          {step
+            ? fmt(words.question.of, { number: step.number, total: steps.length })
+            : rich(t.gotOf, PLAIN, { got, total: steps.length })}
         </p>
         <div
           key={`${position}-${queue.length}`}
@@ -206,12 +216,10 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
             <>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <Eyebrow className="flex flex-wrap gap-x-2">
-                  <span>
-                    Round {step.stop} · {step.label}
-                  </span>
+                  <span>{fmt(t.roundLabel, { number: step.stop, label: step.label })}</span>
                   <span aria-hidden>·</span>
                   <span>
-                    Question {step.number} of {steps.length}
+                    {fmt(words.question.of, { number: step.number, total: steps.length })}
                   </span>
                 </Eyebrow>
                 {record.marks[step.item.question] ? (
@@ -220,17 +228,13 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
               </div>
               <Speaker size="lg" className="mt-8" />
               <h2 ref={headingRef} tabIndex={-1} className={cn(SPOKEN, "mt-5")}>
-                “{step.item.question}”
+                {fmt(words.quote, { text: step.item.question })}
               </h2>
               {step.kind === "technical" && step.item.assume ? (
                 <AssumeNote text={step.item.assume} className="mt-5" />
               ) : null}
 
-              <Field
-                className="mt-10"
-                label="Your answer"
-                hint="Say it out loud first, then jot down what you'd keep. Kept in this browser, for this pack."
-              >
+              <Field className="mt-10" label={t.answer} hint={t.answerHint}>
                 <VoiceTextarea
                   value={answer}
                   onChange={(event) =>
@@ -239,7 +243,7 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
                   onDictate={(text) => saveAnswer(storageKey, step.item.question, text)}
                   rows={5}
                   maxLength={ANSWER_CHARS}
-                  placeholder="Tap the mic and answer out loud, or type here…"
+                  placeholder={t.answerPlaceholder}
                 />
               </Field>
 
@@ -251,7 +255,7 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
                   onClick={() => setOutline((shown) => !shown)}
                 >
                   <Lightbulb aria-hidden />
-                  {outline ? "Hide my outline" : "Show my outline"}
+                  {outline ? t.hideOutline : t.showOutline}
                 </Button>
                 <PracticeTimer />
               </div>
@@ -267,7 +271,7 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
                 )}
                 {story ? (
                   <div className="flex flex-col gap-4">
-                    <Eyebrow>Your story · {story.title}</Eyebrow>
+                    <Eyebrow>{fmt(t.yourStory, { title: story.title })}</Eyebrow>
                     <div className="flex flex-col gap-5 rounded-2xl bg-surface p-4 sm:p-6">
                       <ResumeSlip line={story.line} place={story.place} />
                       <StarOutline story={story} />
@@ -301,26 +305,26 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
           <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 px-4 py-3 sm:px-8">
             <Button variant="secondary" onClick={() => go(position - 1)} disabled={position === 0}>
               <ArrowLeft aria-hidden />
-              <span className="max-sm:sr-only">Back</span>
+              <span className="max-sm:sr-only">{t.back}</span>
             </Button>
             <p className="hidden items-center gap-1.5 text-xs/5 text-subtle lg:flex">
               <Kbd aria-hidden>←</Kbd>
               <Kbd aria-hidden>→</Kbd>
-              <span className="sr-only">Arrow keys</span> to move
+              {rich(t.keys, SPOKEN_ONLY)}
             </p>
             {step ? (
               <div className="flex items-center gap-2">
                 <Button variant="secondary" onClick={() => mark("again")}>
                   <RotateCcw aria-hidden />
-                  Practice again
+                  {t.again}
                 </Button>
                 <Button onClick={() => mark("got")}>
                   <Check aria-hidden />
-                  Got it
+                  {t.got}
                 </Button>
               </div>
             ) : (
-              <Button onClick={onClose}>Finish</Button>
+              <Button onClick={onClose}>{t.finish}</Button>
             )}
           </div>
         </footer>
@@ -348,6 +352,9 @@ function Summary({
   onAgain: () => void;
   onRestart: () => void;
 }) {
+  const words = useMessages("prep");
+  const format = useFormat();
+  const t = words.practice;
   const done = left.length === 0;
   return (
     <div className="flex flex-col gap-10">
@@ -359,21 +366,19 @@ function Summary({
           className={done ? "motion-safe:animate-pop" : undefined}
         />
         <div className="min-w-0">
-          <Eyebrow>
-            {got} of {total} got it
-          </Eyebrow>
+          <Eyebrow>{rich(t.gotOf, PLAIN, { got, total })}</Eyebrow>
           <h2
             ref={headingRef}
             tabIndex={-1}
             className="mt-2 font-display text-3xl/10 font-normal text-pretty outline-none sm:text-4xl/12"
           >
-            {done ? "That's every question. Nice work." : "Good run. A few to say once more."}
+            {done ? t.allDone : t.someLeft}
           </h2>
         </div>
       </div>
 
       {done ? null : (
-        <section aria-label="Questions to practice again" className="flex flex-col gap-3">
+        <section aria-label={t.toRedo} className="flex flex-col gap-3">
           <ul className="flex flex-col gap-2">
             {left.map((item) => (
               <li key={item.question}>
@@ -394,7 +399,7 @@ function Summary({
                     {item.mark === "again" ? <RotateCcw className="size-3.5" /> : null}
                   </span>
                   <span className="min-w-0 flex-1 text-base/7 text-pretty text-ink">
-                    “{item.question}”
+                    {fmt(words.quote, { text: item.question })}
                   </span>
                 </button>
               </li>
@@ -403,10 +408,10 @@ function Summary({
           <div className="flex flex-wrap gap-2">
             <Button onClick={onAgain}>
               <RotateCcw aria-hidden />
-              Practice {left.length === 1 ? "that one" : `those ${left.length}`} again
+              {format.plural(t.redo, left.length)}
             </Button>
             <Button variant="ghost" onClick={onRestart}>
-              Start over
+              {t.restart}
             </Button>
           </div>
         </section>
@@ -415,26 +420,22 @@ function Summary({
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={onRestart}>
             <RotateCcw aria-hidden />
-            Start over
+            {t.restart}
           </Button>
         </div>
       ) : null}
 
-      <section aria-label="Your turn" className="flex flex-col gap-5 border-t border-border pt-10">
-        <Eyebrow>Your turn</Eyebrow>
+      <section aria-label={t.yourTurn} className="flex flex-col gap-5 border-t border-border pt-10">
+        <Eyebrow>{t.yourTurn}</Eyebrow>
         <Speaker size="lg" />
-        <p className="font-display text-2xl/8 text-pretty text-ink">
-          “That&apos;s everything from me. What would you like to ask us?”
-        </p>
+        <p className="font-display text-2xl/8 text-pretty text-ink">{t.closing}</p>
         {asks.length > 0 ? (
           <>
-            <p className="text-base/7 text-muted">Pick two or three of these, or ask your own.</p>
+            <p className="text-base/7 text-muted">{t.pick}</p>
             <AskBubbles asks={asks} surface="paper" />
           </>
         ) : (
-          <p className="text-base/7 text-muted">
-            Ask about the team, the work and what comes next.
-          </p>
+          <p className="text-base/7 text-muted">{t.askAbout}</p>
         )}
       </section>
     </div>

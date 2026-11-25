@@ -6,6 +6,8 @@ export type JobsMessages = Messages["jobs"];
 export type ApplicationsMessages = Messages["applications"];
 export type InterviewMessages = Messages["interview"];
 export type LettersMessages = Messages["letters"];
+export type PrepMessages = Messages["prep"];
+export type EmailMessages = Messages["email"];
 
 const SECOND = 1_000;
 const MINUTE = 60 * SECOND;

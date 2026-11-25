@@ -1,12 +1,17 @@
 import { ROUTES } from "@/components/site/routes";
+import { fmt } from "@/i18n/format";
+import { formatFor, type Format } from "@/i18n/intl";
+import EN_APPLICATIONS from "@/i18n/messages/en/applications";
+import EN_PREP from "@/i18n/messages/en/prep";
 import { normalizeJobUrl, type Application } from "@/lib/applications/schema";
-import { STATUS_NAMES } from "@/lib/applications/status";
 import { applicationForCopy } from "@/lib/applications/thread";
 import type { PrepSummary } from "@/lib/insights/prep";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
-import { formatDay } from "../applications/view";
+import { formatDay, type ApplicationsMessages, type PrepMessages } from "../i18n";
+
+const EN_FORMAT = formatFor("en");
 
 export const PREP_START_PARAM = "start";
 
@@ -62,14 +67,19 @@ export function interviewEntries(
   }));
 }
 
-export function interviewDayLine(interviewAt: number | null, now: number): string {
-  if (interviewAt === null) return "No interview day set yet";
-  const day = formatDay(interviewAt, now || interviewAt);
-  if (now === 0) return `Interview ${day}`;
+export function interviewDayLine(
+  interviewAt: number | null,
+  now: number,
+  { day: words }: Pick<PrepMessages, "day"> = EN_PREP,
+  format: Format = EN_FORMAT,
+): string {
+  if (interviewAt === null) return words.none;
+  const day = formatDay(format, interviewAt, now || interviewAt);
+  if (now === 0) return fmt(words.on, { day });
   const days = daysFrom(now, interviewAt);
-  if (days === 0) return "Interview today";
-  if (days === 1) return "Interview tomorrow";
-  return days > 0 ? `Interview ${day}` : `Interview was ${day}`;
+  if (days === 0) return words.today;
+  if (days === 1) return words.tomorrow;
+  return fmt(days > 0 ? words.on : words.was, { day });
 }
 
 export function prepChoices(applications: readonly Application[]): Application[] {
@@ -97,10 +107,15 @@ export type PrepChoice =
 export function prepPickerChoices(
   applications: readonly Application[],
   resumes: readonly Resume[],
+  { dialog }: Pick<PrepMessages, "dialog"> = EN_PREP,
+  { statuses }: Pick<ApplicationsMessages, "statuses"> = EN_APPLICATIONS,
 ): PrepChoice[] {
   const fromApplications: PrepChoice[] = prepChoices(applications).map((application) => ({
     value: `application:${application.id}`,
-    label: `${[application.company, application.role].filter(Boolean).join(", ")} (${STATUS_NAMES[application.status]})`,
+    label: fmt(dialog.choice, {
+      name: [application.company, application.role].filter(Boolean).join(", "),
+      status: statuses[application.status],
+    }),
     kind: "application",
     application,
   }));
@@ -114,7 +129,7 @@ export function prepPickerChoices(
     .sort((a, b) => (b.tailor?.createdAt ?? 0) - (a.tailor?.createdAt ?? 0))
     .map((copy) => ({
       value: `copy:${copy.id}`,
-      label: `${resumeTitle(copy)} (tailored copy, not sent yet)`,
+      label: fmt(dialog.copyChoice, { title: resumeTitle(copy) }),
       kind: "copy",
       copy,
     }));

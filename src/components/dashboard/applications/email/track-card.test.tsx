@@ -2,6 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GMAIL_FORWARDING_URL, gmailCreateFilterUrl } from "@/lib/inbound/gmail-filter";
 import type { TrackingAddress } from "@/lib/inbound/types";
+import { inEnglish, inLocale } from "../../messages-testing";
+import { proposalLine } from "./view";
+import { formatFor } from "@/i18n/intl";
+import { loadMessages } from "@/i18n/messages";
+import type { EmailEvent } from "@/lib/inbound/types";
 import type { GmailButtonProps } from "./gmail-button";
 import { SetupSteps } from "./track-card";
 
@@ -61,7 +66,7 @@ const text = (html: string) =>
 
 function render(address: TrackingAddress) {
   mocks.buttons.length = 0;
-  return renderToStaticMarkup(<SetupSteps address={address} userId="u1" />);
+  return renderToStaticMarkup(inEnglish(<SetupSteps address={address} userId="u1" />));
 }
 
 beforeEach(() => {
@@ -103,7 +108,11 @@ describe("the setup steps", () => {
     const [open] = mocks.buttons;
     expect(text(renderToStaticMarkup(<>{open!.children}</>))).toBe("Copy address and open Gmail");
     await expect(open!.onPress!()).resolves.toBe(true);
-    expect(mocks.copyText).toHaveBeenCalledWith(ADDRESS.email, "address", { quiet: true });
+    expect(mocks.copyText).toHaveBeenCalledWith(
+      ADDRESS.email,
+      "address",
+      expect.objectContaining({ quiet: true }),
+    );
     expect(mocks.watchForMail).toHaveBeenCalledOnce();
     expect(open!.doneLabel).toBe("Address copied");
   });
@@ -164,5 +173,43 @@ describe("the setup steps", () => {
     expect(text(html).match(/\(done\)/g)).toHaveLength(3);
     expect(mocks.buttons).toHaveLength(0);
     expect(text(html)).toContain("Send a test");
+  });
+});
+
+describe("the setup steps in Spanish", () => {
+  it("walks through Gmail with Gmail's own Spanish labels", async () => {
+    mocks.buttons.length = 0;
+    const html = renderToStaticMarkup(
+      await inLocale("es", <SetupSteps address={ADDRESS} userId="u1" />),
+    );
+    expect(text(html)).toContain("Paso 1 de 3");
+    expect(text(html)).toContain("Agrega tu dirección de Otto a Gmail");
+    expect(html).toMatch(/<strong[^>]*>Reenvío y correo POP\/IMAP<\/strong>/);
+    expect(html).toMatch(/<strong[^>]*>Siguiente<\/strong>/);
+    expect(text(html)).toContain("Tu nombre es priya .");
+    expect(text(html)).not.toMatch(/Step 1 of 3|Then in Gmail|Send a test/);
+    const [open] = mocks.buttons;
+    expect(text(renderToStaticMarkup(<>{open!.children}</>))).toBe(
+      "Copiar dirección y abrir Gmail",
+    );
+  });
+
+  it("names the Gmail that asked and says what Apply would do", async () => {
+    const html = renderToStaticMarkup(
+      await inLocale("es", <SetupSteps address={ASKED} userId="u1" />),
+    );
+    expect(text(html)).toContain("Confirmar priya@gmail.com");
+    expect(text(html)).toContain("pidió enviar su correo a priya");
+    const email = await loadMessages("es", "email");
+    const { statuses } = await loadMessages("es", "applications");
+    const event = {
+      company: "Northwind",
+      eventAt: null,
+      eventText: "",
+      proposal: { change: "moved", company: "Northwind", toStatus: "rejected" },
+    } as unknown as EmailEvent;
+    expect(proposalLine(event, { email, statuses, format: formatFor("es") })).toBe(
+      "Mover Northwind a Rechazada",
+    );
   });
 });

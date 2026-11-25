@@ -17,10 +17,11 @@ import { CompanyMark } from "@/components/ui/company-mark";
 import { FolderCard } from "@/components/ui/folder-card";
 import { ProMark } from "@/components/ui/pro-mark";
 import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { applicationHref } from "@/lib/applications/thread";
 import type { PrepSummary } from "@/lib/insights/prep";
-import { cn, pluralize } from "@/lib/utils";
-import { formatDay } from "../applications/view";
+import { cn } from "@/lib/utils";
+import { formatDay, type PrepMessages } from "../i18n";
 import { AddToCalendar } from "./add-to-calendar";
 import { InterviewArt } from "./interview-art";
 import { interviewHref, type InterviewEntry } from "./view";
@@ -34,8 +35,8 @@ export type PrepareAction = { locked: boolean; onLocked: () => void };
 
 const stagger = (index: number): CSSProperties => ({ animationDelay: `${(index + 1) * 70}ms` });
 
-function jobName(company: string, role: string): string {
-  return role.trim() || `Your ${company} interview`;
+function jobName(company: string, role: string, { cards }: PrepMessages): string {
+  return role.trim() || fmt(cards.jobName, { company });
 }
 
 function usePackPractice(pack: PrepSummary | null): number {
@@ -101,15 +102,16 @@ function Countdown({ at, now }: { at: number; now: number }) {
 }
 
 function Undated({ applicationId }: { applicationId: string }) {
+  const { cards } = useMessages("prep");
   return (
     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm/5 text-muted">
       <CalendarClock aria-hidden className="size-4 text-subtle" />
-      No interview day yet.
+      {cards.noDay}
       <Link
         href={applicationHref(applicationId)}
         className="relative z-10 font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
       >
-        Add the day
+        {cards.addDay}
       </Link>
     </p>
   );
@@ -128,9 +130,11 @@ export function FeaturedInterview({
   allowance: string | null;
 }) {
   const { application, pack } = entry;
+  const t = useMessages("prep");
+  const format = useFormat();
   const got = usePackPractice(pack);
   const at = application.interviewAt;
-  const cta = pack ? "Open prep" : "Prepare";
+  const cta = pack ? t.cards.open : t.cards.prepare;
   return (
     <div className="group/art group/otto relative grid gap-2 rounded-xl has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink motion-safe:animate-fade-in sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] md:grid-cols-[17rem_minmax(0,1fr)]">
       <InterviewArt at={at} prepared={pack !== null} className="h-40 sm:h-full sm:min-h-48" />
@@ -142,29 +146,25 @@ export function FeaturedInterview({
               {application.company}
             </span>
             {at === null ? null : <Countdown at={at} now={now} />}
-            {pack?.demo ? <Badge>Demo</Badge> : null}
+            {pack?.demo ? <Badge>{t.cards.demo}</Badge> : null}
           </div>
           <h3 className="font-display text-2xl/8 font-normal tracking-tight text-pretty text-ink sm:text-3xl/9">
             <PrepareTarget entry={entry} action={action} className={cn("text-left", STRETCH)}>
-              {jobName(application.company, application.role)}
+              {jobName(application.company, application.role, t)}
             </PrepareTarget>
           </h3>
           {pack ? (
             <div className="flex flex-col gap-1.5">
               <p className="text-sm/6 text-muted">
-                {pluralize(pack.questions, "question")} round by round
-                {pack.stories > 0
-                  ? `, ${pluralize(pack.stories, "story", "stories")} from your own lines`
-                  : ""}
-                .
+                {fmt(pack.stories > 0 ? t.cards.packLineStories : t.cards.packLine, {
+                  questions: format.plural(t.count.questions, pack.questions),
+                  stories: format.plural(t.count.stories, pack.stories),
+                })}
               </p>
               <PracticeMeter got={got} total={pack.questions} />
             </div>
           ) : (
-            <p className="max-w-prose text-sm/6 text-pretty text-muted">
-              One click: Otto reads the job post and builds likely questions and stories from your
-              own resume lines.
-            </p>
+            <p className="max-w-prose text-sm/6 text-pretty text-muted">{t.cards.oneClick}</p>
           )}
         </div>
         {at === null ? <Undated applicationId={application.id} /> : null}
@@ -217,6 +217,7 @@ export function InterviewTile({
 }) {
   const { application, pack } = entry;
   const words = useMessages("applications");
+  const t = useMessages("prep");
   const format = useFormat();
   const got = usePackPractice(pack);
   const at = application.interviewAt;
@@ -236,10 +237,10 @@ export function InterviewTile({
         <div className="min-w-0 flex-1">
           <p className="text-xs/4 font-medium text-subtle">{application.company}</p>
           <h3 id={titleId} className="mt-0.5 text-base/6 font-medium text-pretty text-ink">
-            {jobName(application.company, application.role)}
+            {jobName(application.company, application.role, t)}
           </h3>
         </div>
-        {pack?.demo ? <Badge>Demo</Badge> : null}
+        {pack?.demo ? <Badge>{t.cards.demo}</Badge> : null}
       </div>
       {at === null ? (
         <Undated applicationId={application.id} />
@@ -254,7 +255,7 @@ export function InterviewTile({
           describedBy={titleId}
           className={cn("inline-flex items-center gap-1.5 text-sm/6 font-medium text-ink", STRETCH)}
         >
-          {pack ? "Open prep" : "Prepare"}
+          {pack ? t.cards.open : t.cards.prepare}
           {action.locked && !pack ? <ProMark /> : null}
           <ArrowRight
             aria-hidden
@@ -332,15 +333,17 @@ function PackSheet({
 
 // A prep pack is a document, so it sits in a folder like a resume: paper in a well, the job under it.
 export function PackCard({ pack, now, index }: { pack: PrepSummary; now: number; index: number }) {
+  const t = useMessages("prep");
+  const format = useFormat();
   const got = usePackPractice(pack);
   const titleId = useId();
   return (
     <li style={stagger(index)} className="group/art relative flex motion-safe:animate-fade-in">
       <FolderCard
-        tab="Prep pack"
+        tab={t.cards.pack}
         tabEnd={
           <span className="text-xs/4 text-subtle">
-            Made {formatDay(pack.createdAt, now || pack.createdAt)}
+            {fmt(t.cards.made, { day: formatDay(format, pack.createdAt, now || pack.createdAt) })}
           </span>
         }
         className="w-full"
@@ -352,14 +355,14 @@ export function PackCard({ pack, now, index }: { pack: PrepSummary; now: number;
             <div className="min-w-0 flex-1">
               <p className="text-xs/4 font-medium text-subtle">{pack.company}</p>
               <h3 id={titleId} className="mt-0.5 text-base/6 font-medium text-pretty text-ink">
-                {jobName(pack.company, pack.role)}
+                {jobName(pack.company, pack.role, t)}
               </h3>
             </div>
             {pack.demo ? <Badge>Demo</Badge> : null}
           </div>
           <p className="text-sm/5 text-muted">
-            {pluralize(pack.questions, "question")}
-            {pack.stories > 0 ? ` · ${pluralize(pack.stories, "story", "stories")}` : ""}
+            {format.plural(t.count.questions, pack.questions)}
+            {pack.stories > 0 ? ` · ${format.plural(t.count.stories, pack.stories)}` : ""}
           </p>
           <PracticeMeter got={got} total={pack.questions} />
           <div className="mt-auto flex items-center justify-between gap-2 pt-1">
@@ -371,7 +374,7 @@ export function PackCard({ pack, now, index }: { pack: PrepSummary; now: number;
                 STRETCH,
               )}
             >
-              Open prep
+              {t.cards.open}
               <ArrowRight
                 aria-hidden
                 className="size-4 text-muted transition duration-200 group-hover/art:translate-x-0.5 group-hover/art:text-ink"
@@ -386,7 +389,7 @@ export function PackCard({ pack, now, index }: { pack: PrepSummary; now: number;
                 className: "relative z-10 -mr-1.5 text-muted hover:text-ink",
               })}
             >
-              Application
+              {t.cards.application}
             </Link>
           </div>
         </div>

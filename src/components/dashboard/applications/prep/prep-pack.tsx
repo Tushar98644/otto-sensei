@@ -6,6 +6,8 @@ import { CueCardsArt } from "@/components/dashboard/interview/interview-art";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
 import {
   focusLine,
@@ -16,7 +18,8 @@ import {
   storyUses,
   type PrepStop,
 } from "@/lib/insights/prep-view";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import type { PrepMessages } from "../../i18n";
 import { LazyPractice } from "./lazy-practice";
 import { PracticeMeter } from "./practice-meter";
 import { usePractice } from "./practice-store";
@@ -39,9 +42,14 @@ function roundId(group: PrepStop): string {
 
 type Practice = { open: boolean; startAt: number | null };
 
+function startLabel(got: number, total: number, { pack }: PrepMessages): string {
+  return got === 0 ? pack.start : got >= total ? pack.again : pack.keepGoing;
+}
+
 function Agenda({ rounds, asks }: { rounds: PrepStop[]; asks: number }) {
+  const t = useMessages("prep");
   return (
-    <nav aria-label="Rounds" className="xl:hidden">
+    <nav aria-label={t.pack.rounds} className="xl:hidden">
       <ol className="flex flex-wrap gap-2">
         {rounds.map((group) => (
           <li key={group.round}>
@@ -52,7 +60,7 @@ function Agenda({ rounds, asks }: { rounds: PrepStop[]; asks: number }) {
               <span aria-hidden className={cn(CHIP_NODE, "bg-surface text-ink")}>
                 {group.number}
               </span>
-              {stopCopy(group).label}
+              {stopCopy(group, t).label}
             </a>
           </li>
         ))}
@@ -65,7 +73,7 @@ function Agenda({ rounds, asks }: { rounds: PrepStop[]; asks: number }) {
               <span aria-hidden className={cn(CHIP_NODE, "bg-primary text-white")}>
                 <MessageCircleQuestion className="size-3" />
               </span>
-              Your turn
+              {t.pack.yourTurn}
             </a>
           </li>
         ) : null}
@@ -135,12 +143,13 @@ function Contents({
   total: number;
   onPractise: () => void;
 }) {
+  const t = useMessages("prep");
   const link =
     "flex min-h-9 items-center gap-2.5 rounded-lg px-2 text-sm text-ink transition-colors hover:bg-ink/5";
   return (
     <aside className="hidden self-start xl:sticky xl:top-8 xl:block print:hidden">
-      <nav aria-label="In this pack" className="flex flex-col gap-2">
-        <Eyebrow className="px-2">In this pack</Eyebrow>
+      <nav aria-label={t.pack.inPack} className="flex flex-col gap-2">
+        <Eyebrow className="px-2">{t.pack.inPack}</Eyebrow>
         <ol className="flex flex-col gap-0.5">
           {rounds.map((group) => (
             <li key={group.round}>
@@ -151,7 +160,7 @@ function Contents({
                 >
                   {group.number}
                 </span>
-                <span className="min-w-0 flex-1">{stopCopy(group).label}</span>
+                <span className="min-w-0 flex-1">{stopCopy(group, t).label}</span>
                 <span className="text-xs text-subtle tabular-nums">{group.questions.length}</span>
               </a>
             </li>
@@ -162,7 +171,7 @@ function Contents({
                 <span aria-hidden className={cn(CHIP_NODE, "bg-primary text-white")}>
                   <MessageCircleQuestion className="size-3" />
                 </span>
-                <span className="min-w-0 flex-1">Your turn</span>
+                <span className="min-w-0 flex-1">{t.pack.yourTurn}</span>
                 <span className="text-xs text-subtle tabular-nums">{asks}</span>
               </a>
             </li>
@@ -179,7 +188,7 @@ function Contents({
                 >
                   S
                 </span>
-                <span className="min-w-0 flex-1">Your stories</span>
+                <span className="min-w-0 flex-1">{t.pack.stories}</span>
                 <span className="text-xs text-subtle tabular-nums">{stories}</span>
               </a>
             </li>
@@ -191,7 +200,7 @@ function Contents({
           <PracticeMeter got={got} total={total} barClassName="flex-1" className="w-full" />
           <Button variant="secondary" size="sm" onClick={onPractise}>
             <Play aria-hidden />
-            {got === 0 ? "Start practicing" : got >= total ? "Practice again" : "Keep practicing"}
+            {startLabel(got, total, t)}
           </Button>
         </div>
       ) : null}
@@ -208,16 +217,16 @@ export function PrepPack({
   target: PrepTarget;
   storageKey: string;
 }) {
+  const t = useMessages("prep");
+  const format = useFormat();
   const [practice, setPractice] = useState<Practice>({ open: false, startAt: null });
   const rounds = useMemo(() => prepStops(prep), [prep]);
   const uses = useMemo(() => storyUses(prep), [prep]);
   const record = usePractice(storageKey);
   const total = questionCount(prep);
-  const got = useMemo(() => practiceSteps(prep), [prep]).filter(
+  const got = useMemo(() => practiceSteps(prep, t), [prep, t]).filter(
     (step) => record.marks[step.item.question] === "got",
   ).length;
-  const startLabel =
-    got === 0 ? "Start practicing" : got >= total ? "Practice again" : "Keep practicing";
 
   function linked(index: number | null): LinkedStory | null {
     const story = index === null ? undefined : prep.stories[index];
@@ -233,7 +242,7 @@ export function PrepPack({
       <div className="flex min-w-0 flex-col gap-14">
         {total > 0 ? (
           <FolderCard
-            tab={<h2 className={TAB_HEADING}>Practice</h2>}
+            tab={<h2 className={TAB_HEADING}>{t.pack.practice}</h2>}
             tone="lavender"
             bodyClassName="p-2"
             className="print:hidden"
@@ -242,21 +251,20 @@ export function PrepPack({
               <CueCardsArt className="h-36 sm:h-full sm:min-h-52" />
               <div className="flex min-w-0 flex-col items-start gap-5 px-2 pt-2 pb-2 sm:px-4 sm:py-5 lg:px-6">
                 <div className="flex flex-col gap-2">
-                  <Eyebrow>Otto plays the interviewer</Eyebrow>
+                  <Eyebrow>{t.pack.eyebrow}</Eyebrow>
                   <p className="font-display text-2xl/8 font-normal tracking-tight text-pretty text-ink sm:text-3xl/9">
-                    {pluralize(total, "question")} in {pluralize(rounds.length, "round")}
-                    {prep.asks.length > 0 ? ", then your turn" : ""}
+                    {fmt(prep.asks.length > 0 ? t.pack.pitchTurn : t.pack.pitch, {
+                      questions: format.plural(t.count.questions, total),
+                      rounds: format.plural(t.count.rounds, rounds.length),
+                    })}
                   </p>
-                  <p className="max-w-prose text-sm/6 text-pretty text-muted">
-                    One question at a time. Answer out loud, peek at your outline when you need it,
-                    and fill the blanks in your words.
-                  </p>
+                  <p className="max-w-prose text-sm/6 text-pretty text-muted">{t.pack.pitchBody}</p>
                 </div>
                 <Agenda rounds={rounds} asks={prep.asks.length} />
                 <div className="flex w-full flex-wrap items-center gap-x-5 gap-y-3">
                   <Button size="lg" onClick={() => practise()} className="max-sm:w-full">
                     <Play aria-hidden />
-                    {startLabel}
+                    {startLabel(got, total, t)}
                   </Button>
                   <PracticeMeter got={got} total={total} barClassName="w-24" />
                 </div>
@@ -265,7 +273,7 @@ export function PrepPack({
           </FolderCard>
         ) : null}
 
-        <section aria-label="The interview, round by round">
+        <section aria-label={t.pack.byRound}>
           {total > 0 ? (
             <ol>
               {rounds.map((group, index) => (
@@ -293,13 +301,16 @@ export function PrepPack({
                       </span>
                     )
                   }
-                  eyebrow={`Round ${group.number} · ${pluralize(group.questions.length, "question")}`}
-                  title={stopCopy(group).label}
-                  about={stopCopy(group).about}
+                  eyebrow={fmt(t.pack.round, {
+                    number: group.number,
+                    questions: format.plural(t.count.questions, group.questions.length),
+                  })}
+                  title={stopCopy(group, t).label}
+                  about={stopCopy(group, t).about}
                   badge={
                     group.round === "technical" ? (
                       <span className="inline-flex h-6 items-center rounded-full bg-lavender px-2.5 text-xs font-medium text-ink">
-                        {focusLine(group.section)}
+                        {focusLine(group.section, t)}
                       </span>
                     ) : undefined
                   }
@@ -342,9 +353,9 @@ export function PrepPack({
                       <MessageCircleQuestion className="size-4" />
                     </span>
                   }
-                  eyebrow={pluralize(prep.asks.length, "question")}
-                  title="Your turn"
-                  about="They'll ask what you'd like to know. Pick two or three of these."
+                  eyebrow={format.plural(t.count.questions, prep.asks.length)}
+                  title={t.pack.yourTurn}
+                  about={t.pack.turnAbout}
                   last
                 >
                   <AskBubbles asks={prep.asks} surface="mist" />
@@ -352,9 +363,7 @@ export function PrepPack({
               ) : null}
             </ol>
           ) : (
-            <p className="rounded-2xl bg-surface p-5 text-sm/6 text-muted">
-              No questions this time. Try making a new pack.
-            </p>
+            <p className="rounded-2xl bg-surface p-5 text-sm/6 text-muted">{t.pack.noQuestions}</p>
           )}
         </section>
 
@@ -368,11 +377,10 @@ export function PrepPack({
               id="prep-stories-heading"
               className="font-display text-3xl/9 font-normal tracking-tight text-ink"
             >
-              Your stories
+              {t.pack.stories}
             </h2>
             <p className="mt-1 max-w-prose text-sm/6 text-pretty text-muted">
-              Each one starts from a line on your resume. Say it out loud, and fill each blank in
-              your words.
+              {t.pack.storiesBody}
             </p>
           </div>
           {prep.stories.length > 0 ? (
@@ -388,9 +396,7 @@ export function PrepPack({
               ))}
             </div>
           ) : (
-            <p className="rounded-2xl bg-surface p-5 text-sm/6 text-muted">
-              Your resume has no lines to build stories from yet. Add a few, then make a new pack.
-            </p>
+            <p className="rounded-2xl bg-surface p-5 text-sm/6 text-muted">{t.pack.noStories}</p>
           )}
         </section>
       </div>

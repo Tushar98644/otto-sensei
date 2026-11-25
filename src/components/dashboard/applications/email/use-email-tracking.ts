@@ -3,8 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useMe } from "@/components/account/use-me";
-import { errorMessage } from "@/components/account/errors";
+import { errorMessage, type ErrorWords } from "@/components/account/errors";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
+import EN_APP from "@/i18n/messages/en/app";
+import EN_EMAIL from "@/i18n/messages/en/email";
 import { api } from "@/lib/api/client";
 import type { EmailTrackingAction, EmailTrackingState } from "@/lib/inbound/types";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
@@ -92,33 +95,46 @@ export function emailedCards(
   return ids;
 }
 
+// The failure toasts in the reader's language.
+export type TrackingWords = { failed: (typeof EN_EMAIL)["failed"]; errors: ErrorWords };
+
+const ENGLISH: TrackingWords = { failed: EN_EMAIL.failed, errors: EN_APP.errors };
+
+export function useTrackingWords(): TrackingWords {
+  const { failed } = useMessages("email");
+  const { errors } = useMessages("app");
+  return { failed, errors };
+}
+
 async function run(
   userId: string,
   work: () => Promise<{ tracking: EmailTrackingState }>,
   failed: string,
+  words: TrackingWords,
 ): Promise<boolean> {
   try {
     store(userId, (await work()).tracking);
     return true;
   } catch (error) {
-    toast({ title: failed, description: errorMessage(error), variant: "error" });
+    toast({ title: failed, description: errorMessage(error, words.errors), variant: "error" });
     return false;
   }
 }
 
-export function trackingAction(userId: string, body: EmailTrackingAction): Promise<boolean> {
+export function trackingAction(
+  userId: string,
+  body: EmailTrackingAction,
+  words: TrackingWords = ENGLISH,
+): Promise<boolean> {
   watchFor();
-  const failed =
-    body.action === "start"
-      ? "Couldn't set up your address"
-      : body.action === "handle"
-        ? "Couldn't change your address"
-        : "Couldn't save that";
-  return run(userId, () => api.emailTrackingAction(body), failed);
+  const { failed } = words;
+  const title =
+    body.action === "start" ? failed.start : body.action === "handle" ? failed.handle : failed.save;
+  return run(userId, () => api.emailTrackingAction(body), title, words);
 }
 
-export function stopTracking(userId: string): Promise<boolean> {
-  return run(userId, () => api.stopEmailTracking(), "Couldn't turn it off");
+export function stopTracking(userId: string, words: TrackingWords = ENGLISH): Promise<boolean> {
+  return run(userId, () => api.stopEmailTracking(), words.failed.stop, words);
 }
 
 // Checks every few seconds for a while: after a test email, or while Gmail's confirmation is on its way.
@@ -130,13 +146,18 @@ export async function changeFromEmail(
   userId: string,
   id: string,
   action: "undo" | "apply",
+  words: TrackingWords = ENGLISH,
 ): Promise<boolean> {
-  const failed = action === "undo" ? "Couldn't undo that" : "Couldn't apply that";
-  const done = await run(userId, () => api.changeFromEmail(id, action), failed);
+  const failed = action === "undo" ? words.failed.undo : words.failed.apply;
+  const done = await run(userId, () => api.changeFromEmail(id, action), failed, words);
   if (done) refreshBoard();
   return done;
 }
 
-export function dismissEmail(userId: string, id: string): Promise<boolean> {
-  return run(userId, () => api.dismissEmail(id), "Couldn't clear that");
+export function dismissEmail(
+  userId: string,
+  id: string,
+  words: TrackingWords = ENGLISH,
+): Promise<boolean> {
+  return run(userId, () => api.dismissEmail(id), words.failed.clear, words);
 }

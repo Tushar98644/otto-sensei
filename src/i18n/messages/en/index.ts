@@ -1,8 +1,10 @@
 import account from "./account";
 import api from "./api";
+import app from "./app";
 import applications from "./applications";
 import common from "./common";
 import dashboard from "./dashboard";
+import email from "./email";
 import emails from "./emails";
 import home from "./home";
 import interview from "./interview";
@@ -11,6 +13,7 @@ import letters from "./letters";
 import lint from "./lint";
 import login from "./login";
 import portfolio from "./portfolio";
+import prep from "./prep";
 import pricing from "./pricing";
 import product from "./product";
 import seo from "./seo";
@@ -21,9 +24,11 @@ import studio from "./studio";
 const en = {
   account,
   api,
+  app,
   applications,
   common,
   dashboard,
+  email,
   emails,
   home,
   interview,
@@ -32,6 +37,7 @@ const en = {
   lint,
   login,
   portfolio,
+  prep,
   pricing,
   product,
   seo,

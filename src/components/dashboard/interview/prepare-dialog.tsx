@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { roomForApplication } from "@/components/account/pro-tools";
-import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { useNow } from "@/components/studio/use-now";
@@ -15,6 +14,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api, isApiError } from "@/lib/api/client";
 import { APPLICATION_LIMITS, normalizeJobUrl, type Application } from "@/lib/applications/schema";
 import { copyJobId } from "@/lib/applications/thread";
@@ -36,9 +37,15 @@ export type PrepareDialogProps = {
 type Manual = { company: string; role: string; note: string };
 
 export function PrepareDialog({ open, applications, resumes, packs, onClose }: PrepareDialogProps) {
+  const { dialog: t } = useMessages("prep");
+  const { statuses } = useMessages("applications");
+  const app = useMessages("app");
   const router = useRouter();
   const now = useNow();
-  const choices = useMemo(() => prepPickerChoices(applications, resumes), [applications, resumes]);
+  const choices = useMemo(
+    () => prepPickerChoices(applications, resumes, { dialog: t }, { statuses }),
+    [applications, resumes, t, statuses],
+  );
   const [picked, setPicked] = useState(() => {
     const waiting = waitingForPrep(applications, packs, now)[0];
     return waiting ? `application:${waiting.id}` : (choices[0]?.value ?? "");
@@ -68,12 +75,10 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
       const company = posting.company.trim();
       const role = posting.title.trim();
       if (company) return { company, role, url: normalizeJobUrl(posting.url) || url };
-      return { company: "", role, note: "The post doesn't name the company. Type it in to go on." };
+      return { company: "", role, note: t.noCompany };
     } catch (error) {
-      const why = isApiError(error, "network_error")
-        ? OTTO.errors.offline
-        : "Otto couldn't read that link just now.";
-      return { company: "", role: "", note: `${why} Type the company to go on.` };
+      const why = isApiError(error, "network_error") ? app.errors.offline : t.cantRead;
+      return { company: "", role: "", note: fmt(t.typeCompany, { why }) };
     } finally {
       setReading(false);
     }
@@ -84,11 +89,7 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
     const value = raw.trim();
     const url = normalizeJobUrl(value);
     if (!url) {
-      setLinkError(
-        value
-          ? "That doesn't look like a link. Copy it from your browser's address bar."
-          : "Paste the link to the job post first.",
-      );
+      setLinkError(value ? t.notLink : t.noLink);
       linkRef.current?.focus();
       return;
     }
@@ -104,7 +105,7 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
       let job: { company: string; role: string; url: string };
       if (manual) {
         if (!manual.company.trim()) {
-          setCompanyError("Type the company's name.");
+          setCompanyError(t.companyName);
           companyRef.current?.focus();
           return;
         }
@@ -173,20 +174,13 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
-      title="Prepare for an interview"
-      illustration={<OttoNote size="sm" live={false} message={OTTO.interview.pick} />}
+      title={t.title}
+      illustration={<OttoNote size="sm" live={false} message={t.pick} />}
     >
       <div className="flex flex-col gap-6">
         {chosen ? (
           <form onSubmit={(event) => void submitChoice(event)} className="flex flex-col gap-3">
-            <Field
-              label="From your applications and tailored copies"
-              hint={
-                chosen.kind === "copy"
-                  ? "It joins Applications at the interview stage, with its letter."
-                  : undefined
-              }
-            >
+            <Field label={t.from} hint={chosen.kind === "copy" ? t.joins : undefined}>
               <Select value={chosen.value} onChange={(event) => setPicked(event.target.value)}>
                 {choices.map((choice) => (
                   <option key={choice.value} value={choice.value}>
@@ -201,7 +195,7 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
               loading={busy && chosen.kind === "copy"}
               data-autofocus
             >
-              Prepare
+              {t.prepare}
               <ArrowRight aria-hidden />
             </Button>
           </form>
@@ -215,9 +209,9 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
           }
         >
           <Field
-            label={chosen ? "Or paste a job link" : "Job link"}
+            label={chosen ? t.orLink : t.link}
             error={linkError}
-            hint={linkError ? null : "Most job sites work, but not LinkedIn or Indeed."}
+            hint={linkError ? null : t.linkHint}
           >
             <Input
               ref={linkRef}
@@ -248,25 +242,25 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
             <>
               <Alert role="note">{manual.note}</Alert>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Company" error={companyError}>
+                <Field label={t.company} error={companyError}>
                   <Input
                     ref={companyRef}
                     value={manual.company}
                     maxLength={APPLICATION_LIMITS.company}
                     autoComplete="off"
-                    placeholder="e.g. Shopify"
+                    placeholder={t.companyPlaceholder}
                     onChange={(event) => {
                       setManual({ ...manual, company: event.target.value });
                       setCompanyError(null);
                     }}
                   />
                 </Field>
-                <Field label="Job title" optional>
+                <Field label={t.role} optional>
                   <Input
                     value={manual.role}
                     maxLength={APPLICATION_LIMITS.role}
                     autoComplete="off"
-                    placeholder="e.g. Product Designer"
+                    placeholder={t.rolePlaceholder}
                     onChange={(event) => setManual({ ...manual, role: event.target.value })}
                   />
                 </Field>
@@ -280,7 +274,7 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
             loading={busy}
             className="self-start"
           >
-            Prepare for this job
+            {t.prepareJob}
             <ArrowRight aria-hidden />
           </Button>
         </form>

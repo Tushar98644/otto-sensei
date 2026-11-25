@@ -15,10 +15,10 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
-import { timeAgo } from "@/components/notifications/time-ago";
+import { timeAgo, type TimeWords } from "@/components/notifications/time-ago";
 import { useNow } from "@/components/studio/use-now";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { copyText } from "@/components/ui/copy-text";
+import { copyText, type CopyWords } from "@/components/ui/copy-text";
 import { Dialog } from "@/components/ui/dialog";
 import { FolderCard } from "@/components/ui/folder-card";
 import { LivePill } from "@/components/ui/live-pill";
@@ -26,6 +26,9 @@ import { Menu, type MenuEntry } from "@/components/ui/menu";
 import { ProMark } from "@/components/ui/pro-mark";
 import { Spinner } from "@/components/ui/spinner";
 import { BRAND } from "@/config/brand";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich, type RichTags } from "@/i18n/rich";
 import {
   GMAIL_FORWARDING_URL,
   gmailCreateFilterUrl,
@@ -33,11 +36,18 @@ import {
 } from "@/lib/inbound/gmail-filter";
 import type { EmailTrackingState, TrackingAddress } from "@/lib/inbound/types";
 import { cn } from "@/lib/utils";
+import type { EmailMessages } from "../../i18n";
 import { EmailArt } from "./email-art";
 import { GmailButton, useFlash } from "./gmail-button";
 import { GMAIL_FILTER_GUIDE, GuideVideo } from "./guide-video";
 import { HandlePicker } from "./handle-picker";
-import { stopTracking, trackingAction, useEmailTracking, watchForMail } from "./use-email-tracking";
+import {
+  stopTracking,
+  trackingAction,
+  useEmailTracking,
+  useTrackingWords,
+  watchForMail,
+} from "./use-email-tracking";
 import {
   changeLine,
   lastRead,
@@ -47,12 +57,24 @@ import {
   setupStep,
   splitEvents,
   testTarget,
-  type SetupStage,
 } from "./view";
 
 export const ACTIVITY_ID = "email-updates";
 const SETUP_ID = "email-setup";
 const ALL_SET_MS = 3_500;
+
+const BOLD: RichTags = { b: (chunk) => <B>{chunk}</B> };
+
+// "3 minutes ago" in the reader's language.
+function useTimeWords(): TimeWords {
+  return { format: useFormat(), justNow: useMessages("app").justNow };
+}
+
+// What the copy toasts say for the address or the code.
+function useCopyWords(what: "address" | "code"): CopyWords {
+  const { copy } = useMessages("app");
+  return { ...copy, paste: useMessages("email").copy[what] };
+}
 
 // A short burst over the card, unless the person asked for less motion.
 function celebrate() {
@@ -129,23 +151,23 @@ function Tile({ icon: Icon, live = false }: { icon: LucideIcon; live?: boolean }
 }
 
 function IntroStrip({ locked, onOpen }: { locked: boolean; onOpen: () => void }) {
+  const { intro } = useMessages("email");
   return (
-    <section aria-label="Track applications from email" className={STRIP}>
+    <section aria-label={intro.title} className={STRIP}>
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <Tile icon={Mail} />
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-2 text-sm/5 font-semibold text-ink">
-            Track applications from email
+            {intro.title}
             {locked ? <ProMark /> : null}
           </p>
           <p className="mt-0.5 text-sm/5 text-pretty text-muted">
-            Pick a handle for your own {BRAND.mascotName} address, forward job emails to it, and
-            this board keeps itself up to date.
+            {fmt(intro.body, { name: BRAND.mascotName })}
           </p>
         </div>
       </div>
       <Button variant="secondary" size="sm" onClick={onOpen} className="max-sm:w-full">
-        {locked ? "See how it works" : "Set up"}
+        {locked ? intro.howItWorks : intro.setUp}
       </Button>
     </section>
   );
@@ -162,6 +184,10 @@ function WorkingStrip({
   userId: string;
   onSetup: () => void;
 }) {
+  const t = useMessages("email");
+  const { statuses } = useMessages("applications");
+  const format = useFormat();
+  const time = useTimeWords();
   const now = useNow();
   const latest = lastRead(tracking);
   const { pending } = splitEvents(tracking);
@@ -169,23 +195,22 @@ function WorkingStrip({
     (event) => event.change !== "none" && event.change !== "pending" && event.undoneAt === null,
   ).length;
   return (
-    <section aria-label="Tracking from email" className={STRIP}>
+    <section aria-label={t.strip.title} className={STRIP}>
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <Tile icon={MailCheck} live />
         <div className="min-w-0">
           <p className="text-sm/5 font-semibold text-ink">
-            Tracking from email
+            {t.strip.title}
             {address.lastEmailAt !== null && now > 0 ? (
               <span className="font-normal text-subtle">
-                {" "}
-                · last email {timeAgo(address.lastEmailAt, now)}
+                {fmt(t.strip.lastEmail, { when: timeAgo(address.lastEmailAt, now, time) })}
               </span>
             ) : null}
           </p>
           {latest ? (
             <p className="mt-0.5 truncate text-sm/5 text-muted">
               <span className="text-ink">{latest.company || latest.sender}</span>:{" "}
-              {changeLine(latest)}
+              {changeLine(latest, { email: t, statuses, format })}
               <span className="text-subtle"> · {latest.subject}</span>
             </p>
           ) : null}
@@ -197,11 +222,11 @@ function WorkingStrip({
             href={`#${ACTIVITY_ID}`}
             className={buttonClasses({ variant: "secondary", size: "sm" })}
           >
-            {pending.length === 1 ? "1 to check" : `${pending.length} to check`}
+            {format.plural(t.strip.toCheck, pending.length)}
           </a>
         ) : tracking.events.length > 0 ? (
           <a href={`#${ACTIVITY_ID}`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-            {changes === 0 ? "Emails read" : changes === 1 ? "1 change" : `${changes} changes`}
+            {changes === 0 ? t.strip.read : format.plural(t.strip.changes, changes)}
           </a>
         ) : null}
         <AddressMenu address={address} userId={userId} parts={tracking.parts} onSetup={onSetup} />
@@ -221,13 +246,20 @@ function AddressMenu({
   parts: EmailTrackingState["parts"];
   onSetup?: () => void;
 }) {
+  const { menu: t } = useMessages("email");
+  const words = useTrackingWords();
+  const copyWords = useCopyWords("address");
   const [dialog, setDialog] = useState<"handle" | "stop" | null>(null);
   const [busy, setBusy] = useState(false);
   const items: MenuEntry[] = [
-    ...(onSetup ? [{ label: "Show setup steps", icon: ListChecks, onSelect: onSetup }] : []),
-    { label: "Copy address", icon: Copy, onSelect: () => void copyText(address.email, "address") },
+    ...(onSetup ? [{ label: t.steps, icon: ListChecks, onSelect: onSetup }] : []),
     {
-      label: "Send a test email",
+      label: t.copy,
+      icon: Copy,
+      onSelect: () => void copyText(address.email, "address", { words: copyWords }),
+    },
+    {
+      label: t.test,
       icon: Send,
       onSelect: () => {
         watchForMail();
@@ -236,17 +268,17 @@ function AddressMenu({
     },
     "separator",
     {
-      label: "Change handle…",
-      description: "The old address works 14 more days",
+      label: t.handle,
+      description: t.handleNote,
       icon: PenLine,
       onSelect: () => setDialog("handle"),
     },
-    { label: "Turn off…", icon: X, tone: "danger", onSelect: () => setDialog("stop") },
+    { label: t.off, icon: X, tone: "danger", onSelect: () => setDialog("stop") },
   ];
 
   async function stop() {
     setBusy(true);
-    const done = await stopTracking(userId);
+    const done = await stopTracking(userId, words);
     setBusy(false);
     if (done) setDialog(null);
   }
@@ -254,9 +286,9 @@ function AddressMenu({
   return (
     <>
       <Menu
-        label="Email tracking"
+        label={t.label}
         align="end"
-        triggerLabel="More for email tracking"
+        triggerLabel={t.trigger}
         triggerClassName={buttonClasses({ variant: "ghost", size: "icon-sm" })}
         trigger={<Ellipsis aria-hidden />}
         items={items}
@@ -264,17 +296,17 @@ function AddressMenu({
       <Dialog
         open={dialog === "handle"}
         onOpenChange={(next) => (next ? null : setDialog(null))}
-        title="Change your handle"
-        description="Your current address keeps taking mail for 14 days, so there's time to put the new one in Gmail's forwarding settings and your filter."
+        title={t.handleTitle}
+        description={t.handleBody}
       >
         <HandlePicker
           initial={address.handle}
           current={address.handle}
           parts={parts}
-          submitLabel="Use this handle"
+          submitLabel={t.useHandle}
           onCancel={() => setDialog(null)}
           onSubmit={async (handle) => {
-            const done = await trackingAction(userId, { action: "handle", handle });
+            const done = await trackingAction(userId, { action: "handle", handle }, words);
             if (done) setDialog(null);
             return done;
           }}
@@ -284,15 +316,15 @@ function AddressMenu({
         open={dialog === "stop"}
         onOpenChange={(next) => (next ? null : setDialog(null))}
         size="sm"
-        title="Turn off tracking from email?"
-        description={`${address.email} stops taking mail at once, so nothing more moves on its own. The updates already made stay, and ${address.handle} stays yours to take back for 90 days.`}
+        title={t.offTitle}
+        description={fmt(t.offBody, { email: address.email, handle: address.handle })}
         footer={
           <>
             <Button variant="secondary" onClick={() => setDialog(null)}>
-              Keep it
+              {t.keep}
             </Button>
             <Button variant="danger" onClick={() => void stop()} aria-busy={busy} disabled={busy}>
-              Turn off
+              {t.turnOff}
             </Button>
           </>
         }
@@ -300,13 +332,6 @@ function AddressMenu({
     </>
   );
 }
-
-const STATUS: Record<SetupStage, string> = {
-  address: "waiting for Gmail's confirmation email",
-  confirm: "Gmail wants to confirm forwarding",
-  filter: "forwarding confirmed",
-  working: "reading your job emails",
-};
 
 function SetupFolder({
   tracking,
@@ -317,27 +342,30 @@ function SetupFolder({
   userId: string;
   onClose?: () => void;
 }) {
+  const t = useMessages("email");
+  const words = useTrackingWords();
+  const time = useTimeWords();
   const tryPro = useTryProLabel();
   const now = useNow();
   const { address } = tracking;
   const stage = address ? setupStage(address) : null;
   const meta =
     stage === "working" && address?.lastEmailAt != null && now > 0
-      ? `last email read ${timeAgo(address.lastEmailAt, now)}`
+      ? fmt(t.setup.lastRead, { when: timeAgo(address.lastEmailAt, now, time) })
       : stage
-        ? STATUS[stage]
-        : "reads each email once and keeps only what changed";
+        ? t.stage[stage]
+        : t.setup.idle;
   return (
     <FolderCard
       id={SETUP_ID}
-      tab="Track automatically"
+      tab={t.setup.tab}
       tabEnd={
         <div className="flex items-center gap-1">
           {address ? (
             <AddressMenu address={address} userId={userId} parts={tracking.parts} />
           ) : null}
           {onClose ? (
-            <Button variant="ghost" size="icon-sm" aria-label="Hide setup" onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" aria-label={t.setup.hide} onClick={onClose}>
               <X aria-hidden />
             </Button>
           ) : null}
@@ -353,12 +381,10 @@ function SetupFolder({
               <span className="font-medium text-ink">{BRAND.mascotName}</span> · {meta}
             </p>
             <p className="font-display text-2xl/8 tracking-tight text-pretty text-ink sm:text-3xl/9">
-              Let job emails move your cards
+              {t.setup.title}
             </p>
             <p className="max-w-prose text-sm/6 text-pretty text-muted">
-              A thank-you email adds the card. A rejection closes it. An interview invite moves it
-              to Interviewing. Anything {BRAND.mascotName} isn&apos;t sure about waits for you. You
-              can undo every change.
+              {fmt(t.setup.body, { name: BRAND.mascotName })}
             </p>
           </div>
           {address ? (
@@ -367,17 +393,15 @@ function SetupFolder({
             <HandlePicker
               initial={tracking.suggestion}
               parts={tracking.parts}
-              submitLabel="Get my address"
-              onSubmit={(handle) => trackingAction(userId, { action: "start", handle })}
+              submitLabel={t.setup.getAddress}
+              onSubmit={(handle) => trackingAction(userId, { action: "start", handle }, words)}
             />
           ) : (
             <div className="flex flex-col items-start gap-3">
               <Button onClick={() => openUpgradePrompt("tracker")} className="max-sm:w-full">
                 {tryPro}
               </Button>
-              <p className="text-sm/5 text-pretty text-subtle">
-                Free tracks one application, so tracking from email comes with Pro.
-              </p>
+              <p className="text-sm/5 text-pretty text-subtle">{t.setup.freeNote}</p>
             </div>
           )}
         </div>
@@ -387,37 +411,21 @@ function SetupFolder({
   );
 }
 
-const FORWARD_STEPS: ReactNode[] = [
-  <>
-    Click the <B>Forwarding and POP/IMAP</B> tab at the top.
-  </>,
-  <>
-    Press <B>Add a forwarding address</B>.
-  </>,
-  <>
-    Paste your address and press <B>Next</B>.
-  </>,
-  <>
-    A new window opens. Press <B>Proceed</B>.
-  </>,
-  <>
-    Press <B>OK</B>.
-  </>,
-];
+function forwardSteps({ gmail }: EmailMessages): ReactNode[] {
+  const { forward } = gmail;
+  return [forward.tab, forward.add, forward.paste, forward.proceed, forward.ok].map((line) =>
+    rich(line, BOLD),
+  );
+}
 
-const FILTER_STEPS: ReactNode[] = [
-  <>
-    Press <B>Create filter</B>.
-  </>,
-  <>
-    Tick <B>Forward it to</B> and choose your Otto address.
-  </>,
-  <>
-    Press <B>Create filter</B>.
-  </>,
-];
+function filterSteps({ gmail }: EmailMessages): ReactNode[] {
+  const { filter } = gmail;
+  return [filter.create, filter.tick, filter.create].map((line) => rich(line, BOLD));
+}
 
 export function SetupSteps({ address, userId }: { address: TrackingAddress; userId: string }) {
+  const { setup: t } = useMessages("email");
+  const time = useTimeWords();
   const now = useNow();
   const stage = setupStage(address);
   const current = setupStep(stage);
@@ -434,31 +442,34 @@ export function SetupSteps({ address, userId }: { address: TrackingAddress; user
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <p className="text-xs/4 font-medium tracking-widest text-subtle uppercase">
-          Your Otto address
+          {t.yourAddress}
         </p>
         <AddressLine email={address.email} />
         <p className="text-sm/5 text-pretty text-subtle">
-          Your handle is <span className="font-medium text-ink">{address.handle}</span>. You can
-          change it in the ⋯ menu.
+          {rich(
+            t.yourHandle,
+            { b: (chunk) => <span className="font-medium text-ink">{chunk}</span> },
+            { handle: address.handle },
+          )}
         </p>
       </div>
 
       <div className="flex flex-col gap-4">
         <Progress current={current} />
         <ol className="flex flex-col">
-          <Step n={1} state={state(1)} title="Add your Otto address to Gmail">
+          <Step n={1} state={state(1)} title={t.stepAdd}>
             <ForwardStep address={address} active={stage === "address"} />
           </Step>
           <Step
             n={2}
             state={state(2)}
-            title="Confirm it's your Gmail"
+            title={t.stepConfirm}
             reopen={false}
-            note={asked ? <LivePill>Gmail asked to confirm</LivePill> : null}
+            note={asked ? <LivePill>{t.asked}</LivePill> : null}
           >
             {address.confirm ? <ConfirmStep address={address} userId={userId} /> : null}
           </Step>
-          <Step n={3} state={state(3)} title="Add a filter for job emails" last>
+          <Step n={3} state={state(3)} title={t.stepFilter} last>
             <FilterStep active={stage === "filter"} />
           </Step>
         </ol>
@@ -473,20 +484,20 @@ export function SetupSteps({ address, userId }: { address: TrackingAddress; user
           className={buttonClasses({ variant: "secondary", size: "sm" })}
         >
           <Send aria-hidden />
-          Send a test
+          {t.sendTest}
         </a>
         <p className="text-sm/5 text-pretty text-muted">
           {address.testAt !== null && now > 0 && stage !== "filter" ? (
             <span className="inline-flex items-center gap-1.5 text-ink">
               <Check aria-hidden className="size-4 text-pass" />
-              Test received {timeAgo(address.testAt, now)}. Your address works.
+              {fmt(t.testReceived, { when: timeAgo(address.testAt, now, time) })}
             </span>
           ) : !test.viaFilter ? (
-            "Opens a Gmail draft to your address. Press Send and it shows up here."
+            t.testDraft
           ) : stage === "filter" ? (
-            "Sends a test to your Gmail. Your filter forwards it to Otto and setup finishes."
+            t.testFinish
           ) : (
-            "Sends a test to your Gmail. Your filter forwards it to Otto."
+            t.testFilter
           )}
         </p>
       </div>
@@ -495,6 +506,8 @@ export function SetupSteps({ address, userId }: { address: TrackingAddress; user
 }
 
 function AddressLine({ email, onTint = false }: { email: string; onTint?: boolean }) {
+  const { setup } = useMessages("email");
+  const copyWords = useCopyWords("address");
   const [name, domain] = email.split("@");
   return (
     <div className="flex flex-col gap-2 sm:flex-row">
@@ -509,21 +522,22 @@ function AddressLine({ email, onTint = false }: { email: string; onTint?: boolea
       </p>
       <Button
         variant="secondary"
-        onClick={() => void copyText(email, "address")}
+        onClick={() => void copyText(email, "address", { words: copyWords })}
         className="max-sm:w-full"
       >
         <Copy aria-hidden />
-        Copy
+        {setup.copy}
       </Button>
     </div>
   );
 }
 
 function Progress({ current }: { current: number }) {
+  const { setup } = useMessages("email");
   return (
     <div className="flex items-center gap-3">
       <p className="shrink-0 text-xs/4 font-medium tracking-widest text-subtle uppercase">
-        {current > SETUP_STEPS ? "All set" : `Step ${current} of ${SETUP_STEPS}`}
+        {current > SETUP_STEPS ? setup.allSet : fmt(setup.stepOf, { current, total: SETUP_STEPS })}
       </p>
       <span aria-hidden className="flex max-w-40 flex-1 gap-1">
         {[1, 2, 3].map((n) => (
@@ -560,6 +574,7 @@ function Step({
   note?: ReactNode;
   children: ReactNode;
 }) {
+  const { setup } = useMessages("email");
   const [again, setAgain] = useState(false);
   const open = state === "current" || (reopen && again);
   return (
@@ -592,7 +607,7 @@ function Step({
             )}
           >
             {title}
-            {state === "done" ? <span className="sr-only"> (done)</span> : null}
+            {state === "done" ? <span className="sr-only">{setup.done}</span> : null}
           </p>
           {note}
           {state !== "current" && reopen ? (
@@ -602,7 +617,7 @@ function Step({
               onClick={() => setAgain(!again)}
               className="-my-1 -mr-3 shrink-0 text-muted"
             >
-              {again ? "Hide steps" : "Show steps"}
+              {again ? setup.hideSteps : setup.showSteps}
             </Button>
           ) : null}
         </div>
@@ -633,6 +648,8 @@ function useCameBack(armed: boolean): boolean {
 }
 
 function ForwardStep({ address, active }: { address: TrackingAddress; active: boolean }) {
+  const t = useMessages("email");
+  const copyWords = useCopyWords("address");
   const [pressed, setPressed] = useState(false);
   const back = useCameBack(pressed && active);
   return (
@@ -641,34 +658,33 @@ function ForwardStep({ address, active }: { address: TrackingAddress; active: bo
         <GmailButton
           href={GMAIL_FORWARDING_URL}
           main={active}
-          doneLabel="Address copied"
+          doneLabel={t.gmail.copied}
           onPress={() => {
             setPressed(true);
             watchForMail();
-            return copyText(address.email, "address", { quiet: true });
+            return copyText(address.email, "address", { quiet: true, words: copyWords });
           }}
         >
-          Copy address and open Gmail
+          {t.gmail.copyOpen}
         </GmailButton>
       </div>
       {back && active ? <Waiting email={address.email} /> : null}
-      <GuideVideo />
-      <p>Then in Gmail:</p>
-      <SubSteps items={FORWARD_STEPS} />
-      {active && !back ? (
-        <p className="text-subtle">Step 2 opens by itself when Gmail&apos;s email reaches Otto.</p>
-      ) : null}
+      <GuideVideo labels={t.video} />
+      <p>{t.gmail.then}</p>
+      <SubSteps items={forwardSteps(t)} />
+      {active && !back ? <p className="text-subtle">{t.gmail.opensItself}</p> : null}
     </>
   );
 }
 
 function Waiting({ email }: { email: string }) {
+  const t = useMessages("email");
   const [checking, setChecking] = useState(false);
   return (
     <div className="flex flex-col gap-3 rounded-xl bg-surface-muted p-3 sm:p-4">
       <p role="status" className="flex items-start gap-2.5 text-ink">
         <Spinner className="mt-1 size-4 text-muted" />
-        Waiting for Gmail&apos;s email to Otto… usually under a minute.
+        {t.gmail.waiting}
       </p>
       <div>
         <Button
@@ -677,15 +693,15 @@ function Waiting({ email }: { email: string }) {
           aria-expanded={checking}
           onClick={() => setChecking(!checking)}
         >
-          Didn&apos;t work? Check the address
+          {t.gmail.check}
         </Button>
       </div>
       {checking ? (
         <div className="flex flex-col gap-3">
-          <p>Gmail needs this exact address:</p>
+          <p>{t.gmail.exact}</p>
           <AddressLine email={email} onTint />
-          <SubSteps items={FORWARD_STEPS.slice(2, 3)} start={3} />
-          <p>Have more than one Gmail? Check you&apos;re in the right one.</p>
+          <SubSteps items={forwardSteps(t).slice(2, 3)} start={3} />
+          <p>{t.gmail.moreThanOne}</p>
         </div>
       ) : null}
     </div>
@@ -693,19 +709,23 @@ function Waiting({ email }: { email: string }) {
 }
 
 function ConfirmStep({ address, userId }: { address: TrackingAddress; userId: string }) {
+  const { gmail: t } = useMessages("email");
+  const words = useTrackingWords();
+  const copyWords = useCopyWords("code");
   const confirm = address.confirm!;
-  const confirmed = () => void trackingAction(userId, { action: "confirmed" });
+  const confirmed = () => void trackingAction(userId, { action: "confirmed" }, words);
   return (
     <div className="flex flex-col gap-4 rounded-xl bg-lavender/60 p-4 inset-ring inset-ring-ink/5">
       <div className="flex flex-col gap-1">
-        <p className="text-base/6 font-semibold text-ink">Is this your Gmail?</p>
+        <p className="text-base/6 font-semibold text-ink">{t.isYours}</p>
         <p className="text-sm/5 text-pretty text-muted">
-          {confirm.source ? (
-            <span className="font-medium break-all text-ink">{confirm.source}</span>
-          ) : (
-            "A Gmail account"
-          )}{" "}
-          asked to send its mail to {address.handle}. Confirm only if it&apos;s yours.
+          {confirm.source
+            ? rich(
+                t.askedFrom,
+                { b: (chunk) => <span className="font-medium break-all text-ink">{chunk}</span> },
+                { source: confirm.source, handle: address.handle },
+              )
+            : fmt(t.askedAccount, { handle: address.handle })}
         </p>
       </div>
       <a
@@ -717,25 +737,17 @@ function ConfirmStep({ address, userId }: { address: TrackingAddress; userId: st
       >
         <MailCheck aria-hidden />
         <span className="min-w-0 truncate">
-          {confirm.source ? `Confirm ${confirm.source}` : "Confirm forwarding"}
+          {confirm.source ? fmt(t.confirmSource, { source: confirm.source }) : t.confirm}
         </span>
       </a>
       <div className="text-sm/6 text-pretty text-muted">
-        <SubSteps
-          onTint
-          items={[
-            <>
-              Gmail opens a page. Press <B>Confirm</B> there too.
-            </>,
-            <>Come back here for step 3.</>,
-          ]}
-        />
+        <SubSteps onTint items={[rich(t.confirmThere, BOLD), t.comeBack]} />
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {confirm.code ? (
           <>
             <p className="text-sm/5 text-muted">
-              Code{" "}
+              {t.code}{" "}
               <span className="font-mono text-base font-medium tracking-wider text-ink tabular-nums">
                 {confirm.code}
               </span>
@@ -744,21 +756,21 @@ function ConfirmStep({ address, userId }: { address: TrackingAddress; userId: st
               variant="secondary"
               size="sm"
               onClick={() => {
-                void copyText(confirm.code ?? "", "code");
+                void copyText(confirm.code ?? "", "code", { words: copyWords });
                 confirmed();
               }}
             >
               <Copy aria-hidden />
-              Copy code
+              {t.copyCode}
             </Button>
           </>
         ) : null}
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => void trackingAction(userId, { action: "not_mine" })}
+          onClick={() => void trackingAction(userId, { action: "not_mine" }, words)}
         >
-          Not my Gmail
+          {t.notMine}
         </Button>
       </div>
     </div>
@@ -766,17 +778,18 @@ function ConfirmStep({ address, userId }: { address: TrackingAddress; userId: st
 }
 
 function FilterStep({ active }: { active: boolean }) {
+  const t = useMessages("email");
   return (
     <>
       <div>
         <GmailButton href={gmailCreateFilterUrl()} main={active}>
-          Open the filter in Gmail
+          {t.gmail.openFilter}
         </GmailButton>
       </div>
-      <GuideVideo src={GMAIL_FILTER_GUIDE} />
-      <p>Then in Gmail:</p>
-      <SubSteps items={FILTER_STEPS} />
-      <p>Your Otto address shows here once Gmail has confirmed it (steps 1 and 2).</p>
+      <GuideVideo src={GMAIL_FILTER_GUIDE} labels={t.video} />
+      <p>{t.gmail.then}</p>
+      <SubSteps items={filterSteps(t)} />
+      <p>{t.gmail.shows}</p>
     </>
   );
 }

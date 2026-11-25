@@ -1,27 +1,28 @@
+"use client";
+
 import { FileText } from "lucide-react";
 import { FolderCard } from "@/components/ui/folder-card";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { StarStory } from "@/lib/insights/prep";
 import { cn } from "@/lib/utils";
+import type { PrepMessages } from "../../i18n";
 import { WithBlanks } from "./speech";
 
 type Part = keyof Pick<StarStory, "situation" | "task" | "action" | "result">;
 
-const BEATS: { key: Part; letter: string; label: string; cue: string }[] = [
-  { key: "situation", letter: "S", label: "Situation", cue: "Set the scene" },
-  { key: "task", letter: "T", label: "Task", cue: "Your part" },
-  { key: "action", letter: "A", label: "Action", cue: "What you did" },
-  { key: "result", letter: "R", label: "Result", cue: "What changed" },
-];
+const BEATS: readonly Part[] = ["situation", "task", "action", "result"];
 
-function joinNumbers(numbers: readonly number[]): string {
+function joinNumbers(numbers: readonly number[], { story }: PrepMessages): string {
   if (numbers.length <= 1) return numbers.join("");
-  return `${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)}`;
+  return fmt(story.and, { rest: numbers.slice(0, -1).join(", "), last: numbers.at(-1) ?? "" });
 }
 
 export function StarOutline({ story, className }: { story: StarStory; className?: string }) {
+  const { beats } = useMessages("prep").story;
   return (
     <ol className={cn("flex flex-col", className)}>
-      {BEATS.map(({ key, letter, label, cue }, index) => (
+      {BEATS.map((key, index) => (
         <li key={key} className="relative flex gap-3.5 pb-5 last:pb-0">
           {index < BEATS.length - 1 ? (
             <span aria-hidden className="absolute top-8 bottom-1 left-3.5 w-px bg-primary/15" />
@@ -30,14 +31,14 @@ export function StarOutline({ story, className }: { story: StarStory; className?
             aria-hidden
             className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/8 text-xs font-semibold text-primary ring-1 ring-primary/10"
           >
-            {letter}
+            {beats[key].letter}
           </span>
           <div className="min-w-0 pt-0.5">
             <p className="text-xs/5 text-subtle">
-              <span className="font-medium tracking-widest uppercase">{label}</span>
+              <span className="font-medium tracking-widest uppercase">{beats[key].label}</span>
               <span aria-hidden> · </span>
               <span className="sr-only">, </span>
-              {cue}
+              {beats[key].cue}
             </p>
             <p className="mt-0.5 text-base/7 text-pretty text-ink">
               <WithBlanks text={story[key]} />
@@ -59,6 +60,7 @@ export function ResumeSlip({
   place: string;
   className?: string;
 }) {
+  const { story } = useMessages("prep");
   return (
     <figure
       className={cn(
@@ -68,7 +70,7 @@ export function ResumeSlip({
     >
       <figcaption className="flex items-center gap-1.5 px-1 text-xs/4 font-medium tracking-widest text-subtle uppercase">
         <FileText aria-hidden className="size-3.5" />
-        From your resume
+        {story.fromResume}
       </figcaption>
       <div className="relative mt-2.5 rounded-xs bg-surface px-4 py-3.5 shadow-page sm:-rotate-[0.4deg] sm:px-5 print:rotate-0 print:shadow-none print:ring-1 print:ring-ink/15">
         {place ? <p className="text-xs/5 font-semibold text-ink">{place}</p> : null}
@@ -102,15 +104,17 @@ export function StoryCard({
   id: string;
   uses: readonly number[];
 }) {
+  const t = useMessages("prep");
+  const format = useFormat();
   return (
     <FolderCard
       id={id}
       tabIndex={-1}
-      tab={`Story ${index + 1}`}
+      tab={fmt(t.story.tab, { number: index + 1 })}
       tabEnd={
         uses.length > 0 ? (
           <span className="text-xs/4 text-subtle">
-            For {uses.length === 1 ? "question" : "questions"} {joinNumbers(uses)}
+            {format.plural(t.story.forQuestions, uses.length, { numbers: joinNumbers(uses, t) })}
           </span>
         ) : null
       }
@@ -122,12 +126,12 @@ export function StoryCard({
           <h3 className="text-lg/7 font-medium tracking-tight text-pretty text-ink">
             {story.title}
           </h3>
-          <p className="mt-1 text-sm/6 text-muted">A short answer built from one line you wrote.</p>
+          <p className="mt-1 text-sm/6 text-muted">{t.story.about}</p>
         </div>
         <ResumeSlip line={story.line} place={story.place} />
       </div>
       <div className="min-w-0">
-        <p className="text-sm/5 font-medium text-ink">Say it like this</p>
+        <p className="text-sm/5 font-medium text-ink">{t.story.sayIt}</p>
         <StarOutline story={story} className="mt-4" />
       </div>
     </FolderCard>

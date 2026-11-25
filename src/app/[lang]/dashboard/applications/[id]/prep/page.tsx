@@ -1,7 +1,8 @@
 import { InterviewPrepPage } from "@/components/dashboard/applications/prep/interview-prep-page";
 import { PREP_START_PARAM } from "@/components/dashboard/interview/view";
 import { applicationHref } from "@/lib/applications/thread";
-import { getMessages } from "@/i18n/server";
+import { getMessages, MessagesFor } from "@/i18n/server";
+import { PAGE_NAMESPACES } from "../../../namespaces";
 import { pageTitle } from "../../../page-title";
 
 export const generateMetadata = () => pageTitle("interview");
@@ -19,10 +20,12 @@ export default async function Page({ params, searchParams }: Props) {
   ]);
   const autoStart = query[PREP_START_PARAM] === "1";
   return (
-    <InterviewPrepPage
-      applicationId={id}
-      back={{ href: applicationHref(id), label: meta.application }}
-      autoStart={autoStart}
-    />
+    <MessagesFor namespaces={PAGE_NAMESPACES.interview}>
+      <InterviewPrepPage
+        applicationId={id}
+        back={{ href: applicationHref(id), label: meta.application }}
+        autoStart={autoStart}
+      />
+    </MessagesFor>
   );
 }

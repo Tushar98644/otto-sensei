@@ -16,12 +16,14 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api, isApiError } from "@/lib/api/client";
 import { applicationHref } from "@/lib/applications/thread";
 import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
 import { countBlanks, prepToText, questionCount } from "@/lib/insights/prep-view";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
+import type { PrepMessages } from "../../i18n";
 import { prepSections } from "../../page-code";
 import { useApplications } from "../use-applications";
 import { practiceKey } from "./practice-store";
@@ -38,30 +40,27 @@ type Load =
 
 type BackLink = { href: string; label: string };
 
-const TO_APPLICATIONS: BackLink = { href: ROUTES.dashboardApplications, label: "Applications" };
-
-async function copyPack(prep: InterviewPrep, target: PrepTarget) {
+async function copyPack(prep: InterviewPrep, target: PrepTarget, t: PrepMessages) {
   try {
-    await navigator.clipboard.writeText(prepToText(prep, target));
-    toast({ title: "Copied", description: "Your whole prep is on the clipboard." });
+    await navigator.clipboard.writeText(prepToText(prep, target, t));
+    toast({ title: t.page.copied, description: t.page.copiedDetail });
   } catch {
-    toast({
-      title: "Couldn't copy",
-      description: "Select the text and copy it instead.",
-      variant: "error",
-    });
+    toast({ title: t.page.cantCopy, description: t.page.cantCopyDetail, variant: "error" });
   }
 }
 
 export function InterviewPrepPage({
   applicationId,
-  back = TO_APPLICATIONS,
+  back: given,
   autoStart = false,
 }: {
   applicationId: string;
   back?: BackLink;
   autoStart?: boolean;
 }) {
+  const t = useMessages("prep");
+  const format = useFormat();
+  const back = given ?? { href: ROUTES.dashboardApplications, label: t.page.applications };
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
   const now = useNow();
@@ -121,9 +120,9 @@ export function InterviewPrepPage({
   const showPack = target !== null && prep !== null && remaking === false;
   const stats = prep
     ? [
-        pluralize(questionCount(prep), "question"),
-        pluralize(prep.stories.length, "story", "stories"),
-        countBlanks(prep) > 0 ? `${pluralize(countBlanks(prep), "blank")} to fill` : "",
+        format.plural(t.count.questions, questionCount(prep)),
+        format.plural(t.count.stories, prep.stories.length),
+        countBlanks(prep) > 0 ? format.plural(t.count.blanks, countBlanks(prep)) : "",
       ]
         .filter(Boolean)
         .join(" · ")
@@ -149,7 +148,7 @@ export function InterviewPrepPage({
               href={applicationHref(applicationId)}
               className="text-sm font-medium text-muted underline decoration-border-strong underline-offset-4 hover:text-ink"
             >
-              See the whole application
+              {t.page.wholeApplication}
             </Link>
           ) : null}
         </div>
@@ -158,9 +157,9 @@ export function InterviewPrepPage({
             <CompanyMark name={company} size="lg" className="mt-1 motion-safe:animate-fade-in" />
           ) : null}
           <div className="min-w-0 flex-1">
-            <Eyebrow>{company ? `Interview prep · ${company}` : "Interview prep"}</Eyebrow>
+            <Eyebrow>{company ? fmt(t.page.titleAt, { company }) : t.page.title}</Eyebrow>
             <h1 className="mt-2 font-display text-4xl/10 font-normal tracking-tight text-balance text-ink sm:text-5xl/13">
-              {role || company || "Interview prep"}
+              {role || company || t.page.title}
             </h1>
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
               {interviewAt !== null ? (
@@ -190,13 +189,13 @@ export function InterviewPrepPage({
                 size="sm"
               />
             ) : null}
-            <Button variant="secondary" size="sm" onClick={() => void copyPack(prep, target)}>
+            <Button variant="secondary" size="sm" onClick={() => void copyPack(prep, target, t)}>
               <Copy aria-hidden />
-              Copy all
+              {t.page.copyAll}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => window.print()}>
               <Printer aria-hidden />
-              Print or save as PDF
+              {t.page.print}
             </Button>
             <Button
               variant="ghost"
@@ -205,7 +204,7 @@ export function InterviewPrepPage({
               className="text-muted hover:text-ink"
             >
               <RefreshCw aria-hidden />
-              Make a new one
+              {t.page.remake}
             </Button>
           </div>
         ) : null}
@@ -214,7 +213,7 @@ export function InterviewPrepPage({
       {load.status === "loading" || !hydrated || !parts ? (
         <div aria-busy className="flex flex-col">
           <span className="sr-only" role="status">
-            Loading your interview prep
+            {t.page.loading}
           </span>
           <Skeleton aria-hidden className="h-8 w-40 rounded-t-xl rounded-b-none" />
           <Skeleton aria-hidden className="h-64 rounded-2xl rounded-tl-none bg-surface" />
@@ -222,22 +221,22 @@ export function InterviewPrepPage({
       ) : load.status === "missing" ? (
         <Alert
           variant="warn"
-          title="That application isn't in your list anymore"
+          title={t.page.missing}
           action={
             <Link href={back.href} className="text-sm font-medium text-ink underline">
-              Back to {back.label}
+              {fmt(t.page.backTo, { label: back.label })}
             </Link>
           }
         >
-          It may have been deleted on another device.
+          {t.page.missingBody}
         </Alert>
       ) : load.status === "error" ? (
         <Alert
           variant="error"
-          title="Your interview prep didn't load"
+          title={t.page.didntLoad}
           action={
             <Button variant="secondary" size="sm" onClick={retry}>
-              Try again
+              {t.page.tryAgain}
             </Button>
           }
         >
@@ -251,25 +250,24 @@ export function InterviewPrepPage({
                 <Alert
                   variant="info"
                   className="bg-surface"
-                  title="Made from the job title"
+                  title={t.page.fromTitle}
                   action={
                     <Button variant="secondary" size="sm" onClick={() => remake("paste")}>
-                      Paste the post
+                      {t.page.pastePost}
                     </Button>
                   }
                 >
-                  The job post&apos;s link wouldn&apos;t open, so these questions come from the
-                  title alone. Paste the post for sharper ones.
+                  {t.page.fromTitleBody}
                 </Alert>
               ) : null}
               {prep.demo ? (
-                <Alert variant="info" className="bg-surface" title="Demo mode">
-                  This is sample prep from common questions and your own lines. No AI was used.
+                <Alert variant="info" className="bg-surface" title={t.page.demo}>
+                  {t.page.demoBody}
                 </Alert>
               ) : null}
               {unsaved ? (
-                <Alert variant="warn" title="Not saved to this application">
-                  Copy it now: it will be gone when you leave this page.
+                <Alert variant="warn" title={t.page.unsaved}>
+                  {t.page.unsavedBody}
                 </Alert>
               ) : null}
             </div>
