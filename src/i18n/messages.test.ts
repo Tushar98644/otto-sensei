@@ -36,12 +36,27 @@ const filesIn = (locale: Locale) =>
       file.slice(0, -3).replace(/-(\w)/g, (_, letter: string) => letter.toUpperCase()),
     );
 
-// Words that read the same in every language, per locale and message path.
+// Words that read the same in English and this language, by path within their namespace.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
-  es: new Set(),
-  "pt-BR": new Set(),
-  fr: new Set(),
-  de: new Set(),
+  es: new Set([
+    "coverLetters.tones.natural",
+    "coverLetters.tones.formal",
+    "interviewPrep.levels.staff",
+    "footer.groups.legal",
+  ]),
+  "pt-BR": new Set([
+    "nav.menu",
+    "coverLetters.tones.natural",
+    "coverLetters.tones.formal",
+    "interviewPrep.levels.staff",
+  ]),
+  fr: new Set([
+    "nav.menu",
+    "coverLetters.tones.direct",
+    "interviewPrep.levels.junior",
+    "interviewPrep.levels.senior",
+  ]),
+  de: new Set(["nav.jobs", "nav.dashboard", "resume.skills.prototyping"]),
 };
 
 describe("English messages", () => {

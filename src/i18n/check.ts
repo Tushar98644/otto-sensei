@@ -86,7 +86,8 @@ function walk(
     if (typeof value !== "string") out.push(`${path}: should be text`);
     else {
       checkText(path, value, english as string | undefined, out);
-      if (checkSame && value === english && /\p{L}/u.test(value)) {
+      // Only words count: a template of placeholders alone, like "{count} {label}", reads the same everywhere.
+      if (checkSame && value === english && /\p{L}/u.test(value.replace(/\{\w+\}/g, ""))) {
         out.push(`${path}: still in English`);
       }
     }
