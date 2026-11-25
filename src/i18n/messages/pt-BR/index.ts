@@ -4,7 +4,9 @@ import applications from "./applications";
 import dashboard from "./dashboard";
 import interview from "./interview";
 import jobForm from "./jobForm";
+import jobMatch from "./jobMatch";
 import jobs from "./jobs";
+import jobsShared from "./jobsShared";
 import letters from "./letters";
 import lint from "./lint";
 import onboarding from "./onboarding";
@@ -21,7 +23,9 @@ const ptBR: Translations = {
   dashboard,
   interview,
   jobForm,
+  jobMatch,
   jobs,
+  jobsShared,
   letters,
   lint,
   onboarding,

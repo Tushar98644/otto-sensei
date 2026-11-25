@@ -7,22 +7,34 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api/client";
 import type { OccupationOption } from "@/lib/api/types";
+import { ENGLISH_JOBS_SHARED, type JobsSharedWords } from "@/lib/job-feed/looking-for";
 
 export type OccupationSearchProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPick: (occupation: OccupationOption) => void;
+  words?: JobsSharedWords;
 };
 
 const TYPING_PAUSE_MS = 150;
 
 type Results = { query: string; occupations: OccupationOption[] } | { query: string; error: true };
 
-export function OccupationSearch({ open, onOpenChange, onPick }: OccupationSearchProps) {
+// The API answers with O*NET's English group names; the reader's come from the occupation's code.
+const groupOf = (occupation: OccupationOption, words: JobsSharedWords) =>
+  (words.majorGroups as Record<string, string>)[occupation.code.slice(0, 2)] ?? occupation.group;
+
+export function OccupationSearch({
+  open,
+  onOpenChange,
+  onPick,
+  words = ENGLISH_JOBS_SHARED,
+}: OccupationSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Results | null>(null);
   const listId = useId();
   const typed = query.trim();
+  const t = words.search;
 
   useEffect(() => {
     if (!open || !typed) return;
@@ -51,8 +63,8 @@ export function OccupationSearch({ open, onOpenChange, onPick }: OccupationSearc
         if (!next) setQuery("");
         onOpenChange(next);
       }}
-      title="Pick the job you want"
-      description="Search over a thousand occupations by any name for them, like “nurse”, “HGV driver” or “store manager”."
+      title={t.title}
+      description={t.description}
     >
       <div className="relative">
         <Search
@@ -64,8 +76,8 @@ export function OccupationSearch({ open, onOpenChange, onPick }: OccupationSearc
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Job title"
-          aria-label="Job title"
+          placeholder={t.placeholder}
+          aria-label={t.placeholder}
           aria-controls={listId}
           autoComplete="off"
           maxLength={60}
@@ -75,16 +87,14 @@ export function OccupationSearch({ open, onOpenChange, onPick }: OccupationSearc
       <div className="min-h-40">
         {searching ? (
           <p className="flex items-center gap-2 py-3 text-sm text-muted">
-            <Spinner className="size-4" /> Searching
+            <Spinner className="size-4" /> {t.searching}
           </p>
         ) : current && "error" in current ? (
-          <p className="py-3 text-sm text-muted">Search didn&apos;t work. Try again in a moment.</p>
+          <p className="py-3 text-sm text-muted">{t.failed}</p>
         ) : current && current.occupations.length === 0 ? (
-          <p className="py-3 text-sm text-muted">
-            Nothing by that name. Try another word for the job.
-          </p>
+          <p className="py-3 text-sm text-muted">{t.none}</p>
         ) : (
-          <ul id={listId} aria-label="Occupations" className="flex flex-col gap-1">
+          <ul id={listId} aria-label={t.results} className="flex flex-col gap-1">
             {(current?.occupations ?? []).map((occupation) => (
               <li key={occupation.code}>
                 <button
@@ -97,13 +107,14 @@ export function OccupationSearch({ open, onOpenChange, onPick }: OccupationSearc
                   className="flex w-full flex-col items-start rounded-xl px-3 py-2 text-left transition-colors hover:bg-ink/5 focus-visible:bg-ink/5 focus-visible:outline-hidden"
                 >
                   <span className="text-sm font-medium text-ink">{occupation.name}</span>
-                  <span className="text-xs text-subtle">{occupation.group}</span>
+                  <span className="text-xs text-subtle">{groupOf(occupation, words)}</span>
                 </button>
               </li>
             ))}
           </ul>
         )}
       </div>
+      {/* The licence's own words, kept in English as O*NET and the CC BY licence state them. */}
       <p className="text-xs/5 text-subtle">
         Includes information from the O*NET® 31.0 Database by the U.S. Department of Labor,
         Employment and Training Administration (USDOL/ETA), used under the{" "}

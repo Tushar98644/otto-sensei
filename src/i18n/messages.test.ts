@@ -18,6 +18,9 @@ const filesIn = (locale: Locale) =>
 // Words that read the same in every language, per locale and message path.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
   es: new Set([
+    "families.marketing",
+    "families.legal",
+    "majorGroups.23",
     "row.quoted",
     "working.general",
     "design.color",
@@ -25,6 +28,8 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "row.no",
   ]),
   "pt-BR": new Set([
+    "families.design",
+    "families.marketing",
     "card.via",
     "hub.via",
     "row.quoted",
@@ -35,6 +40,11 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "projects.link",
   ]),
   fr: new Set([
+    "families.design",
+    "families.marketing",
+    "families.finance",
+    "searchLevels.lead",
+    "groups.europe",
     "meta.portfolio",
     "nav.portfolio",
     "card.via",
@@ -59,6 +69,10 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "extras.kinds.custom.date.label",
   ]),
   de: new Set([
+    "levels.senior",
+    "groups.eu",
+    "card.level",
+    "majorGroups.11",
     "meta.jobs",
     "meta.portfolio",
     "nav.jobs",

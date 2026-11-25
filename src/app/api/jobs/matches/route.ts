@@ -1,12 +1,15 @@
 import { after } from "next/server";
 import { FREE_JOB_MATCHES, hasProTools } from "@/config/plans";
 import { getDb } from "@/db/client";
+import { loadMessages } from "@/i18n/messages";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readWorkProfile } from "@/lib/eligibility/records";
 import { readJson } from "@/lib/http";
+import { uiLocaleOf } from "@/lib/i18n/request";
 import { logImpressions, shownJobs } from "@/lib/job-feed/events";
+import { jobLangsFor } from "@/lib/job-feed/job-langs";
 import { readStoredCounts } from "@/lib/job-feed/match-index";
 import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
 import { profileHash, rankJobs } from "@/lib/job-feed/rank";
@@ -69,12 +72,16 @@ export async function POST(req: Request): Promise<Response> {
     }
     const now = Date.now();
     const lookingFor = body.data.lookingFor;
+    const locale = uiLocaleOf(req);
+    const copy = { words: await loadMessages(locale, "jobMatch"), locale };
     const writes: Write[] = [];
     const ranked = await rankJobs(db, {
       userId: user.id,
       view: free ? "matches" : body.data.view,
       profile: body.data.profile,
-      filters: free ? { ...DEFAULT_FILTERS, remote: lookingFor?.remote ?? false } : body.data.filters,
+      filters: free
+        ? { ...DEFAULT_FILTERS, remote: lookingFor?.remote ?? false }
+        : body.data.filters,
       page: free ? 1 : body.data.page,
       workProfile: work?.profile ?? null,
       lookingFor,
@@ -84,6 +91,8 @@ export async function POST(req: Request): Promise<Response> {
       cache: true,
       counts,
       defer: (write) => writes.push(write),
+      langs: jobLangsFor(lookingFor?.langs, locale),
+      copy,
     });
     const shown = free ? ranked.jobs.slice(0, FREE_JOB_MATCHES) : ranked.jobs;
     const ids =

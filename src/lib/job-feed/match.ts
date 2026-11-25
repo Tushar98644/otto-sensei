@@ -1,3 +1,6 @@
+import type { Locale } from "@/i18n/config";
+import { fmt, selectPlural } from "@/i18n/format";
+import englishWords from "@/i18n/messages/en/jobMatch";
 import { roleFamily, SENIORITY_RANK } from "./roles";
 import { levelOf, type LookingFor } from "./looking-for";
 import { knownSkills } from "./skills";
@@ -144,29 +147,26 @@ export function kindWeight(
   return kindOf(person, job).weight;
 }
 
-function list(items: readonly string[], max: number): string {
+export type JobMatchWords = typeof englishWords;
+// The words a reason is written in and the locale that picks their plural forms.
+export type MatchCopy = { words: JobMatchWords; locale: Locale };
+export const ENGLISH_MATCH_COPY: MatchCopy = { words: englishWords, locale: "en" };
+
+function list(items: readonly string[], max: number, words: JobMatchWords): string {
   const shown = items.slice(0, max);
   const more = items.length - shown.length;
-  return more > 0 ? `${shown.join(", ")} and ${more} more` : shown.join(", ");
+  return more > 0 ? fmt(words.list, { items: shown.join(", "), count: more }) : shown.join(", ");
 }
 
 function stepDown(label: MatchLabel): MatchLabel {
   return label === "strong" ? "good" : "stretch";
 }
 
-const LEVEL_WORDS: Record<Seniority, string> = {
-  intern: "an internship",
-  junior: "an entry-level role",
-  mid: "a mid-level role",
-  senior: "a senior role",
-  lead: "a lead or staff role",
-  director: "a director-level role",
-};
-
 export function matchJob(
   person: MatchPerson,
   job: MatchableJob,
   eligibility: EligibilityHint = { blocked: false, note: null },
+  { words, locale }: MatchCopy = ENGLISH_MATCH_COPY,
 ): JobMatch | null {
   const found = job.keywords.filter((skill) => person.skills.has(skill));
   const missing = job.keywords.filter((skill) => !person.skills.has(skill));
@@ -191,10 +191,10 @@ export function matchJob(
     const gap = SENIORITY_RANK[job.seniority] - SENIORITY_RANK[person.seniority];
     if (gap >= 2) {
       label = "stretch";
-      notes.push(`This is ${LEVEL_WORDS[job.seniority]}, a step up from your latest title.`);
+      notes.push(fmt(words.stepUp, { level: words.levels[job.seniority] }));
     } else if (gap <= -2 && label === "strong") {
       label = "good";
-      notes.push(`This is ${LEVEL_WORDS[job.seniority]}, more junior than your latest title.`);
+      notes.push(fmt(words.stepDown, { level: words.levels[job.seniority] }));
     }
   }
   if (
@@ -205,14 +205,13 @@ export function matchJob(
     job.zone - person.zone >= 2
   ) {
     label = "stretch";
-    notes.push("Jobs like this usually need more training or experience than your latest role.");
+    notes.push(words.training);
   }
   if (job.minYears !== null && person.years !== null && person.years + 1 <= job.minYears) {
     label = stepDown(label);
-    const shown = Math.max(0, Math.floor(person.years));
-    notes.push(
-      `Asks for ${job.minYears}+ years; your resume shows about ${shown === 1 ? "1 year" : `${shown} years`}.`,
-    );
+    const count = Math.max(0, Math.floor(person.years));
+    const shown = fmt(selectPlural(locale, words.yearsShown, count), { count });
+    notes.push(fmt(words.years, { asked: job.minYears, shown }));
   }
   if (eligibility.blocked) {
     label = "stretch";
@@ -220,31 +219,42 @@ export function matchJob(
   }
 
   let reason: string;
-  const role = kind.role ? `Role match: ${kind.role.job} ≈ your ${kind.role.person}. ` : "";
+  const role = kind.role
+    ? fmt(words.roleMatch, { job: kind.role.job, person: kind.role.person })
+    : "";
   if (found.length > 0) {
-    reason = `Found in your resume: ${list(found, MAX_FOUND_SHOWN)}.`;
-    if (missing.length > 0) reason += ` Not found: ${list(missing, MAX_MISSING_SHOWN)}.`;
+    reason = fmt(words.found, { list: list(found, MAX_FOUND_SHOWN, words) });
+    if (missing.length > 0)
+      reason += ` ${fmt(words.notFound, { list: list(missing, MAX_MISSING_SHOWN, words) })}`;
   } else {
-    const what = kindLine(kind, pastKind, job.occupationName ?? null);
+    const what = kindLine(kind, pastKind, job.occupationName ?? null, words);
     reason =
       total > 0
-        ? `${what} Not found: ${list(missing, MAX_MISSING_SHOWN)}.`
-        : `${what} The post names no tools to compare.`;
+        ? `${what} ${fmt(words.notFound, { list: list(missing, MAX_MISSING_SHOWN, words) })}`
+        : `${what} ${words.noTools}`;
   }
   return { label, found, missing, reason: role + reason, notes, blocked: eligibility.blocked };
 }
 
-function kindLine(kind: Kind, pastKind: boolean, name: string | null): string {
-  const named = name ? `: ${name}` : "";
-  if (kind.via === "same" && !pastKind) return `The same occupation as yours${named}.`;
-  if (kind.via === "close") return `A closely related occupation${named}.`;
-  if (kind.via === "group") return `A related kind of work${named}.`;
-  if (kind.via === "title")
-    return pastKind ? "A neighbouring kind of role." : "The same kind of role as yours.";
-  return pastKind ? "Like an earlier role on your resume." : "The same kind of role as yours.";
+function kindLine(
+  kind: Kind,
+  pastKind: boolean,
+  name: string | null,
+  words: JobMatchWords,
+): string {
+  const { kind: lines } = words;
+  if (kind.via === "same" && !pastKind) return name ? fmt(lines.sameNamed, { name }) : lines.same;
+  if (kind.via === "close") return name ? fmt(lines.closeNamed, { name }) : lines.close;
+  if (kind.via === "group") return name ? fmt(lines.groupNamed, { name }) : lines.group;
+  if (kind.via === "title") return pastKind ? lines.neighbour : lines.sameRole;
+  return pastKind ? lines.earlier : lines.sameRole;
 }
 
-export function unmatched(job: MatchableJob, eligibility?: EligibilityHint): JobMatch {
+export function unmatched(
+  job: MatchableJob,
+  eligibility?: EligibilityHint,
+  { words }: MatchCopy = ENGLISH_MATCH_COPY,
+): JobMatch {
   const missing = [...job.keywords];
   return {
     label: null,
@@ -252,8 +262,8 @@ export function unmatched(job: MatchableJob, eligibility?: EligibilityHint): Job
     missing,
     reason:
       missing.length > 0
-        ? `Nothing it names is in this resume. Not found: ${list(missing, MAX_MISSING_SHOWN)}.`
-        : "This resume and this post have nothing in common that I can check.",
+        ? `${words.nothing} ${fmt(words.notFound, { list: list(missing, MAX_MISSING_SHOWN, words) })}`
+        : words.nothingToCheck,
     notes: eligibility?.blocked && eligibility.note ? [eligibility.note] : [],
     blocked: eligibility?.blocked ?? false,
   };

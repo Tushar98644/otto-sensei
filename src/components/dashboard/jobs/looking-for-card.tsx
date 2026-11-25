@@ -3,12 +3,17 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
+import { fmt } from "@/i18n/format";
+import { CONTENT_LANGS, type ContentLang } from "@/lib/i18n/languages";
+import { JOB_LANGUAGES_LIVE } from "@/lib/job-feed/job-langs";
 import {
+  ENGLISH_JOBS_SHARED,
   familyWords,
-  LEVEL_NAMES,
   placeLabel,
   placeLine,
   roleName,
+  type JobsSharedWords,
+  type RegionName,
 } from "@/lib/job-feed/looking-for";
 import { familyOfOccupation } from "@/lib/job-feed/roles";
 import {
@@ -32,10 +37,19 @@ export type LookingForCardProps = {
   onChange: (next: LookingForChoice) => void;
   tone?: "card" | "plain" | "inset";
   note?: string;
+  // The jobsShared words; the setup card and /account read the English ones until they're translated.
+  words?: JobsSharedWords;
+  regionName?: RegionName;
 };
 
-const DEFAULT_NOTE =
-  "Guessed from your resume and work profile. Matches are ordered for it; tap a part to change it.";
+// Each language in its own words, as language pickers usually show them.
+const LANGUAGE_NAMES: Record<ContentLang, string> = {
+  en: "English",
+  es: "Español",
+  pt: "Português",
+  fr: "Français",
+  de: "Deutsch",
+};
 
 const TRIGGER =
   "inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 font-medium text-ink underline decoration-ink/30 decoration-dotted underline-offset-4 transition-colors hover:bg-ink/5 pointer-coarse:py-1.5";
@@ -59,12 +73,15 @@ export function LookingForCard({
   saving,
   onChange,
   tone = "card",
-  note: footnote = DEFAULT_NOTE,
+  words = ENGLISH_JOBS_SHARED,
+  regionName,
+  note: footnote = words.card.note,
 }: LookingForCardProps) {
   const [searching, setSearching] = useState(false);
+  const { card } = words;
   const levelItems: MenuEntry[] = [
     ...SENIORITIES.map((level) => ({
-      label: LEVEL_NAMES[level],
+      label: words.levels[level],
       checked: value.level === level,
       onSelect: () => onChange({ ...choice, level }),
     })),
@@ -73,7 +90,7 @@ export function LookingForCard({
       : [
           "separator" as const,
           {
-            label: "Go back to my resume's level",
+            label: card.backToLevel,
             onSelect: () => onChange({ ...choice, level: null }),
           },
         ]),
@@ -82,13 +99,13 @@ export function LookingForCard({
   // Only jobs from the list and the kinds of work: a resume's titles can be anything, like a program or a site.
   const roleItems: MenuEntry[] = [
     {
-      label: "Any other job…",
-      description: "Search every kind of work by name",
+      label: card.otherJob,
+      description: card.otherJobHint,
       onSelect: () => setSearching(true),
     },
     "separator" as const,
     ...ROLE_FAMILIES.map((family) => ({
-      label: `Any ${familyWords(family)} role`,
+      label: fmt(words.anyFamilyRole, { family: familyWords(family, words) }),
       checked: value.title === "" && value.family === family,
       onSelect: () => onChange({ ...choice, role: { title: "", family, occupation: null } }),
     })),
@@ -97,14 +114,15 @@ export function LookingForCard({
       : [
           "separator" as const,
           {
-            label: "Go back to my resume's role",
+            label: card.backToRole,
             onSelect: () => onChange({ ...choice, role: null }),
           },
         ]),
   ];
 
   const trigger = tone === "inset" ? CHIP : TRIGGER;
-  const role = roleName(value, occupation?.name ?? null, choice.role !== null);
+  const role = roleName(value, occupation?.name ?? null, choice.role !== null, words);
+  const place = placeLine(value, words, regionName);
 
   const own: PlaceChoice | null =
     country && !COMMON_PLACES.includes(`c:${country}`) ? `c:${country}` : null;
@@ -118,35 +136,58 @@ export function LookingForCard({
   ];
   const placeItems: MenuEntry[] = [
     {
-      label: "Remote only",
+      label: card.remoteOnly,
       checked: value.remote,
       onSelect: () => onChange({ ...choice, remote: true }),
     },
     {
-      label: "Remote or on-site",
+      label: card.remoteOrOnsite,
       checked: !value.remote,
       onSelect: () => onChange({ ...choice, remote: false }),
     },
     "separator",
-    ...places.map((place) => ({
-      label: place === "anywhere" ? "Anywhere" : placeLabel(place),
-      checked: value.place === place,
-      onSelect: () => onChange({ ...choice, place }),
+    ...places.map((option) => ({
+      label: option === "anywhere" ? card.anywhere : placeLabel(option, words, regionName),
+      checked: value.place === option,
+      onSelect: () => onChange({ ...choice, place: option }),
     })),
     ...(choice.place === null
       ? []
       : [
           "separator" as const,
           {
-            label: "Go back to my work profile's country",
+            label: card.backToPlace,
             onSelect: () => onChange({ ...choice, place: null }),
           },
         ]),
   ];
 
+  // Hidden until the app's language setting ships (job-langs.ts); a saved choice still applies.
+  const langs = choice.langs ?? null;
+  const langItems: MenuEntry[] = [
+    ...CONTENT_LANGS.map((lang) => {
+      const on = langs?.includes(lang) ?? false;
+      const next = on ? (langs ?? []).filter((item) => item !== lang) : [...(langs ?? []), lang];
+      return {
+        label: LANGUAGE_NAMES[lang],
+        checked: on,
+        onSelect: () => {
+          if (next.length > 0) onChange({ ...choice, langs: next });
+        },
+      };
+    }),
+    ...(langs === null
+      ? []
+      : [
+          "separator" as const,
+          { label: card.backToLangs, onSelect: () => onChange({ ...choice, langs: null }) },
+        ]),
+  ];
+  const langLine = (langs ?? []).map((lang) => LANGUAGE_NAMES[lang]).join(", ");
+
   return (
     <section
-      aria-label="What you're looking for"
+      aria-label={card.label}
       aria-busy={saving}
       className={
         tone === "card"
@@ -164,22 +205,24 @@ export function LookingForCard({
             : "flex flex-wrap items-center gap-x-1 gap-y-1 text-sm/6 text-muted"
         }
       >
-        <span className={tone === "inset" ? "mr-1" : undefined}>Looking for:</span>
+        <span className={tone === "inset" ? "mr-1" : undefined}>{card.lookingFor}</span>
         <Menu
-          label="Level"
-          triggerLabel={`Level: ${value.level ? LEVEL_NAMES[value.level] : "any"}. Change it`}
+          label={card.level}
+          triggerLabel={fmt(card.levelTrigger, {
+            level: value.level ? words.levels[value.level] : card.anyLevelWord,
+          })}
           triggerClassName={trigger}
           trigger={
             <>
-              {value.level ? LEVEL_NAMES[value.level] : "Any level"}
+              {value.level ? words.levels[value.level] : card.anyLevel}
               <ChevronDown aria-hidden className="size-3.5 text-subtle" />
             </>
           }
           items={levelItems}
         />
         <Menu
-          label="Role"
-          triggerLabel={`Role: ${role}. Change it`}
+          label={card.role}
+          triggerLabel={fmt(card.roleTrigger, { role })}
           triggerClassName={trigger}
           trigger={
             <>
@@ -191,22 +234,40 @@ export function LookingForCard({
         />
         {tone === "inset" ? null : <span aria-hidden>·</span>}
         <Menu
-          label="Place"
-          triggerLabel={`Place: ${placeLine(value)}. Change it`}
+          label={card.place}
+          triggerLabel={fmt(card.placeTrigger, { place })}
           triggerClassName={trigger}
           trigger={
             <>
-              {placeLine(value)}
+              {place}
               <ChevronDown aria-hidden className="size-3.5 text-subtle" />
             </>
           }
           items={placeItems}
         />
+        {JOB_LANGUAGES_LIVE ? (
+          <Menu
+            label={card.langs}
+            triggerLabel={fmt(card.langsTrigger, { langs: langLine || card.langs })}
+            triggerClassName={trigger}
+            trigger={
+              <>
+                {langLine || card.langs}
+                <ChevronDown aria-hidden className="size-3.5 text-subtle" />
+              </>
+            }
+            items={langItems}
+          />
+        ) : null}
       </div>
-      <p className="text-xs/5 text-subtle">{footnote} Job names from O*NET® and ESCO.</p>
+      <p className="text-xs/5 text-subtle">
+        {footnote}
+        {` ${card.credit}`}
+      </p>
       <OccupationSearch
         open={searching}
         onOpenChange={setSearching}
+        words={words}
         onPick={(picked) =>
           onChange({
             ...choice,

@@ -4,6 +4,7 @@ import type { Namespace } from "@/i18n/messages";
 export const DASHBOARD_NAMESPACES = [
   "dashboard",
   "jobs",
+  "jobsShared",
   "applications",
   "interview",
   "letters",

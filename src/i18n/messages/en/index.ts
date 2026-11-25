@@ -8,7 +8,9 @@ import emails from "./emails";
 import home from "./home";
 import interview from "./interview";
 import jobForm from "./jobForm";
+import jobMatch from "./jobMatch";
 import jobs from "./jobs";
+import jobsShared from "./jobsShared";
 import letters from "./letters";
 import lint from "./lint";
 import login from "./login";
@@ -36,7 +38,9 @@ const en = {
   home,
   interview,
   jobForm,
+  jobMatch,
   jobs,
+  jobsShared,
   letters,
   lint,
   login,

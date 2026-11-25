@@ -1,3 +1,6 @@
+import { intlLocale, type Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
+import englishWords from "@/i18n/messages/en/jobsShared";
 import {
   COUNTRY_CODES,
   countryName,
@@ -11,7 +14,6 @@ import { roleFamily, SENIORITY_RANK, seniorityForYears, seniorityOf, skillsFamil
 import {
   NO_CHOICE,
   PLACE_GROUPS,
-  ROLE_LABELS,
   type LookingFor,
   type LookingForChoice,
   type MatchProfile,
@@ -30,75 +32,81 @@ export {
   type PlaceChoice,
 } from "./types";
 
-export const LEVEL_NAMES: Record<Seniority, string> = {
-  intern: "Internship",
-  junior: "Entry level",
-  mid: "Mid level",
-  senior: "Senior",
-  lead: "Lead or staff",
-  director: "Director and up",
-};
+// The jobsShared namespace; components outside a messages provider read these English words.
+export type JobsSharedWords = typeof englishWords;
+export const ENGLISH_JOBS_SHARED: JobsSharedWords = englishWords;
+
+export const LEVEL_NAMES: Record<Seniority, string> = englishWords.levels;
+
+// A country's name in the reader's language; English keeps "US", "UK" and "UAE" short.
+export type RegionName = (code: string) => string;
+const SHORT_COUNTRY: Record<string, string> = { US: "US", GB: "UK", AE: "UAE" };
+const englishRegion: RegionName = (code) => SHORT_COUNTRY[code] ?? countryName(code);
+
+// Country names in another language come from Intl; English keeps the ones above.
+export function regionNamesFor(locale: Locale): RegionName | undefined {
+  if (locale === "en") return undefined;
+  const names = new Intl.DisplayNames([intlLocale(locale)], { type: "region" });
+  return (code) => names.of(code) ?? code;
+}
 
 // "Data and AI" reads as "data and AI" inside a sentence.
-export const familyWords = (family: RoleFamily) =>
-  ROLE_LABELS[family].charAt(0).toLowerCase() + ROLE_LABELS[family].slice(1);
+export const familyWords = (family: RoleFamily, words: JobsSharedWords = englishWords) =>
+  words.families[family];
 
 // The role the line shows: a job picked from the list, else the standard job the resume's title reads as, never the title itself.
 export function roleName(
   value: Pick<LookingFor, "title" | "family">,
   occupation: string | null,
   picked: boolean,
+  words: JobsSharedWords = englishWords,
 ): string {
   if (picked && value.title) return value.title;
   if (occupation) return occupation;
-  return value.family ? `Any ${familyWords(value.family)} role` : "Any role";
+  return value.family
+    ? fmt(words.anyFamilyRole, { family: familyWords(value.family, words) })
+    : words.anyRole;
 }
-
-const SEARCH_LEVEL: Record<Seniority, string> = {
-  intern: "",
-  junior: "entry-level",
-  mid: "mid-level",
-  senior: "senior",
-  lead: "lead",
-  director: "director-level",
-};
 
 // What Otto says while a new choice's matches load, like "Looking for entry-level finance jobs…".
 export function searchingLine(
   value: Pick<LookingFor, "title" | "family" | "level">,
   occupation: string | null,
   picked: boolean,
+  words: JobsSharedWords = englishWords,
 ): string {
+  const { searching } = words;
   const role =
-    (picked && value.title) || occupation || (value.family ? familyWords(value.family) : "");
-  if (value.level === "intern") return `Looking for ${role ? `${role} ` : ""}internships…`;
-  const level = value.level ? SEARCH_LEVEL[value.level] : "";
-  return `Looking for ${[level, role, "jobs"].filter(Boolean).join(" ")}…`;
+    (picked && value.title) || occupation || (value.family ? familyWords(value.family, words) : "");
+  if (value.level === "intern")
+    return role ? fmt(searching.roleInternships, { role }) : searching.internships;
+  const level = value.level ? words.searchLevels[value.level] : "";
+  if (level && role) return fmt(searching.levelRole, { level, role });
+  if (level) return fmt(searching.level, { level });
+  return role ? fmt(searching.role, { role }) : searching.jobs;
 }
 
-const GROUP_LABELS: Record<(typeof PLACE_GROUPS)[number], string> = {
-  north_america: "North America",
-  latam: "Latin America",
-  europe: "Europe",
-  eu: "EU",
-  emea: "Europe, Middle East and Africa",
-  apac: "Asia-Pacific",
-  anz: "Australia and New Zealand",
-};
-
-const SHORT_COUNTRY: Record<string, string> = { US: "US", GB: "UK", AE: "UAE" };
-
-export function placeLabel(choice: PlaceChoice): string {
-  if (choice === "anywhere") return "anywhere";
+export function placeLabel(
+  choice: PlaceChoice,
+  words: JobsSharedWords = englishWords,
+  regionName: RegionName = englishRegion,
+): string {
+  if (choice === "anywhere") return words.anywhere;
   if (choice.startsWith("g:"))
-    return GROUP_LABELS[choice.slice(2) as (typeof PLACE_GROUPS)[number]];
-  const code = choice.slice(2);
-  return SHORT_COUNTRY[code] ?? countryName(code);
+    return words.groups[choice.slice(2) as (typeof PLACE_GROUPS)[number]];
+  return regionName(choice.slice(2));
 }
 
-export function placeLine(value: Pick<LookingFor, "place" | "remote">): string {
-  if (value.place === "anywhere") return value.remote ? "Remote, anywhere" : "Anywhere";
-  return `${value.remote ? "Remote" : "Remote or on-site"}, ${placeLabel(value.place)}`;
+export function placeLine(
+  value: Pick<LookingFor, "place" | "remote">,
+  words: JobsSharedWords = englishWords,
+  regionName: RegionName = englishRegion,
+): string {
+  if (value.place === "anywhere") return value.remote ? words.remoteAnywhere : words.anywhereLine;
+  return fmt(words.placeLine, {
+    remote: value.remote ? words.card.remote : words.card.remoteOrOnsite,
+    place: placeLabel(value.place, words, regionName),
+  });
 }
 
 const LEVEL_WORDS =
@@ -175,6 +183,7 @@ export function lookingForOf(
     level: choice.level ?? levelOf(profile),
     place: choice.place ?? placeFromProfile(work),
     remote: choice.remote,
+    ...(choice.langs ? { langs: choice.langs } : {}),
   };
 }
 
