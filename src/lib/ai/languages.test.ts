@@ -336,11 +336,14 @@ describe("speech to text", () => {
 });
 
 describe("uiLocaleOf", () => {
-  it("reads English while no other language is live", () => {
+  it("reads a live language from the cookie, else English", () => {
     const req = (cookie?: string) =>
       new Request("https://example.com/api/fix", cookie ? { headers: { cookie } } : {});
     expect(uiLocaleOf(req())).toBe("en");
-    expect(uiLocaleOf(req("a=1; otto_lang=es"))).toBe("en");
+    expect(uiLocaleOf(req("a=1; otto_lang=es"))).toBe("es");
+    expect(uiLocaleOf(req("otto_lang=pt-BR"))).toBe("pt-BR");
     expect(uiLocaleOf(req("otto_lang=en"))).toBe("en");
+    expect(uiLocaleOf(req("otto_lang=xx"))).toBe("en");
+    expect(uiLocaleOf(req("otto_lang=pt"))).toBe("en");
   });
 });
