@@ -22,10 +22,7 @@ export function openTarget(resumeId: string, target: ReviewTarget | null): void 
   );
 }
 
-export function targetLabel(
-  t: Messages["studio"]["targets"],
-  target: ReviewTarget | null,
-): string {
+export function targetLabel(t: Messages["studio"]["targets"], target: ReviewTarget | null): string {
   if (target?.kind === "line") return t.line;
   if (target?.kind === "summary") return t.summary;
   if (target?.kind === "entry") return t.entry;

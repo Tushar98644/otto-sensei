@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fmt } from "@/i18n/format";
 import { EN } from "../testing";
-import {
-  arrivedFromApp,
-  closedSite,
-  jobLinkParam,
-  looksLikeLink,
-} from "./job-links";
+import { arrivedFromApp, closedSite, jobLinkParam, looksLikeLink } from "./job-links";
 
 describe("closedSite", () => {
   it("names the sites that hide their posts from apps, with or without www or a scheme", () => {
@@ -97,8 +92,7 @@ describe("arrivedFromApp", () => {
   });
 
   it("waits for a press when a sign-in link carried the job, but not after any other sign-in", () => {
-    const login = (next: string) =>
-      `https://ottosensei.com/login?next=${encodeURIComponent(next)}`;
+    const login = (next: string) => `https://ottosensei.com/login?next=${encodeURIComponent(next)}`;
     const carried = `/studio?job=${encodeURIComponent(param)}`;
     expect(arrivedFromApp({ here, loaded: login(carried), referrer: "", param })).toBe(false);
     expect(arrivedFromApp({ here, loaded: login("/dashboard/jobs"), referrer: "", param })).toBe(

@@ -32,10 +32,8 @@ export function useAccountEmailPrefill(label: string): void {
     remember(activeId);
     useStudioStore
       .getState()
-      .updateResume(
-        activeId,
-        (resume) => ({ ...resume, basics: { ...resume.basics, email } }),
-        { label },
-      );
+      .updateResume(activeId, (resume) => ({ ...resume, basics: { ...resume.basics, email } }), {
+        label,
+      });
   }, [email, activeId, needsEmail, label]);
 }

@@ -75,7 +75,9 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
     }
     setErrors(found);
     if (Object.keys(found).length > 0) {
-      requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus());
+      requestAnimationFrame(() =>
+        formRef.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus(),
+      );
     }
     return Object.keys(found).length === 0;
   }
@@ -116,7 +118,9 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
     setStatus({ kind: "drafting" });
     try {
       const { resume, usedAI } = await api.draft(body);
-      const named = name.trim() ? { ...resume, basics: { ...resume.basics, name: name.trim() } } : resume;
+      const named = name.trim()
+        ? { ...resume, basics: { ...resume.basics, name: name.trim() } }
+        : resume;
       onDrafted(named, usedAI);
     } catch (error) {
       if (gate.handleApiError(error, "draft")) setStatus({ kind: "editing" });
@@ -136,7 +140,10 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <OttoNote message={otto} meta={screen >= 0 ? fmt(t.jobOf, { number: screen + 1, total: jobs.length }) : undefined}>
+      <OttoNote
+        message={otto}
+        meta={screen >= 0 ? fmt(t.jobOf, { number: screen + 1, total: jobs.length }) : undefined}
+      >
         {status.kind === "failed" ? (
           <Button variant="secondary" onClick={() => formRef.current?.requestSubmit()}>
             <RotateCcw />
@@ -145,7 +152,12 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
         ) : null}
       </OttoNote>
 
-      <form ref={formRef} onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-5 rounded-2xl bg-surface p-4 sm:p-6">
+      <form
+        ref={formRef}
+        onSubmit={(event) => void submit(event)}
+        noValidate
+        className="flex flex-col gap-5 rounded-2xl bg-surface p-4 sm:p-6"
+      >
         <fieldset disabled={drafting} className="flex min-w-0 flex-col gap-5">
           {screen === -1 ? (
             <>
@@ -157,11 +169,15 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
                   placeholder={t.rolePlaceholder}
                   maxLength={200}
                   autoComplete="off"
-                 
                 />
               </Field>
               <Field label={t.name} optional hint={t.nameHint}>
-                <Input value={name} onChange={(event) => setName(event.target.value)} maxLength={200} autoComplete="name" />
+                <Input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  maxLength={200}
+                  autoComplete="name"
+                />
               </Field>
             </>
           ) : job ? (
@@ -218,13 +234,28 @@ function JobFields({ job, errors, onChange, t }: JobFieldsProps) {
       <legend className="sr-only">{t.oneJob}</legend>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t.title} error={errors.title}>
-          <Input value={job.title} onChange={(e) => onChange({ title: e.target.value })} placeholder={t.titlePlaceholder} maxLength={200} />
+          <Input
+            value={job.title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            placeholder={t.titlePlaceholder}
+            maxLength={200}
+          />
         </Field>
         <Field label={t.company} optional>
-          <Input value={job.company} onChange={(e) => onChange({ company: e.target.value })} placeholder="Contoso" maxLength={200} />
+          <Input
+            value={job.company}
+            onChange={(e) => onChange({ company: e.target.value })}
+            placeholder="Contoso"
+            maxLength={200}
+          />
         </Field>
         <Field label={t.started} optional>
-          <Input value={job.startDate} onChange={(e) => onChange({ startDate: e.target.value })} placeholder={t.startedPlaceholder} maxLength={50} />
+          <Input
+            value={job.startDate}
+            onChange={(e) => onChange({ startDate: e.target.value })}
+            placeholder={t.startedPlaceholder}
+            maxLength={50}
+          />
         </Field>
         <Field label={t.ended} optional>
           <Input
@@ -252,7 +283,12 @@ function JobFields({ job, errors, onChange, t }: JobFieldsProps) {
           {fmt(t.notesHint, { min: MIN_NOTES, max: DRAFT_LIMITS.notesPerJob })}
         </p>
         {job.notes.map((note, index) => (
-          <Field key={index} label={fmt(t.note, { number: index + 1 })} hideLabel error={index === 0 ? errors.notes : undefined}>
+          <Field
+            key={index}
+            label={fmt(t.note, { number: index + 1 })}
+            hideLabel
+            error={index === 0 ? errors.notes : undefined}
+          >
             <VoiceInput
               value={note}
               onChange={(e) => setNote(index, e.target.value)}
@@ -263,7 +299,13 @@ function JobFields({ job, errors, onChange, t }: JobFieldsProps) {
           </Field>
         ))}
         {job.notes.length < DRAFT_LIMITS.notesPerJob ? (
-          <Button type="button" variant="link" size="sm" className="self-start" onClick={() => onChange({ notes: [...job.notes, ""] })}>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="self-start"
+            onClick={() => onChange({ notes: [...job.notes, ""] })}
+          >
             <Plus />
             {t.addNote}
           </Button>

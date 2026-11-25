@@ -65,9 +65,7 @@ export function RecentResumes({ resumes, onOpen, disabled = false }: RecentResum
         })}
       </ul>
       {hidden > 0 ? (
-        <p className="text-sm text-muted">
-          {countText(format, t.more, hidden)}
-        </p>
+        <p className="text-sm text-muted">{countText(format, t.more, hidden)}</p>
       ) : null}
     </section>
   );

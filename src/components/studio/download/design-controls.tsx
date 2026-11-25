@@ -4,14 +4,7 @@ import { useId, type ReactNode } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMessages } from "@/i18n/client";
 import type { Messages } from "@/i18n/messages";
-import {
-  ACCENT_COLORS,
-  ACCENT_LABELS,
-  DENSITY_LABELS,
-  FONT_LABELS,
-  designOf,
-  withDesign,
-} from "@/lib/pdf/design";
+import { ACCENT_COLORS, designOf, withDesign } from "@/lib/pdf/design";
 import { PAGE_SIZE_LABELS, PDF_PAGE_SIZES, type PdfPageSize } from "@/lib/pdf/page-size";
 import { templateOf } from "@/lib/pdf/templates";
 import {
@@ -66,7 +59,10 @@ function Segmented<T extends string>({
   const name = useId();
   const hintId = `${name}-hint`;
   return (
-    <fieldset className="flex min-w-0 flex-col gap-1.5" aria-describedby={hint ? hintId : undefined}>
+    <fieldset
+      className="flex min-w-0 flex-col gap-1.5"
+      aria-describedby={hint ? hintId : undefined}
+    >
       <legend className="mb-1.5 text-sm font-medium text-ink">{legend}</legend>
       <div className={cn("grid gap-1 rounded-xl bg-surface-muted p-1", className)}>
         {choices.map((choice) => (
@@ -94,7 +90,9 @@ function Segmented<T extends string>({
 
 type AccentValue = DesignAccent | "format";
 
-function accentChoices(t: DesignCopy): { value: AccentValue; color: string | null; label: string }[] {
+function accentChoices(
+  t: DesignCopy,
+): { value: AccentValue; color: string | null; label: string }[] {
   return [
     { value: "format", color: null, label: t.formatColor },
     ...DESIGN_ACCENTS.map((value) => ({
@@ -154,24 +152,27 @@ function ColorPicker({
   );
 }
 
-const fontChoices = (t: DesignCopy): Choice<DesignFont>[] => DESIGN_FONTS.map((value) => ({
-  value,
-  label: (
-    <span className={value === "serif" ? "font-page-serif text-base" : "font-page-sans"}>
-      {t.fonts[value]}
-    </span>
-  ),
-}));
+const fontChoices = (t: DesignCopy): Choice<DesignFont>[] =>
+  DESIGN_FONTS.map((value) => ({
+    value,
+    label: (
+      <span className={value === "serif" ? "font-page-serif text-base" : "font-page-sans"}>
+        {t.fonts[value]}
+      </span>
+    ),
+  }));
 
-const densityChoices = (t: DesignCopy): Choice<DesignDensity>[] => DESIGN_DENSITIES.map((value) => ({
-  value,
-  label: t.densities[value],
-}));
+const densityChoices = (t: DesignCopy): Choice<DesignDensity>[] =>
+  DESIGN_DENSITIES.map((value) => ({
+    value,
+    label: t.densities[value],
+  }));
 
-const pageSizeChoices = (t: DesignCopy): Choice<PdfPageSize>[] => PDF_PAGE_SIZES.map((value) => ({
-  value,
-  label: value === "LETTER" ? t.letter : PAGE_SIZE_LABELS[value],
-}));
+const pageSizeChoices = (t: DesignCopy): Choice<PdfPageSize>[] =>
+  PDF_PAGE_SIZES.map((value) => ({
+    value,
+    label: value === "LETTER" ? t.letter : PAGE_SIZE_LABELS[value],
+  }));
 
 export type DesignCardProps = { resume: Resume; printed: Resume; pageSize: PdfPageSize };
 

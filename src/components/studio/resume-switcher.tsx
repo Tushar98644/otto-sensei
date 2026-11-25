@@ -87,7 +87,7 @@ function SwitcherPanel({ activeId }: { activeId: string | null }) {
         ref={newButtonRef}
         type="button"
         onClick={startNew}
-        className="flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-ink transition-colors -outline-offset-2 hover:bg-ink/5 pointer-coarse:h-11"
+        className="flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-ink -outline-offset-2 transition-colors hover:bg-ink/5 pointer-coarse:h-11"
       >
         <Plus className="size-4 text-ink" aria-hidden />
         {t.newResume}

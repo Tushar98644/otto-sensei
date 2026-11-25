@@ -34,7 +34,14 @@ function ottoLine(
 ): string {
   const { otto } = words.t;
   if (stop && stop.kind !== "user") {
-    return problemMessage(words, stop, account.limit, account.signedIn, account.period, account.plan);
+    return problemMessage(
+      words,
+      stop,
+      account.limit,
+      account.signedIn,
+      account.period,
+      account.plan,
+    );
   }
   if (counts.running > 0) return otto.allWorking;
   if (stop) return otto.allStopped;

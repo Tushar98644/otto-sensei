@@ -12,7 +12,13 @@ import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { countText } from "../count";
-import { findNearFit, stillApplied, tightened, type NearFit, type NearFitApplied } from "./near-fit";
+import {
+  findNearFit,
+  stillApplied,
+  tightened,
+  type NearFit,
+  type NearFitApplied,
+} from "./near-fit";
 import { renderPdfCached } from "./pdf-cache";
 import type { ResumePdf } from "./use-resume-pdf";
 

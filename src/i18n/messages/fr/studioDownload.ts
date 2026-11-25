@@ -23,7 +23,8 @@ export default {
   },
   design: {
     title: "Mise en page",
-    description: "Enregistrée avec ce CV. Le logiciel de recrutement lit chaque choix de la même façon.",
+    description:
+      "Enregistrée avec ce CV. Le logiciel de recrutement lit chaque choix de la même façon.",
     changedLook: "A changé l’apparence",
     color: "Couleur",
     colorHint: "Colore les titres et les filets. Tout le reste reste en noir.",
@@ -61,7 +62,8 @@ export default {
     charactersMore:
       "Les polices du PDF ne peuvent pas afficher {chars} et quelques autres, donc ils ont été remplacés par des caractères proches ou retirés. Vérifie que ton nom et tes liens s’affichent bien.",
     failed: "Ton PDF n’est pas sorti",
-    failedNote: "Un problème est survenu pendant sa création. Ton CV est en sécurité dans ce navigateur.",
+    failedNote:
+      "Un problème est survenu pendant sa création. Ton CV est en sécurité dans ce navigateur.",
     tryAgain: "Réessayer",
     download: "Télécharger le PDF, gratuit",
     updating: "Mise à jour de ton PDF",
@@ -86,7 +88,8 @@ export default {
     copied: "Copié",
     copiedNote: "Colle-le dans n’importe quel formulaire de candidature.",
     failed: "Impossible de copier",
-    failedNote: "Ouvre « Voir le texte brut » sous le bouton de téléchargement et copie-le depuis là.",
+    failedNote:
+      "Ouvre « Voir le texte brut » sous le bouton de téléchargement et copie-le depuis là.",
   },
   word: {
     failed: "Ton fichier Word n’est pas sorti",
@@ -116,10 +119,13 @@ export default {
     showAgain: "Les réafficher",
     findMore: "Trouver d’autres lignes",
     undoTighten: "Annuler l’espacement resserré",
-    tightenFirst: "D’abord, un espacement resserré : environ 10 % de place en moins, même texte et même taille de police.",
+    tightenFirst:
+      "D’abord, un espacement resserré : environ 10 % de place en moins, même texte et même taille de police.",
     tighten: "Resserrer l’espacement",
-    notEnough: "L’espacement resserré n’a pas tout à fait suffi. Otto peut choisir les lignes les plus faibles à masquer.",
-    canPick: "Otto peut choisir les lignes les plus faibles à masquer. Tu décides avant tout changement.",
+    notEnough:
+      "L’espacement resserré n’a pas tout à fait suffi. Otto peut choisir les lignes les plus faibles à masquer.",
+    canPick:
+      "Otto peut choisir les lignes les plus faibles à masquer. Tu décides avant tout changement.",
     finding: "Recherche de lignes",
     find: "Trouver des lignes à masquer",
     offTarget: "Rien de ce que demande l’offre",
@@ -188,7 +194,8 @@ export default {
       one: "Le logiciel de recrutement lit chaque ligne. {count} point à regarder.",
       other: "Le logiciel de recrutement lit chaque ligne. {count} points à regarder.",
     },
-    allPassed: "Le logiciel de recrutement lit chaque ligne. Les {count} vérifications sont réussies.",
+    allPassed:
+      "Le logiciel de recrutement lit chaque ligne. Les {count} vérifications sont réussies.",
   },
   letter: {
     title: "Lettre de motivation",

@@ -39,11 +39,11 @@ export type IssueChipProps = {
 };
 
 export function IssueChip({ issues, text, onFix, onSetText }: IssueChipProps) {
+  const t = useMessages("studioEditor");
   const top = issues.find((issue) => issue.id !== ENTRY_LEVEL);
   if (!top) return null;
   const high = top.severity === "high";
   const more = issues.length - 1;
-  const t = useMessages("studioEditor");
   const label = t.chips[top.id];
   return (
     <Popover
@@ -76,7 +76,7 @@ function LineHelp({ issues, text, onFix, onSetText }: IssueChipProps) {
   const { close } = usePopover();
   const t = useMessages("studioEditor");
   const lint = useMessages("lint");
-  const text_ = useIssueText();
+  const say = useIssueText();
   const example = issues.map((issue) => helpOf(lint, issue.id).example).find(Boolean) ?? null;
   const ottoCanHelp = ottoCanFix(issues);
   const stopNeeded = issues.some((issue) => issue.id === "punctuation")
@@ -89,7 +89,7 @@ function LineHelp({ issues, text, onFix, onSetText }: IssueChipProps) {
         {issues.map((issue) => (
           <li key={issue.id} className="flex flex-col gap-1">
             <p className="text-sm/6 font-medium text-ink">{t.chips[issue.id]}</p>
-            <p className="text-sm/6 text-pretty text-ink">{text_(issue)}</p>
+            <p className="text-sm/6 text-pretty text-ink">{say(issue)}</p>
             <p className="text-sm/6 text-pretty text-muted">{helpOf(lint, issue.id).why}</p>
           </li>
         ))}

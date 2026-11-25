@@ -11,19 +11,26 @@ export default {
   },
   otto: {
     intro: "Colle le lien d’une offre. Je te montre ce qu’elle demande et ce que tu as déjà.",
-    working: "Lunettes sur le nez. Ça prend jusqu’à une minute. Tu peux quitter cette étape, je continue.",
+    working:
+      "Lunettes sur le nez. Ça prend jusqu’à une minute. Tu peux quitter cette étape, je continue.",
     done: "Ton CV adapté est prêt. Ton original ne bouge pas.",
-    cancelled: "Arrêté. Ça peut quand même compter comme 1 version adaptée, car j’avais déjà commencé.",
+    cancelled:
+      "Arrêté. Ça peut quand même compter comme 1 version adaptée, car j’avais déjà commencé.",
     screener: {
-      noRequirements: "Je n’ai pas trouvé d’exigences claires dans cette offre. Une offre plus complète marche mieux.",
+      noRequirements:
+        "Je n’ai pas trouvé d’exigences claires dans cette offre. Une offre plus complète marche mieux.",
       niceOnly:
         "Cette offre n’a pas d’exigences obligatoires. Ton CV montre {shown} des {total} atouts souhaités.",
-      oneProven: "Ton CV prouve la seule exigence obligatoire. Les filtres vérifient exactement ça.",
-      allProven: "Ton CV prouve les {total} exigences obligatoires. Les filtres les vérifient une par une.",
-      noneProven: "Je ne trouve pas encore de preuve des {total} exigences obligatoires. Passons-les en revue.",
+      oneProven:
+        "Ton CV prouve la seule exigence obligatoire. Les filtres vérifient exactement ça.",
+      allProven:
+        "Ton CV prouve les {total} exigences obligatoires. Les filtres les vérifient une par une.",
+      noneProven:
+        "Je ne trouve pas encore de preuve des {total} exigences obligatoires. Passons-les en revue.",
       someProven: {
         one: "Ton CV prouve {proven} des {total} exigences obligatoires. Regardons celle qui reste.",
-        other: "Ton CV prouve {proven} des {total} exigences obligatoires. Regardons les {count} autres.",
+        other:
+          "Ton CV prouve {proven} des {total} exigences obligatoires. Regardons les {count} autres.",
       },
     },
   },
@@ -56,7 +63,8 @@ export default {
   savedJobFailed: "Impossible d’ouvrir cette offre enregistrée",
   errors: {
     signedOut: "Tu as été déconnecté. Reconnecte-toi pour continuer.",
-    refused: "Je ne peux pas travailler avec cette offre. Essaie de coller seulement la description du poste.",
+    refused:
+      "Je ne peux pas travailler avec cette offre. Essaie de coller seulement la description du poste.",
     badPost: "Cette offre n’est pas passée. Vérifie que c’est l’offre complète, puis réessaie.",
   },
   row: {
@@ -85,7 +93,8 @@ export default {
     whatFirst: "Dis d’abord où et ce que tu as fait. Quelques mots suffisent.",
     placeholder: "Accompagné deux nouvelles recrues pendant leur premier mois",
     placeholderWith: "Mis en place nos serveurs de préproduction avec {name}",
-    noTarget: "Ajoute d’abord un emploi ou un projet dans Corriger les lignes, puis reviens ajouter cette ligne.",
+    noTarget:
+      "Ajoute d’abord un emploi ou un projet dans Corriger les lignes, puis reviens ajouter cette ligne.",
     write: "Écrire la ligne",
     useMine: "Utiliser mes mots",
     cancel: "Annuler",
@@ -94,7 +103,8 @@ export default {
     newLineHint: "Va dans le CV adapté, sous {place}.",
     brackets: "Complète ou supprime d’abord ce qui est entre [crochets].",
     nameIt: "Cite {name} dans la ligne, pour qu’un filtre le trouve.",
-    claimsMore: "Otto a écrit « {verb} », qui en dit plus que toi. Change-le si ce n’est pas juste.",
+    claimsMore:
+      "Otto a écrit « {verb} », qui en dit plus que toi. Change-le si ce n’est pas juste.",
     droppedHelp:
       "Tu as dit que tu avais aidé ; cette ligne laisse croire que tu l’as fait seul. Remets-le si c’est plus juste.",
     add: "Ajouter cette ligne",
@@ -165,7 +175,8 @@ export default {
     weak: "{count} pourraient mieux le dire",
     unrelated: {
       one: "{count} autre ligne ne montre rien de ce qu’elle demande ; elle peut rester, plus bas.",
-      other: "{count} autres lignes ne montrent rien de ce qu’elle demande ; elles peuvent rester, plus bas.",
+      other:
+        "{count} autres lignes ne montrent rien de ce qu’elle demande ; elles peuvent rester, plus bas.",
     },
     must: "obligatoire",
     nice: "souhaité",
@@ -220,7 +231,8 @@ export default {
     uses: "Cette offre utilise {system}",
     howItReads: "comment il te lit",
     notes: { one: "{count} note sur {system}", other: "{count} notes sur {system}" },
-    questions: "Questions de ce formulaire qui peuvent être réglées pour te refuser automatiquement",
+    questions:
+      "Questions de ce formulaire qui peuvent être réglées pour te refuser automatiquement",
     required: "Obligatoire",
     yesNo: "Oui ou non",
     choices: "{count} choix",
@@ -237,7 +249,8 @@ export default {
   letter: {
     title: "Lettre de motivation",
     words: "{count} mots",
-    about: "Environ 200 mots : le poste, tes faits les plus proches et pourquoi cette offre. Uniquement à partir de ton CV.",
+    about:
+      "Environ 200 mots : le poste, tes faits les plus proches et pourquoi cette offre. Uniquement à partir de ton CV.",
     check: "Vérifie-la avant de l’envoyer",
     copy: "Copier",
     download: "Télécharger le PDF",
@@ -251,7 +264,8 @@ export default {
     question: "La question",
     hint: "À partir de ton CV et de cette offre. Relis chaque phrase avant de la coller : Otto n’envoie jamais rien.",
     placeholder: "Pourquoi veux-tu travailler ici ?",
-    whole: "Colle la question entière du formulaire, par exemple « Pourquoi veux-tu travailler ici ? »",
+    whole:
+      "Colle la question entière du formulaire, par exemple « Pourquoi veux-tu travailler ici ? »",
     draft: "Rédiger une réponse",
     remove: "Retirer cette réponse",
     copy: "Copier",

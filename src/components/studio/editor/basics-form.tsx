@@ -33,9 +33,7 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
 
   const email = basics.email.trim();
   const emailError =
-    checkEmail && email !== "" && !LOOKS_LIKE_EMAIL.test(email)
-      ? t.emailIncomplete
-      : undefined;
+    checkEmail && email !== "" && !LOOKS_LIKE_EMAIL.test(email) ? t.emailIncomplete : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,12 +83,7 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
             placeholder="+1 555 0100"
           />
         </Field>
-        <Field
-          label={t.location}
-          optional
-          hint={t.locationHint}
-          className="sm:col-span-2"
-        >
+        <Field label={t.location} optional hint={t.locationHint} className="sm:col-span-2">
           <Input
             value={basics.location}
             onChange={(event) => update({ location: event.target.value })}

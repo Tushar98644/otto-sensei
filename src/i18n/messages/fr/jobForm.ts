@@ -31,6 +31,7 @@ export default {
   postPlaceholder: "Colle l’offre d’emploi ici",
   needsPost: "Colle d’abord le lien de l’offre. S’il ne s’ouvre pas, colle le texte.",
   tooShort: "C’est un peu court. Colle l’offre entière, pas seulement le titre.",
-  tooLong: "Ça dépasse {max} caractères. Coupe la présentation de l’entreprise ou les avantages, puis réessaie.",
+  tooLong:
+    "Ça dépasse {max} caractères. Coupe la présentation de l’entreprise ou les avantages, puis réessaie.",
   compare: "Comparer avec mon CV",
 } satisfies Translation<Messages["jobForm"]>;

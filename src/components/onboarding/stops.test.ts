@@ -73,11 +73,14 @@ describe("dashboardStops", () => {
 
   it("counts the setup steps the card really shows", () => {
     const body = (setupSteps: number | null) =>
-      dashboardStops({ setupSteps, copy, format: EN_FORMAT }).find((stop) => stop.id === "setup")?.body;
+      dashboardStops({ setupSteps, copy, format: EN_FORMAT }).find((stop) => stop.id === "setup")
+        ?.body;
     expect(body(3)).toContain("Your 3 setup steps tick themselves off.");
     expect(body(4)).toContain("Your 4 setup steps");
     expect(body(1)).toContain("Your 1 setup step ticks itself off.");
     expect(body(null)).not.toMatch(/\d|five/i);
-    expect(dashboardStops({ copy, format: EN_FORMAT }).find((stop) => stop.id === "setup")?.body).toBe(body(null));
+    expect(
+      dashboardStops({ copy, format: EN_FORMAT }).find((stop) => stop.id === "setup")?.body,
+    ).toBe(body(null));
   });
 });

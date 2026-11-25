@@ -123,7 +123,9 @@ export function ResumeSwitcherItem({
           {active ? <span className="sr-only">{t.openNow}</span> : null}
         </span>
         <span className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-          {tailored ? <Badge className="max-w-full truncate bg-lavender text-ink">{tailored}</Badge> : null}
+          {tailored ? (
+            <Badge className="max-w-full truncate bg-lavender text-ink">{tailored}</Badge>
+          ) : null}
           <span>
             {fmt(studio.resume.edited, {
               when: relativeTimeIn(format, studio.justNow, resume.updatedAt, now),

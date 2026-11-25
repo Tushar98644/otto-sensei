@@ -8,17 +8,21 @@ export default {
     noIssues: "Toutes les lignes se lisent bien. Rien à corriger ici.",
     issues: {
       one: "{count} ligne pourrait être plus forte. Corrigeons-la ensemble.",
-      other: "{count} lignes pourraient être plus fortes. Je peux toutes les faire d’un coup, ou une par une.",
+      other:
+        "{count} lignes pourraient être plus fortes. Je peux toutes les faire d’un coup, ou une par une.",
     },
     lineGood: "Cette ligne fonctionne déjà : une action claire et un vrai résultat.",
-    asking: "Une petite question d’abord. J’utilise seulement les faits que tu me donnes, jamais de chiffres inventés.",
+    asking:
+      "Une petite question d’abord. J’utilise seulement les faits que tu me donnes, jamais de chiffres inventés.",
     working: "Je prépare une version plus forte. Un instant.",
     suggestion: "Voici une version plus forte. Garde-la, modifie-la ou passe.",
     signedInAgain: "Tu es reconnecté. Réessaie et je jette un œil.",
     allWorking: "Je réécris tes lignes faibles. Vérifie chacune à mesure qu’elle arrive.",
     allReview: "Voici tes nouvelles lignes. Accepte celles qui sont vraies.",
-    allAsking: "Certaines lignes ont besoin d’un fait que toi seul connais. Réponds plus bas et je les termine.",
-    allStopped: "Je me suis arrêté là. Les lignes que je n’ai pas atteintes restent telles quelles.",
+    allAsking:
+      "Certaines lignes ont besoin d’un fait que toi seul connais. Réponds plus bas et je les termine.",
+    allStopped:
+      "Je me suis arrêté là. Les lignes que je n’ai pas atteintes restent telles quelles.",
     allDone: "C’est toutes les lignes. Plus rien à accepter.",
   },
   counts: {
@@ -183,7 +187,8 @@ export default {
     keep: "Garder le mien",
     close: "Fermer",
     tryAgain: "Réessayer",
-    signIn: "Connecte-toi pour l’aide au résumé. Avec Free, ça utilise 1 de tes {count} corrections de ligne par mois.",
+    signIn:
+      "Connecte-toi pour l’aide au résumé. Avec Free, ça utilise 1 de tes {count} corrections de ligne par mois.",
     twoTakes: "2 versions",
     oneTake: "1 version",
     wordsChange: "{before} → {after} mots",
@@ -193,8 +198,10 @@ export default {
       needMore: "Il me faut un peu plus. Ajoute d’abord un emploi ou quelques lignes.",
       alreadyGood: "Le tien se lit déjà bien. Je le garderais tel quel.",
       tightened: "Les mêmes faits, moins de mots. Utilise-le, modifie-le ou garde le tien.",
-      twoTakes: "Deux versions, faites uniquement à partir de ton CV. Choisis-en une, modifie-la ou garde le tien.",
-      oneTake: "Une version, faite uniquement à partir de ton CV. Utilise-la, modifie-la ou garde le tien.",
+      twoTakes:
+        "Deux versions, faites uniquement à partir de ton CV. Choisis-en une, modifie-la ou garde le tien.",
+      oneTake:
+        "Une version, faite uniquement à partir de ton CV. Utilise-la, modifie-la ou garde le tien.",
     },
     options: {
       kinds: {
@@ -203,7 +210,8 @@ export default {
         tightened: "Version resserrée",
       },
       yourVersion: "Ta version",
-      blanks: "Les mots entre [crochets] sont des blancs pour tes vrais faits. Modifie-le pour les compléter.",
+      blanks:
+        "Les mots entre [crochets] sont des blancs pour tes vrais faits. Modifie-le pour les compléter.",
       edit: "Modifier d’abord",
       cancel: "Annuler la modification",
       use: "Utiliser celui-ci",
@@ -259,7 +267,8 @@ export default {
     didntFit: "Certaines lignes n’ont pas tenu",
     leftOut: {
       one: "Il y a de la place pour {max} lignes ici, donc {count} ligne a été laissée de côté.",
-      other: "Il y a de la place pour {max} lignes ici, donc {count} lignes ont été laissées de côté.",
+      other:
+        "Il y a de la place pour {max} lignes ici, donc {count} lignes ont été laissées de côté.",
     },
   },
   outline: {

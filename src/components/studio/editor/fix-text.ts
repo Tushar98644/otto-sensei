@@ -19,9 +19,7 @@ export const FIX_ANSWER_LIMITS = { count: 5, questionChars: 300, answerChars: 50
 export type FixAnswer = FixInput["answers"][number];
 
 export type FixProblem =
-  | { kind: "error"; message: string }
-  | { kind: "signin" }
-  | { kind: "limit"; budget?: boolean };
+  { kind: "error"; message: string } | { kind: "signin" } | { kind: "limit"; budget?: boolean };
 
 const PLACEHOLDERS = /\[[^[\]\n]+\]/g;
 const PLACEHOLDER = /\[[^[\]\n]+\]/;
@@ -104,7 +102,9 @@ export function problemMessage(
   switch (problem.kind) {
     case "limit":
       if (problem.budget) return budgetReachedText(period);
-      return plan === "free" ? OTTO.limit.freeUsed("fix", limit) : OTTO.limit.reached("fix", limit, period);
+      return plan === "free"
+        ? OTTO.limit.freeUsed("fix", limit)
+        : OTTO.limit.reached("fix", limit, period);
     case "signin":
       return signedIn ? words.t.otto.signedInAgain : OTTO.signIn.reason("fix");
     case "error":

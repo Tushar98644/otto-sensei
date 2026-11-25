@@ -95,8 +95,7 @@ export default {
     dropping: "You can keep {count}. Saving removes the oldest, “{name}”.",
     save: "Save version",
     saved: "Version saved",
-    empty:
-      "Save a version before a big change, like tailoring. You can come back to it later.",
+    empty: "Save a version before a big change, like tailoring. You can come back to it later.",
     deleted: "Version deleted",
     restored: "Version restored",
     restoredNote: "“{name}” is back. What you had is kept in your versions.",
@@ -118,8 +117,7 @@ export default {
       scratch: "No resume yet? No problem. We'll build one together, a section at a time.",
     },
     review: {
-      scanned:
-        "This PDF is only a picture, so hiring software sees a blank page. Let's fix that.",
+      scanned: "This PDF is only a picture, so hiring software sees a blank page. Let's fix that.",
       allGood: "Every check passed. Hiring software can read all of it.",
       failed: { one: "{count} check needs fixing", other: "{count} checks need fixing" },
       failedOnly: "{failed}.",

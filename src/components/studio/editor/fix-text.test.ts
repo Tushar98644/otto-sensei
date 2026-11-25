@@ -97,9 +97,15 @@ describe("messages", () => {
   });
 
   it("stops asking for an account once the user has signed back in", () => {
-    expect(problemMessage(FIX_WORDS, { kind: "signin" }, 20, true)).toBe(EN.studioEditor.otto.signedInAgain);
-    expect(problemMessage(FIX_WORDS, { kind: "signin" }, 20, false)).toBe(OTTO.signIn.reason("fix"));
-    expect(problemMessage(FIX_WORDS, { kind: "limit" }, 20, true)).toBe(OTTO.limit.reached("fix", 20));
+    expect(problemMessage(FIX_WORDS, { kind: "signin" }, 20, true)).toBe(
+      EN.studioEditor.otto.signedInAgain,
+    );
+    expect(problemMessage(FIX_WORDS, { kind: "signin" }, 20, false)).toBe(
+      OTTO.signIn.reason("fix"),
+    );
+    expect(problemMessage(FIX_WORDS, { kind: "limit" }, 20, true)).toBe(
+      OTTO.limit.reached("fix", 20),
+    );
   });
 
   it("points a Free user at their limit to Pro, not to the reset alone", () => {
@@ -125,13 +131,18 @@ describe("messages", () => {
     expect(fixAllowanceText(FIX_WORDS, { used: 0, limit: 0 }, "free", null, false)).toBe(
       "More line fixes come with Pro.",
     );
-    expect(fixAllowanceText(FIX_WORDS, { used: 3, limit: 300 }, "pro")).toBe("297 of 300 fixes left this month");
+    expect(fixAllowanceText(FIX_WORDS, { used: 3, limit: 300 }, "pro")).toBe(
+      "297 of 300 fixes left this month",
+    );
     expect(fixAllowanceText(FIX_WORDS, { used: 300, limit: 300 }, "pro")).toBe(
       "No fixes left this month. They reset when your plan renews.",
     );
-    expect(fixAllowanceText(FIX_WORDS, { used: 3, limit: 50 }, "pro", { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12) })).toBe(
-      "47 of 50 fixes left this trial",
-    );
+    expect(
+      fixAllowanceText(FIX_WORDS, { used: 3, limit: 50 }, "pro", {
+        kind: "trial",
+        resetsAt: Date.UTC(2026, 10, 11, 12),
+      }),
+    ).toBe("47 of 50 fixes left this trial");
     expect(fixAllowanceText(FIX_WORDS, null, "free")).toBeNull();
   });
 });

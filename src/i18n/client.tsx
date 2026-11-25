@@ -39,6 +39,9 @@ export function useFormat(): Format {
 }
 
 // For components that pages without this namespace also render: they read the English given here.
-export function useMessagesOr<N extends Namespace>(namespace: N, english: Messages[N]): Messages[N] {
+export function useMessagesOr<N extends Namespace>(
+  namespace: N,
+  english: Messages[N],
+): Messages[N] {
   return use(MessagesContext)?.messages[namespace] ?? english;
 }

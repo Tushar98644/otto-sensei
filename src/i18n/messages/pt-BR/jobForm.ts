@@ -31,6 +31,7 @@ export default {
   postPlaceholder: "Cole a vaga aqui",
   needsPost: "Cole primeiro o link da vaga. Se não abrir, cole o texto.",
   tooShort: "Está um pouco curta. Cole a vaga inteira, não só o título.",
-  tooLong: "Passa de {max} caracteres. Corte a apresentação da empresa ou os benefícios e tente de novo.",
+  tooLong:
+    "Passa de {max} caracteres. Corte a apresentação da empresa ou os benefícios e tente de novo.",
   compare: "Comparar com meu currículo",
 } satisfies Translation<Messages["jobForm"]>;

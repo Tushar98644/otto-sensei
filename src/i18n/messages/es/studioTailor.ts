@@ -15,10 +15,12 @@ export default {
     done: "Tu currículum adaptado está listo. El original no cambia.",
     cancelled: "Me detuve. Puede contar como 1 versión adaptada, porque ya había empezado.",
     screener: {
-      noRequirements: "No encontré requisitos claros en esta oferta. Una oferta más completa funciona mejor.",
+      noRequirements:
+        "No encontré requisitos claros en esta oferta. Una oferta más completa funciona mejor.",
       niceOnly:
         "Esta oferta no tiene requisitos obligatorios. Tu currículum muestra {shown} de {total} deseables.",
-      oneProven: "Tu currículum demuestra el único requisito obligatorio. Los filtros revisan justo eso.",
+      oneProven:
+        "Tu currículum demuestra el único requisito obligatorio. Los filtros revisan justo eso.",
       allProven:
         "Tu currículum demuestra los {total} requisitos obligatorios. Los filtros los revisan uno por uno.",
       noneProven: "Aún no encuentro pruebas de los {total} requisitos obligatorios. Revisémoslos.",
@@ -87,7 +89,8 @@ export default {
     whatFirst: "Primero di dónde y qué hiciste. Bastan unas palabras.",
     placeholder: "Acompañé a dos personas nuevas en su primer mes",
     placeholderWith: "Configuré nuestros servidores de staging con {name}",
-    noTarget: "Primero agrega un trabajo o un proyecto en Corregir líneas y luego vuelve para agregar esta línea.",
+    noTarget:
+      "Primero agrega un trabajo o un proyecto en Corregir líneas y luego vuelve para agregar esta línea.",
     write: "Escribir la línea",
     useMine: "Usar mis palabras",
     cancel: "Cancelar",
@@ -222,7 +225,8 @@ export default {
     uses: "Este empleo usa {system}",
     howItReads: "cómo te lee",
     notes: { one: "{count} nota sobre {system}", other: "{count} notas sobre {system}" },
-    questions: "Preguntas de este formulario que pueden configurarse para rechazarte automáticamente",
+    questions:
+      "Preguntas de este formulario que pueden configurarse para rechazarte automáticamente",
     required: "Obligatoria",
     yesNo: "Sí o no",
     choices: "{count} opciones",
@@ -239,7 +243,8 @@ export default {
   letter: {
     title: "Carta de presentación",
     words: "{count} palabras",
-    about: "Unas 200 palabras: el puesto, tus datos más cercanos y por qué este empleo. Solo con tu currículum.",
+    about:
+      "Unas 200 palabras: el puesto, tus datos más cercanos y por qué este empleo. Solo con tu currículum.",
     check: "Revísala antes de enviarla",
     copy: "Copiar",
     download: "Descargar PDF",

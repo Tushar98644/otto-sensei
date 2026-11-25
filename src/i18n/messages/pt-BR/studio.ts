@@ -14,7 +14,8 @@ export default {
   uploadResume: "Enviar um currículo",
   noResumeOpen: "Nenhum currículo aberto",
   fixFirst: "Corrija isto primeiro",
-  demoNote: "Modo demo: estas são sugestões de exemplo. Adicione uma chave de IA para ver as reais.",
+  demoNote:
+    "Modo demo: estas são sugestões de exemplo. Adicione uma chave de IA para ver as reais.",
   steps: {
     upload: "Enviar",
     review: "Visão do recrutador",
@@ -100,7 +101,8 @@ export default {
     dropping: "Você pode manter {count}. Ao salvar, a mais antiga sai: “{name}”.",
     save: "Salvar versão",
     saved: "Versão salva",
-    empty: "Salve uma versão antes de uma mudança grande, como personalizar. Você pode voltar a ela depois.",
+    empty:
+      "Salve uma versão antes de uma mudança grande, como personalizar. Você pode voltar a ela depois.",
     deleted: "Versão excluída",
     restored: "Versão restaurada",
     restoredNote: "“{name}” voltou. O que você tinha fica guardado nas suas versões.",
@@ -113,7 +115,8 @@ export default {
   },
   otto: {
     noResumes: "Ainda não há currículos aqui. Envie um ou comece do zero comigo.",
-    demoMode: "Modo demo: a IA está desligada, então minhas sugestões são exemplos, não reescritas de verdade.",
+    demoMode:
+      "Modo demo: a IA está desligada, então minhas sugestões são exemplos, não reescritas de verdade.",
     upload: {
       idle: "Vou mostrar o que o software de recrutamento lê no seu arquivo e o que corrigir primeiro.",
       reading: "Óculos no rosto. Lendo seu currículo agora.",
@@ -180,7 +183,8 @@ export default {
     linkedinDetail:
       "Use o ZIP de “Obter uma cópia dos seus dados” do LinkedIn. Ele fica no seu dispositivo.",
     jsonResume: "Importar um JSON Resume",
-    jsonResumeDetail: "Um arquivo resume.json do jsonresume.org ou de outra ferramenta de currículos.",
+    jsonResumeDetail:
+      "Um arquivo resume.json do jsonresume.org ou de outra ferramenta de currículos.",
     scratch: "Começar do zero",
     noFile: "Não tem um arquivo à mão?",
     sample: "Testar um currículo de exemplo",

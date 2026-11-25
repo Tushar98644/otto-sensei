@@ -179,7 +179,9 @@ describe("extra items", () => {
   it("asks before removing only what has content", () => {
     const form = EXTRA_FORMS.volunteering;
     expect(removeItemQuestion(item(), form, EN_FORMAT)).toBeNull();
-    expect(removeItemQuestion(item({ title: "Mentor" }), form, EN_FORMAT)).toBe("Remove this role?");
+    expect(removeItemQuestion(item({ title: "Mentor" }), form, EN_FORMAT)).toBe(
+      "Remove this role?",
+    );
     const withLines = item({
       title: "Mentor",
       bullets: [newBullet("Taught 12 kids"), newBullet("")],
@@ -196,17 +198,27 @@ describe("removeSectionQuestion", () => {
       ...empty,
       items: [item({ title: "Spanish" }), item({ title: "French" }), item()],
     };
-    expect(removeSectionQuestion(filled, EXTRA_FORMS, EN_FORMAT)).toBe("Remove Languages and its 2 languages?");
+    expect(removeSectionQuestion(filled, EXTRA_FORMS, EN_FORMAT)).toBe(
+      "Remove Languages and its 2 languages?",
+    );
   });
 });
 
 describe("extraCount", () => {
   it("counts items and says how many are hidden", () => {
     const section = newExtraSection("languages");
-    expect(extraCount({ ...section, items: [] }, EN.studioSections.extras, EN_FORMAT)).toBe("None yet");
-    expect(extraCount({ ...section, items: [item(), item()] }, EN.studioSections.extras, EN_FORMAT)).toBe("2 languages");
-    expect(extraCount({ ...section, items: [item(), item({ hidden: true })] }, EN.studioSections.extras, EN_FORMAT)).toBe(
-      "2 languages · 1 hidden",
+    expect(extraCount({ ...section, items: [] }, EN.studioSections.extras, EN_FORMAT)).toBe(
+      "None yet",
     );
+    expect(
+      extraCount({ ...section, items: [item(), item()] }, EN.studioSections.extras, EN_FORMAT),
+    ).toBe("2 languages");
+    expect(
+      extraCount(
+        { ...section, items: [item(), item({ hidden: true })] },
+        EN.studioSections.extras,
+        EN_FORMAT,
+      ),
+    ).toBe("2 languages · 1 hidden");
   });
 });

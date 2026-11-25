@@ -103,7 +103,9 @@ function Proposal({ item, t }: { item: FixAllItem; t: RowCopy }) {
       return (
         <span className="inline-flex items-start gap-1.5 text-muted">
           <TriangleExclamationPoint aria-hidden className="mt-1 size-4 shrink-0 text-warn" />
-          {item.status === "too-long" ? fmt(t.tooLong, { count: TEXT_LIMITS.bulletChars }) : (item.message ?? t.failed)}
+          {item.status === "too-long"
+            ? fmt(t.tooLong, { count: TEXT_LIMITS.bulletChars })
+            : (item.message ?? t.failed)}
         </span>
       );
     case "ready": {
@@ -156,9 +158,7 @@ function RowActions({
   if (lineGood(item) || decision === "accepted") {
     return (
       <div className="flex justify-end">
-        <StatusPill status="pass">
-          {decision === "accepted" ? t.accepted : t.works}
-        </StatusPill>
+        <StatusPill status="pass">{decision === "accepted" ? t.accepted : t.works}</StatusPill>
       </div>
     );
   }
@@ -181,9 +181,7 @@ function RowActions({
   const blanks = hasPlaceholders(proposedText(item));
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {blanks ? (
-        <p className="mr-auto text-sm text-muted">{t.blanks}</p>
-      ) : null}
+      {blanks ? <p className="mr-auto text-sm text-muted">{t.blanks}</p> : null}
       <Button
         variant="ghost"
         size="sm"

@@ -40,7 +40,5 @@ export function relativeTimeIn(
   timestamp: number,
   now: number,
 ): string {
-  return relative(timestamp, now, justNow, (value, unit) =>
-    format.relativeTime(value, unit, AUTO),
-  );
+  return relative(timestamp, now, justNow, (value, unit) => format.relativeTime(value, unit, AUTO));
 }

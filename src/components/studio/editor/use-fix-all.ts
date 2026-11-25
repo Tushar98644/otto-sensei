@@ -190,7 +190,7 @@ export function useFixAll(resumeId: string) {
     } finally {
       startingRef.current = false;
     }
-  }, [resumeId, run]);
+  }, [resumeId, run, t]);
 
   const start = useCallback(() => void begin(), [begin]);
 

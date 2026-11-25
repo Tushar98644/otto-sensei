@@ -179,8 +179,7 @@ export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
     setPhase({ kind: "idle" });
   }
 
-  const pageLine =
-    pages === null ? t.checking : fits ? t.fits : fmt(t.runsTo, { pages });
+  const pageLine = pages === null ? t.checking : fits ? t.fits : fmt(t.runsTo, { pages });
 
   return (
     <Card>
@@ -189,12 +188,8 @@ export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
         <CardDescription aria-live="polite">{pageLine}</CardDescription>
       </CardHeader>
 
-      {phase.kind === "failed" ? (
-        <Alert variant="error">{t.failed}</Alert>
-      ) : null}
-      {phase.kind === "nothing" ? (
-        <p className="text-sm text-muted">{t.nothing}</p>
-      ) : null}
+      {phase.kind === "failed" ? <Alert variant="error">{t.failed}</Alert> : null}
+      {phase.kind === "nothing" ? <p className="text-sm text-muted">{t.nothing}</p> : null}
 
       {phase.kind === "review" ? (
         <div className="flex flex-col gap-3">
@@ -216,9 +211,7 @@ export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
         </div>
       ) : phase.kind === "hidden" ? (
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm text-muted">
-            {countText(format, t.hidden, phase.ids.length)}
-          </p>
+          <p className="text-sm text-muted">{countText(format, t.hidden, phase.ids.length)}</p>
           <Button variant="ghost" onClick={undoHide}>
             <Undo2 />
             {t.showAgain}

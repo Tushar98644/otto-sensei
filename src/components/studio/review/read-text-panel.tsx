@@ -66,9 +66,7 @@ export function ReadTextPanel({ report, hideHeading = false }: ReadTextPanelProp
           </ol>
         </div>
       ) : (
-        <p className="bg-surface-muted/60 px-4 py-10 text-center text-sm text-muted">
-          {t.blank}
-        </p>
+        <p className="bg-surface-muted/60 px-4 py-10 text-center text-sm text-muted">{t.blank}</p>
       )}
       <p className="border-t border-border px-4 py-3 text-xs text-muted">{t.footer}</p>
     </section>

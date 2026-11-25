@@ -71,7 +71,6 @@ export function buildScreener(
   };
 }
 
-
 type LineNotes = { nameIt: string; claimsMore: string; droppedHelp: string };
 
 export function missingName(
@@ -103,4 +102,3 @@ export function tidyLine(line: string): string {
 export function hasBlank(line: string): boolean {
   return /\[[^\]\n]*\]/u.test(line);
 }
-

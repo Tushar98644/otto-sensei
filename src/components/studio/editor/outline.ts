@@ -71,11 +71,7 @@ export function fixOutline(
             key,
             label,
             resume.education.map((school) =>
-              entry(
-                school.id,
-                joined([school.degree, school.school], t.newSchool),
-                school.bullets,
-              ),
+              entry(school.id, joined([school.degree, school.school], t.newSchool), school.bullets),
             ),
           ),
         );

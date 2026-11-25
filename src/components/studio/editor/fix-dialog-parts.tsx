@@ -187,10 +187,7 @@ export function DraftField({ id, value, onChange, onSubmit }: DraftFieldProps) {
   }
 
   return (
-    <Field
-      label={t.yourVersion}
-      hint={hasPlaceholders(value) ? t.draftBlanks : t.draftHint}
-    >
+    <Field label={t.yourVersion} hint={hasPlaceholders(value) ? t.draftBlanks : t.draftHint}>
       <VoiceTextarea
         id={id}
         autoResize

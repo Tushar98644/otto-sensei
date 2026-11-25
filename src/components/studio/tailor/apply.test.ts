@@ -322,7 +322,14 @@ describe("summarizeChoices", () => {
 
 describe("changeLines", () => {
   it("names each change in a short line", () => {
-    expect(changeLines(EN.studioTailor.changes, EN_FORMAT, { lines: 1, skills: 2, reorderedJobs: 1, summary: true })).toEqual([
+    expect(
+      changeLines(EN.studioTailor.changes, EN_FORMAT, {
+        lines: 1,
+        skills: 2,
+        reorderedJobs: 1,
+        summary: true,
+      }),
+    ).toEqual([
       "Adds 1 line you confirmed",
       "Adds 2 skills to your Skills section",
       "Puts your best lines first in 1 job",
@@ -331,23 +338,47 @@ describe("changeLines", () => {
   });
 
   it("is empty when nothing is picked", () => {
-    expect(changeLines(EN.studioTailor.changes, EN_FORMAT, { lines: 0, skills: 0, reorderedJobs: 0, summary: false })).toEqual([]);
+    expect(
+      changeLines(EN.studioTailor.changes, EN_FORMAT, {
+        lines: 0,
+        skills: 0,
+        reorderedJobs: 0,
+        summary: false,
+      }),
+    ).toEqual([]);
   });
 });
 
 describe("describeChanges", () => {
   it("puts the changes in one sentence for the step bar", () => {
-    expect(describeChanges(EN.studioTailor.changes, EN_FORMAT, { lines: 2, skills: 0, reorderedJobs: 1, summary: true })).toBe(
+    expect(
+      describeChanges(EN.studioTailor.changes, EN_FORMAT, {
+        lines: 2,
+        skills: 0,
+        reorderedJobs: 1,
+        summary: true,
+      }),
+    ).toBe(
       "The copy adds 2 lines you confirmed, puts your best lines first in 1 job and uses the new summary. Your original stays the same.",
     );
-    expect(describeChanges(EN.studioTailor.changes, EN_FORMAT, { lines: 0, skills: 3, reorderedJobs: 0, summary: false })).toBe(
-      "The copy adds 3 skills to your Skills section. Your original stays the same.",
-    );
+    expect(
+      describeChanges(EN.studioTailor.changes, EN_FORMAT, {
+        lines: 0,
+        skills: 3,
+        reorderedJobs: 0,
+        summary: false,
+      }),
+    ).toBe("The copy adds 3 skills to your Skills section. Your original stays the same.");
   });
 
   it("says so when nothing is picked", () => {
-    expect(describeChanges(EN.studioTailor.changes, EN_FORMAT, { lines: 0, skills: 0, reorderedJobs: 0, summary: false })).toBe(
-      EN.studioTailor.changes.none,
-    );
+    expect(
+      describeChanges(EN.studioTailor.changes, EN_FORMAT, {
+        lines: 0,
+        skills: 0,
+        reorderedJobs: 0,
+        summary: false,
+      }),
+    ).toBe(EN.studioTailor.changes.none);
   });
 });

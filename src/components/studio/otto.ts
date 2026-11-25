@@ -29,7 +29,8 @@ export function reviewSummary(otto: Otto, format: Format, counts: CheckCounts): 
   const pass = whole(counts.pass);
   if (fail > 0) {
     const failed = countText(format, t.failed, fail);
-    const first = warn > 0 ? fmt(t.failedAndWarned, { failed, warn }) : fmt(t.failedOnly, { failed });
+    const first =
+      warn > 0 ? fmt(t.failedAndWarned, { failed, warn }) : fmt(t.failedOnly, { failed });
     return pass > 0 ? `${first} ${countText(format, t.passed, pass)}` : first;
   }
   if (warn > 0) return countText(format, t.warnedOnly, warn);
@@ -49,7 +50,11 @@ export function reviewOverall(
   return `${start} ${countText(format, t.wordsFirst, words)}`;
 }
 
-export function fixIssues(t: Messages["studioEditor"]["otto"], format: Format, count: number): string {
+export function fixIssues(
+  t: Messages["studioEditor"]["otto"],
+  format: Format,
+  count: number,
+): string {
   const n = whole(count);
   return n === 0 ? t.noIssues : countText(format, t.issues, n);
 }

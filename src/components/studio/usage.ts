@@ -18,7 +18,11 @@ function resetDayIn(format: Format, period: UsagePeriod | null | undefined): str
   return period ? format.date(period.resetsAt, SHORT_DATE) : null;
 }
 
-export function resetWhenIn(t: Usage, format: Format, period: UsagePeriod | null | undefined): string {
+export function resetWhenIn(
+  t: Usage,
+  format: Format,
+  period: UsagePeriod | null | undefined,
+): string {
   const day = resetDayIn(format, period);
   if (!day) return t.whenRenews;
   return fmt(period?.renews ? t.onDayRenews : t.onDay, { day });
@@ -29,6 +33,7 @@ export function resetSentenceIn(
   format: Format,
   period: UsagePeriod | null | undefined,
 ): string {
-  if (period?.kind === "trial") return fmt(t.fullAllowance, { day: resetDayIn(format, period) ?? "" });
+  if (period?.kind === "trial")
+    return fmt(t.fullAllowance, { day: resetDayIn(format, period) ?? "" });
   return fmt(t.reset, { when: resetWhenIn(t, format, period) });
 }

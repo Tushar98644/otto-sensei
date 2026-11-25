@@ -87,11 +87,7 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
       canMoveUp={index > 0}
       canMoveDown={index < count - 1}
       onMove={(delta) => editList(resumeId, "skills", (groups) => moveItem(groups, entryId, delta))}
-      confirm={
-        group.items.length > 0
-          ? countText(format, t.remove, group.items.length)
-          : null
-      }
+      confirm={group.items.length > 0 ? countText(format, t.remove, group.items.length) : null}
       onRemove={remove}
       hidden={group.hidden === true}
       onToggleHidden={() => update((current) => setHidden(current, current.hidden !== true))}
@@ -99,11 +95,7 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
         complete: group.items.length > 0,
         firstFieldId,
         content: (
-          <Field
-            label={t.groupName}
-            optional
-            hint={t.groupHint}
-          >
+          <Field label={t.groupName} optional hint={t.groupHint}>
             <Input
               id={firstFieldId}
               value={group.label}

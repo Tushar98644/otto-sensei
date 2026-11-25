@@ -30,7 +30,9 @@ export function LineTip({ issues }: { issues: readonly LintIssue[] }) {
   return (
     <p aria-hidden className="min-w-0 text-sm/6 text-muted">
       {text(top)}
-      {more > 0 ? <span className="text-subtle">{` +${countText(format, t.more, more)}`}</span> : null}
+      {more > 0 ? (
+        <span className="text-subtle">{` +${countText(format, t.more, more)}`}</span>
+      ) : null}
     </p>
   );
 }

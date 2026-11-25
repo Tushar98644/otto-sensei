@@ -14,7 +14,8 @@ export default {
   uploadResume: "Importer un CV",
   noResumeOpen: "Aucun CV ouvert",
   fixFirst: "À corriger en premier",
-  demoNote: "Mode démo : ce sont des suggestions d’exemple. Ajoute une clé d’IA pour en avoir de vraies.",
+  demoNote:
+    "Mode démo : ce sont des suggestions d’exemple. Ajoute une clé d’IA pour en avoir de vraies.",
   steps: {
     upload: "Importer",
     review: "Vue recruteur",
@@ -58,7 +59,10 @@ export default {
     retry: "Réessayer maintenant",
     toDownload: "Aller à Télécharger",
     states: {
-      saving: { label: "Enregistrement…", detail: "Enregistrement de tes dernières modifications." },
+      saving: {
+        label: "Enregistrement…",
+        detail: "Enregistrement de tes dernières modifications.",
+      },
       saved: { label: "Enregistré", detail: "Enregistré et sauvegardé sur ton compte." },
       device: {
         label: "Enregistré sur cet appareil",
@@ -100,7 +104,8 @@ export default {
     dropping: "Tu peux en garder {count}. Enregistrer supprime la plus ancienne, « {name} ».",
     save: "Enregistrer la version",
     saved: "Version enregistrée",
-    empty: "Enregistre une version avant un gros changement, comme une adaptation. Tu pourras y revenir.",
+    empty:
+      "Enregistre une version avant un gros changement, comme une adaptation. Tu pourras y revenir.",
     deleted: "Version supprimée",
     restored: "Version restaurée",
     restoredNote: "« {name} » est revenue. Ce que tu avais est gardé dans tes versions.",

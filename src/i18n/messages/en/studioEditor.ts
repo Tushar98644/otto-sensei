@@ -73,7 +73,8 @@ export default {
     done: "{count} done",
     progress: "Lines Otto has rewritten",
     fixRest: { one: "Fix the other {count} line", other: "Fix the other {count} lines" },
-    capped: "You have {fixes} left {period}, so Otto took the first {lines}. The other {rest} can wait.",
+    capped:
+      "You have {fixes} left {period}, so Otto took the first {lines}. The other {rest} can wait.",
     fixesLeft: { one: "{count} fix", other: "{count} fixes" },
     firstLines: { one: "{count} line", other: "{count} lines" },
     restLines: { one: "{count} line", other: "{count} lines" },

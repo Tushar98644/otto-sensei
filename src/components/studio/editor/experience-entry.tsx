@@ -79,8 +79,7 @@ export const ExperienceEntry = memo(function ExperienceEntry({
   const firstFieldId = entryFieldId(entryId, "first");
   const role = job.title.trim();
   const company = job.company.trim();
-  const title =
-    role && company ? fmt(t.roleAt, { role, company }) : role || company || t.newJob;
+  const title = role && company ? fmt(t.roleAt, { role, company }) : role || company || t.newJob;
   const offerRole = company !== "" && (!grouped || rolePosition === roleCount - 1);
   const update = (patch: ExperiencePatch) =>
     editList(resumeId, "experience", (jobs) =>

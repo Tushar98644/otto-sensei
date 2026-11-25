@@ -44,7 +44,6 @@ export type JobFormProps = {
   recent?: boolean;
 };
 
-
 function postProblem(t: JobFormCopy, format: Format, text: string): string | null {
   const length = text.trim().length;
   if (length === 0) return t.needsPost;
@@ -70,12 +69,7 @@ function daysBetween(from: number, to: number): number {
   return Math.round((day(to) - day(from)) / DAY_MS);
 }
 
-export function postedLine(
-  t: JobFormCopy,
-  format: Format,
-  postedAt: number,
-  now: number,
-): string {
+export function postedLine(t: JobFormCopy, format: Format, postedAt: number, now: number): string {
   const date = shortDate(format, postedAt, now);
   const days = now === 0 ? -1 : daysBetween(postedAt, now);
   if (days === 0) return t.postedToday;
@@ -281,11 +275,7 @@ export function JobForm(props: JobFormProps) {
         noValidate
         className="flex flex-col gap-4"
       >
-        <Field
-          label={t.link}
-          error={job.linkError}
-          hint={job.linkError ? null : t.linkHint}
-        >
+        <Field label={t.link} error={job.linkError} hint={job.linkError ? null : t.linkHint}>
           <Input
             ref={linkRef}
             type="url"

@@ -19,15 +19,17 @@ import { useLintTotals, useResumeValue, useWeakLines } from "./use-editor";
 type Totals = ResumeLint["totals"];
 type Editor = Messages["studioEditor"];
 
-function totalsMeta(t: Editor, format: Format, { bullets, withIssues, withNumbers }: Totals): string {
+function totalsMeta(
+  t: Editor,
+  format: Format,
+  { bullets, withIssues, withNumbers }: Totals,
+): string {
   return [
     countText(format, t.counts.lines, bullets),
     countText(format, t.counts.needWork, withIssues),
     countText(format, t.intro.withNumbers, withNumbers),
   ].join(" · ");
 }
-
-
 
 export const FixIntro = memo(function FixIntro({ resumeId }: { resumeId: string }) {
   const totals = useLintTotals(resumeId);

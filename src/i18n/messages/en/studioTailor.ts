@@ -11,8 +11,7 @@ export default {
     intro: "Paste a job link. I'll show what it asks for and what you already have.",
     working: "Glasses on. This takes up to a minute. You can leave this step, I'll keep going.",
     done: "Your tailored copy is ready. Your original stays untouched.",
-    cancelled:
-      "Stopped. It may still count as 1 tailored version, since I had already started.",
+    cancelled: "Stopped. It may still count as 1 tailored version, since I had already started.",
     screener: {
       noRequirements:
         "I couldn't find clear requirements in this post. A fuller post works better.",
@@ -95,7 +94,8 @@ export default {
     newLineHint: "Goes into the tailored copy, under {place}.",
     brackets: "Fill in or delete the [brackets] first.",
     nameIt: "Name {name} in the line, so a screener can find it.",
-    claimsMore: "Otto wrote “{verb}”, which claims more than you said. Change it if it isn't right.",
+    claimsMore:
+      "Otto wrote “{verb}”, which claims more than you said. Change it if it isn't right.",
     droppedHelp:
       "You said you helped; this line reads as if you did it alone. Add it back if that's fairer.",
     add: "Add this line",
@@ -232,7 +232,8 @@ export default {
   letter: {
     title: "Cover letter",
     words: "{count} words",
-    about: "About 200 words: the role, your closest facts, and why this job. Only from your resume.",
+    about:
+      "About 200 words: the role, your closest facts, and why this job. Only from your resume.",
     check: "Check before you send it",
     copy: "Copy",
     download: "Download PDF",

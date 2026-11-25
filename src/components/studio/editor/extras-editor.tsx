@@ -120,9 +120,7 @@ export const ExtrasArea = memo(function ExtrasArea({ resumeId }: { resumeId: str
                 onSelect: () => add(kind),
               }))}
             />
-            {ids.length === 0 ? (
-              <p className="text-sm text-muted">{t.hint}</p>
-            ) : null}
+            {ids.length === 0 ? <p className="text-sm text-muted">{t.hint}</p> : null}
           </>
         )}
       </div>

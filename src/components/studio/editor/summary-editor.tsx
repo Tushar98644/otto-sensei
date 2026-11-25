@@ -37,7 +37,9 @@ function ottoLine(t: SummaryCopy, help: Help): string {
   switch (help.status) {
     case "idle":
     case "loading":
-      return help.status === "loading" && help.mode === "improve" ? t.otto.tightening : t.otto.reading;
+      return help.status === "loading" && help.mode === "improve"
+        ? t.otto.tightening
+        : t.otto.reading;
     case "failed":
       return help.message;
     case "ready": {

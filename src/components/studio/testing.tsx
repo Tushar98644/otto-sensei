@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { MessagesProvider } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
 import { formatFor } from "@/i18n/intl";
@@ -17,5 +17,9 @@ export function inStudio(
   locale: Locale = "en",
   messages: Partial<Messages> = en,
 ): ReactNode {
-  return createElement(MessagesProvider, { locale, messages, children });
+  return (
+    <MessagesProvider locale={locale} messages={messages}>
+      {children}
+    </MessagesProvider>
+  );
 }

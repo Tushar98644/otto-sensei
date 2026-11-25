@@ -123,10 +123,7 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
           patchItem(projects, entryId, (current) => setHidden(current, current.hidden !== true)),
         )
       }
-      meta={metaLine([
-        project.link,
-        dateSpan(project.startDate ?? "", project.endDate ?? ""),
-      ])}
+      meta={metaLine([project.link, dateSpan(project.startDate ?? "", project.endDate ?? "")])}
       details={{
         complete: project.name.trim() !== "",
         firstFieldId,

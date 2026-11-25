@@ -132,7 +132,11 @@ export function extraItemHeading(item: ExtraItem, form: ExtraForm): string {
   return form.newItem;
 }
 
-export function removeItemQuestion(item: ExtraItem, form: ExtraForm, format: Format): string | null {
+export function removeItemQuestion(
+  item: ExtraItem,
+  form: ExtraForm,
+  format: Format,
+): string | null {
   if (!hasItemContent(item)) return null;
   const lines = item.bullets.filter((bullet) => bullet.text.trim() !== "").length;
   return lines > 0 ? countText(format, form.removeItemWithLines, lines) : form.removeItem;

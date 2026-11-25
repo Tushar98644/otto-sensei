@@ -14,7 +14,8 @@ export default {
   uploadResume: "Subir un currículum",
   noResumeOpen: "No hay ningún currículum abierto",
   fixFirst: "Corrige esto primero",
-  demoNote: "Modo demo: estas son sugerencias de ejemplo. Agrega una clave de IA para ver las reales.",
+  demoNote:
+    "Modo demo: estas son sugerencias de ejemplo. Agrega una clave de IA para ver las reales.",
   steps: {
     upload: "Subir",
     review: "Vista del reclutador",
@@ -100,7 +101,8 @@ export default {
     dropping: "Puedes guardar {count}. Al guardar se elimina la más antigua, “{name}”.",
     save: "Guardar versión",
     saved: "Versión guardada",
-    empty: "Guarda una versión antes de un cambio grande, como adaptarlo. Puedes volver a ella después.",
+    empty:
+      "Guarda una versión antes de un cambio grande, como adaptarlo. Puedes volver a ella después.",
     deleted: "Versión eliminada",
     restored: "Versión restaurada",
     restoredNote: "“{name}” volvió. Lo que tenías queda guardado en tus versiones.",
@@ -120,7 +122,8 @@ export default {
       reading: "Lentes puestos. Estoy leyendo tu currículum.",
       failed: "Mmm, no pude leer eso. {reason}",
       failedBlank: "Mmm, no pude leer eso. ¿Quieres probar con otro archivo?",
-      scratch: "¿Aún no tienes currículum? No hay problema. Lo armamos juntos, sección por sección.",
+      scratch:
+        "¿Aún no tienes currículum? No hay problema. Lo armamos juntos, sección por sección.",
     },
     review: {
       scanned:
@@ -305,7 +308,8 @@ export default {
     tooMany: "Son demasiadas cosas a la vez",
     failed: "Otto no pudo volver a leerlo",
     failedNote: "Tu currículum quedó como estaba. Inténtalo de nuevo en un minuto.",
-    sorted: "Ordenado en un segundo, sin usar una lectura con IA. ¿Algo quedó en el lugar equivocado?",
+    sorted:
+      "Ordenado en un segundo, sin usar una lectura con IA. ¿Algo quedó en el lugar equivocado?",
     busy: "Otto lo está volviendo a leer",
     action: "Deja que Otto lo vuelva a leer",
   },

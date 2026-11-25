@@ -9,7 +9,6 @@ import { resumeTitle } from "@/lib/resume/ops";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { keepEdit, keepWriting } from "@/lib/writings/client";
 import { useFormat, useMessages } from "@/i18n/client";
-import { fmt } from "@/i18n/format";
 import { countText } from "../count";
 import { DemoNote } from "../demo-note";
 import {

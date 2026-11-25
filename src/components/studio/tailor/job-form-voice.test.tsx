@@ -27,7 +27,13 @@ describe("JobForm with voice typing", () => {
     const onChange = vi.fn();
     const html = renderToStaticMarkup(
       inStudio(
-        <JobForm draft={draft} onChange={onChange} onSubmit={() => {}} busy={false} checks={false} />,
+        <JobForm
+          draft={draft}
+          onChange={onChange}
+          onSubmit={() => {}}
+          busy={false}
+          checks={false}
+        />,
       ),
     );
     expect(html).toContain(`aria-label="${VOICE_LABELS.start}"`);

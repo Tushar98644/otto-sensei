@@ -23,12 +23,9 @@ const item = (entries: MenuEntry[], label: string) =>
 
 describe("downloadMenuItems", () => {
   it("holds everything but the PDF download, in one menu", () => {
-    expect(actions(downloadMenuItems(EN.studioDownload.menu, input())).map((entry) => entry.label)).toEqual([
-      "Download Word",
-      "Copy plain text",
-      "Copy share link",
-      "Preview",
-    ]);
+    expect(
+      actions(downloadMenuItems(EN.studioDownload.menu, input())).map((entry) => entry.label),
+    ).toEqual(["Download Word", "Copy plain text", "Copy share link", "Preview"]);
   });
 
   it("marks Word and the share link as Pro on Free, and not on a paid plan or while loading", () => {
@@ -44,21 +41,30 @@ describe("downloadMenuItems", () => {
 
   it("still lets Free pick Word, so the click opens the trial prompt instead of nothing", () => {
     const onWord = vi.fn();
-    const word = item(downloadMenuItems(EN.studioDownload.menu, input({ pro: false, onWord })), "Download Word");
+    const word = item(
+      downloadMenuItems(EN.studioDownload.menu, input({ pro: false, onWord })),
+      "Download Word",
+    );
     expect(word.disabled).toBeFalsy();
     word.onSelect();
     expect(onWord).toHaveBeenCalledOnce();
   });
 
   it("keeps Preview off until the PDF is ready, then opens that file", () => {
-    expect(item(downloadMenuItems(EN.studioDownload.menu, input({ previewUrl: null })), "Preview").disabled).toBe(true);
+    expect(
+      item(downloadMenuItems(EN.studioDownload.menu, input({ previewUrl: null })), "Preview")
+        .disabled,
+    ).toBe(true);
     const onPreview = vi.fn();
     item(downloadMenuItems(EN.studioDownload.menu, input({ onPreview })), "Preview").onSelect();
     expect(onPreview).toHaveBeenCalledWith("blob:preview");
   });
 
   it("says when the Word file is being made and won't start a second one", () => {
-    const word = item(downloadMenuItems(EN.studioDownload.menu, input({ wordBuilding: true })), "Download Word");
+    const word = item(
+      downloadMenuItems(EN.studioDownload.menu, input({ wordBuilding: true })),
+      "Download Word",
+    );
     expect(word).toMatchObject({ disabled: true, description: "Making your Word file" });
   });
 });

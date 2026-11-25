@@ -10,17 +10,23 @@ export default {
     still: "Ich schreibe noch. Lange Anzeigen dauern etwas länger.",
   },
   otto: {
-    intro: "Füg einen Link zur Stellenanzeige ein. Ich zeige, was sie verlangt und was du schon hast.",
-    working: "Brille auf. Das dauert bis zu einer Minute. Du kannst diesen Schritt verlassen, ich mache weiter.",
+    intro:
+      "Füg einen Link zur Stellenanzeige ein. Ich zeige, was sie verlangt und was du schon hast.",
+    working:
+      "Brille auf. Das dauert bis zu einer Minute. Du kannst diesen Schritt verlassen, ich mache weiter.",
     done: "Dein angepasster Lebenslauf ist fertig. Dein Original bleibt unverändert.",
-    cancelled: "Gestoppt. Es kann trotzdem als 1 angepasste Fassung zählen, weil ich schon angefangen hatte.",
+    cancelled:
+      "Gestoppt. Es kann trotzdem als 1 angepasste Fassung zählen, weil ich schon angefangen hatte.",
     screener: {
-      noRequirements: "Ich habe in dieser Anzeige keine klaren Anforderungen gefunden. Eine vollständigere Anzeige funktioniert besser.",
+      noRequirements:
+        "Ich habe in dieser Anzeige keine klaren Anforderungen gefunden. Eine vollständigere Anzeige funktioniert besser.",
       niceOnly:
         "Diese Anzeige nennt keine Muss-Anforderungen. Dein Lebenslauf zeigt {shown} von {total} Wunsch-Anforderungen.",
       oneProven: "Dein Lebenslauf belegt die eine Muss-Anforderung. Genau die prüfen Filter.",
-      allProven: "Dein Lebenslauf belegt alle {total} Muss-Anforderungen. Filter prüfen sie einzeln.",
-      noneProven: "Ich finde noch keine Belege für die {total} Muss-Anforderungen. Gehen wir sie durch.",
+      allProven:
+        "Dein Lebenslauf belegt alle {total} Muss-Anforderungen. Filter prüfen sie einzeln.",
+      noneProven:
+        "Ich finde noch keine Belege für die {total} Muss-Anforderungen. Gehen wir sie durch.",
       someProven: {
         one: "Dein Lebenslauf belegt {proven} von {total} Muss-Anforderungen. Schauen wir uns die letzte an.",
         other:
@@ -58,7 +64,8 @@ export default {
   errors: {
     signedOut: "Du wurdest abgemeldet. Melde dich erneut an, um weiterzumachen.",
     refused: "Mit dieser Anzeige kann ich nicht arbeiten. Füg nur die Stellenbeschreibung ein.",
-    badPost: "Diese Anzeige ist nicht angekommen. Prüf, ob es die vollständige Anzeige ist, und versuch es erneut.",
+    badPost:
+      "Diese Anzeige ist nicht angekommen. Prüf, ob es die vollständige Anzeige ist, und versuch es erneut.",
   },
   row: {
     status: {
@@ -86,7 +93,8 @@ export default {
     whatFirst: "Sag zuerst, wo und was du gemacht hast. Ein paar Worte reichen.",
     placeholder: "Zwei neue Kollegen in ihrem ersten Monat begleitet",
     placeholderWith: "Unsere Staging-Server mit {name} aufgesetzt",
-    noTarget: "Füge zuerst unter Zeilen korrigieren einen Job oder ein Projekt hinzu und komm dann zurück, um diese Zeile hinzuzufügen.",
+    noTarget:
+      "Füge zuerst unter Zeilen korrigieren einen Job oder ein Projekt hinzu und komm dann zurück, um diese Zeile hinzuzufügen.",
     write: "Zeile schreiben",
     useMine: "Meine Worte nehmen",
     cancel: "Abbrechen",
@@ -95,7 +103,8 @@ export default {
     newLineHint: "Kommt in den angepassten Lebenslauf, unter {place}.",
     brackets: "Füll zuerst aus oder lösche, was in [Klammern] steht.",
     nameIt: "Nenn {name} in der Zeile, damit ein Filter es findet.",
-    claimsMore: "Otto hat „{verb}“ geschrieben, das behauptet mehr, als du gesagt hast. Ändere es, wenn es nicht stimmt.",
+    claimsMore:
+      "Otto hat „{verb}“ geschrieben, das behauptet mehr, als du gesagt hast. Ändere es, wenn es nicht stimmt.",
     droppedHelp:
       "Du hast gesagt, dass du geholfen hast; diese Zeile klingt, als hättest du es allein gemacht. Ergänze es wieder, wenn das fairer ist.",
     add: "Zeile hinzufügen",
@@ -221,7 +230,8 @@ export default {
     uses: "Dieser Job nutzt {system}",
     howItReads: "wie es dich liest",
     notes: { one: "{count} Hinweis zu {system}", other: "{count} Hinweise zu {system}" },
-    questions: "Fragen in diesem Formular, die so eingestellt werden können, dass sie dich automatisch ablehnen",
+    questions:
+      "Fragen in diesem Formular, die so eingestellt werden können, dass sie dich automatisch ablehnen",
     required: "Pflichtfeld",
     yesNo: "Ja oder Nein",
     choices: "{count} Optionen",
@@ -238,7 +248,8 @@ export default {
   letter: {
     title: "Anschreiben",
     words: "{count} Wörter",
-    about: "Etwa 200 Wörter: die Rolle, deine passendsten Fakten und warum dieser Job. Nur aus deinem Lebenslauf.",
+    about:
+      "Etwa 200 Wörter: die Rolle, deine passendsten Fakten und warum dieser Job. Nur aus deinem Lebenslauf.",
     check: "Prüf es, bevor du es abschickst",
     copy: "Kopieren",
     download: "PDF herunterladen",

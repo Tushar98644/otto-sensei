@@ -90,9 +90,7 @@ export function RecentJobs({ onPick, disabled }: RecentJobsProps) {
                 className="max-w-full"
               >
                 <Icon aria-hidden className="text-muted" />
-                <span className="sr-only">
-                  {item.kind === "saved" ? t.saved : t.tailored}{" "}
-                </span>
+                <span className="sr-only">{item.kind === "saved" ? t.saved : t.tailored} </span>
                 <span className="max-w-64 truncate">{item.label}</span>
               </Button>
             </li>

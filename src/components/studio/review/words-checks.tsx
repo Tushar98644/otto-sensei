@@ -103,9 +103,7 @@ function WordsItem({ item, resumeId }: { item: ReviewItem; resumeId: string }) {
             </Button>
           ) : null}
           {item.more > 0 ? (
-            <p className="text-sm text-subtle">
-              {fmt(t.more, { count: item.more })}
-            </p>
+            <p className="text-sm text-subtle">{fmt(t.more, { count: item.more })}</p>
           ) : null}
         </div>
       </details>

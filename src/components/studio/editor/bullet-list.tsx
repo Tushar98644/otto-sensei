@@ -100,9 +100,7 @@ export function BulletList({
           {addLabel ?? t.add}
         </Button>
         {actions}
-        {full ? (
-          <p className="pl-4 text-sm text-muted">{fmt(t.full, { max })}</p>
-        ) : null}
+        {full ? <p className="pl-4 text-sm text-muted">{fmt(t.full, { max })}</p> : null}
       </div>
       {ticks ? (
         <div className="sr-only group-focus-within/entry:not-sr-only">

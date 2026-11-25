@@ -12,9 +12,7 @@ export function SkipBar() {
   const t = useMessages("studioTailor").skip;
   return (
     <div data-tour-edge className={cn(STEP_BAR_CLASSES, "gap-3 sm:pl-4")}>
-      <p className="min-w-0 flex-1 text-sm text-muted max-sm:pl-2.5">
-        {t.note}
-      </p>
+      <p className="min-w-0 flex-1 text-sm text-muted max-sm:pl-2.5">{t.note}</p>
       <Button variant="ghost" onClick={() => setStep("download")}>
         {t.action}
       </Button>

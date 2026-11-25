@@ -14,7 +14,8 @@ export default {
   uploadResume: "Lebenslauf hochladen",
   noResumeOpen: "Kein Lebenslauf geöffnet",
   fixFirst: "Zuerst korrigieren",
-  demoNote: "Demo-Modus: Das sind Beispielvorschläge. Füge einen KI-Schlüssel hinzu, um echte zu bekommen.",
+  demoNote:
+    "Demo-Modus: Das sind Beispielvorschläge. Füge einen KI-Schlüssel hinzu, um echte zu bekommen.",
   steps: {
     upload: "Hochladen",
     review: "Recruiter-Ansicht",
@@ -58,7 +59,10 @@ export default {
     retry: "Jetzt erneut versuchen",
     toDownload: "Zu Herunterladen",
     states: {
-      saving: { label: "Wird gespeichert…", detail: "Deine letzten Änderungen werden gespeichert." },
+      saving: {
+        label: "Wird gespeichert…",
+        detail: "Deine letzten Änderungen werden gespeichert.",
+      },
       saved: { label: "Gespeichert", detail: "Gespeichert und in deinem Konto gesichert." },
       device: {
         label: "Auf diesem Gerät gespeichert",
@@ -100,7 +104,8 @@ export default {
     dropping: "Du kannst {count} behalten. Beim Speichern fällt die älteste weg: „{name}“.",
     save: "Fassung speichern",
     saved: "Fassung gespeichert",
-    empty: "Speichere eine Fassung vor einer großen Änderung, etwa dem Anpassen. Du kannst später zu ihr zurück.",
+    empty:
+      "Speichere eine Fassung vor einer großen Änderung, etwa dem Anpassen. Du kannst später zu ihr zurück.",
     deleted: "Fassung gelöscht",
     restored: "Fassung wiederhergestellt",
     restoredNote: "„{name}“ ist zurück. Dein bisheriger Stand bleibt in deinen Fassungen.",
@@ -113,13 +118,15 @@ export default {
   },
   otto: {
     noResumes: "Noch keine Lebensläufe. Lade einen hoch oder fang mit mir bei null an.",
-    demoMode: "Demo-Modus: Die KI ist aus, meine Vorschläge sind also Beispiele, keine echten Umformulierungen.",
+    demoMode:
+      "Demo-Modus: Die KI ist aus, meine Vorschläge sind also Beispiele, keine echten Umformulierungen.",
     upload: {
       idle: "Ich zeige dir, was ein Bewerbermanagementsystem aus deiner Datei liest und was du zuerst korrigieren solltest.",
       reading: "Brille auf. Ich lese gerade deinen Lebenslauf.",
       failed: "Hm, das konnte ich nicht lesen. {reason}",
       failedBlank: "Hm, das konnte ich nicht lesen. Magst du eine andere Datei probieren?",
-      scratch: "Noch kein Lebenslauf? Kein Problem. Wir bauen ihn zusammen auf, Abschnitt für Abschnitt.",
+      scratch:
+        "Noch kein Lebenslauf? Kein Problem. Wir bauen ihn zusammen auf, Abschnitt für Abschnitt.",
     },
     review: {
       scanned:
@@ -180,7 +187,8 @@ export default {
     linkedinDetail:
       "Nutze die ZIP-Datei aus „Kopie Ihrer Daten anfordern“ bei LinkedIn. Sie bleibt auf deinem Gerät.",
     jsonResume: "JSON Resume importieren",
-    jsonResumeDetail: "Eine resume.json-Datei von jsonresume.org oder einem anderen Lebenslauf-Tool.",
+    jsonResumeDetail:
+      "Eine resume.json-Datei von jsonresume.org oder einem anderen Lebenslauf-Tool.",
     scratch: "Bei null anfangen",
     noFile: "Keine Datei zur Hand?",
     sample: "Beispiel-Lebenslauf ausprobieren",
@@ -189,7 +197,8 @@ export default {
     otto: {
       role: "Lass ihn uns zusammen aufbauen. Zuerst: Welchen Job willst du als Nächstes?",
       job: "Erzähl mir von einem Job, Praktikum oder Ehrenamt. Zahlen helfen, wenn du sie kennst.",
-      drafting: "Ich schreibe gerade deinen ersten Entwurf. Ich nutze nur, was du mir erzählt hast.",
+      drafting:
+        "Ich schreibe gerade deinen ersten Entwurf. Ich nutze nur, was du mir erzählt hast.",
     },
     jobOf: "Job {number} von {total}",
     tryAgain: "Erneut versuchen",
@@ -245,7 +254,8 @@ export default {
     aiBack: "Das Lesen mit KI ist {when} wieder da.",
     readByRules:
       "Deine Abschnitte wurden diesmal mit einfachen Regeln sortiert, nicht mit KI. Prüf, ob jeder Teil an der richtigen Stelle gelandet ist.",
-    fixFirstDetail: "Die wenigen Dinge, die du vor allem anderen ändern solltest. Der Rest ist unten gruppiert.",
+    fixFirstDetail:
+      "Die wenigen Dinge, die du vor allem anderen ändern solltest. Der Rest ist unten gruppiert.",
     nothingUrgent: "Nichts Dringendes. Deine Datei und deine Zeilen lesen sich gut.",
     seeLines: "Alle {count} Zeilen ansehen",
     softwareChecks: "Was das Bewerbermanagementsystem prüft",

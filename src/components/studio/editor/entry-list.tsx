@@ -47,9 +47,7 @@ export function EntryList({
           {addLabel}
         </Button>
         {full ? null : more}
-        {full ? (
-          <p className="text-sm text-muted">{fmt(t.full, { max: limit })}</p>
-        ) : null}
+        {full ? <p className="text-sm text-muted">{fmt(t.full, { max: limit })}</p> : null}
       </div>
     </div>
   );

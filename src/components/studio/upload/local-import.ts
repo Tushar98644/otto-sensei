@@ -1,6 +1,10 @@
 import { formatBytes } from "@/components/ui/file-check";
 import { JSON_RESUME_MAX_BYTES, JsonResumeError, parseJsonResume } from "@/lib/jsonresume/import";
-import { LINKEDIN_MAX_ZIP_BYTES, LinkedInImportError, readLinkedInExport } from "@/lib/linkedin/import";
+import {
+  LINKEDIN_MAX_ZIP_BYTES,
+  LinkedInImportError,
+  readLinkedInExport,
+} from "@/lib/linkedin/import";
 import type { Resume } from "@/lib/resume/schema";
 import { LOCAL_IMPORT_ACCEPT, type LocalImportKind } from "./local-import-kinds";
 
@@ -12,7 +16,8 @@ export const LOCAL_IMPORTS: Record<LocalImportKind, { accept: string; maxBytes: 
 };
 
 // The studio words empty and too-big files itself; a parser's own message stays English.
-export type LocalImportProblem = { kind: "empty" } | { kind: "tooBig"; size: string } | { kind: "parser" };
+export type LocalImportProblem =
+  { kind: "empty" } | { kind: "tooBig"; size: string } | { kind: "parser" };
 
 export class LocalImportError extends Error {
   constructor(

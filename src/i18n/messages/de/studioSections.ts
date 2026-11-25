@@ -16,7 +16,8 @@ export default {
     headline: "Berufsbezeichnung",
     headlinePlaceholder: "Produktdesignerin",
     email: "E-Mail",
-    emailIncomplete: "Diese E-Mail-Adresse wirkt unvollständig. Prüf sie, damit Recruiter dich erreichen.",
+    emailIncomplete:
+      "Diese E-Mail-Adresse wirkt unvollständig. Prüf sie, damit Recruiter dich erreichen.",
     phone: "Telefon",
     location: "Ort",
     locationHint: "Stadt und Land reichen.",
@@ -85,7 +86,8 @@ export default {
     present: "Ich arbeite noch daran",
   },
   education: {
-    empty: "Noch keine Ausbildung. Füge einen Abschluss, ein Bootcamp oder einen Kurs hinzu, der für den Job zählt.",
+    empty:
+      "Noch keine Ausbildung. Füge einen Abschluss, ein Bootcamp oder einen Kurs hinzu, der für den Job zählt.",
     add: "Ausbildung hinzufügen",
     newItem: "Neue Ausbildung",
     remove: "Diese Ausbildung entfernen?",

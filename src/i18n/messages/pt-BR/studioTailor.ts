@@ -15,13 +15,16 @@ export default {
     done: "Seu currículo personalizado está pronto. O original continua intacto.",
     cancelled: "Parei. Pode contar como 1 versão personalizada, porque eu já tinha começado.",
     screener: {
-      noRequirements: "Não encontrei requisitos claros nesta vaga. Uma vaga mais completa funciona melhor.",
+      noRequirements:
+        "Não encontrei requisitos claros nesta vaga. Uma vaga mais completa funciona melhor.",
       niceOnly:
         "Esta vaga não tem requisitos obrigatórios. Seu currículo mostra {shown} de {total} desejáveis.",
-      oneProven: "Seu currículo comprova o único requisito obrigatório. Os filtros conferem exatamente isso.",
+      oneProven:
+        "Seu currículo comprova o único requisito obrigatório. Os filtros conferem exatamente isso.",
       allProven:
         "Seu currículo comprova os {total} requisitos obrigatórios. Os filtros conferem um por um.",
-      noneProven: "Ainda não encontro provas dos {total} requisitos obrigatórios. Vamos ver um por um.",
+      noneProven:
+        "Ainda não encontro provas dos {total} requisitos obrigatórios. Vamos ver um por um.",
       someProven: {
         one: "Seu currículo comprova {proven} de {total} requisitos obrigatórios. Vamos ver o que falta.",
         other:
@@ -87,7 +90,8 @@ export default {
     whatFirst: "Primeiro diga onde e o que você fez. Poucas palavras bastam.",
     placeholder: "Acompanhei duas pessoas novas no primeiro mês delas",
     placeholderWith: "Configurei nossos servidores de staging com {name}",
-    noTarget: "Adicione primeiro um emprego ou projeto em Ajustar linhas e depois volte para adicionar esta linha.",
+    noTarget:
+      "Adicione primeiro um emprego ou projeto em Ajustar linhas e depois volte para adicionar esta linha.",
     write: "Escrever a linha",
     useMine: "Usar minhas palavras",
     cancel: "Cancelar",
@@ -96,7 +100,8 @@ export default {
     newLineHint: "Vai para o currículo personalizado, em {place}.",
     brackets: "Primeiro preencha ou apague o que está entre [colchetes].",
     nameIt: "Cite {name} na linha para que um filtro consiga encontrar.",
-    claimsMore: "O Otto escreveu “{verb}”, que diz mais do que você disse. Mude se não estiver certo.",
+    claimsMore:
+      "O Otto escreveu “{verb}”, que diz mais do que você disse. Mude se não estiver certo.",
     droppedHelp:
       "Você disse que ajudou; esta linha soa como se você tivesse feito sozinho. Coloque de volta se for mais justo.",
     add: "Adicionar esta linha",
@@ -222,7 +227,8 @@ export default {
     uses: "Esta vaga usa {system}",
     howItReads: "como ele lê você",
     notes: { one: "{count} nota sobre {system}", other: "{count} notas sobre {system}" },
-    questions: "Perguntas deste formulário que podem ser configuradas para recusar você automaticamente",
+    questions:
+      "Perguntas deste formulário que podem ser configuradas para recusar você automaticamente",
     required: "Obrigatória",
     yesNo: "Sim ou não",
     choices: "{count} opções",
@@ -239,7 +245,8 @@ export default {
   letter: {
     title: "Carta de apresentação",
     words: "{count} palavras",
-    about: "Cerca de 200 palavras: o cargo, seus fatos mais próximos e por que esta vaga. Só com seu currículo.",
+    about:
+      "Cerca de 200 palavras: o cargo, seus fatos mais próximos e por que esta vaga. Só com seu currículo.",
     check: "Confira antes de enviar",
     copy: "Copiar",
     download: "Baixar PDF",

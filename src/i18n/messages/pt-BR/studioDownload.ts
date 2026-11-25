@@ -23,7 +23,8 @@ export default {
   },
   design: {
     title: "Design",
-    description: "Salvo com este currículo. O software de recrutamento lê qualquer escolha do mesmo jeito.",
+    description:
+      "Salvo com este currículo. O software de recrutamento lê qualquer escolha do mesmo jeito.",
     changedLook: "Mudou o visual",
     color: "Cor",
     colorHint: "Colore os títulos e as linhas. Todo o resto fica em preto.",
@@ -116,10 +117,13 @@ export default {
     showAgain: "Mostrar de novo",
     findMore: "Encontrar mais linhas",
     undoTighten: "Desfazer espaçamento menor",
-    tightenFirst: "Primeiro, espaçamento menor: cerca de 10% menos espaço, com o mesmo texto e tamanho de letra.",
+    tightenFirst:
+      "Primeiro, espaçamento menor: cerca de 10% menos espaço, com o mesmo texto e tamanho de letra.",
     tighten: "Diminuir espaçamento",
-    notEnough: "O espaçamento menor não bastou. O Otto pode escolher as linhas mais fracas para ocultar.",
-    canPick: "O Otto pode escolher as linhas mais fracas para ocultar. Você decide antes de qualquer mudança.",
+    notEnough:
+      "O espaçamento menor não bastou. O Otto pode escolher as linhas mais fracas para ocultar.",
+    canPick:
+      "O Otto pode escolher as linhas mais fracas para ocultar. Você decide antes de qualquer mudança.",
     finding: "Encontrando linhas",
     find: "Encontrar linhas para ocultar",
     offTarget: "Nada do que a vaga pede",

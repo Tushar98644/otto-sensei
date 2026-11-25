@@ -23,7 +23,8 @@ export default {
   },
   design: {
     title: "Gestaltung",
-    description: "Wird mit diesem Lebenslauf gespeichert. Das Bewerbermanagementsystem liest jede Wahl gleich.",
+    description:
+      "Wird mit diesem Lebenslauf gespeichert. Das Bewerbermanagementsystem liest jede Wahl gleich.",
     changedLook: "Aussehen geändert",
     color: "Farbe",
     colorHint: "Färbt Überschriften und Linien. Alles andere bleibt schwarz.",
@@ -61,7 +62,8 @@ export default {
     charactersMore:
       "Die PDF-Schriften können {chars} und ein paar weitere nicht darstellen, daher wurden sie durch ähnliche ersetzt oder weggelassen. Prüf, ob dein Name und deine Links noch richtig aussehen.",
     failed: "Dein PDF ist nicht entstanden",
-    failedNote: "Beim Erstellen ist etwas schiefgegangen. Dein Lebenslauf ist in diesem Browser sicher.",
+    failedNote:
+      "Beim Erstellen ist etwas schiefgegangen. Dein Lebenslauf ist in diesem Browser sicher.",
     tryAgain: "Erneut versuchen",
     download: "PDF herunterladen, kostenlos",
     updating: "PDF wird aktualisiert",
@@ -116,10 +118,13 @@ export default {
     showAgain: "Wieder zeigen",
     findMore: "Mehr Zeilen finden",
     undoTighten: "Engeren Abstand zurücknehmen",
-    tightenFirst: "Zuerst ein engerer Abstand: etwa 10 % weniger Platz, gleicher Text, gleiche Schriftgröße.",
+    tightenFirst:
+      "Zuerst ein engerer Abstand: etwa 10 % weniger Platz, gleicher Text, gleiche Schriftgröße.",
     tighten: "Abstand verringern",
-    notEnough: "Der engere Abstand hat nicht ganz gereicht. Otto kann die schwächsten Zeilen zum Ausblenden auswählen.",
-    canPick: "Otto kann die schwächsten Zeilen zum Ausblenden auswählen. Du entscheidest, bevor sich etwas ändert.",
+    notEnough:
+      "Der engere Abstand hat nicht ganz gereicht. Otto kann die schwächsten Zeilen zum Ausblenden auswählen.",
+    canPick:
+      "Otto kann die schwächsten Zeilen zum Ausblenden auswählen. Du entscheidest, bevor sich etwas ändert.",
     finding: "Zeilen werden gesucht",
     find: "Zeilen zum Ausblenden finden",
     offTarget: "Nichts, was der Job verlangt",
@@ -208,7 +213,8 @@ export default {
   },
   next: {
     title: "Als Nächstes: ein Job, an den er geht",
-    description: "Pass ihn an eine Stellenanzeige an oder sieh dir offene Jobs an, die zu diesem Lebenslauf passen.",
+    description:
+      "Pass ihn an eine Stellenanzeige an oder sieh dir offene Jobs an, die zu diesem Lebenslauf passen.",
     tailor: "An einen Job anpassen",
     jobs: "Passende Jobs ansehen",
   },

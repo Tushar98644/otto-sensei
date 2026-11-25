@@ -183,7 +183,8 @@ export default {
     keep: "Dejar el mío",
     close: "Cerrar",
     tryAgain: "Intentar de nuevo",
-    signIn: "Inicia sesión para recibir ayuda con el resumen. En Free usa 1 de tus {count} correcciones de línea al mes.",
+    signIn:
+      "Inicia sesión para recibir ayuda con el resumen. En Free usa 1 de tus {count} correcciones de línea al mes.",
     twoTakes: "2 versiones",
     oneTake: "1 versión",
     wordsChange: "{before} → {after} palabras",
@@ -193,7 +194,8 @@ export default {
       needMore: "Necesito un poco más. Primero agrega un trabajo o algunas líneas.",
       alreadyGood: "El tuyo ya se lee bien. Yo lo dejaría como está.",
       tightened: "Los mismos datos, menos palabras. Úsalo, edítalo o quédate con el tuyo.",
-      twoTakes: "Dos versiones, hechas solo con tu currículum. Elige una, edítala o quédate con el tuyo.",
+      twoTakes:
+        "Dos versiones, hechas solo con tu currículum. Elige una, edítala o quédate con el tuyo.",
       oneTake: "Una versión, hecha solo con tu currículum. Úsala, edítala o quédate con el tuyo.",
     },
     options: {

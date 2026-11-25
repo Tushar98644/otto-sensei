@@ -6,10 +6,13 @@ export default {
   linkHint: "Füg den Link ein und Otto liest ihn sofort.",
   noLink: "Kein Link? Text der Anzeige einfügen",
   linkFirst: "Füg zuerst den Link zur Stellenanzeige ein.",
-  notALink: "Das sieht nicht nach einem Link aus. Kopiere ihn aus der Adressleiste deines Browsers.",
+  notALink:
+    "Das sieht nicht nach einem Link aus. Kopiere ihn aus der Adressleiste deines Browsers.",
   linkTooLong: "Dieser Link ist zu lang. Kopiere die Adresse der Anzeige selbst.",
-  readFailed: "Otto konnte diesen Link gerade nicht lesen. Füg stattdessen den Text der Anzeige ein.",
-  closedSite: "{site} verbirgt die Anzeige vor Apps. Kopiere die Stellenbeschreibung und füg sie hier ein.",
+  readFailed:
+    "Otto konnte diesen Link gerade nicht lesen. Füg stattdessen den Text der Anzeige ein.",
+  closedSite:
+    "{site} verbirgt die Anzeige vor Apps. Kopiere die Stellenbeschreibung und füg sie hier ein.",
   readJob: "Anzeige gelesen: {name}.",
   titleAt: "{title} bei {company}",
   untitledShort: "ohne Titel",
@@ -31,6 +34,7 @@ export default {
   postPlaceholder: "Stellenanzeige hier einfügen",
   needsPost: "Füg zuerst den Link zur Anzeige ein. Wenn er sich nicht öffnet, füg den Text ein.",
   tooShort: "Das ist etwas kurz. Füg die ganze Anzeige ein, nicht nur den Titel.",
-  tooLong: "Das sind über {max} Zeichen. Kürze die Firmenvorstellung oder die Benefits und versuch es erneut.",
+  tooLong:
+    "Das sind über {max} Zeichen. Kürze die Firmenvorstellung oder die Benefits und versuch es erneut.",
   compare: "Mit meinem Lebenslauf vergleichen",
 } satisfies Translation<Messages["jobForm"]>;

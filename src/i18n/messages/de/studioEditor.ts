@@ -8,17 +8,21 @@ export default {
     noIssues: "Jede Zeile liest sich gut. Hier gibt es nichts zu korrigieren.",
     issues: {
       one: "{count} Zeile könnte stärker sein. Lass sie uns zusammen korrigieren.",
-      other: "{count} Zeilen könnten stärker sein. Ich kann alle auf einmal machen oder eine nach der anderen.",
+      other:
+        "{count} Zeilen könnten stärker sein. Ich kann alle auf einmal machen oder eine nach der anderen.",
     },
     lineGood: "Diese Zeile funktioniert schon: eine klare Handlung und ein echtes Ergebnis.",
-    asking: "Kurz eine Frage vorab. Ich nutze nur Fakten, die du mir gibst, nie ausgedachte Zahlen.",
+    asking:
+      "Kurz eine Frage vorab. Ich nutze nur Fakten, die du mir gibst, nie ausgedachte Zahlen.",
     working: "Ich arbeite an einer stärkeren Fassung. Einen Moment.",
     suggestion: "Hier ist eine stärkere Fassung. Übernimm sie, bearbeite sie oder überspring sie.",
     signedInAgain: "Du bist wieder angemeldet. Versuch es noch einmal und ich schaue es mir an.",
     allWorking: "Ich schreibe deine schwachen Zeilen gerade neu. Prüf jede, sobald sie da ist.",
     allReview: "Hier sind deine neuen Zeilen. Übernimm die, die stimmen.",
-    allAsking: "Manche Zeilen brauchen eine Info, die nur du kennst. Antworte unten und ich mache sie fertig.",
-    allStopped: "Ich habe dort aufgehört. Die Zeilen, zu denen ich nicht kam, bleiben, wie sie sind.",
+    allAsking:
+      "Manche Zeilen brauchen eine Info, die nur du kennst. Antworte unten und ich mache sie fertig.",
+    allStopped:
+      "Ich habe dort aufgehört. Die Zeilen, zu denen ich nicht kam, bleiben, wie sie sind.",
     allDone: "Das waren alle Zeilen. Nichts mehr zu übernehmen.",
   },
   counts: {
@@ -62,7 +66,8 @@ export default {
     answerOne: "Beantworte mindestens eine, um ihn zu aktualisieren.",
     yourVersion: "Deine Fassung",
     draftBlanks: "Ersetze die [Lücken] durch deine echten Fakten, bevor du sie übernimmst.",
-    draftHint: "Ändere, was du willst. An deinem Lebenslauf ändert sich nichts, bis du sie übernimmst.",
+    draftHint:
+      "Ändere, was du willst. An deinem Lebenslauf ändert sich nichts, bis du sie übernimmst.",
     nextLine: "Nächste Zeile",
     keepNext: "Meine behalten & weiter",
     keep: "Meine behalten",
@@ -74,10 +79,16 @@ export default {
     tooLongNote: "Kürze sie auf unter {count} Zeichen und versuch es erneut.",
   },
   all: {
-    title: { one: "{count} Zeile mit Otto korrigieren", other: "{count} Zeilen mit Otto korrigieren" },
+    title: {
+      one: "{count} Zeile mit Otto korrigieren",
+      other: "{count} Zeilen mit Otto korrigieren",
+    },
     done: "{count} fertig",
     progress: "Zeilen, die Otto schon neu geschrieben hat",
-    fixRest: { one: "Die andere Zeile korrigieren", other: "Die anderen {count} Zeilen korrigieren" },
+    fixRest: {
+      one: "Die andere Zeile korrigieren",
+      other: "Die anderen {count} Zeilen korrigieren",
+    },
     capped: "Du hast {period} noch {fixes}, also hat Otto {lines} genommen. {rest}",
     fixesLeft: { one: "{count} Korrektur", other: "{count} Korrekturen" },
     firstLines: { one: "die erste Zeile", other: "die ersten {count} Zeilen" },
@@ -115,7 +126,10 @@ export default {
       linesChanged: "Diese Zeilen haben sich geändert, seit Otto sie gelesen hat",
       newerStays: "Deine neueren Worte bleiben.",
       fixedLabel: "Otto hat {count} Zeilen korrigiert",
-      fixed: { one: "Otto hat {count} Zeile korrigiert", other: "Otto hat {count} Zeilen korrigiert" },
+      fixed: {
+        one: "Otto hat {count} Zeile korrigiert",
+        other: "Otto hat {count} Zeilen korrigiert",
+      },
       changedSince: "Du hast es inzwischen geändert",
       useUndo: "Nutze Rückgängig oben im Editor.",
     },
@@ -183,7 +197,8 @@ export default {
     keep: "Meins behalten",
     close: "Schließen",
     tryAgain: "Erneut versuchen",
-    signIn: "Melde dich an, um Hilfe beim Profil zu bekommen. Mit Free kostet das 1 deiner {count} Zeilenkorrekturen pro Monat.",
+    signIn:
+      "Melde dich an, um Hilfe beim Profil zu bekommen. Mit Free kostet das 1 deiner {count} Zeilenkorrekturen pro Monat.",
     twoTakes: "2 Fassungen",
     oneTake: "1 Fassung",
     wordsChange: "{before} → {after} Wörter",
@@ -193,8 +208,10 @@ export default {
       needMore: "Ich brauche etwas mehr. Füge zuerst einen Job oder ein paar Zeilen hinzu.",
       alreadyGood: "Deins liest sich schon gut. Ich würde es so lassen.",
       tightened: "Gleiche Fakten, weniger Worte. Übernimm es, bearbeite es oder behalte deins.",
-      twoTakes: "Zwei Fassungen, nur aus deinem Lebenslauf. Wähl eine, bearbeite sie oder behalte deins.",
-      oneTake: "Eine Fassung, nur aus deinem Lebenslauf. Übernimm sie, bearbeite sie oder behalte deins.",
+      twoTakes:
+        "Zwei Fassungen, nur aus deinem Lebenslauf. Wähl eine, bearbeite sie oder behalte deins.",
+      oneTake:
+        "Eine Fassung, nur aus deinem Lebenslauf. Übernimm sie, bearbeite sie oder behalte deins.",
     },
     options: {
       kinds: {
@@ -203,7 +220,8 @@ export default {
         tightened: "Gestraffte Fassung",
       },
       yourVersion: "Deine Fassung",
-      blanks: "Wörter in [Klammern] sind Lücken für deine echten Fakten. Bearbeite es, um sie zu füllen.",
+      blanks:
+        "Wörter in [Klammern] sind Lücken für deine echten Fakten. Bearbeite es, um sie zu füllen.",
       edit: "Zuerst bearbeiten",
       cancel: "Bearbeiten abbrechen",
       use: "Übernehmen",

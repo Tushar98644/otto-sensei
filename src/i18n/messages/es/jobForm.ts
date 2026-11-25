@@ -9,7 +9,8 @@ export default {
   notALink: "Eso no parece un enlace. Cópialo de la barra de direcciones del navegador.",
   linkTooLong: "Ese enlace es demasiado largo. Copia la dirección de la oferta en sí.",
   readFailed: "Otto no pudo leer ese enlace ahora. Pega el texto de la oferta.",
-  closedSite: "{site} no deja que las apps lean la oferta. Copia la descripción del puesto y pégala aquí.",
+  closedSite:
+    "{site} no deja que las apps lean la oferta. Copia la descripción del puesto y pégala aquí.",
   readJob: "Oferta leída: {name}.",
   titleAt: "{title} en {company}",
   untitledShort: "sin título",
@@ -31,6 +32,7 @@ export default {
   postPlaceholder: "Pega aquí la oferta de empleo",
   needsPost: "Primero pega el enlace de la oferta. Si no abre, pega el texto.",
   tooShort: "Es un poco corta. Pega la oferta completa, no solo el título.",
-  tooLong: "Pasa de {max} caracteres. Quita la presentación de la empresa o los beneficios y vuelve a intentarlo.",
+  tooLong:
+    "Pasa de {max} caracteres. Quita la presentación de la empresa o los beneficios y vuelve a intentarlo.",
   compare: "Comparar con mi currículum",
 } satisfies Translation<Messages["jobForm"]>;

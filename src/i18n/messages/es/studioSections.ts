@@ -16,7 +16,8 @@ export default {
     headline: "Título profesional",
     headlinePlaceholder: "Diseñadora de producto",
     email: "Correo",
-    emailIncomplete: "Este correo parece incompleto. Revísalo para que los reclutadores puedan escribirte.",
+    emailIncomplete:
+      "Este correo parece incompleto. Revísalo para que los reclutadores puedan escribirte.",
     phone: "Teléfono",
     location: "Ubicación",
     locationHint: "Basta con ciudad y país.",
@@ -68,7 +69,8 @@ export default {
     present: "Trabajo aquí actualmente",
   },
   projects: {
-    empty: "Todavía no hay proyectos. Cuentan los proyectos personales, el código abierto y los trabajos de estudio.",
+    empty:
+      "Todavía no hay proyectos. Cuentan los proyectos personales, el código abierto y los trabajos de estudio.",
     add: "Agregar un proyecto",
     github: "Agregar desde GitHub",
     githubMine: "Agregar desde mi GitHub",
@@ -85,7 +87,8 @@ export default {
     present: "Sigo trabajando en él",
   },
   education: {
-    empty: "Todavía no hay estudios. Agrega un título, un bootcamp o un curso que importe para el empleo.",
+    empty:
+      "Todavía no hay estudios. Agrega un título, un bootcamp o un curso que importe para el empleo.",
     add: "Agregar un estudio",
     newItem: "Estudio nuevo",
     remove: "¿Quitar este estudio?",

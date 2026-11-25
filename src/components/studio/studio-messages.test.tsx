@@ -12,8 +12,14 @@ import { inStudio } from "./testing";
 import { StartOptions } from "./upload/start-options";
 
 async function render(locale: Locale, ui: ReactNode): Promise<string> {
-  const html = renderToStaticMarkup(inStudio(ui, locale, await pickMessages(locale, STUDIO_NAMESPACES)));
-  return html.replace(/<!-- -->/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const html = renderToStaticMarkup(
+    inStudio(ui, locale, await pickMessages(locale, STUDIO_NAMESPACES)),
+  );
+  return html
+    .replace(/<!-- -->/g, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const context = { hasResume: true, hasReport: true, hasTailored: false };
@@ -72,9 +78,9 @@ describe("the studio in Spanish", () => {
 
 describe("the studio in English", () => {
   it("reads exactly as before", async () => {
-    expect(await render("en", <StudioStepper step="fix" context={context} onSelect={noop} />)).toContain(
-      "Step 3 of 5 · : Fix lines",
-    );
+    expect(
+      await render("en", <StudioStepper step="fix" context={context} onSelect={noop} />),
+    ).toContain("Step 3 of 5 · : Fix lines");
     const checks = await render("en", <ChecksList checks={report.checks} />);
     expect(checks).toContain("Needs fixing (1)");
     expect(checks).toContain("How to fix: Use a plain font");

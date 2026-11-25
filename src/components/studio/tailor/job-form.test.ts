@@ -13,8 +13,12 @@ describe("postedLine", () => {
   });
 
   it("counts calendar days, not 24-hour blocks", () => {
-    expect(postedLine(EN.jobForm, EN_FORMAT, at(2026, 11, 6, 23), at(2026, 11, 7, 1))).toBe("First posted yesterday");
-    expect(postedLine(EN.jobForm, EN_FORMAT, at(2026, 11, 7, 1), at(2026, 11, 7, 23))).toBe("First posted today");
+    expect(postedLine(EN.jobForm, EN_FORMAT, at(2026, 11, 6, 23), at(2026, 11, 7, 1))).toBe(
+      "First posted yesterday",
+    );
+    expect(postedLine(EN.jobForm, EN_FORMAT, at(2026, 11, 7, 1), at(2026, 11, 7, 23))).toBe(
+      "First posted today",
+    );
   });
 
   it("adds the year for older posts", () => {
@@ -25,6 +29,8 @@ describe("postedLine", () => {
 
   it("shows only the date before the clock is known, or for a date ahead of it", () => {
     expect(postedLine(EN.jobForm, EN_FORMAT, at(2026, 7, 22), 0)).toBe("First posted Jul 22");
-    expect(postedLine(EN.jobForm, EN_FORMAT, at(2026, 11, 9), at(2026, 11, 7))).toBe("First posted Nov 9");
+    expect(postedLine(EN.jobForm, EN_FORMAT, at(2026, 11, 9), at(2026, 11, 7))).toBe(
+      "First posted Nov 9",
+    );
   });
 });

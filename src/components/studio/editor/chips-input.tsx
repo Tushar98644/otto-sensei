@@ -106,9 +106,7 @@ export function ChipsInput({
           disabled={full}
           maxLength={MAX_DRAFT_CHARS}
           aria-describedby={hintId}
-          placeholder={
-            full ? undefined : items.length > 0 ? t.another : t.first
-          }
+          placeholder={full ? undefined : items.length > 0 ? t.another : t.first}
           autoComplete="off"
           className="h-9 w-full min-w-0 bg-transparent px-1 text-base text-ink outline-hidden placeholder:text-subtle disabled:cursor-not-allowed sm:text-sm"
         />

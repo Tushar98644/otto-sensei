@@ -99,11 +99,7 @@ export function AnswerBox({ answers, writing, onAsk, onEdit, onSettle, onRemove 
       <h3 id={headingId} className="text-base/6 font-semibold text-ink">
         {t.title}
       </h3>
-      <Field
-        label={t.question}
-        hint={t.hint}
-        error={problem}
-      >
+      <Field label={t.question} hint={t.hint} error={problem}>
         <VoiceTextarea
           autoResize
           maxLength={QUESTION_CHARS.max}

@@ -23,7 +23,8 @@ export default {
   },
   design: {
     title: "Diseño",
-    description: "Se guarda con este currículum. El software de selección lee igual cualquier opción.",
+    description:
+      "Se guarda con este currículum. El software de selección lee igual cualquier opción.",
     changedLook: "Cambió el aspecto",
     color: "Color",
     colorHint: "Colorea los títulos y las líneas. Todo lo demás queda en negro.",
@@ -116,10 +117,13 @@ export default {
     showAgain: "Volver a mostrarlas",
     findMore: "Buscar más líneas",
     undoTighten: "Deshacer el espaciado ajustado",
-    tightenFirst: "Primero, un espaciado más ajustado: cerca de un 10% menos de espacio, con el mismo texto y tamaño de letra.",
+    tightenFirst:
+      "Primero, un espaciado más ajustado: cerca de un 10% menos de espacio, con el mismo texto y tamaño de letra.",
     tighten: "Ajustar el espaciado",
-    notEnough: "El espaciado ajustado no alcanzó. Otto puede elegir las líneas más débiles para ocultarlas.",
-    canPick: "Otto puede elegir las líneas más débiles para ocultarlas. Tú decides antes de que cambie algo.",
+    notEnough:
+      "El espaciado ajustado no alcanzó. Otto puede elegir las líneas más débiles para ocultarlas.",
+    canPick:
+      "Otto puede elegir las líneas más débiles para ocultarlas. Tú decides antes de que cambie algo.",
     finding: "Buscando líneas",
     find: "Buscar líneas para ocultar",
     offTarget: "Nada de lo que pide el empleo",
@@ -150,7 +154,8 @@ export default {
     title: "Antes de enviarlo",
     software: "Lo que lee el software de selección",
     recruiter: "Lo que podría notar un reclutador",
-    allClear: "Las fechas, las herramientas, los nombres de empresas y los espacios en blanco están bien.",
+    allClear:
+      "Las fechas, las herramientas, los nombres de empresas y los espacios en blanco están bien.",
     toLook: {
       one: "{count} detalle para revisar antes de enviarlo.",
       other: "{count} detalles para revisar antes de enviarlo.",

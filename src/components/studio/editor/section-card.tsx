@@ -63,8 +63,7 @@ export function SectionCard({
     if (!remove) return;
     if (remove.confirm) {
       removeWithUndo(remove.resumeId, fmt(t.undo.section, { title }), remove.run, t.undo);
-    }
-    else remove.run();
+    } else remove.run();
   }
 
   return (

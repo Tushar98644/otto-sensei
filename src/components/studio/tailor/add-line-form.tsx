@@ -81,11 +81,7 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
           ))}
         </Select>
       </Field>
-      <Field
-        label={t.what}
-        hint={t.whatHint}
-        error={problem}
-      >
+      <Field label={t.what} hint={t.whatHint} error={problem}>
         <VoiceTextarea
           autoResize
           maxLength={ANSWER_CHARS}
@@ -131,9 +127,7 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
           </Field>
           {blank || nameNote || claimNote ? (
             <Alert variant="warn">
-              {[blank ? t.brackets : null, nameNote, claimNote]
-                .filter(Boolean)
-                .join(" ")}
+              {[blank ? t.brackets : null, nameNote, claimNote].filter(Boolean).join(" ")}
             </Alert>
           ) : null}
           <div className="flex flex-wrap gap-2">

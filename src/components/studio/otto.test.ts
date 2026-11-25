@@ -72,15 +72,15 @@ describe("studio Otto lines", () => {
     expect(reviewSummary(otto, EN_FORMAT, { fail: 0, warn: 2, pass: 5 })).toBe(
       "Nothing's broken. 2 small things could be better.",
     );
-    expect(reviewSummary(otto, EN_FORMAT, { fail: 0, warn: 0, pass: 9 })).toBe(
-      otto.review.allGood,
-    );
+    expect(reviewSummary(otto, EN_FORMAT, { fail: 0, warn: 0, pass: 9 })).toBe(otto.review.allGood);
   });
 
   it("leads the screener line with must-haves and never overstates the count", () => {
     const line = (mp: number, mt: number, np: number, nt: number) =>
       screenerLine(screener, EN_FORMAT, { proven: mp, total: mt }, { proven: np, total: nt });
-    expect(line(5, 8, 3, 6)).toBe("Your resume proves 5 of 8 must-haves. Let's look at the other 3.");
+    expect(line(5, 8, 3, 6)).toBe(
+      "Your resume proves 5 of 8 must-haves. Let's look at the other 3.",
+    );
     expect(line(7, 8, 0, 0)).toContain("the one left");
     expect(line(12, 8, 0, 0)).toContain("all 8");
     expect(line(Number.NaN, 4, 0, 0)).toContain("the 4 must-haves");

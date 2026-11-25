@@ -54,7 +54,11 @@ export function shouldAutoCheck(state: {
   );
 }
 
-export function useExportCheck(resume: Resume, file: PdfFile | null, fileName: string): ExportCheck {
+export function useExportCheck(
+  resume: Resume,
+  file: PdfFile | null,
+  fileName: string,
+): ExportCheck {
   const stored = useStudioStore((s) => s.exportReports[resume.id] ?? null);
   const setExportReport = useStudioStore((s) => s.setExportReport);
   const original = useOriginalReport(resume);

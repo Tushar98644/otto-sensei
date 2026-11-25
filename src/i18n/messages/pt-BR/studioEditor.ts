@@ -183,7 +183,8 @@ export default {
     keep: "Manter o meu",
     close: "Fechar",
     tryAgain: "Tentar de novo",
-    signIn: "Entre para ter ajuda com o resumo. No Free, usa 1 dos seus {count} ajustes de linha por mês.",
+    signIn:
+      "Entre para ter ajuda com o resumo. No Free, usa 1 dos seus {count} ajustes de linha por mês.",
     twoTakes: "2 versões",
     oneTake: "1 versão",
     wordsChange: "{before} → {after} palavras",
@@ -203,7 +204,8 @@ export default {
         tightened: "Versão mais enxuta",
       },
       yourVersion: "Sua versão",
-      blanks: "As palavras entre [colchetes] são lacunas para seus fatos reais. Edite para preenchê-las.",
+      blanks:
+        "As palavras entre [colchetes] são lacunas para seus fatos reais. Edite para preenchê-las.",
       edit: "Editar primeiro",
       cancel: "Cancelar edição",
       use: "Usar este",

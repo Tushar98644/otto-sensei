@@ -44,12 +44,7 @@ function ScreeningQuestions({ questions }: { questions: readonly ScreeningQuesti
           </li>
         ))}
       </ul>
-      <OttoNote
-        size="sm"
-        live={false}
-        className="mt-3"
-        message={t.answerTruthfully}
-      />
+      <OttoNote size="sm" live={false} className="mt-3" message={t.answerTruthfully} />
     </section>
   );
 }

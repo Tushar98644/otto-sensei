@@ -16,7 +16,8 @@ export default {
     headline: "Título profissional",
     headlinePlaceholder: "Designer de produto",
     email: "E-mail",
-    emailIncomplete: "Este e-mail parece incompleto. Confira para que os recrutadores consigam falar com você.",
+    emailIncomplete:
+      "Este e-mail parece incompleto. Confira para que os recrutadores consigam falar com você.",
     phone: "Telefone",
     location: "Localização",
     locationHint: "Cidade e país bastam.",
@@ -68,7 +69,8 @@ export default {
     present: "Trabalho aqui atualmente",
   },
   projects: {
-    empty: "Nenhum projeto ainda. Projetos pessoais, código aberto e trabalhos da faculdade contam.",
+    empty:
+      "Nenhum projeto ainda. Projetos pessoais, código aberto e trabalhos da faculdade contam.",
     add: "Adicionar um projeto",
     github: "Adicionar do GitHub",
     githubMine: "Adicionar do meu GitHub",
@@ -85,7 +87,8 @@ export default {
     present: "Ainda trabalho nele",
   },
   education: {
-    empty: "Nenhuma formação ainda. Adicione uma graduação, um bootcamp ou um curso que importe para a vaga.",
+    empty:
+      "Nenhuma formação ainda. Adicione uma graduação, um bootcamp ou um curso que importe para a vaga.",
     add: "Adicionar uma formação",
     newItem: "Nova formação",
     remove: "Remover esta formação?",

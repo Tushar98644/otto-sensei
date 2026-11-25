@@ -16,7 +16,8 @@ export default {
     headline: "Titre",
     headlinePlaceholder: "Designer produit",
     email: "E-mail",
-    emailIncomplete: "Cet e-mail semble incomplet. Vérifie-le pour que les recruteurs puissent te joindre.",
+    emailIncomplete:
+      "Cet e-mail semble incomplet. Vérifie-le pour que les recruteurs puissent te joindre.",
     phone: "Téléphone",
     location: "Lieu",
     locationHint: "La ville et le pays suffisent.",
@@ -85,7 +86,8 @@ export default {
     present: "J’y travaille encore",
   },
   education: {
-    empty: "Aucune formation pour l’instant. Ajoute un diplôme, un bootcamp ou un cours utile pour le poste.",
+    empty:
+      "Aucune formation pour l’instant. Ajoute un diplôme, un bootcamp ou un cours utile pour le poste.",
     add: "Ajouter une formation",
     newItem: "Nouvelle formation",
     remove: "Retirer cette formation ?",
@@ -102,7 +104,8 @@ export default {
     addDetail: "Ajouter un détail",
   },
   skills: {
-    empty: "Aucune compétence pour l’instant. Ajoute les outils et compétences que tu utilises le plus.",
+    empty:
+      "Aucune compétence pour l’instant. Ajoute les outils et compétences que tu utilises le plus.",
     add: "Ajouter des compétences",
     addGroup: "Ajouter un autre groupe",
     label: "Compétences",
