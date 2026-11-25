@@ -7,6 +7,7 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import { useMessages } from "@/i18n/client";
+import { warningIn } from "@/lib/ai/warning-text";
 import type { Messages } from "@/i18n/messages";
 import type { SummaryOption } from "@/lib/api/types";
 import { DemoNote } from "../demo-note";
@@ -67,6 +68,7 @@ type OptionRowProps = {
 function OptionRow({ option, id, draft, onEdit, onUse, t }: OptionRowProps) {
   const blanks = hasPlaceholders(option.text);
   const draftRef = useRef<HTMLTextAreaElement>(null);
+  const warn = useMessages("otto").warnings;
   const editing = draft !== null;
 
   useEffect(() => {
@@ -110,7 +112,7 @@ function OptionRow({ option, id, draft, onEdit, onUse, t }: OptionRowProps) {
           {option.warnings.map((warning) => (
             <li key={warning} className="flex items-start gap-2 text-sm text-ink">
               <TriangleExclamationPoint className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden />
-              <span>{warning}</span>
+              <span>{warningIn(warning, warn)}</span>
             </li>
           ))}
         </ul>

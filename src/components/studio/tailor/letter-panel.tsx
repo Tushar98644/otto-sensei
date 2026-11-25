@@ -11,7 +11,7 @@ import { fmt } from "@/i18n/format";
 import { Textarea } from "@/components/ui/textarea";
 import { copyText } from "@/components/ui/copy-text";
 import { toast } from "@/components/ui/toast";
-import { liveWarnings } from "@/lib/ai/warning-text";
+import { liveWarnings, warningIn } from "@/lib/ai/warning-text";
 import { wordCount } from "@/lib/ai/writing-guards";
 import { letterFileName } from "@/lib/pdf/letter";
 import { renderLetterPdf } from "@/lib/pdf/render";
@@ -44,7 +44,10 @@ export function LetterPanel({
   const pageSize = usePageSize();
   const [rendering, setRendering] = useState(false);
   const busy = writing.busy === "letter";
-  const checks = letter ? liveWarnings(letter.warnings, letter.text) : [];
+  const warn = useMessages("otto").warnings;
+  const checks = letter
+    ? liveWarnings(letter.warnings, letter.text).map((item) => warningIn(item, warn))
+    : [];
   const failed = writing.error?.task === "letter" ? writing.error.message : null;
   const t = useMessages("studioTailor").letter;
   const demoNote = useMessages("studio").demoNote;

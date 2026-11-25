@@ -126,7 +126,12 @@ export function JobMatchTool({
     setFailed(false);
     try {
       const { matchCheckFromText } = await loadChecker();
-      setResult({ check: matchCheckFromText(resume, job), resume, job, handoff });
+      setResult({
+        check: matchCheckFromText(resume, job, t.result.places.top),
+        resume,
+        job,
+        handoff,
+      });
     } catch {
       setFailed(true);
     } finally {

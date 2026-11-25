@@ -5,7 +5,7 @@ import { useTryProLabel } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { MatchResult } from "@/components/match-check/match-result";
 import { Button } from "@/components/ui/button";
-import { useMessages } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
 import { matchCheck } from "@/lib/match-check/check";
 import type { Resume } from "@/lib/resume/schema";
 
@@ -13,12 +13,19 @@ import type { Resume } from "@/lib/resume/schema";
 export type FreeMatchProps = { source: Resume; jobText: string; onSignIn?: () => void };
 
 export function FreeMatch({ source, jobText, onSignIn }: FreeMatchProps) {
-  const check = useMemo(() => matchCheck(source, jobText), [source, jobText]);
+  const words = useMessages("matchCheck");
+  const format = useFormat();
+  const check = useMemo(
+    () => matchCheck(source, jobText, words.result.places),
+    [source, jobText, words],
+  );
   const tryPro = useTryProLabel();
   const t = useMessages("studioTailor").free;
   return (
     <MatchResult
       check={check}
+      t={words}
+      format={format}
       footer={
         <div className="flex flex-col gap-3 rounded-2xl bg-surface-muted p-4 sm:p-6">
           <p className="text-base/6 font-semibold text-ink">{t.title}</p>

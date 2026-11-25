@@ -1,3 +1,6 @@
+import { fmt } from "@/i18n/format";
+import type ottoEn from "@/i18n/messages/en/otto";
+import type { Translation } from "@/i18n/types";
 import { CLICHES, UNBACKED, upgradedVerbs } from "./writing-guards";
 
 // The server writes these and the browser reads them back, so a warning goes away once an edit fixes it.
@@ -99,6 +102,36 @@ export function liveWarnings(
     out.push(warning);
   }
   return out;
+}
+
+export type WarningWords = Translation<typeof ottoEn.warnings>;
+
+const NUMBER_WARNING = "Put your real figure in [number], or cut it. Otto never guesses numbers.";
+const HINTS: Readonly<Record<string, keyof WarningWords["fillIn"]>> = {
+  "before you send it.": "send",
+  "before you send it. Otto never guesses numbers.": "sendNumbers",
+  "with your own words before you send it.": "ownWords",
+  "before you use it.": "use",
+};
+
+// A warning in the reader's language; one it can't read stays in English.
+export function warningIn(warning: string, t: WarningWords): string {
+  if (warning === NUMBER_WARNING) return t.number;
+  const fill = FILL_IN.exec(warning);
+  if (fill) {
+    const hint = HINTS[fill[2] ?? ""];
+    return hint ? fmt(t.fillIn[hint], { blanks: fill[1] ?? "" }) : warning;
+  }
+  const verb = VERB.exec(warning);
+  if (verb) return fmt(t.verb, { verb: verb[1] ?? "", line: verb[2] ?? "" });
+  const claim = UNBACKED_LINE.exec(warning);
+  if (claim) return fmt(t.unbacked, { phrase: claim[1] ?? "" });
+  const cliche = CLICHE.exec(warning);
+  if (cliche) {
+    const phrases = quotedIn(cliche[1] ?? "").map((text) => fmt(t.quote, { text }));
+    return fmt(t.cliche, { phrases: phrases.join(", ") });
+  }
+  return warning;
 }
 
 const FIRST_NAME = /\[first name\]/i;

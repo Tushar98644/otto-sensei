@@ -26,7 +26,7 @@ import { copyText } from "@/components/ui/copy-text";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
 import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import { liveWarnings, needsFirstName } from "@/lib/ai/warning-text";
+import { liveWarnings, needsFirstName, warningIn } from "@/lib/ai/warning-text";
 import { wordCount } from "@/lib/ai/writing-guards";
 import type { Application } from "@/lib/applications/schema";
 import { applicationHref } from "@/lib/applications/thread";
@@ -140,6 +140,7 @@ export function LetterReader({
   onDismissAgain,
 }: LetterReaderProps) {
   const t = useMessages("letters");
+  const warn = useMessages("otto").warnings;
   const { reader } = t;
   const { statuses } = useMessages("applications");
   const format = useFormat();
@@ -165,7 +166,7 @@ export function LetterReader({
     entry.warnings,
     outreach ? [fields.subject, fields.email, fields.note].join("\n") : text,
     outreach ? ["[first name]"] : [],
-  );
+  ).map((item) => warningIn(item, warn));
   const firstName = outreach && needsFirstName(fields.subject, fields.email, fields.note);
   const title = entry.company || entry.role || t.kinds[kind];
   const role = entry.company ? entry.role : "";

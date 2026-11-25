@@ -74,4 +74,17 @@ export default {
     resetsOn: "Es wird am {day} zurückgesetzt.",
     resetsWhenRenews: "Es wird bei der Verlängerung deines Tarifs zurückgesetzt.",
   },
+  warnings: {
+    fillIn: {
+      send: "Füll {blanks} aus, bevor du es abschickst.",
+      sendNumbers: "Füll {blanks} aus, bevor du es abschickst. Otto rät nie Zahlen.",
+      ownWords: "Füll {blanks} mit deinen eigenen Worten aus, bevor du es abschickst.",
+      use: "Füll {blanks} aus, bevor du es verwendest.",
+    },
+    number: "Setz deine echte Zahl bei [number] ein oder streich sie. Otto rät nie Zahlen.",
+    verb: "Prüf „{verb}“. Dein Lebenslauf sagt „{line}“.",
+    unbacked: "Prüf „{phrase}“: Das weißt nur du. Lass es drin, wenn es stimmt.",
+    cliche: "Ersetz {phrases} durch deine eigenen Worte. Recruiter überlesen so etwas.",
+    quote: "„{text}“",
+  },
 } satisfies Translation<Messages["otto"]>;

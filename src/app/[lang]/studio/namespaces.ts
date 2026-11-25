@@ -14,6 +14,7 @@ export const STUDIO_NAMESPACES = [
   "accountMenu",
   "lint",
   "fileChecks",
+  "matchCheck",
   "share",
   "shareLinks",
   "formats",
