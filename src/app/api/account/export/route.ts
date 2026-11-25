@@ -5,11 +5,12 @@ import { fail, NO_STORE } from "@/lib/api/respond";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { log } from "@/lib/log";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request): Promise<Response> {
+export const GET = withApiLocale(async function GET(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -41,4 +42,4 @@ export async function GET(req: Request): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useMessagesOr } from "@/i18n/client";
+import EN_APP from "@/i18n/messages/en/app";
 import { cn } from "@/lib/utils";
 import { OTTO } from "./lines";
 import { Otto } from "./otto";
@@ -50,6 +52,7 @@ export function OttoWorking({
   delayMs = OTTO_WORKING_DELAY_MS,
   className,
 }: OttoWorkingProps) {
+  const { working } = useMessagesOr("app", EN_APP);
   const [shown, setShown] = useState(delayMs <= 0);
   useEffect(() => {
     if (delayMs <= 0) return;
@@ -84,7 +87,7 @@ export function OttoWorking({
             small ? "text-sm/6" : "text-base/7",
           )}
         >
-          {shown ? (message ?? OTTO.working[task]) : null}
+          {shown ? (message ?? working[task]) : null}
         </p>
         {shown && detail ? <p className="text-sm/6 text-muted">{detail}</p> : null}
       </div>

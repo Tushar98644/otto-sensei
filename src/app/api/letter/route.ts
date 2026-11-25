@@ -5,6 +5,7 @@ import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { log } from "@/lib/log";
 import { readWritingStyle } from "@/lib/writing-style/records";
 import { runMetered, type MeteredCopy } from "../fix/metered";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -16,7 +17,7 @@ const COPY: MeteredCopy = {
   tooLong: "That job post or resume is too long for Otto. Try a shorter job post.",
 };
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) {
     log.warn("letter.cross_site");
@@ -34,4 +35,4 @@ export async function POST(req: Request): Promise<Response> {
         { ui },
       ),
   });
-}
+});

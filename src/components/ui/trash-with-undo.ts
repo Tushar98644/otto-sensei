@@ -5,13 +5,15 @@ import { resumeTitle } from "@/lib/resume/ops";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { undoToast } from "./undo-toast";
 
-export function trashWithUndo(id: string): boolean {
+// `words` puts the toast in the reader's language; English without it.
+export function trashWithUndo(id: string, words?: { trashed: string; undo: string }): boolean {
   const store = useStudioStore.getState();
   const resume = store.resumes[id];
   const wasActive = store.activeId === id;
   if (!resume || !store.trashResume(id)) return false;
   undoToast({
-    title: "Moved to Recently deleted",
+    title: words?.trashed ?? "Moved to Recently deleted",
+    undoLabel: words?.undo,
     description: resumeTitle(resume),
     // Restored under a new id: the account backup won't take a deleted one.
     onUndo: () =>

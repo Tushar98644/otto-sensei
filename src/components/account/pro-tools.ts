@@ -7,12 +7,16 @@ import {
   isPaidPlan,
   MAX_RESUMES_PER_USER,
   planIncludes,
+  PLANS,
+  PRO_TRIAL,
   resumeLimit,
   type Feature,
   type PlanId,
   type ProTool,
 } from "@/config/plans";
-import { trialHeadline } from "@/lib/billing/prices";
+import { useMessagesOr } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import EN_APP from "@/i18n/messages/en/app";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
@@ -38,7 +42,9 @@ export function useProTools(): boolean | null {
 
 export function useTryProLabel(): string {
   const { me } = useMe();
-  return me?.billing.trial === false ? "See Pro" : trialHeadline();
+  const words = useMessagesOr("app", EN_APP);
+  if (me?.billing.trial === false) return words.seePro;
+  return fmt(words.tryOffer, { plan: PLANS[PRO_TRIAL.plan].name, days: PRO_TRIAL.days });
 }
 
 export async function unlockProTool(tool: ProTool): Promise<boolean> {

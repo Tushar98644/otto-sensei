@@ -3,6 +3,7 @@ import { SummaryRequestSchema } from "@/lib/api/types";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { log } from "@/lib/log";
 import { runMetered, type MeteredCopy } from "../fix/metered";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,7 +15,7 @@ const COPY: MeteredCopy = {
   tooLong: "That resume is too long for Otto. Trim it a little and try again.",
 };
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) {
     log.warn("summary.cross_site");
@@ -27,4 +28,4 @@ export async function POST(req: Request): Promise<Response> {
     run: (input, user, { ui }) => writeSummary(input, { ui }),
     nothingToDo: nothingToSummarize,
   });
-}
+});

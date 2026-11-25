@@ -7,6 +7,7 @@ import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 import { ensureRecap, markRecapSeen } from "@/lib/recap/records";
 import type { RecapIndexResponse, RecapSeenResponse } from "@/lib/recap/types";
 import { EnsureRecapSchema, RecapSeenSchema } from "@/lib/recap/validation";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ const SIGN_IN = "Sign in to see your week with Otto.";
 const PER_MINUTE = 20;
 
 // Builds the week that ended last, once, and lists what's there to open.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -36,9 +37,9 @@ export async function POST(req: Request): Promise<Response> {
     log.error("recap.ensure_failed", error);
     return fail("server_error", "Couldn't load your week. Please try again.", 500, NO_STORE);
   }
-}
+});
 
-export async function PATCH(req: Request): Promise<Response> {
+export const PATCH = withApiLocale(async function PATCH(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -53,4 +54,4 @@ export async function PATCH(req: Request): Promise<Response> {
     log.error("recap.seen_failed", error);
     return fail("server_error", "Couldn't save that. Please try again.", 500, NO_STORE);
   }
-}
+});

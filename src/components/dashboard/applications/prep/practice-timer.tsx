@@ -3,6 +3,7 @@
 import { RotateCcw, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
 
 const LIMIT_MS = 2 * 60_000;
 const TICK_MS = 250;
@@ -19,6 +20,7 @@ function clock(ms: number): string {
 }
 
 export function PracticeTimer() {
+  const { timer: t } = useMessages("prep");
   const [state, setState] = useState<TimerState>({ status: "idle" });
   const [now, setNow] = useState(0);
 
@@ -43,7 +45,7 @@ export function PracticeTimer() {
     return (
       <Button variant="secondary" onClick={() => start(LIMIT_MS)}>
         <Timer aria-hidden />
-        Start 2-minute timer
+        {t.start}
       </Button>
     );
   }
@@ -58,25 +60,34 @@ export function PracticeTimer() {
   return (
     <div className="inline-flex h-11 items-center gap-1 rounded-xl bg-surface-muted pr-1 pl-3.5">
       <Timer aria-hidden className="size-4 text-muted" />
-      <span role="timer" aria-label="Time left" className="w-11 text-center text-base font-medium text-ink tabular-nums">
+      <span
+        role="timer"
+        aria-label={t.left}
+        className="w-11 text-center text-base font-medium text-ink tabular-nums"
+      >
         {clock(left)}
       </span>
       {state.status === "running" ? (
         <Button variant="ghost" size="sm" onClick={() => setState({ status: "paused", left })}>
-          Pause
+          {t.pause}
         </Button>
       ) : state.status === "paused" ? (
         <Button variant="ghost" size="sm" onClick={() => start(state.left)}>
-          Resume
+          {t.resume}
         </Button>
       ) : (
-        <span className="px-2 text-sm text-muted">Wrap up when you&apos;re ready</span>
+        <span className="px-2 text-sm text-muted">{t.wrapUp}</span>
       )}
-      <Button variant="ghost" size="icon-sm" aria-label="Reset the timer" onClick={() => setState({ status: "idle" })}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t.reset}
+        onClick={() => setState({ status: "idle" })}
+      >
         <RotateCcw className="text-muted" />
       </Button>
       <span className="sr-only" aria-live="polite">
-        {state.status === "done" ? "Two minutes are up." : ""}
+        {state.status === "done" ? t.up : ""}
       </span>
     </div>
   );

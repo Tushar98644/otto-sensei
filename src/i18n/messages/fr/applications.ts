@@ -370,6 +370,47 @@ export default {
     findJob: "Trouver une offre à cibler",
     tailored: "Adapté",
     general: "Général",
+    outcome: "{hits} sur {counted}",
+    findings: {
+      resumeInterviews: "Tes versions adaptées ont décroché un entretien <b>{outcome}</b> fois.",
+      resumeReplies: "Tes versions adaptées ont reçu une réponse <b>{outcome}</b> fois.",
+      resumeRest: "Ton CV général : {outcome}.",
+      letterInterviews:
+        "Avec une lettre de motivation, <b>{outcome}</b> ont décroché un entretien.",
+      letterReplies: "Avec une lettre de motivation, <b>{outcome}</b> ont reçu une réponse.",
+      letterRest: "Sans lettre : {outcome}.",
+    },
+    notEnoughLetter:
+      "Lettres de motivation : {with} comptées avec une lettre, {without} sans. Otto compare à partir de {min} de chaque.",
+    notEnoughNone: "Aucune n'indique quel CV tu as envoyé, il n'y a donc encore rien à comparer.",
+    notEnoughResume:
+      "Comptées jusqu'ici : {tailored} et {general}. Otto compare à partir de {min} de chaque.",
+    tailoredCount: { one: "{count} version adaptée", other: "{count} versions adaptées" },
+    generalCount: { one: "{count} CV général", other: "{count} CV généraux" },
+    waiting: {
+      one: "{count} candidature des {days} derniers jours n'est pas encore comptée : les réponses prennent du temps.",
+      other:
+        "{count} candidatures des {days} derniers jours ne sont pas encore comptées : les réponses prennent du temps.",
+    },
+    suggest: {
+      tailorWorks: "Adapte aussi la prochaine : ça marche pour toi.",
+      tailorTry: "Envoie une version adaptée à tes prochaines offres, pour avoir de quoi comparer.",
+      tailorAction: "Adapter un CV",
+      letterInterviews:
+        "Écris une lettre pour la prochaine : les tiennes décrochent plus d'entretiens.",
+      letterReplies: "Écris une lettre pour la prochaine : les tiennes reçoivent plus de réponses.",
+      letterAction: "Écrire une lettre",
+      applySame:
+        "Les deux marchent à peu près pareil pour l'instant. Garde l'adaptation pour les offres qui te tiennent le plus à cœur, et continue de postuler.",
+      applyGeneral:
+        "Ton CV général marche mieux pour l'instant. Garde l'adaptation pour les offres qui te tiennent le plus à cœur.",
+      applyAction: "Trouver des offres",
+      wait: "Les réponses prennent du temps. Otto compte chaque candidature quand elle a {days} jours ou quand tu as une réponse.",
+      logFirst:
+        "Note chaque offre à laquelle tu postules, avec le CV envoyé. Otto compare à partir de {min} de chaque sorte.",
+      logNext: "Quand tu notes la prochaine, choisis le CV envoyé pour qu'Otto puisse comparer.",
+      logAction: "Ajouter une candidature",
+    },
   },
   gaps: {
     heading: "Ce que tes offres demandent sans cesse",
@@ -384,6 +425,13 @@ export default {
     upload: "Importer un CV",
     more: "{count} de plus",
     applications: "Candidatures",
+    of: { one: "{short} sur {count} offre", other: "{short} sur {count} offres" },
+    missing: "{term} : absent dans {of} pour lesquelles tu as adapté ton CV",
+    listOnly: "{term} : seulement dans ta liste de compétences pour {of}",
+    notShown: "{term} : dans aucune ligne pour {of} pour lesquelles tu as adapté ton CV",
+    show: "C'est dans ta liste de compétences, mais aucune ligne ne le montre. Ajoutes-en une qui dit où tu as utilisé {term}.",
+    learn:
+      "Si tu as utilisé {term}, ajoute une ligne qui dit où. Sinon, {asked} de tes offres le demandaient : un petit projet compte.",
   },
   move: {
     howEnded: "Comment ça s'est terminé ?",

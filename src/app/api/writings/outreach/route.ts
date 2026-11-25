@@ -5,12 +5,13 @@ import { findOutreach } from "@/lib/writings/records";
 import type { OutreachWritingResponse } from "@/lib/writings/schema";
 import { OutreachLookupSchema } from "@/lib/writings/validation";
 import { SIGN_IN } from "../shared";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // The message kept for one job, so reopening the outreach dialog shows it instead of an empty one.
-export async function GET(req: Request): Promise<Response> {
+export const GET = withApiLocale(async function GET(req: Request): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -34,4 +35,4 @@ export async function GET(req: Request): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});

@@ -25,14 +25,19 @@ function subscribe(notify: () => void) {
 const reduced = () => window.matchMedia(REDUCE).matches;
 
 // A short silent loop of the Gmail steps: it loads once in view, plays only there, and waits for Play with reduced motion.
+const ENGLISH = { play: "Play", pause: "Pause" };
+
 export function GuideVideo({
   src = GMAIL_GUIDE,
   width = 960,
   height = 600,
+  labels = ENGLISH,
 }: {
   src?: string;
   width?: number;
   height?: number;
+  // The play and pause keys in the reader's language; the home page passes none.
+  labels?: { play: string; pause: string };
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const still = useSyncExternalStore(subscribe, reduced, () => true);
@@ -89,7 +94,7 @@ export function GuideVideo({
         <Button
           variant="secondary"
           size="icon-sm"
-          aria-label="Pause"
+          aria-label={labels.pause}
           onClick={() => setChoice(false)}
           className="absolute right-2 bottom-2"
         >
@@ -99,7 +104,7 @@ export function GuideVideo({
         <div className="absolute inset-0 flex items-center justify-center">
           <Button variant="secondary" onClick={() => setChoice(true)}>
             <Play aria-hidden />
-            Play
+            {labels.play}
           </Button>
         </div>
       )}

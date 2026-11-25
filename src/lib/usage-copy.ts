@@ -1,4 +1,7 @@
 import type { AllowancePeriod, BillingInterval, UsagePeriod } from "@/config/plans";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
 
 type PeriodLike = UsagePeriod | AllowancePeriod | null | undefined;
 
@@ -34,12 +37,14 @@ export function resetWhen(period: UsagePeriod | null | undefined, timeZone?: str
 }
 
 export function resetSentence(period: UsagePeriod | null | undefined, timeZone?: string): string {
-  if (period?.kind === "trial") return `Your full allowance starts on ${resetDay(period, timeZone)}.`;
+  if (period?.kind === "trial")
+    return `Your full allowance starts on ${resetDay(period, timeZone)}.`;
   return `They reset ${resetWhen(period, timeZone)}.`;
 }
 
 export function resetRule(interval: BillingInterval): string {
-  if (interval === "year") return "Limits reset each month, on the day of the month your plan started.";
+  if (interval === "year")
+    return "Limits reset each month, on the day of the month your plan started.";
   return "Limits reset each month, when your plan renews.";
 }
 
@@ -48,4 +53,24 @@ export const PLAN_PROMISES =
 
 export function trialEndDay(trialEndsAt: number, timeZone?: string): string {
   return shortDate(trialEndsAt, timeZone);
+}
+
+export type UsageWords = Messages["app"]["usage"];
+
+// The lines above in the reader's language; English reads exactly as they do.
+export function usageCopy(words: UsageWords, format: Format) {
+  const day = (period: UsagePeriod, timeZone?: string) =>
+    format.date(period.resetsAt, { month: "short", day: "numeric", timeZone });
+  const when = (period: UsagePeriod | null | undefined, timeZone?: string) => {
+    if (!period) return words.renews;
+    return fmt(period.renews ? words.onDayRenews : words.onDay, { day: day(period, timeZone) });
+  };
+  return {
+    thisPeriod: (period: PeriodLike) => words.thisPeriod[kindOf(period)],
+    perPeriod: (period: PeriodLike) => words.perPeriod[kindOf(period)],
+    resetSentence: (period: UsagePeriod | null | undefined, timeZone?: string) =>
+      period?.kind === "trial"
+        ? fmt(words.trialStarts, { day: day(period, timeZone) })
+        : fmt(words.reset, { when: when(period, timeZone) }),
+  };
 }

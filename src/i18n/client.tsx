@@ -9,13 +9,17 @@ type Provided = { locale: Locale; messages: Partial<Messages> };
 
 const MessagesContext = createContext<Provided | null>(null);
 
-// Rendered by MessagesFor (./server), which passes only the namespaces it names.
+// Rendered by MessagesFor (./server), which passes only the namespaces it names; a nested one adds its namespaces to the outer ones.
 export function MessagesProvider({
   locale,
   messages,
   children,
 }: Provided & { children: ReactNode }) {
-  const value = useMemo(() => ({ locale, messages }), [locale, messages]);
+  const outer = use(MessagesContext)?.messages;
+  const value = useMemo(
+    () => ({ locale, messages: outer ? { ...outer, ...messages } : messages }),
+    [locale, messages, outer],
+  );
   return <MessagesContext value={value}>{children}</MessagesContext>;
 }
 
@@ -34,14 +38,14 @@ export function useMessages<N extends Namespace>(namespace: N): Messages[N] {
   return messages;
 }
 
-export function useFormat(): Format {
-  return formatFor(useLocale());
-}
-
-// For components that pages without this namespace also render: they read the English given here.
+// For parts the studio or a page without a provider also draws: the namespace when it was passed, else the English given.
 export function useMessagesOr<N extends Namespace>(
   namespace: N,
   english: Messages[N],
 ): Messages[N] {
   return use(MessagesContext)?.messages[namespace] ?? english;
+}
+
+export function useFormat(): Format {
+  return formatFor(useLocale());
 }

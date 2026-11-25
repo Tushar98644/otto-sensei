@@ -7,6 +7,7 @@ import { deleteWriting, updateWriting } from "@/lib/writings/records";
 import { textLimit, type WritingKind, type WritingResponse } from "@/lib/writings/schema";
 import { UpdateWritingSchema, WritingIdSchema } from "@/lib/writings/validation";
 import { NOT_FOUND, SIGN_IN, writeLimited } from "../shared";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,10 @@ const KIND_NAMES: Record<WritingKind, string> = {
 type Context = { params: Promise<{ id: string }> };
 
 // Another account's id gets the same 404 as a missing one, so ids can't be probed.
-export async function PATCH(req: Request, { params }: Context): Promise<Response> {
+export const PATCH = withApiLocale(async function PATCH(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -33,7 +37,11 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
     const body = await readJson(req, UpdateWritingSchema);
     if (!body.ok) {
       log.info("writings.bad_request", { reason: body.message });
-      return fail("bad_request", "That edit couldn't be saved. Make it shorter and try again.", 400);
+      return fail(
+        "bad_request",
+        "That edit couldn't be saved. Make it shorter and try again.",
+        400,
+      );
     }
     const result = await updateWriting(user.id, id, body.data);
     if (result.status === "not_found") return fail("not_found", NOT_FOUND, 404);
@@ -53,9 +61,12 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
     log.error("writings.update_failed", error);
     return fail("server_error", "Couldn't save that edit. Please try again.", 500);
   }
-}
+});
 
-export async function DELETE(req: Request, { params }: Context): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -68,4 +79,4 @@ export async function DELETE(req: Request, { params }: Context): Promise<Respons
     log.error("writings.delete_failed", error);
     return fail("server_error", "Couldn't delete that. Please try again.", 500);
   }
-}
+});

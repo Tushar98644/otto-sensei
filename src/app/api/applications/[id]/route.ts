@@ -14,6 +14,7 @@ import { log } from "@/lib/log";
 import { INVALID, NOT_FOUND, SIGN_IN } from "../messages";
 import { deleteApplication, updateApplication } from "../records";
 import { getApplicationThread } from "../thread";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,10 @@ function isApplicationId(id: string): boolean {
   return ApplicationIdSchema.safeParse(id).success;
 }
 
-export async function GET(_req: Request, { params }: Context): Promise<Response> {
+export const GET = withApiLocale(async function GET(
+  _req: Request,
+  { params }: Context,
+): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -39,10 +43,13 @@ export async function GET(_req: Request, { params }: Context): Promise<Response>
     log.error("applications.thread_failed", error);
     return fail("server_error", "Couldn't load that application. Please try again.", 500, NO_STORE);
   }
-}
+});
 
 // Another account's id gets the same 404 as one that never existed, so ids can't be probed.
-export async function PATCH(req: Request, { params }: Context): Promise<Response> {
+export const PATCH = withApiLocale(async function PATCH(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -64,9 +71,12 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
     log.error("applications.update_failed", error);
     return fail("server_error", "Couldn't save that change. Please try again.", 500);
   }
-}
+});
 
-export async function DELETE(req: Request, { params }: Context): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -79,4 +89,4 @@ export async function DELETE(req: Request, { params }: Context): Promise<Respons
     log.error("applications.delete_failed", error);
     return fail("server_error", "Couldn't delete that application. Please try again.", 500);
   }
-}
+});

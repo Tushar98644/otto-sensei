@@ -3,10 +3,11 @@ import type { UrlResponse } from "@/lib/api/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createPortalUrl } from "@/lib/billing";
 import { billingFailure, limitBillingLinks } from "../shared";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export const POST = withApiLocale(async function POST() {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", "Sign in to manage your plan.", 401);
@@ -17,4 +18,4 @@ export async function POST() {
   } catch (error) {
     return billingFailure(error, "portal");
   }
-}
+});

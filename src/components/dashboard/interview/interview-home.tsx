@@ -70,6 +70,7 @@ function Invitation({
 
 export function InterviewHome() {
   const { home: t } = useMessages("interview");
+  const app = useMessages("app");
   const format = useFormat();
   const now = useNow();
   const packs = usePrepPacks();
@@ -105,7 +106,7 @@ export function InterviewHome() {
   const ready = listed && briefSettled;
   const empty = ready && packs.items.length === 0 && entries.length === 0;
   const action: PrepareAction = { locked, onLocked: () => setUpgradeOpen(true) };
-  const allowance = prepAllowance(me?.usage?.letter, me?.period);
+  const allowance = prepAllowance(me?.usage?.letter, me?.period, app, format);
   const [first, ...rest] = entries;
   const firstAt = first?.application.interviewAt ?? null;
   const ahead = firstAt !== null && now > 0 && new Date(firstAt).setHours(23, 59, 59, 999) >= now;

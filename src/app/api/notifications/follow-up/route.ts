@@ -7,6 +7,7 @@ import { log } from "@/lib/log";
 import { type FollowUpActionResponse } from "@/lib/notifications/types";
 import { FollowUpRequestSchema } from "@/lib/notifications/validation";
 import { verifyFollowUpToken } from "@/lib/notifications/unsubscribe";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 const INVALID = "That reminder link isn't valid any more. Open your applications instead.";
 
 // An email's link is often opened without a session, so its signature is the proof; the bell uses the session.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -41,11 +42,14 @@ export async function POST(req: Request): Promise<Response> {
     if (!result) {
       return fail("not_found", "That application isn't in your list any more.", 404, NO_STORE);
     }
-    log.info("notifications.follow_up_action", { action: act, from: "t" in body.data ? "email" : "bell" });
+    log.info("notifications.follow_up_action", {
+      action: act,
+      from: "t" in body.data ? "email" : "bell",
+    });
     const response: Omit<FollowUpActionResponse, "ok"> = result;
     return ok(response, { headers: NO_STORE });
   } catch (error) {
     log.error("notifications.follow_up_failed", error);
     return fail("server_error", "Couldn't save that. Please try again.", 500, NO_STORE);
   }
-}
+});

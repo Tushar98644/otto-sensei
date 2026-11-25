@@ -7,6 +7,7 @@ import { log } from "@/lib/log";
 import { countView, findViewTarget } from "@/lib/portfolio/records";
 import { PortfolioViewSchema } from "@/lib/portfolio/validation";
 import { isAutomatedAgent } from "@/lib/share/visits";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ async function ownerIsReading(ownerId: string): Promise<boolean> {
 }
 
 // Always 200 for a well-formed body, so the answer can't reveal which addresses exist.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -39,4 +40,4 @@ export async function POST(req: Request): Promise<Response> {
     log.warn("portfolio.view_not_counted", {}, error);
     return ok(NOT_COUNTED);
   }
-}
+});

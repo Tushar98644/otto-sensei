@@ -4,13 +4,10 @@ import { Check, CircleAlert } from "lucide-react";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api } from "@/lib/api/client";
-import {
-  HANDLE_LIMITS,
-  HANDLE_PROBLEMS,
-  handleProblem,
-  normalizeHandle,
-} from "@/lib/inbound/handle";
+import { HANDLE_LIMITS, handleProblem, normalizeHandle } from "@/lib/inbound/handle";
 import { cn } from "@/lib/utils";
 
 type Check =
@@ -36,6 +33,7 @@ export function HandlePicker({
   onSubmit,
   onCancel,
 }: HandlePickerProps) {
+  const { handle: t } = useMessages("email");
   const inputId = useId();
   const statusId = useId();
   const [value, setValue] = useState(initial);
@@ -77,7 +75,7 @@ export function HandlePicker({
     !handle || same
       ? { state: "idle" }
       : local
-        ? { state: "problem", message: HANDLE_PROBLEMS[local], others: [] }
+        ? { state: "problem", message: fmt(t[local], HANDLE_LIMITS), others: [] }
         : check.handle === handle
           ? check.result
           : { state: "checking" };
@@ -98,7 +96,7 @@ export function HandlePicker({
         htmlFor={inputId}
         className="text-xs/4 font-medium tracking-widest text-subtle uppercase"
       >
-        Your handle
+        {t.label}
       </label>
       <div
         className={cn(
@@ -139,7 +137,7 @@ export function HandlePicker({
         {status.state === "checking" ? (
           <>
             <Spinner className="size-3.5 text-muted" />
-            <span className="text-muted">Checking…</span>
+            <span className="text-muted">{t.checking}</span>
           </>
         ) : status.state === "free" ? (
           <>
@@ -149,13 +147,13 @@ export function HandlePicker({
               {handle}
               {parts.after}
             </span>
-            <span className="text-muted">is yours to take.</span>
+            <span className="text-muted">{t.free}</span>
           </>
         ) : status.state === "problem" ? (
           <>
             <CircleAlert aria-hidden className="size-4 text-fail" />
             <span className="text-fail-ink">{status.message}</span>
-            {status.others.length > 0 ? <span className="text-muted">Try</span> : null}
+            {status.others.length > 0 ? <span className="text-muted">{t.try}</span> : null}
             {status.others.map((other) => (
               <button
                 key={other}
@@ -168,9 +166,7 @@ export function HandlePicker({
             ))}
           </>
         ) : (
-          <span className="text-subtle">
-            Lowercase letters and numbers, with dots or hyphens between them.
-          </span>
+          <span className="text-subtle">{t.rule}</span>
         )}
       </p>
       <div className="flex flex-wrap gap-2">
@@ -179,7 +175,7 @@ export function HandlePicker({
         </Button>
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel} className="max-sm:w-full">
-            Keep {current ?? "it"}
+            {current === undefined ? t.keepIt : fmt(t.keep, { handle: current })}
           </Button>
         ) : null}
       </div>

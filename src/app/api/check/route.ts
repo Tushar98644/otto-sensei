@@ -2,10 +2,11 @@ import { fail, ok } from "@/lib/api/respond";
 import type { CheckResponse } from "@/lib/api/types";
 import { log } from "@/lib/log";
 import { checkUpload } from "../import/upload";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   try {
     const upload = await checkUpload(req, "check");
     if (upload instanceof Response) return upload;
@@ -23,4 +24,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("check.failed", error);
     return fail("server_error", "Something went wrong checking that file. Please try again.", 500);
   }
-}
+});

@@ -14,13 +14,14 @@ import { emptyResume } from "@/lib/resume/schema";
 import { weakReadSigns, type ReadLayout, type WeakReadSign } from "@/lib/resume/read-quality";
 import { claimAiRead, NO_AI_READ, type AiRead } from "./ai-reads";
 import { checkUpload } from "./upload";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 // The AI read must finish 55 s after the request started; the rest is room for saving and refunds.
 export const maxDuration = 60;
 const AI_READ_BY_MS = 55_000;
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   try {
     const askedForAI = new URL(req.url).searchParams.get("reader") === "ai";
     const upload = await checkUpload(req, "import");
@@ -96,7 +97,7 @@ export async function POST(req: Request): Promise<Response> {
     log.error("import.failed", error);
     return fail("server_error", "Something went wrong reading that file. Please try again.", 500);
   }
-}
+});
 
 type ReadableText = { text: string; layout: ReadLayout };
 

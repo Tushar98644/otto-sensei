@@ -1,9 +1,11 @@
 import account from "./account";
 import accountMenu from "./account-menu";
 import api from "./api";
+import app from "./app";
 import applications from "./applications";
 import common from "./common";
 import dashboard from "./dashboard";
+import email from "./email";
 import emails from "./emails";
 import home from "./home";
 import interview from "./interview";
@@ -17,6 +19,7 @@ import login from "./login";
 import matchCheck from "./match-check";
 import onboarding from "./onboarding";
 import portfolio from "./portfolio";
+import prep from "./prep";
 import pricing from "./pricing";
 import product from "./product";
 import seo from "./seo";
@@ -32,9 +35,11 @@ const en = {
   account,
   accountMenu,
   api,
+  app,
   applications,
   common,
   dashboard,
+  email,
   emails,
   home,
   interview,
@@ -48,6 +53,7 @@ const en = {
   matchCheck,
   onboarding,
   portfolio,
+  prep,
   pricing,
   product,
   seo,

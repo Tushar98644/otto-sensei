@@ -1,8 +1,11 @@
 import type { Translations } from "..";
 import accountMenu from "./account-menu";
+import api from "./api";
+import app from "./app";
 import applications from "./applications";
 import common from "./common";
 import dashboard from "./dashboard";
+import email from "./email";
 import home from "./home";
 import interview from "./interview";
 import jobForm from "./job-form";
@@ -14,6 +17,7 @@ import lint from "./lint";
 import login from "./login";
 import matchCheck from "./match-check";
 import onboarding from "./onboarding";
+import prep from "./prep";
 import pricing from "./pricing";
 import product from "./product";
 import site from "./site";
@@ -26,9 +30,12 @@ import studioTailor from "./studio-tailor";
 // Spanish (neutral Latin American, tú): list each namespace here as its file lands.
 const es: Translations = {
   accountMenu,
+  api,
+  app,
   applications,
   common,
   dashboard,
+  email,
   home,
   interview,
   jobForm,
@@ -40,6 +47,7 @@ const es: Translations = {
   login,
   matchCheck,
   onboarding,
+  prep,
   pricing,
   product,
   site,

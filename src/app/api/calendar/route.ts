@@ -5,6 +5,7 @@ import { ensureFeed } from "@/lib/calendar/records";
 import { CalendarFeedRequestSchema, type CalendarFeedResponse } from "@/lib/calendar/types";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ const SIGN_IN = "Sign in to get your calendar link.";
 const UNAVAILABLE = "Calendar links aren't available right now. Please try again later.";
 
 // POST, not GET: the first ask makes the link, and "Make a new link" retires the old one.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -38,4 +39,4 @@ export async function POST(req: Request): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});

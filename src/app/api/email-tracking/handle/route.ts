@@ -8,6 +8,7 @@ import type { HandleCheckResponse } from "@/lib/inbound/types";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ const CHECKS_PER_HOUR = 300;
 const TAKEN = "Someone already has that one.";
 
 // Whether a handle is free, as the person types. Signed in only, and counted, so it can't list who's here.
-export async function GET(req: Request): Promise<Response> {
+export const GET = withApiLocale(async function GET(req: Request): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", "Sign in first.", 401, NO_STORE);
@@ -55,4 +56,4 @@ export async function GET(req: Request): Promise<Response> {
     log.error("email_tracking.handle_check_failed", error);
     return fail("server_error", "Couldn't check that. Please try again.", 500, NO_STORE);
   }
-}
+});

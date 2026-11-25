@@ -2,6 +2,7 @@ import { TEXT_LIMITS } from "@/config/plans";
 import { tailorResume } from "@/lib/ai/tailor";
 import { TailorRequestSchema } from "@/lib/api/types";
 import { runMetered, type MeteredCopy } from "../fix/metered";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -13,7 +14,7 @@ const COPY: MeteredCopy = {
   tooLong: "That job post or resume is too long for Otto. Try a shorter job post.",
 };
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   return runMetered(req, {
     feature: "tailor",
     schema: TailorRequestSchema,
@@ -25,4 +26,4 @@ export async function POST(req: Request): Promise<Response> {
         { ui },
       ),
   });
-}
+});

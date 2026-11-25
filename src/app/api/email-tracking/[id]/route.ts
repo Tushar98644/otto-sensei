@@ -11,6 +11,7 @@ import { EmailActionSchema } from "@/lib/inbound/validation";
 import { log } from "@/lib/log";
 import { planFullText } from "@/lib/plan-limits-copy";
 import { PRO_TOOL_MESSAGES } from "../../pro-tools";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +22,10 @@ const SIGN_IN = "Sign in to track applications from email.";
 const GONE = "That update isn't in your list anymore.";
 const isId = (id: string) => z.uuid().safeParse(id).success;
 
-export async function PATCH(req: Request, { params }: Context): Promise<Response> {
+export const PATCH = withApiLocale(async function PATCH(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -56,9 +60,12 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
     log.error("email_tracking.change_failed", error);
     return fail("server_error", "Couldn't make that change. Please try again.", 500);
   }
-}
+});
 
-export async function DELETE(req: Request, { params }: Context): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -72,4 +79,4 @@ export async function DELETE(req: Request, { params }: Context): Promise<Respons
     log.error("email_tracking.dismiss_failed", error);
     return fail("server_error", "Couldn't clear that. Please try again.", 500);
   }
-}
+});

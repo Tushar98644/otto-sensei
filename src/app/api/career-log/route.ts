@@ -5,12 +5,13 @@ import type { CareerLogResponse } from "@/lib/career-log/types";
 import { log } from "@/lib/log";
 import { emailConfigured } from "@/lib/notifications/email";
 import { SIGN_IN } from "./shared";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Free on every plan: the log and its check-ins never ask for Pro.
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -26,4 +27,4 @@ export async function GET(): Promise<Response> {
     log.error("career_log.read_failed", error);
     return fail("server_error", "Couldn't load your career log. Please try again.", 500, NO_STORE);
   }
-}
+});

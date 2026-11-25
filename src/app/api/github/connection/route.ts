@@ -10,6 +10,7 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import { refreshGitHub } from "@/lib/portfolio/content-records";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ const SIGN_IN = "Sign in to connect your GitHub account.";
 const SIGN_IN_ONLY_WITH_GITHUB =
   "You sign in to this account with GitHub, so it can't be disconnected.";
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const account = await getCurrentAccount();
     if (!account) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -33,10 +34,10 @@ export async function GET(): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});
 
 // JSON-only, so another site can't start a connection with a form post.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
   if (rejected) return rejected;
   try {
@@ -54,9 +55,9 @@ export async function POST(req: Request): Promise<Response> {
     log.error("github.connect_start_failed", error);
     return fail("server_error", "Couldn't start connecting GitHub. Please try again.", 500);
   }
-}
+});
 
-export async function DELETE(req: Request): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req);
   if (rejected) return rejected;
   try {
@@ -76,7 +77,7 @@ export async function DELETE(req: Request): Promise<Response> {
     log.error("github.disconnect_failed", error);
     return fail("server_error", "Couldn't disconnect GitHub. Please try again.", 500);
   }
-}
+});
 
 async function dropPortfolioGitHub(userId: string): Promise<void> {
   try {

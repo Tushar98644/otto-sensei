@@ -12,6 +12,7 @@ import {
 import { listPreps, savePrep } from "@/lib/insights/prep-store";
 import { log } from "@/lib/log";
 import { runMetered, type MeteredCopy } from "../fix/metered";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -39,7 +40,7 @@ async function saveForCaller(
   }
 }
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", "Sign in to see your interview prep.", 401, NO_STORE);
@@ -54,9 +55,9 @@ export async function GET(): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) {
     log.warn("interview.cross_site");
@@ -75,4 +76,4 @@ export async function POST(req: Request): Promise<Response> {
       return { prep, saved: await saveForCaller(user.id, applicationId, prep) };
     },
   });
-}
+});

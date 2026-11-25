@@ -12,8 +12,10 @@ import {
 import { useId, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { PrepQuestion, StarStory } from "@/lib/insights/prep";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { PracticeMark } from "./practice-store";
 import { Speaker, WithBlanks } from "./speech";
 
@@ -49,15 +51,16 @@ export function AnswerNotes({
   story: LinkedStory | null;
   checking?: boolean;
 }) {
+  const t = useMessages("prep");
   return (
     <>
       {checking && item.checking ? (
-        <Note label="What they're checking">
+        <Note label={t.question.checking}>
           <p className="text-base/7 text-pretty text-ink">{item.checking}</p>
         </Note>
       ) : null}
       {item.points.length > 0 ? (
-        <Note label="Hit these points">
+        <Note label={t.question.points}>
           <ul className="flex flex-col gap-1.5">
             {item.points.map((point) => (
               <li key={point} className="flex gap-3 text-base/7 text-pretty text-ink">
@@ -71,7 +74,7 @@ export function AnswerNotes({
         </Note>
       ) : null}
       {story ? (
-        <Note label="Tell your story">
+        <Note label={t.question.story}>
           <a
             href={story.href}
             className="group/story flex w-fit max-w-full items-center gap-3 rounded-xl bg-surface p-2 pr-3 shadow-control ring-1 ring-ink/8 transition hover:-translate-y-px hover:shadow-page-lift print:shadow-none"
@@ -86,7 +89,7 @@ export function AnswerNotes({
               <span className="block text-sm/5 font-medium text-pretty text-ink">
                 {story.story.title}
               </span>
-              <span className="block text-xs/4 text-subtle">From your resume line</span>
+              <span className="block text-xs/4 text-subtle">{t.question.fromLine}</span>
             </span>
             <ArrowDown
               aria-hidden
@@ -96,10 +99,10 @@ export function AnswerNotes({
         </Note>
       ) : null}
       {item.followUp ? (
-        <Note label="Likely follow-up">
+        <Note label={t.question.followUp}>
           <p className="flex gap-2 text-base/7 text-pretty text-ink">
             <CornerDownRight aria-hidden className="mt-1.5 size-4 shrink-0 text-muted" />
-            <span>“{item.followUp}”</span>
+            <span>{fmt(t.quote, { text: item.followUp })}</span>
           </p>
         </Note>
       ) : null}
@@ -108,16 +111,34 @@ export function AnswerNotes({
 }
 
 export function MarkChip({ mark }: { mark: PracticeMark }) {
+  const { question } = useMessages("prep");
   return mark === "got" ? (
     <span className="inline-flex h-6 items-center gap-1 rounded-full bg-primary/8 px-2 text-xs font-medium text-primary">
       <Check aria-hidden className="size-3.5" strokeWidth={2.5} />
-      Got it
+      {question.got}
     </span>
   ) : (
     <span className="inline-flex h-6 items-center gap-1 rounded-full bg-otter-light px-2 text-xs font-medium text-otter">
       <RotateCcw aria-hidden className="size-3.5" />
-      Practice again
+      {question.again}
     </span>
+  );
+}
+
+// The key that opens practice on one question, its number said only to screen readers.
+export function PractiseButton({ number, onPractise }: { number: number; onPractise: () => void }) {
+  const { question } = useMessages("prep");
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={onPractise}
+      className="-mr-1.5 text-muted hover:text-ink"
+    >
+      <Play aria-hidden />
+      <span className="max-sm:sr-only">{question.practice}</span>
+      <span className="sr-only">{fmt(question.practiceQuestion, { number })}</span>
+    </Button>
   );
 }
 
@@ -136,13 +157,15 @@ export function QuestionCard({
   mark?: PracticeMark;
   onPractise?: () => void;
 }) {
+  const t = useMessages("prep");
+  const format = useFormat();
   const [open, setOpen] = useState(false);
   const notesId = useId();
   const more = hasMoreNotes(item, story);
   const inside = [
-    item.points.length > 0 ? pluralize(item.points.length, "point") : "",
-    story ? "your story" : "",
-    item.followUp ? "follow-up" : "",
+    item.points.length > 0 ? format.plural(t.count.points, item.points.length) : "",
+    story ? t.question.yourStory : "",
+    item.followUp ? t.question.followUpShort : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -150,29 +173,18 @@ export function QuestionCard({
     <li className={cn("break-inside-avoid", QUESTION_CARD)}>
       <div className="p-5 sm:p-6">
         <div className="flex items-center gap-x-3">
-          <Speaker meta={`Question ${number} of ${total}`} />
+          <Speaker meta={fmt(t.question.of, { number, total })} />
           <div className="ml-auto flex items-center gap-2 print:hidden">
             {mark ? <MarkChip mark={mark} /> : null}
-            {onPractise ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onPractise}
-                className="-mr-1.5 text-muted hover:text-ink"
-              >
-                <Play aria-hidden />
-                <span className="max-sm:sr-only">Practice</span>
-                <span className="sr-only"> question {number}</span>
-              </Button>
-            ) : null}
+            {onPractise ? <PractiseButton number={number} onPractise={onPractise} /> : null}
           </div>
         </div>
         <h3 className="mt-4 font-display text-2xl/8 font-normal text-pretty text-ink">
-          “{item.question}”
+          {fmt(t.quote, { text: item.question })}
         </h3>
         {item.checking ? (
           <p className="mt-4 border-l-2 border-primary/25 pl-3 text-sm/6 text-pretty text-muted">
-            <span className="font-medium text-ink">What they&apos;re checking: </span>
+            <span className="font-medium text-ink">{t.question.checkingLead}</span>
             {item.checking}
           </p>
         ) : null}
@@ -193,7 +205,7 @@ export function QuestionCard({
                 open && "rotate-180",
               )}
             />
-            How to answer
+            {t.question.howTo}
             {inside ? (
               <span className="ml-auto hidden pl-2 text-xs/5 font-normal text-subtle sm:block">
                 {inside}

@@ -14,6 +14,7 @@ import { clientIp, readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit } from "@/lib/rate-limit";
 import { isAutomatedAgent } from "@/lib/share/visits";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ const PER_MINUTE = 60;
 const NOT_NOTED = { noted: false, identified: false };
 
 // The browser's beacon: page views, named events and web vitals, sent on to PostHog from here.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   // Crawlers, speed tests and headless browsers aren't visitors; PostHog can't tell without the agent.
@@ -87,4 +88,4 @@ export async function POST(req: Request): Promise<Response> {
     log.warn("analytics.activity_failed", {}, error);
     return ok(NOT_NOTED, { headers: NO_STORE });
   }
-}
+});

@@ -14,15 +14,12 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
 import { useFormat, useMessages } from "@/i18n/client";
+import { rich, type RichTags } from "@/i18n/rich";
 import type { Application } from "@/lib/applications/schema";
 import { tally } from "@/lib/applications/stats";
 import {
-  findingOf,
   letteredApplications,
-  notEnoughLine,
   resumeKinds,
-  suggestionCopy,
-  waitingLine,
   whatsWorking,
   type Comparison,
   type Group,
@@ -32,6 +29,8 @@ import { useAppQueryClient } from "@/lib/queries/client";
 import { letteredApplicationsQuery, writingsQuery } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
+import type { ApplicationsMessages } from "../i18n";
+import { findingLines, notEnoughText, suggestionText, waitingText } from "./copy";
 
 type Variant = "home" | "page";
 
@@ -131,12 +130,13 @@ function Findings({
   onTailor?: (() => void) | null;
   onAddApplication?: () => void;
 }) {
-  const { working: words } = useMessages("applications");
+  const t = useMessages("applications");
+  const words = t.working;
   const format = useFormat();
   const { resume, letter } = working;
-  const finding = resume.ready ? findingOf(resume) : null;
-  const waiting = waitingLine(working.waiting);
-  const next = suggestionCopy(working);
+  const finding = resume.ready ? findingLines(resume, t) : null;
+  const waiting = waitingText(working.waiting, t, format);
+  const next = suggestionText(working, t, format);
   return (
     <>
       <div className="flex flex-col gap-2">
@@ -145,9 +145,7 @@ function Findings({
         </Eyebrow>
         {finding ? (
           <p className="font-display text-2xl/8 font-normal tracking-tight text-pretty text-ink sm:text-3xl/9">
-            {finding.lead}
-            <mark className="highlighter text-ink">{together(finding.mark)}</mark>
-            {finding.tail} {together(finding.rest)}
+            {rich(finding.lead, MARK)} {finding.rest}
           </p>
         ) : (
           <>
@@ -155,13 +153,13 @@ function Findings({
               {working.total === 0 ? words.seeWhich : words.notEnough}
             </p>
             {working.total > 0 ? (
-              <p className="text-sm/6 text-pretty text-muted">{together(notEnoughLine(resume))}</p>
+              <p className="text-sm/6 text-pretty text-muted">{notEnoughText(resume, t, format)}</p>
             ) : null}
           </>
         )}
         {letter ? (
           <p className="text-sm/6 text-pretty text-muted">
-            {letter.ready ? letterText(letter) : notEnoughLine(letter)}
+            {letter.ready ? letterText(letter, t) : notEnoughText(letter, t, format)}
           </p>
         ) : null}
         {waiting ? <p className="text-sm/6 text-pretty text-subtle">{waiting}</p> : null}
@@ -181,14 +179,16 @@ function Findings({
   );
 }
 
-// "4 of 12" never breaks across lines.
-function together(text: string): string {
-  return text.replace(/(\d+) of (\d+)/g, "$1\u00a0of\u00a0$2");
-}
+const MARK: RichTags = { b: (chunk) => <mark className="highlighter text-ink">{chunk}</mark> };
+const PLAIN: RichTags = { b: (chunk) => chunk };
 
-function letterText(comparison: Comparison): string {
-  const finding = findingOf(comparison);
-  return together(`${finding.lead}${finding.mark}${finding.tail} ${finding.rest}`);
+function letterText(comparison: Comparison, t: ApplicationsMessages) {
+  const finding = findingLines(comparison, t);
+  return (
+    <>
+      {rich(finding.lead, PLAIN)} {finding.rest}
+    </>
+  );
 }
 
 const ACTION = "max-sm:w-full";

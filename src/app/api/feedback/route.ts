@@ -8,6 +8,7 @@ import { clientIp, getDeviceId, readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,7 @@ const LIMITS = [
   { key: "user", limit: 20, windowMs: DAY_MS },
 ] as const;
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -53,7 +54,7 @@ export async function POST(req: Request): Promise<Response> {
     log.error("feedback.failed", error);
     return fail("server_error", "Couldn't send that. Please try again.", 500);
   }
-}
+});
 
 async function signedInOrAnonymous(): Promise<SessionUser | null> {
   try {

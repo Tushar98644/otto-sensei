@@ -1,5 +1,22 @@
-import { STATUS_NAMES } from "@/lib/applications/status";
+import { fmt } from "@/i18n/format";
+import { formatFor, type Format } from "@/i18n/intl";
+import EN_APPLICATIONS from "@/i18n/messages/en/applications";
+import EN_EMAIL from "@/i18n/messages/en/email";
 import type { EmailEvent, EmailTrackingState, TrackingAddress } from "@/lib/inbound/types";
+import type { ApplicationsMessages, EmailMessages } from "../../i18n";
+
+// The reader's words for what an email did; English unless the dashboard passes its own.
+export type EmailWords = {
+  email: Pick<EmailMessages, "proposal" | "change">;
+  statuses: ApplicationsMessages["statuses"];
+  format: Format;
+};
+
+const ENGLISH: EmailWords = {
+  email: EN_EMAIL,
+  statuses: EN_APPLICATIONS.statuses,
+  format: formatFor("en"),
+};
 
 export type SetupStage = "address" | "confirm" | "filter" | "working";
 
@@ -54,53 +71,47 @@ export function splitEvents(state: EmailTrackingState): {
 }
 
 // What Apply would do, said plainly: "Move Northwind to Rejected".
-export function proposalLine(event: EmailEvent): string {
+export function proposalLine(event: EmailEvent, words: EmailWords = ENGLISH): string {
+  const t = words.email.proposal;
   const proposal = event.proposal;
-  if (!proposal) return "Nothing to change";
-  const name = proposal.company || event.company || "this job";
-  const to = proposal.toStatus ? STATUS_NAMES[proposal.toStatus] : "";
-  const when = event.eventAt !== null ? ` on ${interviewLine(event)}` : "";
-  if (proposal.change === "created")
-    return `Add ${name} to ${to}${to === "Interviewing" ? when : ""}`;
-  if (proposal.change === "moved")
-    return `Move ${name} to ${to}${to === "Interviewing" ? when : ""}`;
-  if (proposal.change === "dated") return `Set ${name}'s interview to ${interviewLine(event)}`;
-  return `${name} is already ${to ? `in ${to}` : "on your board"}, so nothing would change`;
+  if (!proposal) return t.nothing;
+  const name = proposal.company || event.company || t.thisJob;
+  const status = proposal.toStatus ? words.statuses[proposal.toStatus] : "";
+  const when = interviewLine(event, words.format);
+  const dated = event.eventAt !== null && proposal.toStatus === "interview";
+  if (proposal.change === "created") return fmt(dated ? t.addOn : t.add, { name, status, when });
+  if (proposal.change === "moved") return fmt(dated ? t.moveOn : t.move, { name, status, when });
+  if (proposal.change === "dated") return fmt(t.date, { name, when });
+  return status ? fmt(t.already, { name, status }) : fmt(t.onBoard, { name });
 }
 
-const DAY_TIME = new Intl.DateTimeFormat("en-US", {
+const DAY_TIME = {
   weekday: "short",
   month: "short",
   day: "numeric",
   hour: "numeric",
   minute: "2-digit",
-});
+} as const;
 
-export function interviewLine(event: EmailEvent): string {
+export function interviewLine(event: EmailEvent, format: Format = ENGLISH.format): string {
   if (event.eventText) return event.eventText;
-  return event.eventAt === null ? "" : DAY_TIME.format(event.eventAt);
+  return event.eventAt === null ? "" : format.date(event.eventAt, DAY_TIME);
 }
 
-export function changeLine(event: EmailEvent): string {
-  const to = event.toStatus ? STATUS_NAMES[event.toStatus] : "";
-  if (event.undoneAt !== null) return "Undone";
-  if (event.change === "created") return `Added to ${to}`;
-  if (event.change === "moved") return `Moved to ${to}`;
-  if (event.change === "dated") return "Interview day updated";
-  if (event.change === "pending") return "Waiting for you to check";
-  if (!event.applicationId) return "Nothing to change";
-  if (event.kind === "applied") return "Already on your board";
-  return to ? `Already in ${to}, so nothing moved` : "Nothing moved";
+export function changeLine(event: EmailEvent, words: EmailWords = ENGLISH): string {
+  const t = words.email.change;
+  const status = event.toStatus ? words.statuses[event.toStatus] : "";
+  if (event.undoneAt !== null) return t.undone;
+  if (event.change === "created") return fmt(t.added, { status });
+  if (event.change === "moved") return fmt(t.moved, { status });
+  if (event.change === "dated") return t.dated;
+  if (event.change === "pending") return t.pending;
+  if (!event.applicationId) return t.nothing;
+  if (event.kind === "applied") return t.onBoard;
+  return status ? fmt(t.already, { status }) : t.none;
 }
 
-export const KIND_NAMES: Record<EmailEvent["kind"], string> = {
-  applied: "Application received",
-  rejected: "Rejection",
-  interview: "Interview invite",
-  assessment: "Assessment",
-  offer: "Offer",
-  unknown: "Not a hiring update",
-};
+export const KIND_NAMES: Record<EmailEvent["kind"], string> = EN_EMAIL.kinds;
 
 export function canUndo(event: EmailEvent): boolean {
   return (
@@ -111,11 +122,7 @@ export function canUndo(event: EmailEvent): boolean {
   );
 }
 
-export const TRUST_LINES: Record<NonNullable<EmailEvent["trust"]>, string> = {
-  source: "From your Gmail",
-  sender: "Signed by the sender",
-  you: "You applied it",
-};
+export const TRUST_LINES: Record<NonNullable<EmailEvent["trust"]>, string> = EN_EMAIL.trust;
 
 // The newest change that still stands, else the newest email read.
 export function lastRead(state: EmailTrackingState): EmailEvent | null {

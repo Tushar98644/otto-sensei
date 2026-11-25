@@ -5,11 +5,12 @@ import { rejectNonJson } from "@/lib/auth/route-guards";
 import { clientIp, readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { retryAfterHeader } from "@/lib/rate-limit";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
 // Same answer whether or not the address has an account, so sign-ups can't be probed.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const notJson = rejectNonJson(req);
   if (notJson) return notJson;
   const body = await readJson(req, RequestCodeSchema);
@@ -37,4 +38,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("auth.request_code_failed", error);
     return fail("server_error", "We couldn't send your code. Please try again in a minute.", 500);
   }
-}
+});

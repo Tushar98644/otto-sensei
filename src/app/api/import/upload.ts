@@ -19,7 +19,10 @@ const MAX_BODY_BYTES = UPLOAD_LIMITS.maxBytes + 64 * 1024;
 const NO_FILE = "Choose a PDF or Word (.docx) file to upload.";
 const TOO_LARGE = `That file is over ${MAX_MB} MB. Try a smaller copy.`;
 
-const PARSE_FAILURES: Record<ParseErrorCode, { code: ApiErrorCode; status: number; message?: string }> = {
+const PARSE_FAILURES: Record<
+  ParseErrorCode,
+  { code: ApiErrorCode; status: number; message?: string }
+> = {
   unsupported_type: { code: "unsupported_type", status: 415 },
   too_large: { code: "too_large", status: 413 },
   too_many_pages: {
@@ -41,7 +44,10 @@ export type CheckedUpload = {
   user?: SessionUser | null;
 };
 
-export async function checkUpload(req: Request, kind: UploadKind): Promise<CheckedUpload | Response> {
+export async function checkUpload(
+  req: Request,
+  kind: UploadKind,
+): Promise<CheckedUpload | Response> {
   const startedAt = Date.now();
   // Multipart needs no preflight, so another site could otherwise spend our parsing and AI.
   const crossSite = rejectCrossSite(req);
@@ -71,7 +77,8 @@ export async function checkUpload(req: Request, kind: UploadKind): Promise<Check
 async function readUpload(req: Request): Promise<File | Response> {
   const type = req.headers.get("content-type") ?? "";
   if (!/^multipart\/form-data\b/i.test(type)) return fail("bad_request", NO_FILE, 400);
-  if (Number(req.headers.get("content-length")) > MAX_BODY_BYTES) return fail("too_large", TOO_LARGE, 413);
+  if (Number(req.headers.get("content-length")) > MAX_BODY_BYTES)
+    return fail("too_large", TOO_LARGE, 413);
 
   const body = await readBody(req, MAX_BODY_BYTES);
   if (!body.ok) {
@@ -88,7 +95,8 @@ async function readUpload(req: Request): Promise<File | Response> {
   }
   const file = form.get("file");
   if (file === null || typeof file === "string") return fail("bad_request", NO_FILE, 400);
-  if (file.size === 0) return fail("bad_request", "That file is empty. Choose your resume and try again.", 400);
+  if (file.size === 0)
+    return fail("bad_request", "That file is empty. Choose your resume and try again.", 400);
   if (file.size > UPLOAD_LIMITS.maxBytes) return fail("too_large", TOO_LARGE, 413);
   return file;
 }

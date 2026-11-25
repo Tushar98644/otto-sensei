@@ -7,11 +7,12 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { creditField } from "@/lib/usage-credit";
 import { takeAccountUnit, upgradeRequired } from "../metered-free";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   try {
     const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
     if (rejected) return rejected;
@@ -20,7 +21,9 @@ export async function POST(req: Request): Promise<Response> {
 
     const user = await getCurrentUser();
     const startedAt = Date.now();
-    const unit = user ? await takeAccountUnit(user, "draft", startedAt) : upgradeRequired(null, "draft");
+    const unit = user
+      ? await takeAccountUnit(user, "draft", startedAt)
+      : upgradeRequired(null, "draft");
     if (unit instanceof Response) return unit;
 
     let drafted: Awaited<ReturnType<typeof draftResume>>;
@@ -44,4 +47,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("draft.failed", error);
     return fail("server_error", "Otto couldn't write the draft. Please try again.", 500);
   }
-}
+});

@@ -7,10 +7,11 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { createCheckoutUrl } from "@/lib/billing";
 import { readJson } from "@/lib/http";
 import { billingFailure, limitBillingLinks } from "../shared";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+export const POST = withApiLocale(async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", "Sign in to upgrade.", 401);
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   } catch (error) {
     return billingFailure(error, "checkout");
   }
-}
+});
 
 type Choice = { plan: PaidPlanId; interval: BillingInterval; next: string | null };
 

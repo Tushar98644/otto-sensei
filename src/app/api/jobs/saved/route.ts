@@ -4,11 +4,12 @@ import type { SavedJobsResponse } from "@/lib/api/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { listSavedJobs } from "@/lib/job-feed/records";
 import { log } from "@/lib/log";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", "Sign in to see your saved jobs.", 401, NO_STORE);
@@ -20,4 +21,4 @@ export async function GET(): Promise<Response> {
     log.error("jobs.saved_list_failed", error);
     return fail("server_error", "Couldn't load your saved jobs. Please try again.", 500, NO_STORE);
   }
-}
+});

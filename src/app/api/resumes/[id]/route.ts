@@ -12,6 +12,7 @@ import { ResumeSchema } from "@/lib/resume/validation";
 import type { PutResumeResult } from "@/lib/sync/api-types";
 import { proToolRequired } from "../../pro-tools";
 import { deleteBackup, saveBackup } from "../backups";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,10 @@ function baseOf(req: Request): number | undefined {
   return raw !== null && /^\d{1,15}$/.test(raw) ? Number(raw) : undefined;
 }
 
-export async function PUT(req: Request, { params }: Context): Promise<Response> {
+export const PUT = withApiLocale(async function PUT(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const notJson = rejectNonJson(req);
   if (notJson) return notJson;
   try {
@@ -91,9 +95,12 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
     log.error("resumes.save_failed", error);
     return fail("server_error", "Couldn't save your resume. Please try again.", 500);
   }
-}
+});
 
-export async function DELETE(_req: Request, { params }: Context): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(
+  _req: Request,
+  { params }: Context,
+): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401);
@@ -104,4 +111,4 @@ export async function DELETE(_req: Request, { params }: Context): Promise<Respon
     log.error("resumes.delete_failed", error);
     return fail("server_error", "Couldn't delete that resume. Please try again.", 500);
   }
-}
+});

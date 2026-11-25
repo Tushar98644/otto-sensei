@@ -17,6 +17,7 @@ import { log } from "@/lib/log";
 import { giveBackRateLimit, rateLimit, retryAfterHeader, waitLong } from "@/lib/rate-limit";
 import { DAY_MS } from "@/lib/time";
 import { TRANSCRIBE_LIMITS } from "./limits";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -49,7 +50,7 @@ const CAPPED_GIVE_BACKS_PER_DAY = 3;
 
 type Clip = { bytes: Uint8Array; format: AudioFormat; seconds: number; language?: ContentLang };
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   try {
     // Multipart needs no preflight, so another site could otherwise spend our speech-to-text.
     const crossSite = rejectCrossSite(req);
@@ -96,7 +97,7 @@ export async function POST(req: Request): Promise<Response> {
     log.error("transcribe.failed", error);
     return fail("server_error", "Something went wrong. Please try again.", 500);
   }
-}
+});
 
 const dayKey = (userId: string) => `transcribe:day:user:${userId}`;
 

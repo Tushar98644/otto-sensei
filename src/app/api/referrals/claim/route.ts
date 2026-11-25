@@ -6,13 +6,14 @@ import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { claimFromCookie } from "@/lib/referrals/cookie";
 import { HOUR_MS } from "@/lib/time";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
 const CLAIMS_PER_HOUR = 10;
 
 // The code comes from the invite cookie, never the body.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -33,4 +34,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("referral.claim_failed", error);
     return fail("server_error", "Something went wrong. Please try again.", 500);
   }
-}
+});

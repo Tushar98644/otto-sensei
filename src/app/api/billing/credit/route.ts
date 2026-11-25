@@ -5,11 +5,12 @@ import { creditActivity, creditState } from "@/lib/billing/credit";
 import { creditOffered } from "@/lib/billing/intervals";
 import { log } from "@/lib/log";
 import { limitReads } from "../read-limit";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", "Sign in to see your credit.", 401, NO_STORE);
@@ -24,4 +25,4 @@ export async function GET(): Promise<Response> {
     log.error("billing.credit_failed", error);
     return fail("server_error", "Couldn't load your credit. Please try again.", 500, NO_STORE);
   }
-}
+});

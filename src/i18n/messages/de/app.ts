@@ -1,0 +1,55 @@
+import type { Messages } from "..";
+import type { Translation } from "../../types";
+
+export default {
+  usage: {
+    thisPeriod: { month: "diesen Monat", trial: "in diesem Test" },
+    perPeriod: { month: "pro Monat", trial: "während des Tests" },
+    renews: "bei der Verlängerung deines Tarifs",
+    onDayRenews: "am {day} bei der Verlängerung deines Tarifs",
+    onDay: "am {day}",
+    trialStarts: "Dein volles Kontingent beginnt am {day}.",
+    reset: "Sie werden {when} zurückgesetzt.",
+    pool: "{count} {feature}",
+    usedAll: "Du hast {period} alle {pool} genutzt. {reset}",
+    usesOne: "Nutzt 1 von deinen {pool} {period}. Noch {left} übrig.",
+  },
+  features: {
+    fix: "Zeilenkorrekturen",
+    tailor: "angepasste Versionen",
+    letter: "Anschreiben, Kontaktnachrichten, Antworten und Interviewvorbereitungen",
+    import: "KI-Lesungen eines hochgeladenen Lebenslaufs",
+    draft: "Entwürfe mit Otto",
+    github: "GitHub-Projektentwürfe",
+  },
+  copy: {
+    copied: "Kopiert",
+    cantCopy: "Kopieren nicht möglich",
+    selectText: "Markier den Text im Feld und kopier ihn von dort.",
+  },
+  undo: "Rückgängig",
+  trashed: "In Zuletzt gelöscht verschoben",
+  pro: { comesWith: ", enthalten in " },
+  seePro: "Pro ansehen",
+  tryOffer: "{plan} {days} Tage testen",
+  errors: {
+    fallback: "Etwas ist schiefgelaufen. Bitte versuch es noch mal.",
+    offline: "Der Server ist nicht erreichbar. Prüf deine Verbindung.",
+  },
+  justNow: "gerade eben",
+  working: {
+    import: "Otto liest deine Datei.",
+    job: "Otto liest die Stellenanzeige.",
+    tailor: "Otto liest die Stellenanzeige und deinen Lebenslauf.",
+    fix: "Otto überlegt sich eine stärkere Zeile.",
+    line: "Otto schreibt deine Zeile.",
+    summary: "Otto überlegt sich eine Zusammenfassung.",
+    letter: "Otto schreibt dein Anschreiben.",
+    answer: "Otto entwirft deine Antwort.",
+    outreach: "Otto schreibt deine Nachricht.",
+    interview: "Otto baut deine Interviewvorbereitung.",
+    draft: "Otto schreibt deinen ersten Entwurf.",
+    githubLookup: "Otto sucht deine öffentliche Arbeit auf GitHub.",
+    github: "Otto macht aus deiner GitHub-Arbeit Projektzeilen.",
+  },
+} satisfies Translation<Messages["app"]>;

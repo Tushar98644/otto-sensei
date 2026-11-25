@@ -6,7 +6,10 @@ import type {
   TechnicalQuestion,
   TechnicalSection,
 } from "./prep";
-import { FOCUS_COPY, kindLabel, LEVEL_COPY } from "./prep-focus";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
+import EN_PREP from "@/i18n/messages/en/prep";
+import type { RoleFocus, TechnicalKind } from "./prep-focus";
 import { byRound, type PrepRound } from "./prep-rounds";
 import { savedJobText, savedJobUrl } from "./saved-job";
 
@@ -54,19 +57,10 @@ export function countBlanks(prep: InterviewPrep): number {
   );
 }
 
-export const ROUND_COPY: Record<PrepRound, { label: string; about: string }> = {
-  opening: {
-    label: "Opening",
-    about: "The first few minutes: who you are and what brought you here.",
-  },
-  fit: { label: "Role fit", about: "Why this job, and why you." },
-  skills: { label: "Skills", about: "The work itself, built from what the post asks for most." },
-  behavioural: {
-    label: "Behavioral",
-    about: "Real times from your past: what you did and what changed.",
-  },
-  closing: { label: "Closing", about: "Wrapping up, just before your questions." },
-};
+// The words for rounds, focuses and the copied text: the dashboard passes its reader's, English otherwise.
+export type PrepCopy = Pick<Messages["prep"], "rounds" | "focus" | "levels" | "kinds" | "text">;
+
+export const ROUND_COPY: Record<PrepRound, { label: string; about: string }> = EN_PREP.rounds;
 
 export function questionCount(prep: Pick<InterviewPrep, "questions" | "technical">): number {
   return prep.questions.length + (prep.technical?.questions.length ?? 0);
@@ -130,30 +124,43 @@ export function orderedQuestions(prep: PackQuestions): NumberedQuestion[] {
   return prepStops(prep).flatMap((stop) => (stop.round === "technical" ? [] : stop.questions));
 }
 
-export function stopCopy(stop: PrepStop): { label: string; about: string } {
-  if (stop.round !== "technical") return ROUND_COPY[stop.round];
-  const copy = FOCUS_COPY[stop.section.focus];
-  return { label: copy.section, about: copy.about };
+export function stopCopy(
+  stop: PrepStop,
+  copy: PrepCopy = EN_PREP,
+): { label: string; about: string } {
+  if (stop.round !== "technical") return copy.rounds[stop.round];
+  const focus = copy.focus[stop.section.focus];
+  return { label: focus.section, about: focus.about };
 }
 
-export function focusLine(section: Pick<TechnicalSection, "focus" | "level">): string {
-  return `${FOCUS_COPY[section.focus].label} · ${LEVEL_COPY[section.level]}`;
+export function kindName(focus: RoleFocus, kind: TechnicalKind, copy: PrepCopy = EN_PREP): string {
+  const entry = copy.focus[focus];
+  const kinds: Partial<Record<TechnicalKind, string>> | undefined =
+    "kinds" in entry ? entry.kinds : undefined;
+  return kinds?.[kind] ?? copy.kinds[kind];
+}
+
+export function focusLine(
+  section: Pick<TechnicalSection, "focus" | "level">,
+  copy: PrepCopy = EN_PREP,
+): string {
+  return `${copy.focus[section.focus].label} · ${copy.levels[section.level]}`;
 }
 
 export type PracticeStep =
   | { kind: "general"; item: PrepQuestion; number: number; stop: number; label: string }
   | { kind: "technical"; item: TechnicalQuestion; number: number; stop: number; label: string };
 
-export function practiceSteps(prep: PackQuestions): PracticeStep[] {
+export function practiceSteps(prep: PackQuestions, copy: PrepCopy = EN_PREP): PracticeStep[] {
   return prepStops(prep).flatMap((stop): PracticeStep[] => {
-    const label = stopCopy(stop).label;
+    const label = stopCopy(stop, copy).label;
     if (stop.round === "technical") {
       return stop.questions.map(({ item, number }) => ({
         kind: "technical",
         item,
         number,
         stop: stop.number,
-        label: `${label} · ${kindLabel(stop.section.focus, item.kind)}`,
+        label: `${label} · ${kindName(stop.section.focus, item.kind, copy)}`,
       }));
     }
     return stop.questions.map(({ item, number }) => ({
@@ -176,21 +183,24 @@ export function storyUses(
   return uses;
 }
 
-function technicalText(stop: TechnicalStop): string[] {
-  const out = [`Round ${stop.number} · ${stopCopy(stop).label} (${focusLine(stop.section)})`];
+function technicalText(stop: TechnicalStop, copy: PrepCopy): string[] {
+  const { text } = copy;
+  const title = stopCopy(stop, copy).label;
+  const focus = focusLine(stop.section, copy);
+  const out = [fmt(text.technicalRound, { number: stop.number, label: title, focus })];
   for (const { item, number } of stop.questions) {
-    const label = [kindLabel(stop.section.focus, item.kind), item.topic]
+    const label = [kindName(stop.section.focus, item.kind, copy), item.topic]
       .filter(Boolean)
       .join(" · ");
     out.push(`${number}. [${label}] ${item.question}`);
     if (item.assume) out.push(`   ${item.assume}`);
-    if (item.resume) out.push(`   From your resume: "${item.resume.line}" (${item.resume.place})`);
+    if (item.resume) out.push(`   ${fmt(text.fromResume, item.resume)}`);
     if (item.covers.length > 0)
-      out.push("   What a strong answer covers:", ...item.covers.map((cover) => `   - ${cover}`));
+      out.push(`   ${text.covers}`, ...item.covers.map((cover) => `   - ${cover}`));
     if (item.pitfalls.length > 0)
-      out.push("   Common pitfalls:", ...item.pitfalls.map((pitfall) => `   - ${pitfall}`));
+      out.push(`   ${text.pitfalls}`, ...item.pitfalls.map((pitfall) => `   - ${pitfall}`));
     if (item.probes.length > 0)
-      out.push("   Follow-up probes:", ...item.probes.map((probe) => `   - ${probe}`));
+      out.push(`   ${text.probes}`, ...item.probes.map((probe) => `   - ${probe}`));
   }
   return out;
 }
@@ -198,37 +208,41 @@ function technicalText(stop: TechnicalStop): string[] {
 export function prepToText(
   prep: InterviewPrep,
   target: Pick<PrepTarget, "company" | "role">,
+  copy: PrepCopy = EN_PREP,
 ): string {
-  const role = [target.role || prep.job.title, target.company || prep.job.company]
-    .filter(Boolean)
-    .join(" at ");
-  const out: string[] = [`Interview prep${role ? `: ${role}` : ""}`, ""];
+  const { text } = copy;
+  const title = target.role || prep.job.title;
+  const company = target.company || prep.job.company;
+  const role = title && company ? fmt(text.roleAt, { role: title, company }) : title || company;
+  const out: string[] = [role ? fmt(text.titleFor, { role }) : text.title, ""];
   for (const group of prepStops(prep)) {
     if (group.round === "technical") {
-      out.push(...technicalText(group), "");
+      out.push(...technicalText(group, copy), "");
       continue;
     }
-    out.push(`Round ${group.number} · ${ROUND_COPY[group.round].label}`);
+    out.push(fmt(text.round, { number: group.number, label: copy.rounds[group.round].label }));
     for (const { item, number } of group.questions) {
       out.push(`${number}. ${item.question}`);
-      if (item.checking) out.push(`   What they're checking: ${item.checking}`);
+      if (item.checking) out.push(`   ${fmt(text.checking, { text: item.checking })}`);
       if (item.points.length > 0)
-        out.push("   Hit these points:", ...item.points.map((point) => `   - ${point}`));
+        out.push(`   ${text.points}`, ...item.points.map((point) => `   - ${point}`));
       const story = item.story === null ? undefined : prep.stories[item.story];
-      if (story) out.push(`   Use your story: ${story.title}`);
-      if (item.followUp) out.push(`   Likely follow-up: ${item.followUp}`);
+      if (story) out.push(`   ${fmt(text.useStory, { title: story.title })}`);
+      if (item.followUp) out.push(`   ${fmt(text.followUp, { text: item.followUp })}`);
     }
     out.push("");
   }
   if (prep.asks.length > 0) {
-    out.push("Your turn: questions to ask them", ...prep.asks.map((ask) => `- ${ask}`), "");
+    out.push(text.asks, ...prep.asks.map((ask) => `- ${ask}`), "");
   }
   if (prep.stories.length > 0) {
-    out.push("Your stories (STAR)");
+    out.push(text.stories);
     for (const story of prep.stories) {
-      out.push(`- ${story.title}`, `  From: "${story.line}" (${story.place})`);
-      out.push(`  Situation: ${story.situation}`, `  Task: ${story.task}`);
-      out.push(`  Action: ${story.action}`, `  Result: ${story.result}`);
+      out.push(`- ${story.title}`, `  ${fmt(text.from, story)}`);
+      out.push(`  ${fmt(text.situation, { text: story.situation })}`);
+      out.push(`  ${fmt(text.task, { text: story.task })}`);
+      out.push(`  ${fmt(text.action, { text: story.action })}`);
+      out.push(`  ${fmt(text.result, { text: story.result })}`);
     }
   }
   return out.join("\n").trimEnd();

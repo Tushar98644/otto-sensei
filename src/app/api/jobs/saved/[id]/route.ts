@@ -8,6 +8,7 @@ import { saveJob, savedCount, unsaveJob } from "@/lib/job-feed/records";
 import { SAVED_JOBS_LIMIT, type SavedJobResponse } from "@/lib/job-feed/types";
 import { log } from "@/lib/log";
 import { requireProTool } from "../../../pro-tools";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,10 @@ async function jobId(context: Context): Promise<string | null> {
   return parsed.success ? parsed.data : null;
 }
 
-export async function PUT(req: Request, context: Context): Promise<Response> {
+export const PUT = withApiLocale(async function PUT(
+  req: Request,
+  context: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -55,9 +59,12 @@ export async function PUT(req: Request, context: Context): Promise<Response> {
     log.error("jobs.save_failed", error);
     return fail("server_error", "Couldn't save that job. Please try again.", 500, NO_STORE);
   }
-}
+});
 
-export async function DELETE(req: Request, context: Context): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(
+  req: Request,
+  context: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -75,4 +82,4 @@ export async function DELETE(req: Request, context: Context): Promise<Response> 
     log.error("jobs.unsave_failed", error);
     return fail("server_error", "Couldn't remove that job. Please try again.", 500, NO_STORE);
   }
-}
+});

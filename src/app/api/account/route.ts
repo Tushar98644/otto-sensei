@@ -11,6 +11,7 @@ import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import { portfolioSlugsOf } from "@/lib/portfolio/records";
 import { deleteUserData } from "@/lib/users";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,7 @@ const AUTH_DELETE_FAILED_MESSAGE =
   "Your resumes and data are deleted, but we couldn't finish closing your sign-in. Try again in a minute.";
 
 // Cancel billing first (no one could manage it once rows are gone); delete the auth user last.
-export async function DELETE(): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", "Sign in to delete your account.", 401);
@@ -69,4 +70,4 @@ export async function DELETE(): Promise<Response> {
     log.error("account.delete_failed", error);
     return fail("server_error", "Couldn't delete your account. Please try again.", 500);
   }
-}
+});

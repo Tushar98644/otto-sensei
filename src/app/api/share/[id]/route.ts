@@ -10,6 +10,7 @@ import { type ShareResponse } from "@/lib/share/types";
 import { UpdateShareSchema } from "@/lib/share/validation";
 import { NOT_FOUND, SIGN_IN } from "../messages";
 import { writeLimited } from "../write-limit";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,10 @@ type Context = { params: Promise<{ id: string }> };
 const isShareId = (id: string) => z.uuid().safeParse(id).success;
 
 // Another account's id gets the same 404 as a missing one, so ids can't be probed.
-export async function PATCH(req: Request, { params }: Context): Promise<Response> {
+export const PATCH = withApiLocale(async function PATCH(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -46,9 +50,12 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
     log.error("share.update_failed", error);
     return fail("server_error", "Couldn't save that change. Please try again.", 500);
   }
-}
+});
 
-export async function DELETE(req: Request, { params }: Context): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -61,4 +68,4 @@ export async function DELETE(req: Request, { params }: Context): Promise<Respons
     log.error("share.revoke_failed", error);
     return fail("server_error", "Couldn't turn off the link. Please try again.", 500);
   }
-}
+});

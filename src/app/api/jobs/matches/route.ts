@@ -14,6 +14,7 @@ import { DEFAULT_FILTERS, type JobMatchesResponse } from "@/lib/job-feed/types";
 import { JobMatchesRequestSchema } from "@/lib/job-feed/validation";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ async function afterResponse(writes: readonly Write[]): Promise<void> {
 }
 
 // The body holds skills, titles and years read in the browser, never the resume.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -74,7 +75,9 @@ export async function POST(req: Request): Promise<Response> {
       userId: user.id,
       view: free ? "matches" : body.data.view,
       profile: body.data.profile,
-      filters: free ? { ...DEFAULT_FILTERS, remote: lookingFor?.remote ?? false } : body.data.filters,
+      filters: free
+        ? { ...DEFAULT_FILTERS, remote: lookingFor?.remote ?? false }
+        : body.data.filters,
       page: free ? 1 : body.data.page,
       workProfile: work?.profile ?? null,
       lookingFor,
@@ -112,4 +115,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("jobs.match_failed", error);
     return fail("server_error", "Couldn't load jobs right now. Please try again.", 500, NO_STORE);
   }
-}
+});

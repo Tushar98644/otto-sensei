@@ -7,6 +7,7 @@ import { EntryChangeSchema, MonthSchema } from "@/lib/career-log/validation";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { SIGN_IN, writeLimited } from "../../shared";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,10 @@ type Context = { params: Promise<{ month: string }> };
 
 const NOT_A_MONTH = "That month isn't valid.";
 
-export async function PUT(req: Request, { params }: Context): Promise<Response> {
+export const PUT = withApiLocale(async function PUT(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -48,9 +52,12 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
     log.error("career_log.entry_save_failed", error);
     return fail("server_error", "Couldn't save that note. Please try again.", 500);
   }
-}
+});
 
-export async function DELETE(req: Request, { params }: Context): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -63,4 +70,4 @@ export async function DELETE(req: Request, { params }: Context): Promise<Respons
     log.error("career_log.entry_delete_failed", error);
     return fail("server_error", "Couldn't delete that month. Please try again.", 500);
   }
-}
+});
