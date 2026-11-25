@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { CONTENT_LANGS, type ContentLang } from "@/lib/i18n/languages";
 import {
   EMPLOYMENT_TYPES,
   OCCUPATION_CODE,
@@ -91,7 +92,8 @@ export const familyOf = (code: number): RoleFamily | null => ROLE_FAMILIES[code 
 export const levelCode = (seniority: Seniority) => SENIORITIES.indexOf(seniority);
 export const seniorityOf = (code: number): Seniority => SENIORITIES[code] ?? "mid";
 
-// Listing flags: what the read set (low bits), what the rebuild set, and the job type in bits 6-8.
+// Listing flags: what the read set (low bits), what the rebuild set, the job type in bits 6-8 and
+// the post's language in bits 9-11 (0: not known, read as English).
 export const FLAG = {
   remote: 1,
   evergreen: 2,
@@ -102,20 +104,35 @@ export const FLAG = {
 } as const;
 export const REBUILD_FLAGS = FLAG.lead | FLAG.openingRemote | FLAG.copy | FLAG.hasCopies;
 const TYPE_SHIFT = 6;
+export const LANG_SHIFT = 9;
 
 export function readFlags(input: {
   remote: boolean;
   evergreen: boolean;
   employmentType: EmploymentType | null;
+  lang?: ContentLang | null;
 }): number {
   const type = input.employmentType ? EMPLOYMENT_TYPES.indexOf(input.employmentType) + 1 : 0;
   return (
-    (input.remote ? FLAG.remote : 0) | (input.evergreen ? FLAG.evergreen : 0) | (type << TYPE_SHIFT)
+    (input.remote ? FLAG.remote : 0) |
+    (input.evergreen ? FLAG.evergreen : 0) |
+    (type << TYPE_SHIFT) |
+    (langCode(input.lang ?? null) << LANG_SHIFT)
   );
 }
 
 export const employmentTypeOf = (flags: number): EmploymentType | null =>
   EMPLOYMENT_TYPES[((flags >> TYPE_SHIFT) & 7) - 1] ?? null;
+
+export const langCode = (lang: ContentLang | null) => (lang ? CONTENT_LANGS.indexOf(lang) + 1 : 0);
+export const langOfFlags = (flags: number): ContentLang | null =>
+  CONTENT_LANGS[((flags >> LANG_SHIFT) & 7) - 1] ?? null;
+
+// The codes a language choice keeps; English keeps posts of no known language too.
+export function langCodes(langs: readonly ContentLang[]): number[] {
+  const codes = langs.map((lang) => langCode(lang));
+  return langs.includes("en") ? [0, ...codes] : codes;
+}
 
 // Times in whole minutes since 1970: 4 bytes, and good until the year 6053.
 export const toMinutes = (ms: number) => Math.floor(ms / 60_000);

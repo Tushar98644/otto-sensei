@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Db } from "@/db/client";
+import type { ContentLang } from "@/lib/i18n/languages";
 import { checkEligibility } from "@/lib/eligibility/check";
 import { blockedHint } from "@/lib/eligibility/facts";
 import { isProfileStarted, type WorkProfile, type WorkRegion } from "@/lib/eligibility/profile";
@@ -15,9 +16,11 @@ import {
   type PlaceFit,
 } from "./looking-for";
 import {
+  ENGLISH_MATCH_COPY,
   KIND,
   kindOf,
   matchJob,
+  type MatchCopy,
   PAST_KIND_WEIGHT,
   personFrom,
   unmatched,
@@ -139,6 +142,10 @@ export type RankRequest = {
   counts?: StoredCounts | null;
   // Writes the answer doesn't wait for (the day's cache); without it they're awaited here.
   defer?: (write: () => Promise<void>) => void;
+  // The post languages the list keeps (job-langs.ts); null or left out keeps every language.
+  langs?: readonly ContentLang[] | null;
+  // The reader's words for the reasons, notes and visa lines; English when left out.
+  copy?: MatchCopy;
 };
 
 export type RankResult = Omit<JobMatchesResponse, "ok" | "requestId" | "resumeHash">;
@@ -185,6 +192,8 @@ type Scored = Ranked & { job: MatchedJob; far: boolean; firstSeenAt: number };
 
 export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult> {
   const { now, filters } = request;
+  const copy = request.copy ?? ENGLISH_MATCH_COPY;
+  const langs = request.langs ?? null;
   const lookingFor = withOccupation(
     request.lookingFor ?? lookingForOf(request.profile, request.workProfile),
   );
@@ -209,7 +218,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     const ranked: MatchedJob[] = rows.map((row, index) => {
       const hint = check ? check(row, null) : NO_RULES;
       const facts = factsOf(row);
-      const match = matchJob(person, facts, hint) ?? unmatched(facts, hint);
+      const match = matchJob(person, facts, hint, copy) ?? unmatched(facts, hint, copy);
       return {
         ...toFeedJob(row),
         match,
@@ -253,7 +262,16 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
           now,
           plan: request.free ? "free" : "pro",
           profileHash: profileHash(request.profile),
-          inputs: [filters, lookingFor, page, request.workProfile, request.deviceTimeZone],
+          inputs: [
+            filters,
+            lookingFor,
+            page,
+            request.workProfile,
+            request.deviceTimeZone,
+            // Only a list of fewer post languages, or in another language, has a key of its own.
+            ...(langs ? [{ langs }] : []),
+            ...(copy.locale === "en" ? [] : [{ locale: copy.locale }]),
+          ],
         })
       : null;
   const cacheKey = keyFor(request.page);
@@ -301,6 +319,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       },
       gate,
       interns,
+      langs,
     },
     counts,
     now,
@@ -321,7 +340,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     };
     if (!matchJob(person, facts)) continue;
     const { shown, others, hint } = pickCopy(opening, check, accepted);
-    const match = matchJob(person, facts, hint) ?? unmatched(facts, hint);
+    const match = matchJob(person, facts, hint, copy) ?? unmatched(facts, hint, copy);
     if (filters.eligibleOnly && match.blocked) continue;
     const gap = levelGap(person.seniority, row.seniority);
     const kind = kindOf(person, facts).weight;
@@ -354,7 +373,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
         saved: false,
         otherPlaces: others.slice(0, PLACES_SHOWN),
         morePlaces: Math.max(0, others.length - PLACES_SHOWN),
-        visa: visaLines(opening.visa, now),
+        visa: visaLines(opening.visa, now, copy.words.visa),
         position: 0,
         features: Object.values(parts).map((part) => Math.round(part * 1000) / 1000),
       },

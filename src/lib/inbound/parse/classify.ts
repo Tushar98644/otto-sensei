@@ -1,8 +1,9 @@
 import type { EmailKind } from "../types";
+import { LANG_ALERT, LANG_MAYBE, LANG_RULES, LANG_UNSUBSCRIBE, LANG_YOURS } from "./classify-langs";
 import { flat, sentences } from "./text";
 
-type Rule = readonly [RegExp, number];
-type Scored = Exclude<EmailKind, "unknown">;
+export type Rule = readonly [RegExp, number];
+export type Scored = Exclude<EmailKind, "unknown">;
 
 const VERB =
   "(?:moving|move|proceed(?:ing)?|progress(?:ing)?|taking|take|advanc(?:e|ing)|continu(?:e|ing)|going|go)";
@@ -143,6 +144,19 @@ const RULES: Record<Scored, readonly Rule[]> = {
 const MAYBE =
   /\b(?:if|should|whether|in case|in the event|once|when|unless|after we|as soon as|until)\b[^.]{0,80}\b(?:you|your|we|our|the team|they|selected|shortlisted|qualified|match|fit)\b|\b(?:may|might|will|would|could) (?:be )?(?:in touch|reach out|contact|get back|be contacting|let you know|follow up|be reaching out|review)\b|\bif (?:so|not)\b/;
 
+function maybe(sentence: string): boolean {
+  const lower = sentence.toLowerCase();
+  return MAYBE.test(lower) || LANG_MAYBE.some((pattern) => pattern.test(lower));
+}
+
+const ALL: Record<Scored, readonly Rule[]> = {
+  rejected: [...RULES.rejected, ...LANG_RULES.rejected],
+  offer: [...RULES.offer, ...LANG_RULES.offer],
+  interview: [...RULES.interview, ...LANG_RULES.interview],
+  assessment: [...RULES.assessment, ...LANG_RULES.assessment],
+  applied: [...RULES.applied, ...LANG_RULES.applied],
+};
+
 type Score = { total: number; strong: boolean };
 
 function score(text: string, rules: readonly Rule[]): Score {
@@ -157,15 +171,15 @@ function score(text: string, rules: readonly Rule[]): Score {
 }
 
 function scoreOf(subject: string, body: string): Record<Scored, Score> {
-  const said = sentences(body).filter((sentence) => !MAYBE.test(sentence.toLowerCase()));
+  const said = sentences(body).filter((sentence) => !maybe(sentence));
   const firm = `${flat(subject)} . ${flat(said.join(" \n"))}`;
   const all = `${flat(subject)} . ${flat(body)}`;
   return {
-    rejected: score(firm, RULES.rejected),
-    offer: score(firm, RULES.offer),
-    interview: score(firm, RULES.interview),
-    assessment: score(firm, RULES.assessment),
-    applied: score(all, RULES.applied),
+    rejected: score(firm, ALL.rejected),
+    offer: score(firm, ALL.offer),
+    interview: score(firm, ALL.interview),
+    assessment: score(firm, ALL.assessment),
+    applied: score(all, ALL.applied),
   };
 }
 
@@ -176,9 +190,12 @@ export function isAlert(subject: string, body: string, listed: boolean): boolean
   const text = `${flat(subject)} ${flat(body).slice(0, 2_000)}`;
   return (
     ALERT.test(text) ||
+    LANG_ALERT.test(text) ||
     (listed &&
-      /\b(?:unsubscribe|manage (?:your )?(?:alerts|notifications))\b/.test(text) &&
-      !/\byour application\b/.test(text))
+      (/\b(?:unsubscribe|manage (?:your )?(?:alerts|notifications))\b/.test(text) ||
+        LANG_UNSUBSCRIBE.test(text)) &&
+      !/\byour application\b/.test(text) &&
+      !LANG_YOURS.test(text))
   );
 }
 

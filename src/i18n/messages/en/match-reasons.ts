@@ -1,0 +1,38 @@
+// Jobs: what Otto writes on the server about each match, and the visa lines (P6).
+export default {
+  list: "{items} and {count} more",
+  roleMatch: "Role match: {job} ≈ your {person}. ",
+  found: "Found in your resume: {list}.",
+  notFound: "Not found: {list}.",
+  noTools: "The post names no tools to compare.",
+  kind: {
+    same: "The same occupation as yours.",
+    sameNamed: "The same occupation as yours: {name}.",
+    close: "A closely related occupation.",
+    closeNamed: "A closely related occupation: {name}.",
+    group: "A related kind of work.",
+    groupNamed: "A related kind of work: {name}.",
+    neighbour: "A neighbouring kind of role.",
+    sameRole: "The same kind of role as yours.",
+    earlier: "Like an earlier role on your resume.",
+  },
+  nothing: "Nothing it names is in this resume.",
+  nothingToCheck: "This resume and this post have nothing in common that I can check.",
+  levels: {
+    intern: "an internship",
+    junior: "an entry-level role",
+    mid: "a mid-level role",
+    senior: "a senior role",
+    lead: "a lead or staff role",
+    director: "a director-level role",
+  },
+  stepUp: "This is {level}, a step up from your latest title.",
+  stepDown: "This is {level}, more junior than your latest title.",
+  training: "Jobs like this usually need more training or experience than your latest role.",
+  years: "Asks for {asked}+ years; your resume shows about {shown}.",
+  yearsShown: { one: "{count} year", other: "{count} years" },
+  visa: {
+    ukSponsor: "Listed as a UK visa sponsor",
+    h1b: "H-1B visa petitions approved in fiscal {year} (USCIS)",
+  },
+} as const;

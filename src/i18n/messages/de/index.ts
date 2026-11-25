@@ -16,11 +16,13 @@ import interview from "./interview";
 import jobForm from "./job-form";
 import jobMatch from "./job-match";
 import jobs from "./jobs";
+import jobsShared from "./jobs-shared";
 import legal from "./legal";
 import letters from "./letters";
 import lint from "./lint";
 import login from "./login";
 import matchCheck from "./match-check";
+import matchReasons from "./match-reasons";
 import onboarding from "./onboarding";
 import otto from "./otto";
 import portfolio from "./portfolio";
@@ -59,11 +61,13 @@ const de: Translations = {
   jobForm,
   jobMatch,
   jobs,
+  jobsShared,
   legal,
   letters,
   lint,
   login,
   matchCheck,
+  matchReasons,
   onboarding,
   otto,
   portfolio,

@@ -9,7 +9,9 @@ import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import type { Application } from "@/lib/applications/schema";
-import { STATUS_NAMES } from "@/lib/applications/status";
+import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
+import { fmt } from "@/i18n/format";
+import englishShared from "@/i18n/messages/en/jobs-shared";
 import { applicationForCopy, applicationHref, copyJobId } from "@/lib/applications/thread";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
@@ -52,7 +54,29 @@ export function useJustApplied(resumeId: string): boolean {
   );
 }
 
-export function MarkApplied({ resume, describedBy }: { resume: Resume; describedBy?: string }) {
+export type MarkAppliedCopy = {
+  words: (typeof englishShared)["applied"];
+  statuses: Record<ApplicationStatus, string>;
+  day: (timestamp: number) => string;
+};
+
+// The studio has no messages provider yet, so it reads these; the dashboard passes its own.
+const englishCopy: MarkAppliedCopy = {
+  words: englishShared.applied,
+  statuses: STATUS_NAMES,
+  day: (timestamp) => formatDay(timestamp, timestamp),
+};
+
+export function MarkApplied({
+  resume,
+  describedBy,
+  copy = englishCopy,
+}: {
+  resume: Resume;
+  describedBy?: string;
+  copy?: MarkAppliedCopy;
+}) {
+  const { words } = copy;
   const { items } = useApplications();
   const resumes = useResumeList();
   const [target, setTarget] = useState<ApplicationDialogTarget | null>(null);
@@ -81,17 +105,17 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
       });
       setCheering(resume.id);
       undoToast({
-        title: `Marked as applied at ${application.company}`,
+        title: fmt(words.marked, { company: application.company }),
         description:
           application.followUpAt === null
             ? undefined
-            : `I'll remind you to follow up on ${formatDay(application.followUpAt, application.followUpAt)}.`,
+            : fmt(words.remind, { day: copy.day(application.followUpAt) }),
         onUndo: () => {
           if (cheering === resume.id) setCheering(null);
           hideApplication(application);
           commitDelete(application, { keepalive: false }).catch((error: unknown) =>
             toast({
-              title: "Couldn't undo that",
+              title: words.cantUndo,
               description: errorMessage(error),
               variant: "error",
             }),
@@ -99,7 +123,7 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
         },
       });
     } catch (error) {
-      toast({ title: "Couldn't log it", description: errorMessage(error), variant: "error" });
+      toast({ title: words.cantLog, description: errorMessage(error), variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -118,8 +142,8 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
           })}
         >
           <StatusIcon status={latest.status} />
-          {STATUS_NAMES[latest.status]}
-          <span className="sr-only">: open this application</span>
+          {copy.statuses[latest.status]}
+          <span className="sr-only">{words.open}</span>
         </Link>
       ) : (
         <Button
@@ -129,7 +153,7 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
           loading={saving}
           onClick={() => void markApplied()}
         >
-          Mark as applied
+          {words.mark}
         </Button>
       )}
       <Lazy

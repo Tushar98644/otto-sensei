@@ -177,7 +177,7 @@ export function JobCard({
   const meta = [...placeParts(job, t).flatMap((part) => part.split(/\s+·\s+/)), posted].filter(
     Boolean,
   );
-  const lead = matchLead(job.match);
+  const lead = matchLead(job.match, card.notFound);
   const more: MenuEntry[] = [];
   if (onOutreach && !job.closed) {
     more.push({

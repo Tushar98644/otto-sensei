@@ -1,3 +1,5 @@
+import { fmt } from "@/i18n/format";
+import englishWords from "@/i18n/messages/en/match-reasons";
 import type { WorkRegion } from "@/lib/eligibility/profile";
 import { foldCase } from "@/lib/tailor/tokens";
 
@@ -33,12 +35,16 @@ function recentH1b(facts: VisaFacts, now: number): boolean {
   return facts.h1bYear !== null && fiscalYearOf(now) - facts.h1bYear <= H1B_RECENT_YEARS;
 }
 
-export function visaLines(facts: VisaFacts | null, now: number): string[] {
+export function visaLines(
+  facts: VisaFacts | null,
+  now: number,
+  words: (typeof englishWords)["visa"] = englishWords.visa,
+): string[] {
   if (!facts) return [];
   const lines: string[] = [];
-  if (facts.ukSponsor) lines.push("Listed as a UK visa sponsor");
+  if (facts.ukSponsor) lines.push(words.ukSponsor);
   if (facts.h1bYear !== null && recentH1b(facts, now))
-    lines.push(`H-1B visa petitions approved in fiscal ${facts.h1bYear} (USCIS)`);
+    lines.push(fmt(words.h1b, { year: facts.h1bYear }));
   return lines;
 }
 

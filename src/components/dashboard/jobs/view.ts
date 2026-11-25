@@ -97,9 +97,14 @@ export function skillList(items: readonly string[], max: number): SkillList {
 }
 
 // With no skills found, the reason opens with a sentence about the kind of work; the chips show the rest.
-export function matchLead(match: Pick<JobMatch, "found" | "missing" | "reason">): string | null {
+// The server's "Not found: …" sentence starts with the card's own label in every language (matchReasons.notFound).
+export function matchLead(
+  match: Pick<JobMatch, "found" | "missing" | "reason">,
+  notFound = "Not found",
+): string | null {
   if (match.found.length > 0) return null;
-  return match.reason.replace(/\s*Not found:.*$/s, "").trim() || null;
+  const label = notFound.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return match.reason.replace(new RegExp(`\\s*${label}[^.]*?:.*$`, "s"), "").trim() || null;
 }
 
 // Otto's line: the first sentence leads, the rest follows quieter.

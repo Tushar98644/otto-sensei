@@ -45,7 +45,7 @@ import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
 import { MarkApplied, useCopyApplication, useJustApplied } from "./applications/mark-applied";
-import { relativeTime } from "./i18n";
+import { formatDay, relativeTime } from "./i18n";
 import { cardId, tailoredJob } from "./library";
 import { CardChips, type CardChip } from "./library/card-chips";
 import { PaperWell } from "./library/paper-well";
@@ -109,6 +109,16 @@ export function ResumeCard({
   const format = useFormat();
   const titleId = useId();
   const justApplied = useJustApplied(resume.id);
+  const shared = useMessages("jobsShared");
+  const { statuses } = useMessages("applications");
+  const appliedCopy = useMemo(
+    () => ({
+      words: shared.applied,
+      statuses,
+      day: (timestamp: number) => formatDay(format, timestamp, timestamp),
+    }),
+    [shared, statuses, format],
+  );
   // Stays mounted after first use, so closing it hands focus back to the menu.
   const [github, setGithub] = useState({ used: false, open: false });
   // Not Suspense: React's 300 ms fallback throttle would hold the dialog back.
@@ -221,7 +231,9 @@ export function ResumeCard({
                 className="text-white/75 transition-transform duration-200 ease-out group-hover/card:translate-x-0.5 group-hover/card:text-white"
               />
             </Button>
-            {tailored ? <MarkApplied resume={resume} describedBy={titleId} /> : null}
+            {tailored ? (
+              <MarkApplied resume={resume} describedBy={titleId} copy={appliedCopy} />
+            ) : null}
             <Menu
               label={fmt(card.actionsFor, { title })}
               align="end"

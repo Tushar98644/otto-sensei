@@ -5,6 +5,7 @@ import rawData from "./data.json";
 import type { OccupationData } from "./data-types";
 import { CUSTOM_OCCUPATIONS, FUNCTIONS, LEAD_HEADS, TECH_NAMES, WORK_HEADS } from "./tech";
 import { GENERIC_WORDS, RANK_WORDS, titleKey, titleParts } from "./title";
+import { englishTitle } from "./translate";
 
 const data = rawData as OccupationData;
 
@@ -246,7 +247,9 @@ const TITLE_CACHE_MAX = 50_000;
 export function readTitle(title: string): TitleKind {
   const known = titleCache.get(title);
   if (known) return known;
-  const occupation = classifyTitle(title)?.code ?? null;
+  const english = englishTitle(title);
+  const occupation =
+    (english === title ? null : classifyTitle(english)?.code) ?? classifyTitle(title)?.code ?? null;
   const family = roleFamily(title);
   const kind = { family: family && familyFits(family, occupation) ? family : null, occupation };
   if (titleCache.size >= TITLE_CACHE_MAX) titleCache.clear();
@@ -277,7 +280,7 @@ function rowsToSearch(): SearchRow[] {
 }
 
 export function searchOccupations(query: string, limit = 8): OccupationOption[] {
-  const words = titleKey(query).split(" ").filter(Boolean);
+  const words = titleKey(englishTitle(query)).split(" ").filter(Boolean);
   if (words.length === 0) return [];
   const typed = words.join(" ");
   const last = words[words.length - 1]!;

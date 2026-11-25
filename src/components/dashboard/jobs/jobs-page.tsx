@@ -14,13 +14,13 @@ import { Button } from "@/components/ui/button";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-import { useFormat, useMessages } from "@/i18n/client";
+import { useFormat, useLocale, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
 import { cn } from "@/lib/utils";
 import type { JobMatchesResponse, MatchedJob } from "@/lib/api/types";
 import { isProfileStarted } from "@/lib/eligibility/profile";
-import { searchingLine } from "@/lib/job-feed/looking-for";
+import { regionNamesFor, searchingLine } from "@/lib/job-feed/looking-for";
 import { MAX_JOB_PAGE, NO_CHOICE, type LookingForChoice } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import { jobsWorkPromptShows } from "@/lib/setup/checklist";
@@ -81,6 +81,9 @@ function foundLine(
 
 export function JobsPage() {
   const t = useMessages("jobs");
+  const shared = useMessages("jobsShared");
+  const locale = useLocale();
+  const regionName = useMemo(() => regionNamesFor(locale), [locale]);
   const format = useFormat();
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
@@ -205,7 +208,7 @@ export function JobsPage() {
   const occupation =
     data?.lookingFor?.title === lookingFor?.title ? (data?.occupation?.name ?? null) : null;
   if (refreshing && lookingFor)
-    message = searchingLine(lookingFor, occupation, choice.role !== null);
+    message = searchingLine(lookingFor, occupation, choice.role !== null, shared);
   const checked = data ? checkedLabel(data.checkedAt, now, t, format) : null;
   const meta = data
     ? [
@@ -235,6 +238,8 @@ export function JobsPage() {
         country={work.status === "ready" ? work.profile.country : ""}
         saving={savingChoice}
         onChange={(next) => void changeLookingFor(next)}
+        words={shared}
+        regionName={regionName}
       />
     ) : null;
 

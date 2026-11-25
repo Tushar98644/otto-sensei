@@ -6,6 +6,7 @@ export const DASHBOARD_NAMESPACES = [
   ...APP_CHROME_NAMESPACES,
   "dashboard",
   "jobs",
+  "jobsShared",
   "applications",
   "interview",
   "letters",

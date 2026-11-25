@@ -64,6 +64,46 @@ const SUBJECT_RULES: readonly Rule[] = [
   rule("\\bapplication for (?:the )?(?:post of |position of )?{ROLE}$"),
   rule("^(?:offer letter|appointment letter|offer)\\s*[-|:]\\s*{ROLE}$"),
   rule("^congratulations\\s*[-|:!]+\\s*selected for (?:the )?(?:position of |role of )?{ROLE}$"),
+  // Spanish, Portuguese, French and German subjects.
+  rule(
+    "^(?:muchas )?gracias por (?:postularte|postularse|aplicar|tu postulaci[óo]n|su postulaci[óo]n|tu solicitud|su solicitud|tu inter[ée]s|su inter[ée]s)(?: (?:a|al|en|para|por))? (?:(?:la )?vacante de |(?:el )?puesto de |(?:la )?posici[óo]n de |(?:el )?cargo de )?{ROLE} en {NAME}$",
+  ),
+  rule(
+    "^(?:muchas )?gracias por (?:postularte|postularse|aplicar|tu postulaci[óo]n|su postulaci[óo]n|tu solicitud|su solicitud|tu inter[ée]s|su inter[ée]s)(?: (?:a|en|con|por))? {NAME}$",
+  ),
+  rule(
+    "^(?:[^,]{1,40}, )?tu solicitud (?:se (?:ha )?envi(?:ó|o|ado)|fue enviada|ha sido enviada) a {NAME}$",
+  ),
+  rule(
+    "^(?:una )?actualizaci[óo]n (?:sobre|de|acerca de) (?:tu|su) (?:postulaci[óo]n|solicitud|candidatura) (?:a|en|con) {NAME}$",
+  ),
+  rule(
+    "^(?:tu|su) (?:postulaci[óo]n|solicitud|candidatura) (?:a|al|para|en) (?:(?:la )?vacante de |(?:el )?puesto de |(?:la )?posici[óo]n de )?{ROLE} en {NAME}$",
+  ),
+  rule(
+    "^(?:obrigad[oa]|agradecemos) (?:por se candidatar|pela sua candidatura|pelo seu interesse)(?: (?:[àa]|na|no|para a|para o))? (?:vaga de |posi[çc][ãa]o de |cargo de )?{ROLE} (?:na|no|em) {NAME}$",
+  ),
+  rule(
+    "^(?:obrigad[oa]|agradecemos) (?:por se candidatar|pela sua candidatura|pelo seu interesse)(?: (?:[àa]|na|no|em|com|pela|pelo))? {NAME}$",
+  ),
+  rule("^(?:[^,]{1,40}, )?sua candidatura foi enviada (?:para|[àa]) (?:a |o )?{NAME}$"),
+  rule("^candidatura (?:realizada|enviada|recebida)(?: com sucesso)?\\s*[-|:]\\s*{ROLE}$"),
+  rule(
+    "^merci (?:pour (?:votre|ta) candidature|d'avoir postul[ée])(?: (?:au|pour le) poste (?:de |d'){ROLE})? (?:chez|[àa]) {NAME}$",
+  ),
+  rule("^(?:votre|ta) candidature (?:au|pour le) poste (?:de |d'){ROLE} chez {NAME}$"),
+  rule("^(?:votre|ta) candidature (?:au|pour le) poste (?:de |d'){ROLE}$"),
+  rule("^(?:votre|ta) candidature (?:chez|[àa]) {NAME}$"),
+  rule("^(?:[^,]{1,40}, )?votre candidature a (?:bien )?[ée]t[ée] envoy[ée]e [àa] {NAME}$"),
+  rule("^(?:invitation|convocation) [àa] (?:un|votre) entretien\\s*[-|:]\\s*{ROLE}$"),
+  rule("^proposition d'embauche\\s*[-|:]\\s*{ROLE}$"),
+  rule(
+    "^(?:vielen |herzlichen )?dank f(?:ü|ue?)r (?:ihre|deine) bewerbung(?: als {ROLE})? bei (?:der |dem )?{NAME}$",
+  ),
+  rule("^(?:ihre|deine) bewerbung als {ROLE} bei (?:der |dem )?{NAME}$"),
+  rule("^(?:ihre|deine) bewerbung bei (?:der |dem )?{NAME}$"),
+  rule("^(?:ihre|deine) bewerbung als {ROLE}$"),
+  rule("^(?:ihre|deine) bewerbung wurde an {NAME} gesendet$"),
 ];
 
 const BODY_RULES: readonly Rule[] = [
@@ -92,6 +132,11 @@ const LABELS: readonly [RegExp, Key][] = [
     "role",
   ],
   [/^(?:company(?: name)?|organi[sz]ation|employer)\s*[:-]\s*(.+)$/im, "company"],
+  [
+    /^(?:puesto|vacante|vaga|poste|intitul[ée] du poste|stelle|stellenbezeichnung)\s*[:-]\s*(.+)$/im,
+    "role",
+  ],
+  [/^(?:empresa|entreprise|soci[ée]t[ée]|unternehmen|arbeitgeber)\s*[:-]\s*(.+)$/im, "company"],
 ];
 
 // "taking the time to apply for the Data Analyst" keeps only what follows the last joining word.

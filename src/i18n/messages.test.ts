@@ -29,7 +29,7 @@ const MARKETING_CORE: readonly PageKey[] = [
 const TRANSLATED = LOCALES.filter((locale): locale is Exclude<Locale, "en"> => locale !== "en");
 const en = englishMessages();
 
-// A namespace's file is its key in kebab case: job-match.ts holds jobMatch.
+// A namespace's file is its key in kebab case: job-match.ts holds jobMatch; match-reasons.ts holds matchReasons.
 const filesIn = (locale: Locale) =>
   readdirSync(path.join(DIR, locale))
     .filter((file) => file.endsWith(".ts") && file !== "index.ts")
@@ -40,6 +40,9 @@ const filesIn = (locale: Locale) =>
 // Words that read the same in English and this language, by path within their namespace.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
   es: new Set([
+    "families.marketing",
+    "families.legal",
+    "majorGroups.23",
     "row.quoted",
     "working.general",
     "design.color",
@@ -81,6 +84,8 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   "pt-BR": new Set([
+    "families.design",
+    "families.marketing",
     "card.via",
     "hub.via",
     "row.quoted",
@@ -132,6 +137,11 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   fr: new Set([
+    "families.design",
+    "families.marketing",
+    "families.finance",
+    "searchLevels.lead",
+    "groups.europe",
     "meta.portfolio",
     "nav.portfolio",
     "card.via",
@@ -212,6 +222,10 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   de: new Set([
+    "levels.senior",
+    "groups.eu",
+    "card.level",
+    "majorGroups.11",
     "meta.jobs",
     "meta.portfolio",
     "nav.jobs",

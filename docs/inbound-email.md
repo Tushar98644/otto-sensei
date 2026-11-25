@@ -4,7 +4,8 @@ Applications can track themselves from email. Each Pro account picks a handle an
 address `otto+<handle>@track.ottosensei.com`; one Gmail filter forwards job emails to it. This
 Cloudflare Email Worker receives that mail, turns it into plain text and a few headers, checks its
 DKIM and ARC signatures, and posts it to `https://www.ottosensei.com/api/inbound/email`, signed.
-Otto reads it with rules (no AI) and moves the card on the Applications board.
+Otto reads it with rules (no AI), in English, Spanish, Portuguese, French and German, and moves the
+card on the Applications board.
 
 The same Worker also runs Otto's hourly interview run: see
 [The hourly interview run](#the-hourly-interview-run).
