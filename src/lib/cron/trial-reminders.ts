@@ -5,12 +5,14 @@ import { PRO_TRIAL, type BillingInterval, type PaidPlanId } from "@/config/plans
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { users, userSettings } from "@/db/schema";
+import type { Locale } from "@/i18n/config";
 import { emailLink } from "@/lib/analytics/landing";
 import { MOCK_STATUS } from "@/lib/billing/mock";
 import { appUrl } from "@/lib/env";
 import { log } from "@/lib/log";
 import { EMAIL_BATCH_MAX, type EmailMessage, type EmailSender } from "@/lib/notifications/email";
 import { OTTO_HEAD_EMAIL_PATH } from "@/lib/notifications/follow-up";
+import { emailLocale, localizedPath } from "@/lib/notifications/locale";
 import { insertNotification } from "@/lib/notifications/records";
 import { trialEndingEmail, trialEndingNotice } from "@/lib/notifications/trial-ending";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
@@ -45,6 +47,7 @@ type Claimed = {
   interval: BillingInterval;
   endsAt: number;
   timeZone: string | null;
+  locale: Locale;
   notificationId: string;
 };
 
@@ -80,6 +83,7 @@ async function claimForUser(userId: string, window: Window, now: number): Promis
         interval: users.planInterval,
         endsAt: users.trialEndsAt,
         timeZone: userSettings.timeZone,
+        locale: userSettings.locale,
       })
       .from(users)
       .leftJoin(userSettings, eq(userSettings.userId, users.id))
@@ -102,12 +106,13 @@ async function claimForUser(userId: string, window: Window, now: number): Promis
       endsAt: row.endsAt,
       timeZone: row.timeZone || null,
     };
+    const locale = emailLocale(row.locale);
     const notificationId = await insertNotification(
       tx,
-      { userId, kind: "trial_ending", ...trialEndingNotice(trial) },
+      { userId, kind: "trial_ending", ...trialEndingNotice(trial, locale) },
       now,
     );
-    return { userId, email: row.email, ...trial, notificationId };
+    return { userId, email: row.email, ...trial, locale, notificationId };
   });
 }
 
@@ -125,7 +130,11 @@ function emailFor(item: Claimed): EmailMessage {
   return trialEndingEmail({
     ...item,
     to: item.email,
-    accountUrl: emailLink(new URL(ROUTES.account, base).toString(), "trial_ending", "account"),
+    accountUrl: emailLink(
+      new URL(localizedPath(item.locale, ROUTES.account), base).toString(),
+      "trial_ending",
+      "account",
+    ),
     ottoHeadUrl: new URL(OTTO_HEAD_EMAIL_PATH, base).toString(),
   });
 }

@@ -1,6 +1,10 @@
 import { ROUTES } from "@/components/site/routes";
+import type { Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
+import { formatFor } from "@/i18n/intl";
 import { applicationHref } from "@/lib/applications/thread";
 import { DAY_MS } from "@/lib/time";
+import { emailMessages } from "./locale";
 import { NOTIFICATION_LIMITS } from "./types";
 
 // Company names and roles are the user's own text: capped everywhere, and escaped in the emails that remain.
@@ -25,8 +29,6 @@ export const NAME_CHARS = 80;
 // Up to this many due in one run get a bell row each, with Done, Snooze and the writer; more share one row.
 export const FOLLOW_UP_ROWS = 3;
 
-const count = new Intl.NumberFormat("en-US");
-
 export function clip(text: string, max: number): string {
   const clean = text.replace(/\s+/g, " ").trim();
   return clean.length > max ? `${clean.slice(0, max - 1).trimEnd()}…` : clean;
@@ -36,32 +38,46 @@ function oldestFirst(list: readonly DueApplication[]): DueApplication[] {
   return [...list].sort((a, b) => a.appliedAt - b.appliedAt);
 }
 
-export function followUpMessage(list: readonly DueApplication[], now: number): string {
+export function followUpMessage(
+  list: readonly DueApplication[],
+  now: number,
+  locale: Locale,
+): string {
+  const t = emailMessages(locale).followUp;
+  const format = formatFor(locale);
   const due = oldestFirst(list);
   const names = [...new Set(due.map((item) => clip(item.company, NAME_CHARS)).filter(Boolean))];
   const [only] = due;
   if (due.length === 1 && only) {
     const interviewed = only.interviewedAt ?? null;
     const days = Math.max(1, Math.floor((now - (interviewed ?? only.appliedAt)) / DAY_MS));
-    const ago = `${count.format(days)} ${days === 1 ? "day" : "days"}`;
+    const ago = format.plural(t.days, days);
     if (interviewed !== null) {
-      const name = names[0] ? ` with ${names[0]}` : "";
-      return `It's been ${ago} since your interview${name}. A short note keeps you in mind.`;
+      return names[0]
+        ? fmt(t.sinceInterview, { days: ago, company: names[0] })
+        : fmt(t.sinceInterviewBlank, { days: ago });
     }
-    return `It's been ${ago} since you applied to ${names[0] ?? "that company"}. A short follow-up can help.`;
+    return fmt(t.sinceApplied, { days: ago, company: names[0] ?? t.thatCompany });
   }
-  const shown = names.slice(0, 2);
-  const rest = due.length - shown.length;
+  const [first, second] = names;
+  const rest = due.length - Math.min(names.length, 2);
   const who =
-    shown.length === 0
-      ? `${count.format(due.length)} applications`
+    first === undefined
+      ? format.plural(t.applications, due.length)
       : rest > 0
-        ? `${shown.join(", ")} and ${count.format(rest)} more`
-        : shown.join(" and ");
-  return `${who} are ready for a follow-up. A short note can help.`;
+        ? fmt(t.andMore, { names: names.slice(0, 2).join(", "), count: format.number(rest) })
+        : second === undefined
+          ? first
+          : fmt(t.pair, { first, second });
+  return fmt(t.many, { who });
 }
 
-export function followUpNotice(list: readonly DueApplication[], now: number): FollowUpNotice {
+export function followUpNotice(
+  list: readonly DueApplication[],
+  now: number,
+  locale: Locale,
+): FollowUpNotice {
+  const t = emailMessages(locale).followUp;
   const due = oldestFirst(list).map((item) => ({
     ...item,
     company: clip(item.company, NAME_CHARS),
@@ -69,23 +85,27 @@ export function followUpNotice(list: readonly DueApplication[], now: number): Fo
   const only = due.length === 1 ? due[0] : undefined;
   const title = only
     ? only.company
-      ? `Time to follow up with ${only.company}?`
-      : "Time to follow up?"
-    : `${count.format(due.length)} applications are ready for a follow-up`;
+      ? fmt(t.title, { company: only.company })
+      : t.titleBlank
+    : formatFor(locale).plural(t.titleMany, due.length);
   return {
     title: clip(title, NOTIFICATION_LIMITS.title),
-    body: clip(followUpMessage(due, now), NOTIFICATION_LIMITS.body),
+    body: clip(followUpMessage(due, now, locale), NOTIFICATION_LIMITS.body),
     link: only ? applicationHref(only.id) : ROUTES.dashboardApplications,
     applicationId: only?.id ?? null,
   };
 }
 
-export function followUpNotices(list: readonly DueApplication[], now: number): FollowUpNotice[] {
+export function followUpNotices(
+  list: readonly DueApplication[],
+  now: number,
+  locale: Locale,
+): FollowUpNotice[] {
   const due = oldestFirst(list);
   if (due.length === 0) return [];
   return due.length <= FOLLOW_UP_ROWS
-    ? due.map((item) => followUpNotice([item], now))
-    : [followUpNotice(due, now)];
+    ? due.map((item) => followUpNotice([item], now, locale))
+    : [followUpNotice(due, now, locale)];
 }
 
 export function escapeHtml(text: string): string {

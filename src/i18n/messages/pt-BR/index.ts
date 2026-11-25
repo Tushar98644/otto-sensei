@@ -2,6 +2,7 @@ import type { Translations } from "..";
 import accountMenu from "./accountMenu";
 import applications from "./applications";
 import dashboard from "./dashboard";
+import emails from "./emails";
 import interview from "./interview";
 import jobForm from "./jobForm";
 import jobs from "./jobs";
@@ -19,6 +20,7 @@ const ptBR: Translations = {
   accountMenu,
   applications,
   dashboard,
+  emails,
   interview,
   jobForm,
   jobs,

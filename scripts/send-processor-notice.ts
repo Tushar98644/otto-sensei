@@ -10,7 +10,6 @@ import {
   noticeDay,
   parseNoticeArgs,
   processorNoticeCounts,
-  processorNoticeLinks,
   publicBaseUrl,
   sendProcessorNotice,
 } from "../src/lib/notifications/processor-notice";
@@ -84,7 +83,7 @@ async function main() {
       limit,
       now,
       sender,
-      links: processorNoticeLinks(baseUrl),
+      baseUrl,
     });
     console.log(
       `Sent: ${run.sent}. Failed: ${run.failed}. Released for a later run: ${run.released}.`,

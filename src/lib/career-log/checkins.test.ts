@@ -5,10 +5,13 @@ import { notifications, userSettings } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import type { BatchResult, EmailMessage, EmailSender } from "@/lib/notifications/email";
+import { emailMessages } from "@/lib/notifications/locale";
 import { DAY_MS } from "@/lib/time";
-import { checkinEmail } from "./checkin-email";
+import { checkinEmail, checkinNotice } from "./checkin-email";
 import { runCareerCheckins } from "./checkins";
+import { PROMPTS } from "./entry";
 import { readSettings, saveSettings, stopCheckinEmails } from "./records";
+import { ENTRY_FIELDS } from "./types";
 
 // Opted in on Sunday 22 November 2026; the first Monday of December is the 7th.
 const OPTED_IN = Date.UTC(2026, 10, 22, 12);
@@ -104,6 +107,26 @@ describe("the monthly check-in", () => {
     expect(message?.tags).toEqual([{ name: "kind", value: "career_checkin" }]);
   });
 
+  it("rings and emails in the account's language", async () => {
+    const ada = await optIn("ada@example.com", "Europe/London");
+    await (
+      await getDb()
+    )
+      .update(userSettings)
+      .set({ locale: "fr" })
+      .where(eq(userSettings.userId, ada.id));
+    const sender = fakeSender();
+    await runCareerCheckins(context(RUN), { sender });
+    expect(await bell(ada.id)).toMatchObject([{ title: "Ton bilan pour novembre" }]);
+    const [message] = sender.messages;
+    expect(message?.subject).toBe("Ton bilan pour novembre, en une minute");
+    expect(message?.text).toContain("Qu'as-tu livré ou amélioré ?");
+    // French isn't live yet, so its links stay unprefixed rather than open a 404.
+    expect(message?.text).toContain(
+      "https://otto.test/dashboard/career-log/check-in?month=2026-11",
+    );
+  });
+
   it("skips while paused and asks on the first day after", async () => {
     const ada = await optIn("ada@example.com", "Europe/London");
     await saveSettings(ada.id, { pauseMonths: 1 }, OPTED_IN);
@@ -168,9 +191,40 @@ describe("checkinEmail", () => {
         settingsUrl: "https://otto.test/dashboard/account#career-log",
         unsubscribeUrl: null,
       },
+      locale: "en",
     });
     expect(message.subject).toBe("Your one-minute December check-in");
     expect(message.html).toContain("Write my check-in");
     expect(message.text).toContain("Nothing new this month? That's one tap on the page.");
+  });
+
+  it("asks the same three questions as the check-in page, in English", () => {
+    const { prompts } = emailMessages("en").checkin;
+    for (const field of ENTRY_FIELDS) {
+      expect(prompts[field]).toEqual({ label: PROMPTS[field].label, hint: PROMPTS[field].hint });
+    }
+  });
+
+  it("writes in the account's language, month and footer included", () => {
+    const message = checkinEmail({
+      to: "ada@example.com",
+      month: "2026-12",
+      url: "https://otto.test/c",
+      links: {
+        ottoHeadUrl: "https://otto.test/email/otto-head.png",
+        settingsUrl: "https://otto.test/dashboard/account#career-log",
+        unsubscribeUrl: "https://otto.test/api/notifications/unsubscribe?l=career",
+      },
+      locale: "es",
+    });
+    expect(message.subject).toBe("Tu repaso de diciembre en un minuto");
+    expect(message.text).toContain("- ¿Algún número? Usuarios, %, dinero, tiempo ahorrado.");
+    expect(message.text).toContain("Escribir mi repaso: https://otto.test/c");
+    expect(message.text).toContain(
+      "Cancela la suscripción con un clic: https://otto.test/api/notifications/unsubscribe?l=career",
+    );
+    expect(message.html).toContain(">Cancelar suscripción</a> · <a");
+    expect(message.html).toContain("Otto, de Otto Sensei");
+    expect(checkinNotice("2026-12", "de").title).toBe("Dein Monatsrückblick für Dezember");
   });
 });

@@ -20,7 +20,7 @@ const HOUR = 60 * 60 * 1_000;
 // Friday, November 20, 2026, 10:00 UTC.
 const NOW = Date.UTC(2026, 10, 20, 10);
 const STARTS_ON = Date.UTC(2026, 11, 1);
-const LINKS = processorNoticeLinks("https://otto.test");
+const LINKS = processorNoticeLinks("https://otto.test", "en");
 
 function fakeSender(
   answer?: (count: number) => BatchResult,
@@ -44,7 +44,7 @@ const run = async (sender: EmailSender, input: Partial<NoticeRunInput> = {}) =>
     limit: null,
     now: NOW,
     sender,
-    links: LINKS,
+    baseUrl: "https://otto.test",
     ...input,
   });
 
@@ -69,7 +69,12 @@ async function noticeLog() {
 }
 
 describe("processorNoticeEmail", () => {
-  const email = processorNoticeEmail({ to: "maya@example.com", startsOn: STARTS_ON, links: LINKS });
+  const email = processorNoticeEmail({
+    to: "maya@example.com",
+    startsOn: STARTS_ON,
+    links: LINKS,
+    locale: "en",
+  });
 
   it("names the day, both processors and links the updated pages", () => {
     expect(email.to).toBe("maya@example.com");
@@ -113,6 +118,7 @@ describe("processorNoticeEmail", () => {
       to: "maya@example.com",
       startsOn: STARTS_ON,
       links: { ...LINKS, terms: "https://otto.test/terms?a=1&b=<2>" },
+      locale: "en",
     });
     expect(odd.html).toContain('href="https://otto.test/terms?a=1&amp;b=&lt;2&gt;"');
     expect(odd.html).toContain("We&#39;ve updated our terms");
@@ -225,6 +231,28 @@ describe("sendProcessorNotice", () => {
     const again = await run(sender, { now: NOW + 3 * 24 * HOUR, startsOn: Date.UTC(2026, 11, 8) });
     expect(again).toMatchObject({ claimed: 0, sent: 0 });
     expect(sender.messages).toHaveLength(2);
+  });
+
+  it("writes to each account in its own language, English when it never chose one", async () => {
+    await createUser("ada@example.com");
+    const bo = await createUser("bo@example.com");
+    await (
+      await getDb()
+    )
+      .insert(userSettings)
+      .values({ userId: bo.id, locale: "es", updatedAt: 1 });
+    const sender = fakeSender();
+    await run(sender);
+    const byTo = new Map(sender.messages.map((message) => [message.to, message]));
+    expect(byTo.get("ada@example.com")?.subject).toBe(
+      "Dodo Payments takes live payments for Otto Sensei from December 1",
+    );
+    const spanish = byTo.get("bo@example.com");
+    expect(spanish?.subject).toBe(
+      "Dodo Payments recibe los pagos de Otto Sensei desde el 1 de diciembre",
+    );
+    expect(spanish?.text).toContain("Términos: https://otto.test/terms");
+    expect(spanish?.html).toContain('¿Preguntas? Escribe a <a href="mailto:hello@ottosensei.com"');
   });
 
   it("skips an account without an email address", async () => {

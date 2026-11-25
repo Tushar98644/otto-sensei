@@ -75,20 +75,33 @@ beforeEach(async () => {
 
 describe("the notices", () => {
   it("say how many views, never who", () => {
-    expect(shareViewNotice("Maya Chen, Stripe", 3)).toEqual({
+    expect(shareViewNotice("Maya Chen, Stripe", 3, "en")).toEqual({
       title: "Someone opened your resume link",
       body: "Your link for “Maya Chen, Stripe” has 3 views so far.",
       link: "/dashboard/resumes",
     });
-    expect(shareViewNotice("", 1).body).toBe("Your resume link has 1 view so far.");
+    expect(shareViewNotice("", 1, "en").body).toBe("Your resume link has 1 view so far.");
   });
 
   it("call a week a week, and name the day a longer stretch starts", () => {
-    expect(portfolioViewsNotice(12, NOW - 7 * DAY_MS, NOW).title).toBe(
+    expect(portfolioViewsNotice(12, NOW - 7 * DAY_MS, NOW, "en").title).toBe(
       "Your portfolio got 12 views this week",
     );
-    expect(portfolioViewsNotice(1, Date.UTC(2026, 10, 2), NOW).title).toBe(
+    expect(portfolioViewsNotice(1, Date.UTC(2026, 10, 2), NOW, "en").title).toBe(
       "Your portfolio got 1 view since Nov 2",
+    );
+  });
+
+  it("speak the owner's language", () => {
+    expect(shareViewNotice("Maya Chen, Stripe", 1_204, "de")).toMatchObject({
+      title: "Jemand hat deinen Lebenslauf-Link geöffnet",
+      body: "Dein Link für „Maya Chen, Stripe“ hat bisher 1.204 Aufrufe.",
+    });
+    expect(portfolioViewsNotice(1, Date.UTC(2026, 10, 2), NOW, "es").title).toBe(
+      "Tu portafolio tuvo 1 visita desde el 2 nov",
+    );
+    expect(portfolioViewsNotice(12, NOW - 7 * DAY_MS, NOW, "de").title).toBe(
+      "Dein Portfolio hatte diese Woche 12 Aufrufe",
     );
   });
 });

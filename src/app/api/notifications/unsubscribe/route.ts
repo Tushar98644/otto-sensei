@@ -1,20 +1,20 @@
 import { accountSectionHref } from "@/components/setup/links";
+import { getDb } from "@/db/client";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/config";
+import { savedLocale } from "@/lib/account/language";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { appUrl } from "@/lib/env";
 import { log } from "@/lib/log";
 import { stopEmails } from "@/lib/notifications/choices";
 import { OTTO_HEAD_EMAIL_PATH } from "@/lib/notifications/follow-up";
+import { localizedPath } from "@/lib/notifications/locale";
 import type { EmailList } from "@/lib/notifications/types";
 import {
   isEmailList,
   UNSUBSCRIBE_PATH,
   verifyUnsubscribeToken,
 } from "@/lib/notifications/unsubscribe";
-import {
-  INVALID_LINK,
-  UNSUBSCRIBE_COPY,
-  unsubscribePage,
-} from "@/lib/notifications/unsubscribe-page";
+import { unsubscribeCopy, unsubscribePage } from "@/lib/notifications/unsubscribe-page";
 import { isUserId } from "@/lib/users";
 
 export const runtime = "nodejs";
@@ -33,15 +33,33 @@ function readLink(url: URL): Link | null {
   return { userId, token, list };
 }
 
-function page(status: number, title: string, message: string, action: string | null, press = "") {
+// Only a signed link names the account, so a bad one is answered in English.
+async function localeOf(link: Link): Promise<Locale> {
+  try {
+    return await savedLocale(await getDb(), link.userId);
+  } catch (error) {
+    log.warn("notifications.unsubscribe_locale_failed", {}, error);
+    return DEFAULT_LOCALE;
+  }
+}
+
+function page(
+  status: number,
+  locale: Locale,
+  title: string,
+  message: string,
+  action: string | null,
+  press = "",
+) {
   const base = appUrl();
   const html = unsubscribePage({
     title,
     message,
     action,
     press,
-    settingsUrl: new URL(accountSectionHref("reminders"), base).toString(),
+    settingsUrl: new URL(localizedPath(locale, accountSectionHref("reminders")), base).toString(),
     ottoHeadUrl: new URL(OTTO_HEAD_EMAIL_PATH, base).toString(),
+    locale,
   });
   return new Response(html, {
     status,
@@ -53,6 +71,11 @@ function page(status: number, title: string, message: string, action: string | n
   });
 }
 
+function invalidPage(): Response {
+  const copy = unsubscribeCopy(DEFAULT_LOCALE);
+  return page(400, DEFAULT_LOCALE, copy.title, copy.invalid, null);
+}
+
 // RFC 8058 one-click comes from mail servers with no cookies: the signed link is the only proof.
 export async function POST(req: Request): Promise<Response> {
   const url = new URL(req.url);
@@ -61,32 +84,41 @@ export async function POST(req: Request): Promise<Response> {
   if (!link) {
     log.info("notifications.unsubscribe_invalid");
     return fromPage
-      ? page(400, "Unsubscribe", INVALID_LINK, null)
+      ? invalidPage()
       : fail("bad_request", "That unsubscribe link isn't valid.", 400, NO_STORE);
   }
-  const copy = UNSUBSCRIBE_COPY[link.list];
+  const locale = fromPage ? await localeOf(link) : DEFAULT_LOCALE;
+  const copy = unsubscribeCopy(locale);
+  const list = copy.lists[link.list];
   try {
     await stopEmails(link.userId, link.list);
     log.info("notifications.unsubscribed", { list: link.list, fromPage });
-    return fromPage ? page(200, copy.name, copy.done, null) : ok({}, { headers: NO_STORE });
+    return fromPage ? page(200, locale, list.name, list.done, null) : ok({}, { headers: NO_STORE });
   } catch (error) {
     log.error("notifications.unsubscribe_failed", error, { list: link.list });
-    const message = "Couldn't turn those emails off. Please try again.";
     return fromPage
-      ? page(500, copy.name, message, null)
-      : fail("server_error", message, 500, NO_STORE);
+      ? page(500, locale, list.name, copy.failed, null)
+      : fail("server_error", unsubscribeCopy(DEFAULT_LOCALE).failed, 500, NO_STORE);
   }
 }
 
 // Link checkers open every link in an email, so GET changes nothing.
-export function GET(req: Request): Response {
+export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
   if (!url.searchParams.has("l")) {
     return Response.redirect(new URL(accountSectionHref("reminders"), appUrl()), 303);
   }
   const link = readLink(url);
-  if (!link) return page(400, "Unsubscribe", INVALID_LINK, null);
-  const copy = UNSUBSCRIBE_COPY[link.list];
+  if (!link) return invalidPage();
+  const locale = await localeOf(link);
+  const list = unsubscribeCopy(locale).lists[link.list];
   const action = new URLSearchParams({ u: link.userId, t: link.token, l: link.list, page: "1" });
-  return page(200, copy.name, copy.ask, `${UNSUBSCRIBE_PATH}?${action.toString()}`, copy.press);
+  return page(
+    200,
+    locale,
+    list.name,
+    list.ask,
+    `${UNSUBSCRIBE_PATH}?${action.toString()}`,
+    list.press,
+  );
 }
