@@ -186,7 +186,7 @@ function Contents({
                     "bg-otter-light text-[0.625rem] font-semibold text-otter",
                   )}
                 >
-                  S
+                  {t.pack.stories.charAt(0)}
                 </span>
                 <span className="min-w-0 flex-1">{t.pack.stories}</span>
                 <span className="text-xs text-subtle tabular-nums">{stories}</span>

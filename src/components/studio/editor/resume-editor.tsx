@@ -5,6 +5,7 @@ import { memo, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Badge } from "@/components/ui/badge";
 import { useFormat, useMessages } from "@/i18n/client";
+import { sectionHeadingIn } from "@/lib/resume/labels";
 import { SECTION_LABELS, isSectionHidden, type SectionKey } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { BasicsForm } from "./basics-form";
@@ -102,7 +103,10 @@ const SectionSlot = memo(function SectionSlot({
   isLast,
 }: SectionSlotProps) {
   const { title, count, needWork, hidden } = useSectionMeta(resumeId, sectionKey);
-  const label = title || SECTION_LABELS[sectionKey];
+  // Headings print on the resume, so they follow its language (set on import or by hand), as the PDF does.
+  const lang = useStudioStore((s) => s.resumes[resumeId]?.lang ?? "en");
+  const fallback = sectionHeadingIn(sectionKey, lang);
+  const label = title && (lang === "en" || title !== SECTION_LABELS[sectionKey]) ? title : fallback;
   const t = useMessages("studioEditor");
   const format = useFormat();
 
@@ -114,7 +118,7 @@ const SectionSlot = memo(function SectionSlot({
       options={{
         rename: {
           value: label,
-          placeholder: SECTION_LABELS[sectionKey],
+          placeholder: fallback,
           maxLength: CHAR_LIMITS.sectionTitle,
           onSave: (next) =>
             editResume(resumeId, (resume) => setSectionTitle(resume, sectionKey, next)),

@@ -1,3 +1,4 @@
+import type { ContentLang } from "@/lib/i18n/languages";
 import { DAY_MS } from "@/lib/time";
 import {
   webHref,
@@ -60,11 +61,87 @@ const AVAILABLE =
   /\b(?:open to|available (?:for|from|to)|looking for|seeking|currently exploring|taking on)\b/i;
 const MONTHS = /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+((?:19|20)\d{2})\b/i;
 
-function availabilityOf(about: readonly string[]): AutoContent["availability"] {
+// What Otto fills in prints on the page, so it follows the resume's language, as its headings do.
+const AUTO_WORDS: Record<
+  ContentLang,
+  {
+    open: string;
+    available: (month: string, year: string) => string;
+    building: string;
+    years: string;
+    stars: string;
+    email: string;
+    kinds: Record<"hackathon" | "openSource" | "library" | "app", string>;
+  }
+> = {
+  en: {
+    open: "Open to work",
+    available: (month, year) => `Available ${month} ${year}`,
+    building: "Building",
+    years: "years of experience",
+    stars: "GitHub stars",
+    email: "Email",
+    kinds: { hackathon: "Hackathon", openSource: "Open source", library: "Library", app: "App" },
+  },
+  es: {
+    open: "Disponible para trabajar",
+    available: (month, year) => `Disponible desde ${month} ${year}`,
+    building: "Construyendo",
+    years: "años de experiencia",
+    stars: "estrellas en GitHub",
+    email: "Correo",
+    kinds: {
+      hackathon: "Hackatón",
+      openSource: "Código abierto",
+      library: "Biblioteca",
+      app: "App",
+    },
+  },
+  pt: {
+    open: "Aberto a oportunidades",
+    available: (month, year) => `Disponível a partir de ${month} ${year}`,
+    building: "Construindo",
+    years: "anos de experiência",
+    stars: "estrelas no GitHub",
+    email: "E-mail",
+    kinds: {
+      hackathon: "Hackathon",
+      openSource: "Código aberto",
+      library: "Biblioteca",
+      app: "App",
+    },
+  },
+  fr: {
+    open: "Ouvert aux opportunités",
+    available: (month, year) => `Disponible dès ${month} ${year}`,
+    building: "En cours",
+    years: "ans d'expérience",
+    stars: "étoiles GitHub",
+    email: "E-mail",
+    kinds: {
+      hackathon: "Hackathon",
+      openSource: "Open source",
+      library: "Bibliothèque",
+      app: "App",
+    },
+  },
+  de: {
+    open: "Offen für Angebote",
+    available: (month, year) => `Verfügbar ab ${month} ${year}`,
+    building: "Aktuelles Projekt",
+    years: "Jahre Erfahrung",
+    stars: "GitHub-Sterne",
+    email: "E-Mail",
+    kinds: { hackathon: "Hackathon", openSource: "Open Source", library: "Bibliothek", app: "App" },
+  },
+};
+
+function availabilityOf(about: readonly string[], lang: ContentLang): AutoContent["availability"] {
   const sentence = about.flatMap(sentences).find((line) => AVAILABLE.test(line));
   if (!sentence) return null;
   const month = MONTHS.exec(sentence);
-  const short = month ? `Available ${month[1]} ${month[2]}` : "Open to work";
+  const words = AUTO_WORDS[lang];
+  const short = month ? words.available(month[1] ?? "", month[2] ?? "") : words.open;
   return { open: true, text: clip(sentence, 120), short };
 }
 
@@ -106,16 +183,19 @@ export function categoryOf(
   lines: readonly string[],
   repo: string | null,
   topics: readonly string[],
+  lang: ContentLang = "en",
 ): string {
   const text = `${lines.join(" ")} ${topics.join(" ")}`;
   const kinds: string[] = [];
-  if (/\bhack(?:athon|\s?week|fest)\b/i.test(text)) kinds.push("Hackathon");
-  if (repo) kinds.push("Open source");
+  const words = AUTO_WORDS[lang].kinds;
+  if (/\bhack(?:athon|\s?week|fest)\b/i.test(text)) kinds.push(words.hackathon);
+  if (repo) kinds.push(words.openSource);
   if (/\b(?:saas|mrr|arr|paying (?:customers|users|venues|teams)|subscribers)\b/i.test(text))
     kinds.push("SaaS");
   if (/\b(?:cli|command[- ]line)\b/i.test(text)) kinds.push("CLI");
-  else if (/\b(?:library|package|sdk|npm module|framework)\b/i.test(text)) kinds.push("Library");
-  else if (/\b(?:ios|android|mobile app|react native|pwa)\b/i.test(text)) kinds.push("App");
+  else if (/\b(?:library|package|sdk|npm module|framework)\b/i.test(text))
+    kinds.push(words.library);
+  else if (/\b(?:ios|android|mobile app|react native|pwa)\b/i.test(text)) kinds.push(words.app);
   return kinds.slice(0, 2).join(" · ");
 }
 
@@ -147,6 +227,8 @@ export function autoContent(
   now = Date.now(),
 ): AutoContent {
   const nowYear = new Date(now).getUTCFullYear();
+  const lang = view.lang ?? "en";
+  const words = AUTO_WORDS[lang];
   const skills = skillNames(view);
   const firstParagraph = sentences(view.about[0] ?? "");
   const pitchSentence = firstParagraph[0] ?? "";
@@ -180,7 +262,7 @@ export function autoContent(
   };
   for (const item of view.links) if (item.href) addSocial(item.label, item.href);
   if (view.github?.href) addSocial("GitHub", view.github.href);
-  if (view.email) addSocial("Email", view.email);
+  if (view.email) addSocial(words.email, view.email);
 
   const about = view.about;
   const aboutText = about.join(" ");
@@ -229,7 +311,7 @@ export function autoContent(
         1200,
       ),
       lines: project.lines,
-      category: categoryOf(lines, fullName, repo?.topics ?? []),
+      category: categoryOf(lines, fullName, repo?.topics ?? [], lang),
       years: years ? String(years) : "",
       outcome: clip(outcome, 160),
       tech: tech.slice(0, 6),
@@ -280,11 +362,10 @@ export function autoContent(
     .filter((value): value is number => typeof value === "number");
   if (starts.length > 0) {
     const years = nowYear - Math.min(...starts);
-    if (years >= 1)
-      stats.push({ id: "st-years", value: String(years), label: "years of experience" });
+    if (years >= 1) stats.push({ id: "st-years", value: String(years), label: words.years });
   }
   if (github && github.totalStars >= 50) {
-    stats.push({ id: "st-stars", value: compactNumber(github.totalStars), label: "GitHub stars" });
+    stats.push({ id: "st-stars", value: compactNumber(github.totalStars), label: words.stars });
   }
   const candidates = [
     ...view.experience.flatMap((job) => job.lines),
@@ -370,7 +451,7 @@ export function autoContent(
   if (latest) {
     now_.push({
       id: "n-building",
-      label: "Building",
+      label: words.building,
       text: clip(latest.description ? `${latest.name}: ${latest.description}` : latest.name, 160),
     });
   }
@@ -379,7 +460,7 @@ export function autoContent(
     pitch,
     intro,
     disciplines: disciplinesOf(view.headline),
-    availability: availabilityOf(about),
+    availability: availabilityOf(about, lang),
     location,
     socials: socials.slice(0, 12),
     about,

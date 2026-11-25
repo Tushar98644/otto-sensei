@@ -6,6 +6,7 @@ export default {
     button: "Add projects from my GitHub",
   },
   connect: {
+    checking: "Checking your GitHub account…",
     title: "Import from GitHub",
     signInFirst: "Sign in first, then connect your GitHub account.",
     checkFailed: "Couldn't check your GitHub account just now.",
@@ -61,6 +62,10 @@ export default {
     merged: "Merged {month}",
   },
   review: {
+    missing: {
+      one: "{count} pick isn't on GitHub anymore, so Otto left it out.",
+      other: "{count} picks aren't on GitHub anymore, so Otto left them out.",
+    },
     title: "Keep the projects you want",
     description:
       "Otto picked your best public work. Untick anything you don't want; nothing is added until you say so.",

@@ -415,6 +415,8 @@ export default {
     },
   },
   gaps: {
+    fromJobs: { one: "De {count} vaga personalizada", other: "De {count} vagas personalizadas" },
+    shortIn: "Falta em {jobs}",
     heading: "O que suas vagas pedem sempre",
     tab: "Habilidades em falta",
     addLabel: "Adicionar uma linha sobre {term} à sua cópia mais recente que não tem isso",

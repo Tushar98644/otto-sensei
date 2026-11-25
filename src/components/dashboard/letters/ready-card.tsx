@@ -4,6 +4,7 @@ import { Bookmark, Check, ClipboardPaste, Link2, Sparkles, type LucideIcon } fro
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { CompanyMark } from "@/components/ui/company-mark";
 import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { Application } from "@/lib/applications/schema";
 import { cn } from "@/lib/utils";
 import type { WritingKind } from "@/lib/writings/schema";
@@ -114,7 +115,8 @@ export function ReadyCard({
   onOpen,
   onDismiss,
 }: ReadyCardProps) {
-  const untitled = useMessages("letters").ready.untitled;
+  const { ready } = useMessages("letters");
+  const untitled = ready.untitled;
   const titleId = useId();
   const interviewAt =
     application?.status === "interview" &&
@@ -168,7 +170,7 @@ export function ReadyCard({
             onDismiss={onDismiss}
           />
           {source && !state.run && state.ask === null ? (
-            <p className="text-xs/5 text-subtle">Written from “{source}”</p>
+            <p className="text-xs/5 text-subtle">{fmt(ready.writtenFrom, { source })}</p>
           ) : null}
         </div>
       </article>

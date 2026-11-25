@@ -42,7 +42,7 @@ export function SkillGapsPanel() {
         tabEnd={
           report.jobs > 0 ? (
             <span className="text-xs text-subtle tabular-nums">
-              From {report.jobs} tailored {report.jobs === 1 ? "job" : "jobs"}
+              {format.plural(t.gaps.fromJobs, report.jobs)}
             </span>
           ) : null
         }
@@ -66,7 +66,7 @@ export function SkillGapsPanel() {
                     </p>
                     {gap.jobs.length > 0 ? (
                       <p className="mt-1 truncate text-xs/5 text-subtle">
-                        Short in {gap.jobs.join(" · ")}
+                        {fmt(t.gaps.shortIn, { jobs: gap.jobs.join(" · ") })}
                       </p>
                     ) : null}
                   </div>

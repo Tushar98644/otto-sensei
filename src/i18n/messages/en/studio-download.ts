@@ -50,6 +50,7 @@ export default {
     moveThem: "Move them up",
   },
   pdf: {
+    pill: "Updating",
     title: "Your PDF",
     notMade: "Not made yet.",
     puttingTogether: "Putting it together.",

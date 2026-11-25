@@ -400,6 +400,8 @@ export default {
     },
   },
   gaps: {
+    fromJobs: { one: "From {count} tailored job", other: "From {count} tailored jobs" },
+    shortIn: "Short in {jobs}",
     heading: "What your jobs keep asking for",
     tab: "Skill gaps",
     addLabel: "Add a line about {term} to your newest copy that's missing it",

@@ -417,6 +417,8 @@ export default {
     },
   },
   gaps: {
+    fromJobs: { one: "Aus {count} angepassten Job", other: "Aus {count} angepassten Jobs" },
+    shortIn: "Fehlt bei {jobs}",
     heading: "Was deine Stellen immer wieder verlangen",
     tab: "Fehlende Skills",
     addLabel: "Eine Zeile zu {term} in deine neueste Kopie einfügen, der sie fehlt",

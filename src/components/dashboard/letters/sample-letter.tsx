@@ -1,5 +1,7 @@
 import { useId } from "react";
 import { Paper, PaperHead } from "./letter-paper";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 // Written by hand from the Jordan Ellis sample resume (lib/resume/sample.ts), so every fact is one of its lines.
 const SAMPLE_JOB = "Senior Product Marketing Manager";
@@ -15,13 +17,14 @@ const SAMPLE_LETTER: readonly string[] = [
 
 export function SampleLetter() {
   const headingId = useId();
+  const t = useMessages("letters").reader;
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1">
         <h2 id={headingId} className="font-sans text-base/6 font-medium text-ink">
-          An example: cover letter for {SAMPLE_JOB}
+          {fmt(t.sampleHeading, { job: SAMPLE_JOB })}
         </h2>
-        <p className="text-sm/6 text-muted">From Jordan Ellis, a sample resume. Nothing made up.</p>
+        <p className="text-sm/6 text-muted">{t.sampleNote}</p>
       </div>
       <Paper className="mask-b-from-55% lg:max-w-[46rem]">
         <div className="flex flex-col gap-7">

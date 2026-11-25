@@ -53,6 +53,7 @@ export default {
     moveThem: "Subir todas",
   },
   pdf: {
+    pill: "Atualizando",
     title: "Seu PDF",
     notMade: "Ainda não foi feito.",
     puttingTogether: "Montando.",

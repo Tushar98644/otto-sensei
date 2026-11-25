@@ -9,6 +9,7 @@ export default {
     button: "Agregar proyectos de mi GitHub",
   },
   connect: {
+    checking: "Revisando tu cuenta de GitHub…",
     title: "Importar desde GitHub",
     signInFirst: "Primero inicia sesión y luego conecta tu cuenta de GitHub.",
     checkFailed: "No se pudo revisar tu cuenta de GitHub en este momento.",
@@ -65,6 +66,10 @@ export default {
     merged: "Fusionado en {month}",
   },
   review: {
+    missing: {
+      one: "{count} elección ya no está en GitHub, así que Otto la dejó fuera.",
+      other: "{count} elecciones ya no están en GitHub, así que Otto las dejó fuera.",
+    },
     title: "Quédate con los proyectos que quieras",
     description:
       "Otto eligió tu mejor trabajo público. Desmarca lo que no quieras; no se agrega nada hasta que lo digas.",

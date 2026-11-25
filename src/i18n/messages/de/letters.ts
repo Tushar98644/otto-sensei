@@ -90,6 +90,7 @@ export default {
     another: "Andere Stelle: Link einfügen",
   },
   ready: {
+    writtenFrom: "Geschrieben aus „{source}“",
     savedJob: "Gespeicherter Job",
     tailoredCopy: "Angepasste Kopie",
     postReady: "Anzeige bereit",
@@ -164,6 +165,13 @@ export default {
     upload: "Lebenslauf hochladen",
   },
   reader: {
+    from: "Aus „{source}“",
+    sampleHeading: "Ein Beispiel: Anschreiben für {job}",
+    sampleNote: "Von Jordan Ellis, einem Beispiel-Lebenslauf. Nichts erfunden.",
+    styleCustom: "In deinem Stil geschrieben: <b>{style}</b>.",
+    stylePlain: "Otto schreibt in einem schlichten, natürlichen Stil.",
+    changeStyle: "Stil ändern",
+    setStyle: "Stil festlegen",
     saving: "Wird gespeichert…",
     saved: "Gespeichert",
     failed: "Noch nicht gespeichert",

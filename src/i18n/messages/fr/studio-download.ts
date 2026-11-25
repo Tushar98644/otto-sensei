@@ -53,6 +53,7 @@ export default {
     moveThem: "Les remonter",
   },
   pdf: {
+    pill: "Mise à jour",
     title: "Ton PDF",
     notMade: "Pas encore créé.",
     puttingTogether: "En préparation.",

@@ -89,6 +89,7 @@ export default {
     another: "Outra vaga: cole o link",
   },
   ready: {
+    writtenFrom: "Escrita a partir de “{source}”",
     savedJob: "Vaga salva",
     tailoredCopy: "Cópia personalizada",
     postReady: "Vaga pronta",
@@ -162,6 +163,13 @@ export default {
     upload: "Enviar um currículo",
   },
   reader: {
+    from: "De “{source}”",
+    sampleHeading: "Um exemplo: carta de apresentação para {job}",
+    sampleNote: "De Jordan Ellis, um currículo de exemplo. Nada inventado.",
+    styleCustom: "Escrito no seu estilo: <b>{style}</b>.",
+    stylePlain: "O Otto escreve num estilo simples e natural.",
+    changeStyle: "Mudar estilo",
+    setStyle: "Definir seu estilo",
     saving: "Salvando…",
     saved: "Salvo",
     failed: "Ainda não foi salvo",

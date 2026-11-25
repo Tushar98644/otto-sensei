@@ -83,6 +83,7 @@ export default {
     another: "Another job: paste its link",
   },
   ready: {
+    writtenFrom: "Written from “{source}”",
     savedJob: "Saved job",
     tailoredCopy: "Tailored copy",
     postReady: "Job post ready",
@@ -153,6 +154,13 @@ export default {
     upload: "Upload a resume",
   },
   reader: {
+    from: "From “{source}”",
+    sampleHeading: "An example: cover letter for {job}",
+    sampleNote: "From Jordan Ellis, a sample resume. Nothing made up.",
+    styleCustom: "Written in your style: <b>{style}</b>.",
+    stylePlain: "Otto writes in a plain, natural style.",
+    changeStyle: "Change style",
+    setStyle: "Set your style",
     saving: "Saving…",
     saved: "Saved",
     failed: "Not saved yet",

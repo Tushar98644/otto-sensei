@@ -148,7 +148,7 @@ export function GitHubStartDialog({
             onDisconnect={onDisconnect}
           />
         ) : (
-          <p className="text-sm/6 text-muted">Checking your GitHub account…</p>
+          <p className="text-sm/6 text-muted">{t.checking}</p>
         )}
       </div>
       {lookingUp ? <OttoWorking task="githubLookup" size="sm" className="mt-4" /> : null}

@@ -269,7 +269,9 @@ export function LetterReader({
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-base/7 text-muted">
             {role ? <span className="text-pretty">{role}</span> : null}
-            {source ? <span className="text-sm text-subtle">From “{source}”</span> : null}
+            {source ? (
+              <span className="text-sm text-subtle">{fmt(t.reader.from, { source })}</span>
+            ) : null}
             {application ? (
               <Link
                 href={applicationHref(application.id)}
