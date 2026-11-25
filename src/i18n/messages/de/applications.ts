@@ -370,6 +370,51 @@ export default {
     findJob: "Eine Stelle zum Anpassen finden",
     tailored: "Angepasst",
     general: "Allgemein",
+    outcome: "{hits} von {counted}",
+    findings: {
+      resumeInterviews: "Deine angepassten Versionen brachten <b>{outcome}</b>-mal ein Interview.",
+      resumeReplies: "Auf deine angepassten Versionen kam <b>{outcome}</b>-mal eine Antwort.",
+      resumeRest: "Dein allgemeiner Lebenslauf: {outcome}.",
+      letterInterviews: "Mit Anschreiben brachten <b>{outcome}</b> ein Interview.",
+      letterReplies: "Mit Anschreiben bekamen <b>{outcome}</b> eine Antwort.",
+      letterRest: "Ohne: {outcome}.",
+    },
+    notEnoughLetter:
+      "Anschreiben: {with} mit gezählt, {without} ohne. Otto vergleicht ab {min} von jeder Sorte.",
+    notEnoughNone:
+      "Bei keiner davon steht, welchen Lebenslauf du geschickt hast, also gibt es noch nichts zu vergleichen.",
+    notEnoughResume:
+      "Bisher gezählt: {tailored} und {general}. Otto vergleicht ab {min} von jeder Sorte.",
+    tailoredCount: { one: "{count} angepasste Version", other: "{count} angepasste Versionen" },
+    generalCount: {
+      one: "{count} allgemeiner Lebenslauf",
+      other: "{count} allgemeine Lebensläufe",
+    },
+    waiting: {
+      one: "{count} Bewerbung der letzten {days} Tage zählt noch nicht: Antworten brauchen Zeit.",
+      other:
+        "{count} Bewerbungen der letzten {days} Tage zählen noch nicht: Antworten brauchen Zeit.",
+    },
+    suggest: {
+      tailorWorks: "Pass die nächste auch an: Es funktioniert bei dir.",
+      tailorTry:
+        "Schick an deine nächsten Stellen eine angepasste Version, damit es etwas zu vergleichen gibt.",
+      tailorAction: "Lebenslauf anpassen",
+      letterInterviews: "Schreib für die nächste ein Anschreiben: Deine bringen mehr Interviews.",
+      letterReplies: "Schreib für die nächste ein Anschreiben: Auf deine kommen mehr Antworten.",
+      letterAction: "Anschreiben schreiben",
+      applySame:
+        "Beide laufen bisher etwa gleich gut. Heb das Anpassen für die Stellen auf, die du am meisten willst, und bewirb dich weiter.",
+      applyGeneral:
+        "Dein allgemeiner Lebenslauf läuft bisher besser. Heb das Anpassen für die Stellen auf, die du am meisten willst.",
+      applyAction: "Jobs finden",
+      wait: "Antworten brauchen Zeit. Otto zählt jede Bewerbung, sobald sie {days} Tage alt ist oder du eine Antwort hast.",
+      logFirst:
+        "Trag jede Stelle ein, auf die du dich bewirbst, mit dem Lebenslauf, den du geschickt hast. Otto vergleicht ab {min} von jeder Sorte.",
+      logNext:
+        "Wähl beim nächsten Eintrag den Lebenslauf, den du geschickt hast, damit Otto vergleichen kann.",
+      logAction: "Bewerbung hinzufügen",
+    },
   },
   gaps: {
     heading: "Was deine Stellen immer wieder verlangen",
@@ -384,6 +429,13 @@ export default {
     upload: "Lebenslauf hochladen",
     more: "{count} weitere",
     applications: "Bewerbungen",
+    of: { one: "{short} von {count} Stelle", other: "{short} von {count} Stellen" },
+    missing: "{term}: fehlt bei {of}, an die du angepasst hast",
+    listOnly: "{term}: nur in deiner Skill-Liste bei {of}",
+    notShown: "{term}: in keiner Zeile bei {of}, an die du angepasst hast",
+    show: "Steht in deiner Skill-Liste, aber keine Zeile zeigt es. Füg eine hinzu, die sagt, wo du {term} genutzt hast.",
+    learn:
+      "Wenn du {term} genutzt hast, füg eine Zeile hinzu, die sagt, wo. Wenn nicht: {asked} deiner Stellen haben danach gefragt, ein kleines Projekt zählt.",
   },
   move: {
     howEnded: "Wie ist es ausgegangen?",

@@ -371,6 +371,47 @@ export default {
     findJob: "Buscar una oferta para adaptar",
     tailored: "Adaptado",
     general: "General",
+    outcome: "{hits} de {counted}",
+    findings: {
+      resumeInterviews: "Tus versiones adaptadas consiguieron entrevista <b>{outcome}</b> veces.",
+      resumeReplies: "Tus versiones adaptadas recibieron respuesta <b>{outcome}</b> veces.",
+      resumeRest: "Tu currículum general: {outcome}.",
+      letterInterviews: "Con carta de presentación, <b>{outcome}</b> consiguieron entrevista.",
+      letterReplies: "Con carta de presentación, <b>{outcome}</b> recibieron respuesta.",
+      letterRest: "Sin carta: {outcome}.",
+    },
+    notEnoughLetter:
+      "Cartas de presentación: {with} contadas con carta, {without} sin ella. Otto compara a partir de {min} de cada una.",
+    notEnoughNone:
+      "Ninguna de estas dice qué currículum enviaste, así que aún no hay nada que comparar.",
+    notEnoughResume:
+      "Contadas hasta ahora: {tailored} y {general}. Otto compara a partir de {min} de cada uno.",
+    tailoredCount: { one: "{count} versión adaptada", other: "{count} versiones adaptadas" },
+    generalCount: { one: "{count} currículum general", other: "{count} currículums generales" },
+    waiting: {
+      one: "{count} postulación de los últimos {days} días aún no se cuenta: las respuestas tardan.",
+      other:
+        "{count} postulaciones de los últimos {days} días aún no se cuentan: las respuestas tardan.",
+    },
+    suggest: {
+      tailorWorks: "Adapta también la próxima: te funciona.",
+      tailorTry: "Envía una versión adaptada a tus próximos empleos, para tener algo que comparar.",
+      tailorAction: "Adaptar un currículum",
+      letterInterviews: "Escribe una carta para la próxima: las tuyas consiguen más entrevistas.",
+      letterReplies: "Escribe una carta para la próxima: las tuyas reciben más respuestas.",
+      letterAction: "Escribir una carta",
+      applySame:
+        "Ambos funcionan más o menos igual por ahora. Guarda la adaptación para los empleos que más quieres y sigue postulando.",
+      applyGeneral:
+        "Tu currículum general funciona mejor por ahora. Guarda la adaptación para los empleos que más quieres.",
+      applyAction: "Buscar empleos",
+      wait: "Las respuestas tardan. Otto cuenta cada postulación cuando tiene {days} días o cuando recibes respuesta.",
+      logFirst:
+        "Registra cada empleo al que postulas, con el currículum que enviaste. Otto compara a partir de {min} de cada tipo.",
+      logNext:
+        "Cuando registres la próxima, elige el currículum que enviaste para que Otto pueda comparar.",
+      logAction: "Agregar postulación",
+    },
   },
   gaps: {
     heading: "Lo que tus empleos piden una y otra vez",
@@ -385,6 +426,13 @@ export default {
     upload: "Subir un currículum",
     more: "{count} más",
     applications: "Postulaciones",
+    of: { one: "{short} de {count} empleo", other: "{short} de {count} empleos" },
+    missing: "{term}: falta en {of} para los que adaptaste",
+    listOnly: "{term}: solo en tu lista de habilidades en {of}",
+    notShown: "{term}: no aparece en ninguna línea en {of} para los que adaptaste",
+    show: "Está en tu lista de habilidades, pero ninguna línea lo muestra. Agrega una que diga dónde usaste {term}.",
+    learn:
+      "Si usaste {term}, agrega una línea que diga dónde. Si no, {asked} de tus empleos lo pidieron: un proyecto pequeño cuenta.",
   },
   move: {
     howEnded: "¿Cómo terminó?",

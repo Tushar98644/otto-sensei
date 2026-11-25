@@ -7,14 +7,9 @@ import { ROUTES } from "@/components/site/routes";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import { useFormat, useMessages } from "@/i18n/client";
+import { gapLineText, gapNudgeText } from "./copy";
 import { fmt } from "@/i18n/format";
-import {
-  gapLine,
-  gapNudge,
-  MIN_SHORT_JOBS,
-  skillGaps,
-  type SkillGapReport,
-} from "@/lib/insights/skill-gaps";
+import { MIN_SHORT_JOBS, skillGaps, type SkillGapReport } from "@/lib/insights/skill-gaps";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { useStudioActions } from "../use-studio-actions";
 
@@ -28,7 +23,8 @@ function useSkillGaps(limit: number): SkillGapReport | null {
 }
 
 export function SkillGapsPanel() {
-  const { gaps } = useMessages("applications");
+  const t = useMessages("applications");
+  const { gaps } = t;
   const format = useFormat();
   const report = useSkillGaps(PANEL_GAPS);
   const actions = useStudioActions();
@@ -55,7 +51,6 @@ export function SkillGapsPanel() {
         {report.gaps.length > 0 ? (
           <ul className="divide-y divide-border">
             {report.gaps.map((gap) => {
-              const nudge = gapNudge(gap);
               const copyId = gap.copyIds[0];
               return (
                 <li
@@ -63,8 +58,12 @@ export function SkillGapsPanel() {
                   className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:gap-6"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-base/6 font-medium text-ink">{gapLine(gap, report.jobs)}</p>
-                    <p className="mt-1 text-sm/6 text-pretty text-muted">{nudge.text}</p>
+                    <p className="text-base/6 font-medium text-ink">
+                      {gapLineText(gap, report.jobs, t, format)}
+                    </p>
+                    <p className="mt-1 text-sm/6 text-pretty text-muted">
+                      {gapNudgeText(gap, t, format)}
+                    </p>
                     {gap.jobs.length > 0 ? (
                       <p className="mt-1 truncate text-xs/5 text-subtle">
                         Short in {gap.jobs.join(" · ")}
@@ -111,7 +110,8 @@ export function SkillGapsPanel() {
 }
 
 export function SkillGapCard() {
-  const { gaps } = useMessages("applications");
+  const t = useMessages("applications");
+  const { gaps } = t;
   const format = useFormat();
   const report = useSkillGaps(3);
   const top = report?.gaps[0];
@@ -135,8 +135,10 @@ export function SkillGapCard() {
       }
       bodyClassName="p-5 sm:p-6"
     >
-      <p className="text-base/6 font-medium text-ink">{gapLine(top, report.jobs)}</p>
-      <p className="mt-1 max-w-prose text-sm/6 text-pretty text-muted">{gapNudge(top).text}</p>
+      <p className="text-base/6 font-medium text-ink">{gapLineText(top, report.jobs, t, format)}</p>
+      <p className="mt-1 max-w-prose text-sm/6 text-pretty text-muted">
+        {gapNudgeText(top, t, format)}
+      </p>
     </FolderCard>
   );
 }

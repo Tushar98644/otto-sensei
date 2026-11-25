@@ -359,6 +359,45 @@ export default {
     findJob: "Find a job to tailor for",
     tailored: "Tailored",
     general: "General",
+    outcome: "{hits} of {counted}",
+    findings: {
+      resumeInterviews: "Your tailored versions got interviews <b>{outcome}</b> times.",
+      resumeReplies: "Your tailored versions heard back <b>{outcome}</b> times.",
+      resumeRest: "Your general resume: {outcome}.",
+      letterInterviews: "With a cover letter, <b>{outcome}</b> got an interview.",
+      letterReplies: "With a cover letter, <b>{outcome}</b> heard back.",
+      letterRest: "Without one: {outcome}.",
+    },
+    notEnoughLetter:
+      "Cover letters: {with} counted with one, {without} without. Otto compares from {min} of each.",
+    notEnoughNone:
+      "None of these say which of your resumes you sent, so there's nothing to compare yet.",
+    notEnoughResume: "Counted so far: {tailored} and {general}. Otto compares from {min} of each.",
+    tailoredCount: { one: "{count} tailored version", other: "{count} tailored versions" },
+    generalCount: { one: "{count} general resume", other: "{count} general resumes" },
+    waiting: {
+      one: "{count} application from the past {days} days isn't counted yet: replies take time.",
+      other:
+        "{count} applications from the past {days} days aren't counted yet: replies take time.",
+    },
+    suggest: {
+      tailorWorks: "Tailor the next one too: it works for you.",
+      tailorTry: "Send a tailored version to your next few jobs, so there's something to compare.",
+      tailorAction: "Tailor a resume",
+      letterInterviews: "Write a letter for the next one: yours get more interviews.",
+      letterReplies: "Write a letter for the next one: yours get more replies.",
+      letterAction: "Write a letter",
+      applySame:
+        "Both do about as well so far. Save tailoring for the jobs you want most, and keep applying.",
+      applyGeneral:
+        "Your general resume does better so far. Save tailoring for the jobs you want most.",
+      applyAction: "Find jobs",
+      wait: "Replies take time. Otto counts each application once it's {days} days old or you hear back.",
+      logFirst:
+        "Log each job you apply to, with the resume you sent. Otto compares from {min} of each kind.",
+      logNext: "When you log the next one, pick the resume you sent, so Otto can compare.",
+      logAction: "Add application",
+    },
   },
   gaps: {
     heading: "What your jobs keep asking for",
@@ -372,6 +411,13 @@ export default {
     upload: "Upload a resume",
     more: "{count} more",
     applications: "Applications",
+    of: { one: "{short} of {count} job", other: "{short} of {count} jobs" },
+    missing: "{term}: missing in {of} you tailored for",
+    listOnly: "{term}: only in your skills list for {of}",
+    notShown: "{term}: not shown in a line in {of} you tailored for",
+    show: "It's in your skills list but no line shows it. Add one that says where you used {term}.",
+    learn:
+      "If you've used {term}, add a line that says where. If not, {asked} of your jobs asked for it: a small project counts.",
   },
   move: {
     howEnded: "How did it end?",

@@ -371,6 +371,48 @@ export default {
     findJob: "Encontrar uma vaga para personalizar",
     tailored: "Personalizado",
     general: "Geral",
+    outcome: "{hits} de {counted}",
+    findings: {
+      resumeInterviews:
+        "Suas versões personalizadas conseguiram entrevista <b>{outcome}</b> vezes.",
+      resumeReplies: "Suas versões personalizadas tiveram resposta <b>{outcome}</b> vezes.",
+      resumeRest: "Seu currículo geral: {outcome}.",
+      letterInterviews: "Com carta de apresentação, <b>{outcome}</b> conseguiram entrevista.",
+      letterReplies: "Com carta de apresentação, <b>{outcome}</b> tiveram resposta.",
+      letterRest: "Sem carta: {outcome}.",
+    },
+    notEnoughLetter:
+      "Cartas de apresentação: {with} contadas com carta, {without} sem. O Otto compara a partir de {min} de cada.",
+    notEnoughNone:
+      "Nenhuma delas diz qual currículo você enviou, então ainda não há o que comparar.",
+    notEnoughResume:
+      "Contadas até agora: {tailored} e {general}. O Otto compara a partir de {min} de cada.",
+    tailoredCount: { one: "{count} versão personalizada", other: "{count} versões personalizadas" },
+    generalCount: { one: "{count} currículo geral", other: "{count} currículos gerais" },
+    waiting: {
+      one: "{count} candidatura dos últimos {days} dias ainda não conta: respostas levam tempo.",
+      other:
+        "{count} candidaturas dos últimos {days} dias ainda não contam: respostas levam tempo.",
+    },
+    suggest: {
+      tailorWorks: "Personalize a próxima também: funciona para você.",
+      tailorTry: "Envie uma versão personalizada para as próximas vagas, para ter o que comparar.",
+      tailorAction: "Personalizar um currículo",
+      letterInterviews: "Escreva uma carta para a próxima: as suas conseguem mais entrevistas.",
+      letterReplies: "Escreva uma carta para a próxima: as suas têm mais respostas.",
+      letterAction: "Escrever uma carta",
+      applySame:
+        "Os dois vão mais ou menos igual até agora. Guarde a personalização para as vagas que você mais quer e continue se candidatando.",
+      applyGeneral:
+        "Seu currículo geral vai melhor até agora. Guarde a personalização para as vagas que você mais quer.",
+      applyAction: "Buscar vagas",
+      wait: "Respostas levam tempo. O Otto conta cada candidatura quando ela tem {days} dias ou quando você tem resposta.",
+      logFirst:
+        "Registre cada vaga em que você se candidata, com o currículo que enviou. O Otto compara a partir de {min} de cada tipo.",
+      logNext:
+        "Quando registrar a próxima, escolha o currículo que você enviou, para o Otto poder comparar.",
+      logAction: "Adicionar candidatura",
+    },
   },
   gaps: {
     heading: "O que suas vagas pedem sempre",
@@ -385,6 +427,13 @@ export default {
     upload: "Enviar um currículo",
     more: "mais {count}",
     applications: "Candidaturas",
+    of: { one: "{short} de {count} vaga", other: "{short} de {count} vagas" },
+    missing: "{term}: falta em {of} para as quais você personalizou",
+    listOnly: "{term}: só na sua lista de habilidades em {of}",
+    notShown: "{term}: não aparece em nenhuma linha em {of} para as quais você personalizou",
+    show: "Está na sua lista de habilidades, mas nenhuma linha mostra. Adicione uma que diga onde você usou {term}.",
+    learn:
+      "Se você já usou {term}, adicione uma linha que diga onde. Se não, {asked} das suas vagas pediram isso: um projeto pequeno conta.",
   },
   move: {
     howEnded: "Como terminou?",
