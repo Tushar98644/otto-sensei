@@ -1,5 +1,8 @@
+import type { ContentLang } from "@/lib/i18n/languages";
+import { resumeLang } from "@/lib/resume/lang";
 import { listBullets } from "@/lib/resume/ops";
 import { extrasOf, type Resume } from "@/lib/resume/schema";
+import { PRESENT_WORDS } from "@/lib/resume/date-words";
 import {
   firstPerson,
   lacksMethod,
@@ -11,24 +14,32 @@ import {
 } from "./bullets/checks";
 import { findDuplicates } from "./bullets/duplicates";
 import {
-  DUPLICATE_MESSAGE,
+  DUPLICATE,
   dutyMessage,
   firstPersonMessage,
-  NO_METHOD_MESSAGE,
-  NO_RESULT_MESSAGE,
+  NO_METHOD,
+  NO_RESULT,
   noNumberMessage,
   passiveMessage,
   stockMessage,
   tenseMessage,
-  TOO_SHORT_MESSAGE,
+  TOO_SHORT,
   tooLongMessage,
   vagueMessage,
   weakStartMessage,
 } from "./bullets/messages";
 import { CONTENT, countWords, findPhrases, opener, tokenize, type Span } from "./bullets/tokens";
-import { DUTY_INDEX, NUMBER_WORDS, STOCK_INDEX, WEAK_START_INDEX } from "./bullets/words";
+import { makeIssue } from "./issue";
+import { lintLanguage, runs, type LintLanguage } from "./lang";
 import { punctuationIssues, type EntryLine } from "./punctuation";
-import type { LintContext, LintIssue, LintIssueId, LintSeverity, ResumeLint } from "./types";
+import type {
+  LintContext,
+  LintIssue,
+  LintIssueId,
+  LintMessage,
+  LintSeverity,
+  ResumeLint,
+} from "./types";
 
 const TOO_LONG_WORDS = 32;
 const TOO_LONG_CHARS = 220;
@@ -85,18 +96,21 @@ function overlaps(a: Span, b: Span): boolean {
 
 function analyze(text: string, context: LintContext = WORK): Analysis {
   if (!CONTENT.test(text)) return { issues: [], hasContent: false, hasNumber: false, words: [] };
-  const tokens = tokenize(text);
+  const pack: LintLanguage = lintLanguage(context.lang);
+  const tokens = pack.elisions ? tokenize(text, true) : tokenize(text);
+  const skips = pack.openerSkips;
 
   const found: Ranked[] = [];
   const claimed: Span[] = [];
-  const add = (id: LintIssueId, message: string, match: string | null, position: number) => {
-    found.push({ issue: { id, severity: SEVERITY[id], message, match }, position });
+  const add = (id: LintIssueId, message: LintMessage, match: string | null, position: number) => {
+    found.push({ issue: makeIssue(id, SEVERITY[id], message, match), position });
   };
   const claim = (
     id: LintIssueId,
     spans: readonly Span[],
-    message: (first: Span, free: readonly Span[]) => string,
+    message: (first: Span, free: readonly Span[]) => LintMessage,
   ) => {
+    if (!runs(id, pack)) return false;
     const free = spans.filter((span) => !claimed.some((taken) => overlaps(span, taken)));
     const [first] = free;
     if (!first) return false;
@@ -104,35 +118,40 @@ function analyze(text: string, context: LintContext = WORK): Analysis {
     add(id, message(first, free), first.text, first.start);
     return true;
   };
+  const phrases = (index: LintLanguage["stock"], first: boolean) =>
+    !index ? [] : first ? opener(tokens, text, index, skips) : findPhrases(tokens, text, index);
 
-  const duty = claim("duty", opener(tokens, text, DUTY_INDEX), dutyMessage);
-  claim("weak-start", opener(tokens, text, WEAK_START_INDEX), weakStartMessage);
-  claim("stock-phrase", findPhrases(tokens, text, STOCK_INDEX), stockMessage);
-  claim("first-person", firstPerson(tokens, text), firstPersonMessage);
+  const duty = claim("duty", phrases(pack.duty, true), dutyMessage);
+  claim("weak-start", phrases(pack.weakStart, true), weakStartMessage);
+  claim("stock-phrase", phrases(pack.stock, false), stockMessage);
+  claim("first-person", firstPerson(tokens, text, pack), (span) => firstPersonMessage(span, pack));
   if (context.ended) {
-    const tense = tenseSpan(tokens, text);
+    const tense = tenseSpan(tokens, text, pack);
     if (tense) claim("tense", [tense.span], (span) => tenseMessage(span, tense.past));
   }
-  claim("passive", passives(tokens, text), passiveMessage);
-  claim("vague", vagueSpans(tokens, text), vagueMessage);
+  claim("passive", passives(tokens, text, pack), passiveMessage);
+  claim("vague", vagueSpans(tokens, text, pack), (span) => vagueMessage(span, pack));
 
-  const hasNumber = NUMERIC.test(text) || tokens.some((token) => NUMBER_WORDS.has(token.lower));
+  const hasNumber =
+    NUMERIC.test(text) || tokens.some((token) => pack.numberWords?.has(token.lower) === true);
   if (context.kind === "work") {
-    const marker = hasNumber ? null : resultMarker(tokens, text);
-    if (!hasNumber && !marker && !duty) add("no-result", NO_RESULT_MESSAGE, null, WHOLE_LINE);
-    if (marker) add("no-number", noNumberMessage(marker), null, WHOLE_LINE);
-    if (hasNumber && lacksMethod(tokens, text)) {
-      add("no-method", NO_METHOD_MESSAGE, null, WHOLE_LINE);
+    const marker = hasNumber || !runs("no-result", pack) ? null : resultMarker(tokens, text, pack);
+    if (!hasNumber && !marker && !duty && runs("no-result", pack)) {
+      add("no-result", NO_RESULT, null, WHOLE_LINE);
+    }
+    if (marker && runs("no-number", pack))
+      add("no-number", noNumberMessage(marker), null, WHOLE_LINE);
+    if (hasNumber && runs("no-method", pack) && lacksMethod(tokens, text, pack)) {
+      add("no-method", NO_METHOD, null, WHOLE_LINE);
     }
   }
 
   const words = countWords(text);
   const chars = text.trim().length;
   if (words > TOO_LONG_WORDS || chars > TOO_LONG_CHARS) {
-    const size = words > TOO_LONG_WORDS ? `${words} words` : `${chars} characters`;
-    add("too-long", tooLongMessage(size), null, WHOLE_LINE);
+    add("too-long", tooLongMessage(words, chars, TOO_LONG_WORDS), null, WHOLE_LINE);
   } else if (context.kind === "work" && words < TOO_SHORT_WORDS) {
-    add("too-short", TOO_SHORT_MESSAGE, null, WHOLE_LINE);
+    add("too-short", TOO_SHORT, null, WHOLE_LINE);
   }
 
   found.sort((a, b) => {
@@ -153,7 +172,8 @@ const analyses = new Map<string, Analysis>();
 // Typing re-lints every line, so the browser keeps recent results; servers keep no resume text.
 function analyzeOnce(text: string, context: LintContext): Analysis {
   if (typeof window === "undefined") return analyze(text, context);
-  const key = `${context.kind}|${context.ended ? 1 : 0}|${text}`;
+  const lang = context.lang && context.lang !== "en" ? `${context.lang}|` : "";
+  const key = `${lang}${context.kind}|${context.ended ? 1 : 0}|${text}`;
   const hit = analyses.get(key);
   if (hit) {
     analyses.delete(key);
@@ -170,7 +190,10 @@ export function lintBullet(text: string, context: LintContext = WORK): LintIssue
   return analyze(text, context).issues;
 }
 
-const PRESENT = /^(?:present|current|now|today|ongoing|to date)$/i;
+const PRESENT = new RegExp(
+  `^(?:present|current|now|today|ongoing|to date|${PRESENT_WORDS})$`,
+  "iu",
+);
 const WORK_EXTRAS: ReadonlySet<string> = new Set(["volunteering"]);
 
 export function hasEnded(endDate: string): boolean {
@@ -179,19 +202,23 @@ export function hasEnded(endDate: string): boolean {
 }
 
 export function lintContexts(resume: Resume): ReadonlyMap<string, LintContext> {
+  const lang = resumeLang(resume);
+  const work: LintContext = lang === "en" ? WORK : { kind: "work", lang };
+  const other: LintContext = lang === "en" ? OTHER : { kind: "other", lang };
   const contexts = new Map<string, LintContext>();
   for (const job of resume.experience) {
-    const context: LintContext = { kind: "work", ended: hasEnded(job.endDate) };
+    const ended = hasEnded(job.endDate);
+    const context: LintContext = lang === "en" ? { kind: "work", ended } : { ...work, ended };
     for (const bullet of job.bullets) contexts.set(bullet.id, context);
   }
   for (const project of resume.projects) {
-    for (const bullet of project.bullets) contexts.set(bullet.id, WORK);
+    for (const bullet of project.bullets) contexts.set(bullet.id, work);
   }
   for (const school of resume.education) {
-    for (const bullet of school.bullets) contexts.set(bullet.id, OTHER);
+    for (const bullet of school.bullets) contexts.set(bullet.id, other);
   }
   for (const section of extrasOf(resume)) {
-    const context = WORK_EXTRAS.has(section.kind) ? WORK : OTHER;
+    const context = WORK_EXTRAS.has(section.kind) ? work : other;
     for (const item of section.items) {
       for (const bullet of item.bullets) contexts.set(bullet.id, context);
     }
@@ -212,26 +239,23 @@ function entryGroups(refs: ReturnType<typeof listBullets>): EntryLine[][] {
 }
 
 export function lintResume(resume: Resume): ResumeLint {
+  const lang = resumeLang(resume);
   const contexts = lintContexts(resume);
+  const fallback: LintContext = lang === "en" ? WORK : { kind: "work", lang };
   const refs = listBullets(resume);
   const lines = refs.map((ref) => ({
     id: ref.bulletId,
-    ...analyzeOnce(ref.text, contexts.get(ref.bulletId) ?? WORK),
+    ...analyzeOnce(ref.text, contexts.get(ref.bulletId) ?? fallback),
   }));
   const duplicates = findDuplicates(lines.map((line) => line.words));
   const punctuation = new Map<string, LintIssue>();
   for (const group of entryGroups(refs)) {
-    for (const [id, issue] of punctuationIssues(group)) punctuation.set(id, issue);
+    for (const [id, issue] of punctuationIssues(group, lang)) punctuation.set(id, issue);
   }
   const totals = { bullets: 0, withIssues: 0, withNumbers: 0, highSeverity: 0 };
   const entries: [string, LintIssue[]][] = [];
   lines.forEach((line, index) => {
-    const duplicate: LintIssue = {
-      id: "duplicate",
-      severity: SEVERITY.duplicate,
-      message: DUPLICATE_MESSAGE,
-      match: null,
-    };
+    const duplicate = makeIssue("duplicate", SEVERITY.duplicate, DUPLICATE, null);
     const pattern = punctuation.get(line.id);
     const issues = [
       ...line.issues,
@@ -249,8 +273,8 @@ export function lintResume(resume: Resume): ResumeLint {
   return { byBullet: Object.fromEntries(entries), totals };
 }
 
-export function lintSummary(summary: string): LintIssue[] {
-  return analyzeOnce(summary, OTHER).issues.filter(
+export function lintSummary(summary: string, lang: ContentLang = "en"): LintIssue[] {
+  return analyzeOnce(summary, lang === "en" ? OTHER : { kind: "other", lang }).issues.filter(
     (issue) => issue.id === "stock-phrase" || issue.id === "first-person",
   );
 }

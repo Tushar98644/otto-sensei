@@ -1,4 +1,7 @@
-import type { LintIssue } from "./types";
+import type { ContentLang } from "@/lib/i18n/languages";
+import { makeIssue } from "./issue";
+import { lintLanguage } from "./lang";
+import type { LintIssue, LintMessage } from "./types";
 
 export type EntryLine = { id: string; text: string };
 
@@ -6,31 +9,49 @@ type Ending = "stop" | "none";
 
 const CONTENT = /[\p{L}\p{N}]/u;
 const CLOSING_QUOTES = /["'”’»]+$/u;
+// French puts a space before "?", "!" and ";", so "Prêt ?" still ends in a mark.
 const OTHER_MARK = /[?!…]$|\.\.$/u;
 const BRACKET_AFTER_STOP = /\.\s*[)\]]+$/u;
 const DOTTED_INITIALS = /(?:^|[^\p{L}])(?:\p{L}{1,2}\.){2,}$/u;
 const LAST_WORD = /(\p{L}+)\.$/u;
-const ABBREVIATIONS = new Set("al approx co corp dept etc inc jr ltd pty sr vs".split(" "));
 
-const MESSAGES: Record<Ending, { most: string; first: string }> = {
+const MESSAGES: Record<Ending, { most: LintMessage; first: LintMessage }> = {
   stop: {
-    most: "Most lines here end with a full stop. Add one here to match.",
-    first: "Your first line here ends with a full stop. Add one here to match.",
+    most: {
+      text: "Most lines here end with a full stop. Add one here to match.",
+      id: "stopMost",
+      params: {},
+    },
+    first: {
+      text: "Your first line here ends with a full stop. Add one here to match.",
+      id: "stopFirst",
+      params: {},
+    },
   },
   none: {
-    most: "Most lines here end without a full stop. Remove this one to match.",
-    first: "Your first line here ends without a full stop. Remove this one to match.",
+    most: {
+      text: "Most lines here end without a full stop. Remove this one to match.",
+      id: "noneMost",
+      params: {},
+    },
+    first: {
+      text: "Your first line here ends without a full stop. Remove this one to match.",
+      id: "noneFirst",
+      params: {},
+    },
   },
 };
 
-export function lineEnding(text: string): Ending | null {
+export function lineEnding(text: string, lang: ContentLang = "en"): Ending | null {
   if (!CONTENT.test(text)) return null;
-  const end = text.trimEnd().replace(CLOSING_QUOTES, "");
+  const unquoted = text.trimEnd().replace(CLOSING_QUOTES, "");
+  // « Prix. » keeps a space before its closing quote.
+  const end = lang === "en" ? unquoted : unquoted.trimEnd();
   if (OTHER_MARK.test(end) || BRACKET_AFTER_STOP.test(end)) return null;
   if (!end.endsWith(".")) return "none";
   if (DOTTED_INITIALS.test(end)) return null;
   const word = LAST_WORD.exec(end)?.[1]?.toLowerCase();
-  return word && ABBREVIATIONS.has(word) ? null : "stop";
+  return word && lintLanguage(lang).abbreviations.has(word) ? null : "stop";
 }
 
 export function setFullStop(text: string, stop: boolean): string {
@@ -41,9 +62,12 @@ export function setFullStop(text: string, stop: boolean): string {
   return stop ? `${body}.${quotes}` : `${body.slice(0, -1)}${quotes}`;
 }
 
-export function punctuationIssues(lines: readonly EntryLine[]): Map<string, LintIssue> {
+export function punctuationIssues(
+  lines: readonly EntryLine[],
+  lang: ContentLang = "en",
+): Map<string, LintIssue> {
   const read = lines.flatMap((line) => {
-    const ending = lineEnding(line.text);
+    const ending = lineEnding(line.text, lang);
     return ending ? [{ id: line.id, ending }] : [];
   });
   const stops = read.filter((line) => line.ending === "stop").length;
@@ -54,9 +78,7 @@ export function punctuationIssues(lines: readonly EntryLine[]): Map<string, Lint
   const keep: Ending = tie ? (read[0]?.ending ?? "none") : stops > nones ? "stop" : "none";
   const message = MESSAGES[keep][tie ? "first" : "most"];
   for (const line of read) {
-    if (line.ending !== keep) {
-      flagged.set(line.id, { id: "punctuation", severity: "low", message, match: null });
-    }
+    if (line.ending !== keep) flagged.set(line.id, makeIssue("punctuation", "low", message, null));
   }
   return flagged;
 }

@@ -1,3 +1,4 @@
+import { resumeLang } from "@/lib/resume/lang";
 import { listBullets } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { findTermIn } from "@/lib/tailor/keywords";
@@ -131,7 +132,7 @@ const GROUPS: Record<LintIssueId, Group> = {
 };
 
 function summaryItem(resume: Resume): ReviewItem | null {
-  const issues = lintSummary(resume.summary);
+  const issues = lintSummary(resume.summary, resumeLang(resume));
   if (issues.length === 0) return null;
   const target: ReviewTarget = { kind: "summary" };
   return {
