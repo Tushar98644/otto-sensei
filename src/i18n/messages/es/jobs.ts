@@ -112,8 +112,6 @@ export default {
     loading: "Cargando…",
     failed: "No se pudo cargar esta empresa.",
     tryAgain: "Intentar de nuevo",
-    known:
-      "Lo que muestra Otto viene de los empleos abiertos de esta empresa. No se muestran la financiación ni el tamaño del equipo: no hay una fuente gratuita y fiable para eso.",
   },
   alerts: {
     title: "Alertas de empleo",

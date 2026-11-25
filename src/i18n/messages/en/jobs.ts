@@ -105,8 +105,6 @@ export default {
     loading: "Loading…",
     failed: "Couldn't load this company.",
     tryAgain: "Try again",
-    known:
-      "What Otto shows comes from this company's open jobs. Funding and team size aren't shown: there's no reliable free source for them.",
   },
   alerts: {
     title: "Job alerts",

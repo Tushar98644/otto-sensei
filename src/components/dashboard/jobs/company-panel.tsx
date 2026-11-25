@@ -167,7 +167,6 @@ export function CompanyPanel({ name, onClose }: CompanyPanelProps) {
             </ul>
           </section>
         ) : null}
-        <p className="text-xs/5 text-subtle">{t.company.known}</p>
       </div>
     </Dialog>
   );

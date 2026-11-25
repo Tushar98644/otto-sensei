@@ -111,8 +111,6 @@ export default {
     loading: "Carregando…",
     failed: "Não foi possível carregar esta empresa.",
     tryAgain: "Tentar de novo",
-    known:
-      "O que o Otto mostra vem das vagas abertas desta empresa. Investimento e tamanho da equipe não aparecem: não há uma fonte gratuita e confiável para isso.",
   },
   alerts: {
     title: "Alertas de vagas",

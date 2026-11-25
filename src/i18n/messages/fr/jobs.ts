@@ -112,8 +112,6 @@ export default {
     loading: "Chargement…",
     failed: "Impossible de charger cette entreprise.",
     tryAgain: "Réessayer",
-    known:
-      "Ce qu'Otto affiche vient des offres ouvertes de cette entreprise. Le financement et la taille de l'équipe ne sont pas affichés : il n'existe pas de source gratuite et fiable pour ça.",
   },
   alerts: {
     title: "Alertes d'offres",
