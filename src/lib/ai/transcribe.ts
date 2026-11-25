@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { env } from "@/lib/env";
+import type { ContentLang } from "@/lib/i18n/languages";
 import { log } from "@/lib/log";
 import { ErrorBodySchema, statusFailure, thrownFailure, type AICallFields } from "./errors";
 import { AIError } from "./types";
@@ -43,7 +44,12 @@ const TranscriptSchema = z.object({
 
 export type Transcript = { text: string; seconds: number | null };
 
-export async function transcribeAudio(audio: Uint8Array, format: AudioFormat): Promise<Transcript> {
+// language: the speaker's language when known, as an ISO-639-1 hint; left out, Whisper detects it.
+export async function transcribeAudio(
+  audio: Uint8Array,
+  format: AudioFormat,
+  { language }: { language?: ContentLang } = {},
+): Promise<Transcript> {
   const apiKey = env().OPENROUTER_API_KEY;
   if (!apiKey) throw new AIError("unavailable", "OPENROUTER_API_KEY is not set");
   const fields: AICallFields = { task: "transcribe", model: TRANSCRIBE_MODEL };
@@ -56,6 +62,7 @@ export async function transcribeAudio(audio: Uint8Array, format: AudioFormat): P
       body: JSON.stringify({
         model: TRANSCRIBE_MODEL,
         input_audio: { data: Buffer.from(audio).toString("base64"), format },
+        ...(language ? { language } : {}),
         provider: { data_collection: "deny" },
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -91,7 +98,10 @@ export async function transcribeAudio(audio: Uint8Array, format: AudioFormat): P
     throw statusFailure(status, error, fields).error;
   }
   const spoken = (text ?? "").trim();
-  return { text: isSilenceGuess(spoken) ? "" : spoken, seconds: usage?.seconds ?? null };
+  return {
+    text: isSilenceGuess(spoken, language) ? "" : spoken,
+    seconds: usage?.seconds ?? null,
+  };
 }
 
 // Whisper fills silence with stock phrases like "Thank you."
@@ -104,11 +114,27 @@ const SILENCE_GUESSES = new Set([
   "bye",
 ]);
 
-export function isSilenceGuess(text: string): boolean {
-  return SILENCE_GUESSES.has(
-    text
-      .toLowerCase()
-      .replace(/[^a-z ]/g, "")
-      .trim(),
-  );
+// The same filler in the other languages, read only when the speaker's language is known.
+const FOREIGN_SILENCE_GUESSES: Record<Exclude<ContentLang, "en">, ReadonlySet<string>> = {
+  es: new Set(["gracias", "muchas gracias", "gracias por ver el video", "adios"]),
+  pt: new Set(["obrigado", "obrigada", "muito obrigado", "obrigado por assistir", "tchau"]),
+  fr: new Set(["merci", "merci beaucoup", "merci davoir regarde", "au revoir"]),
+  de: new Set(["danke", "vielen dank", "danke furs zuschauen", "tschuss"]),
+};
+
+export function isSilenceGuess(text: string, language?: ContentLang): boolean {
+  const plain = text
+    .toLowerCase()
+    .replace(/[^a-z ]/g, "")
+    .trim();
+  if (SILENCE_GUESSES.has(plain)) return true;
+  if (!language || language === "en") return false;
+  const folded = text
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return FOREIGN_SILENCE_GUESSES[language].has(folded);
 }
