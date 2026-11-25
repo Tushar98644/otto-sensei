@@ -51,6 +51,7 @@ const TABLES: Record<string, Table> = {
   skills: global("ids and weights of the skills public posts name"),
   job_counts: global("counts of public posts"),
   titles: global("public job titles with their meaning codes"),
+  companies: global("employers with public posts, by board"),
   match_cache: accountNotExported("a day's cache of ranked public posts"),
   company_visa: global("public visa registers"),
   match_events: accountNotExported("which posts were shown and opened, to measure ranking"),

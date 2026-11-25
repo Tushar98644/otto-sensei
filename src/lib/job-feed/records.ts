@@ -52,6 +52,8 @@ export type CandidateRow = FeedJob & {
   validThrough: number | null;
   code: TitleCode | null;
   post: string;
+  // A GeoNames id, 0 for none (job-city.ts).
+  city: number;
 };
 
 export function toFeedJob(row: FeedJob): FeedJob {
@@ -137,6 +139,7 @@ const ROW_COLUMNS = {
   facts: listings.facts,
   skills: listings.skills,
   post: listings.post,
+  city: listings.city,
   source: jobBoards.source,
   token: jobBoards.token,
   boardCompany: jobBoards.company,
@@ -183,6 +186,7 @@ function candidateOf(row: Stored, names: ReadonlyMap<number, string>): Candidate
     validThrough: row.valid ? fromMinutes(row.valid) : null,
     code: titleCodeFrom(row.code),
     post: row.post,
+    city: row.city,
   };
 }
 
@@ -300,6 +304,7 @@ export function snapshotRow(id: string, job: JobSnapshot): CandidateRow {
     validThrough: null,
     code: null,
     post: "",
+    city: 0,
   };
 }
 

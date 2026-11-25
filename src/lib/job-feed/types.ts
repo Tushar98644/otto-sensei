@@ -117,6 +117,10 @@ export const EMPLOYMENT_LABELS: Record<EmploymentType, string> = {
 };
 
 export const POSTED_WITHIN = [7, 30] as const;
+export const NEAR_KM = [10, 25, 50, 100] as const;
+export type NearKm = (typeof NEAR_KM)[number];
+export const WORK_MODES = ["hybrid", "onsite"] as const;
+export type WorkMode = (typeof WORK_MODES)[number];
 export type PostedWithin = (typeof POSTED_WITHIN)[number];
 
 export const JOB_PAGE_SIZE = 20;
@@ -153,9 +157,23 @@ export type JobMatch = {
   blocked: boolean;
 };
 
+// What a job card and the company panel say about the employer (companies.ts); no size or funding data is kept.
+export type CompanySnapshot = {
+  name: string;
+  roles: number;
+  remote: number;
+  hybrid: number;
+  // A job posted in the last HIRING_DAYS.
+  hiring: boolean;
+  // Where most of its open jobs are.
+  city: { name: string; country: string; admin: string } | null;
+  careers: string | null;
+};
+
 export type MatchedJob = FeedJob & {
   match: JobMatch;
   saved: boolean;
+  employer?: CompanySnapshot | null;
   otherPlaces: string[];
   morePlaces: number;
   visa: string[];
@@ -205,6 +223,9 @@ export const DEFAULT_FILTERS: JobFilters = {
   level: null,
   postedWithin: null,
   eligibleOnly: false,
+  workMode: null,
+  hiring: false,
+  near: null,
 };
 export type JobMatchesRequestBody = z.input<typeof JobMatchesRequestSchema>;
 
