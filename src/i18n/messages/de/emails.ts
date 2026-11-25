@@ -160,5 +160,6 @@ export default {
     pair: "{first} und {second}.",
     single: "{name}.",
     free: "Mit Free zeigt Jobs nur deine besten Treffer.",
+    alert: { one: "{count} neuer Job für „{name}“", other: "{count} neue Jobs für „{name}“" },
   },
 } satisfies Translation<Messages["emails"]>;

@@ -149,6 +149,11 @@ export function roleKeyword(title: string): string {
   return "";
 }
 
+// A link to LinkedIn's own company search; Otto never reads LinkedIn.
+export function linkedInCompanyUrl(company: string): string {
+  return `https://www.linkedin.com/search/results/companies/?keywords=${enc(searchName(company) || company)}`;
+}
+
 export function linkedInPeopleUrl(company: string, title = ""): string {
   const keywords = searchName(company) || roleKeyword(title);
   return `https://www.linkedin.com/search/results/people/?keywords=${enc(keywords)}`;

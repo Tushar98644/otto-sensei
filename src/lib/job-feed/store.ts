@@ -12,6 +12,7 @@ import {
   REBUILD_FLAGS,
   toMinutes,
 } from "./codes";
+import { jobCity } from "./job-city";
 import {
   boilerplateLines,
   contentHash,
@@ -215,6 +216,7 @@ function rowOf(
     facts: job.facts,
     skills: job.keywords.flatMap((skill) => sids.get(skill) ?? []),
     post: job.description,
+    city: jobCity(job.location, job.places),
   };
 }
 
@@ -239,6 +241,7 @@ const REWRITE_TYPES = {
   facts: "text",
   skills: "smallint[]",
   post: "text",
+  city: "integer",
 } as const satisfies Record<keyof Row, string>;
 
 const REWRITE_KEYS = Object.keys(REWRITE_TYPES) as (keyof typeof REWRITE_TYPES)[];

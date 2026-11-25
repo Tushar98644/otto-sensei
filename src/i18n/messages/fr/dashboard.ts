@@ -54,6 +54,11 @@ export default {
     signedOut: "Tu es déconnecté.",
     loadingResumes: "Chargement de tes CV",
   },
+  focusMusic: {
+    label: "Musique de concentration",
+    turnOn: "Lancer une musique calme",
+    turnOff: "Arrêter la musique",
+  },
   plan: {
     fixPayment: "Régler le paiement",
     daysLeft: { one: "{count} jour restant", other: "{count} jours restants" },

@@ -271,6 +271,18 @@ export default {
     savedGone: "Essa vaga salva não está mais aqui.",
     board: "Não foi possível ler o site dessa vaga.",
     typeLess: "Digite no máximo {max} caracteres.",
+    alertsSignIn: "Entre para ver seus alertas de vagas.",
+    alertsFailed: "Não foi possível carregar seus alertas de vagas. Tente de novo.",
+    alertBad:
+      "Esse alerta não funcionou. Escolha uma cidade em vez da sua localização e tente de novo.",
+    alertsFull: "Você pode ter até {max} alertas de vagas. Remova um para adicionar outro.",
+    alertSaveFailed: "Não foi possível salvar esse alerta de vagas. Tente de novo.",
+    alertRemoveFailed: "Não foi possível remover esse alerta de vagas. Tente de novo.",
+    mapFailed: "Não foi possível carregar o mapa agora. Tente de novo.",
+    companySignIn: "Entre para ver esta empresa.",
+    companyName: "Esse nome de empresa não funcionou.",
+    companyGone: "Esta empresa não tem vagas abertas aqui agora.",
+    companyFailed: "Não foi possível carregar esta empresa. Tente de novo.",
   },
   github: {
     connect: "Conecte sua conta do GitHub para importar os projetos dela.",

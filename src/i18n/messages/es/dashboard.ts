@@ -54,6 +54,11 @@ export default {
     signedOut: "Cerraste sesión.",
     loadingResumes: "Cargando tus currículums",
   },
+  focusMusic: {
+    label: "Música para concentrarte",
+    turnOn: "Poner música tranquila",
+    turnOff: "Detener la música",
+  },
   plan: {
     fixPayment: "Corregir el pago",
     daysLeft: { one: "Queda {count} día", other: "Quedan {count} días" },

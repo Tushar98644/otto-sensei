@@ -2,8 +2,10 @@ import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
 import type { Application } from "@/lib/applications/schema";
 import { applicationForJob, copyForJob } from "@/lib/applications/thread";
+import { countryName } from "@/lib/eligibility/places";
+import type { RegionName } from "@/lib/job-feed/looking-for";
 import { SOURCE_INFO } from "@/lib/job-feed/sources";
-import type { FeedJob, JobMatch } from "@/lib/job-feed/types";
+import type { CityLabel, FeedJob, JobMatch } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
 import type { JobsMessages } from "../i18n";
@@ -125,6 +127,12 @@ export function checkedLabel(
   if (hours < 1) return page.underHour;
   if (hours < 24) return format.relativeTime(-hours, "hour");
   return format.relativeTime(-Math.floor(hours / 24), "day", { numeric: "auto" });
+}
+
+// "Austin, TX" in the US, "Berlin, Germany" elsewhere, the country in the reader's language.
+export function cityLabel(city: CityLabel, regionName?: RegionName): string {
+  if (city.country === "US" && /^[A-Z]{2}$/.test(city.admin)) return `${city.name}, ${city.admin}`;
+  return `${city.name}, ${(regionName ?? countryName)(city.country)}`;
 }
 
 // "27,000+": a round figure that stays true as the count moves, like lib/job-feed/counts.

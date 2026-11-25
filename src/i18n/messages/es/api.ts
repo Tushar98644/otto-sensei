@@ -271,6 +271,18 @@ export default {
     savedGone: "Ese empleo guardado ya no está aquí.",
     board: "No se pudo leer el portal de ese empleo.",
     typeLess: "Escribe como máximo {max} caracteres.",
+    alertsSignIn: "Inicia sesión para ver tus alertas de empleo.",
+    alertsFailed: "No se pudieron cargar tus alertas de empleo. Inténtalo de nuevo.",
+    alertBad:
+      "Esa alerta no funcionó. Elige una ciudad en vez de tu ubicación y vuelve a intentarlo.",
+    alertsFull: "Puedes tener hasta {max} alertas de empleo. Quita una para agregar otra.",
+    alertSaveFailed: "No se pudo guardar esa alerta de empleo. Inténtalo de nuevo.",
+    alertRemoveFailed: "No se pudo quitar esa alerta de empleo. Inténtalo de nuevo.",
+    mapFailed: "No se pudo cargar el mapa ahora. Inténtalo de nuevo.",
+    companySignIn: "Inicia sesión para ver esta empresa.",
+    companyName: "Ese nombre de empresa no funcionó.",
+    companyGone: "Esta empresa no tiene empleos abiertos aquí ahora.",
+    companyFailed: "No se pudo cargar esta empresa. Inténtalo de nuevo.",
   },
   github: {
     connect: "Conecta tu cuenta de GitHub para importar sus proyectos.",

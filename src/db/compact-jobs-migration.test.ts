@@ -256,6 +256,9 @@ describe("compact jobs migration", { timeout: MIGRATIONS_TIMEOUT_MS }, () => {
       job: expect.objectContaining({ title: "Engineer" }),
     });
 
+    // The new app runs on every later migration too.
+    for (const migration of migrations.filter((m) => m.version > VERSION))
+      await client.exec(migration.sql);
     // The new app's first rebuild reads the old rules text into compact facts, and pages read it all.
     const db = drizzle(client, { schema }) as unknown as Db;
     const legacy = async () =>

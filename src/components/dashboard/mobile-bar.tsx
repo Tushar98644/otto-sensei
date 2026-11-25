@@ -16,6 +16,7 @@ import { useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import type { SessionUser } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
+import { FocusMusicToggle } from "./focus-music/focus-music-toggle";
 import { useHoverIntent, useSettled } from "./hover-intent";
 import { LinkPending } from "./link-pending";
 import { isCurrent, PHONE_MORE, PHONE_TABS, showsProMark, type AppNavItem } from "./nav";
@@ -49,6 +50,7 @@ export function MobileBar({ user }: { user: SessionUser }) {
           </span>
         </Link>
         <div className="flex items-center gap-1">
+          <FocusMusicToggle size="md" />
           <NotificationBell align="end" size="md" />
           <AccountMenu onSignIn={() => router.push(loginHref(pathname))} />
         </div>

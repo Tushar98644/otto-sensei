@@ -1,18 +1,21 @@
 "use client";
 
-import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { ChevronDown, List, Map as MapIcon, Search, SlidersHorizontal, X } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useFormat, useMessages } from "@/i18n/client";
-import type { JobFilters } from "@/lib/job-feed/types";
+import type { JobFilters, WorkMode } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
-import { activeFilterCount, type FilterMemory } from "./filter-memory";
+import { activeFilterCount, type FilterMemory, type Point } from "./filter-memory";
+import { NearFilter } from "./near-filter";
 import type { JobView } from "./use-job-matches";
+
+export type JobLayout = "list" | "map";
 
 const TYPE_DELAY_MS = 350;
 
@@ -95,6 +98,12 @@ export type JobFiltersBarProps = {
   onFilters: (patch: Partial<Omit<FilterMemory, "resumeId">>) => void;
   onRemote: ((remote: boolean) => void) | null;
   profileReady: boolean;
+  memory: FilterMemory;
+  layout: JobLayout;
+  onLayout: (layout: JobLayout) => void;
+  point: Point | null;
+  onPoint: (point: Point | null) => void;
+  alerts?: ReactNode;
 };
 
 export function JobFiltersBar({
@@ -108,12 +117,29 @@ export function JobFiltersBar({
   onFilters,
   onRemote,
   profileReady,
+  memory,
+  layout,
+  onLayout,
+  point,
+  onPoint,
+  alerts,
 }: JobFiltersBarProps) {
   const { filters: t } = useMessages("jobs");
   const format = useFormat();
   const ids = useId();
   const [open, setOpen] = useState(false);
   const active = activeFilterCount(filters);
+  const mode = filters.remote ? "remote" : (filters.workMode ?? "");
+
+  function changeMode(value: string) {
+    if (value === "remote") {
+      onRemote?.(true);
+      onFilters({ workMode: null });
+      return;
+    }
+    if (filters.remote) onRemote?.(false);
+    onFilters({ workMode: value === "hybrid" || value === "onsite" ? (value as WorkMode) : null });
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -143,6 +169,32 @@ export function JobFiltersBar({
             </span>
           </button>
         </div>
+        {view === "matches" ? (
+          <div
+            role="group"
+            aria-label={t.layout}
+            className="flex w-max gap-1 rounded-xl bg-surface-strong p-1"
+          >
+            <button
+              type="button"
+              aria-pressed={layout === "list"}
+              onClick={() => onLayout("list")}
+              className={SEGMENT}
+            >
+              <List aria-hidden className="size-4" />
+              {t.list}
+            </button>
+            <button
+              type="button"
+              aria-pressed={layout === "map"}
+              onClick={() => onLayout("map")}
+              className={SEGMENT}
+            >
+              <MapIcon aria-hidden className="size-4" />
+              {t.map}
+            </button>
+          </div>
+        ) : null}
         {view === "matches" ? (
           <div className="flex min-w-0 flex-1 gap-2">
             <SearchInput value={filters.q} onCommit={(q) => onFilters({ q })} />
@@ -187,6 +239,19 @@ export function JobFiltersBar({
                 <option value="30">{t.last30}</option>
               </Select>
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`${ids}-mode`}>{t.workMode}</Label>
+              <Select
+                id={`${ids}-mode`}
+                value={mode}
+                onChange={(event) => changeMode(event.target.value)}
+              >
+                <option value="">{t.anyMode}</option>
+                {onRemote || filters.remote ? <option value="remote">{t.remoteMode}</option> : null}
+                <option value="hybrid">{t.hybrid}</option>
+                <option value="onsite">{t.onsite}</option>
+              </Select>
+            </div>
             {resumes.length > 1 ? (
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor={`${ids}-resume`}>{t.resume}</Label>
@@ -203,18 +268,23 @@ export function JobFiltersBar({
                 </Select>
               </div>
             ) : null}
+            <NearFilter
+              city={memory.nearCity}
+              km={memory.nearKm}
+              point={point}
+              onChange={onFilters}
+              onPoint={onPoint}
+            />
             <div className="flex flex-wrap gap-x-6 sm:col-span-2">
-              {onRemote ? (
-                <label className={CHECKBOX}>
-                  <input
-                    type="checkbox"
-                    checked={filters.remote}
-                    onChange={(event) => onRemote(event.target.checked)}
-                    className="size-4 accent-ink"
-                  />
-                  {t.remote}
-                </label>
-              ) : null}
+              <label className={CHECKBOX}>
+                <input
+                  type="checkbox"
+                  checked={filters.hiring}
+                  onChange={(event) => onFilters({ hiring: event.target.checked })}
+                  className="size-4 accent-ink"
+                />
+                {t.hiring}
+              </label>
               {profileReady ? (
                 <label className={CHECKBOX}>
                   <input
@@ -227,6 +297,7 @@ export function JobFiltersBar({
                 </label>
               ) : null}
             </div>
+            {alerts}
           </div>
         ) : null}
       </div>

@@ -7,6 +7,7 @@ import { matchProfileOf } from "@/lib/job-feed/profile";
 import { DEFAULT_FILTERS, NO_CHOICE } from "@/lib/job-feed/types";
 import { queryKeys } from "@/lib/queries/keys";
 import { createSampleResume } from "@/lib/resume/sample";
+import { NO_MEMORY } from "./filter-memory";
 
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),
@@ -90,7 +91,7 @@ describe("openingMatchesRequest", () => {
 
   it("opens with the filters remembered from the last visit, as the page asks for them", () => {
     const resume = createSampleResume(NOW);
-    const memory = { q: "react", postedWithin: 7, eligibleOnly: true, resumeId: null } as const;
+    const memory = { ...NO_MEMORY, q: "react", postedWithin: 7, eligibleOnly: true } as const;
     const blank = { profile: emptyWorkProfile(), lookingFor: NO_CHOICE };
     expect(openingMatchesRequest(resume, blank, NOW, memory)?.filters).toEqual({
       ...DEFAULT_FILTERS,

@@ -38,7 +38,7 @@ export async function resetDb(): Promise<void> {
        public.rate_limits, public.billing_log, public.users,
        public.job_boards, public.skills,
        public.job_counts, public.company_visa,
-       public.listings, public.titles,
+       public.listings, public.titles, public.companies,
        auth.users, dev_auth.login_codes,
        dev_auth.sessions cascade`,
   );

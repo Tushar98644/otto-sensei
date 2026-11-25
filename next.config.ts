@@ -6,10 +6,10 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "DENY" },
-  // Voice typing needs the microphone on our own pages; embeds still get none.
+  // Voice typing needs the microphone and the Jobs map the location, on our own pages only; embeds get neither.
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(self), geolocation=(), payment=()",
+    value: "camera=(), microphone=(self), geolocation=(self), payment=()",
   },
 ];
 

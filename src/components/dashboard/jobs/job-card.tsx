@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { StatusIcon } from "../applications/status-menu";
 import { midSentence } from "../i18n";
 import { CardAppliedQuestion } from "./applied-question";
+import { EmployerLine } from "./employer";
 import { NotFitQuestion } from "./not-fit-question";
 import { matchLead, placeParts, postedLabel, skillList } from "./view";
 
@@ -50,6 +51,7 @@ export type JobCardProps = {
   onMarkApplied: (job: MatchedJob) => void;
   onOpen?: (job: MatchedJob) => void;
   onOutreach?: (job: MatchedJob) => void;
+  onCompany?: (job: MatchedJob) => void;
   asking?: boolean;
   onAnswer?: (job: MatchedJob, answer: AskedAppliedAnswer) => void;
   onNotFit?: (job: MatchedJob, reason: NotFitReason) => void;
@@ -160,6 +162,7 @@ export function JobCard({
   onMarkApplied,
   onOpen,
   onOutreach,
+  onCompany,
   asking = false,
   onAnswer,
   onNotFit,
@@ -247,6 +250,12 @@ export function JobCard({
                 </li>
               </ul>
             </div>
+            {job.employer ? (
+              <EmployerLine
+                employer={job.employer}
+                onOpen={onCompany ? () => onCompany(job) : undefined}
+              />
+            ) : null}
             {job.visa.length > 0 ? (
               <ul className="mt-2 flex flex-wrap gap-1.5">
                 {job.visa.map((line) => (

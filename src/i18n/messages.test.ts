@@ -44,6 +44,7 @@ const filesIn = (locale: Locale) =>
 // Words that read the same in English and this language, by path within their namespace.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
   es: new Set([
+    "filters.km",
     "families.marketing",
     "families.legal",
     "majorGroups.23",
@@ -98,6 +99,7 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "reader.styleParts.tones.formal",
   ]),
   "pt-BR": new Set([
+    "filters.km",
     "families.design",
     "families.marketing",
     "card.via",
@@ -172,6 +174,7 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "sendItems.places.links",
   ]),
   fr: new Set([
+    "filters.km",
     "families.design",
     "families.marketing",
     "families.finance",
@@ -305,6 +308,9 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "versions.suggested",
   ]),
   de: new Set([
+    "filters.km",
+    "filters.remoteMode",
+    "filters.hybrid",
     "levels.senior",
     "groups.eu",
     "card.level",

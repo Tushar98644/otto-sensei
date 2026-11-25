@@ -14,6 +14,7 @@ type RouteModule = { GET?: Handler };
 const PUBLIC = new Set([
   "./health/route.ts",
   "./jobs/occupations/route.ts",
+  "./jobs/cities/route.ts",
   "./auth/expired/route.ts",
   "./billing/return/route.ts",
   "./notifications/unsubscribe/route.ts",

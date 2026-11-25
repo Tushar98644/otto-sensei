@@ -16,6 +16,8 @@ import {
   toMinutes,
   unpackOccupation,
 } from "./codes";
+import { buildCompanies, hiringSince, writeCompanies, type CompanyMember } from "./companies";
+import { jobCity } from "./job-city";
 import { jobPlaces } from "./job-places";
 import { KIND, PAST_KIND_WEIGHT } from "./match";
 import { occupationOf, readTitle } from "./occupations";
@@ -223,12 +225,33 @@ export async function rebuildMatchIndex(
   const finished = await finishCopiedRows(db, now, until);
   const recoded = await recodeTitles(db, until);
   // One transaction, so this read of every open job may run past the app role's 15 s statement limit.
-  const matchable = await db.transaction(async (tx) => {
+  const { matchable, members } = await db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout = '120s'`);
     return buildMatchIndex(tx as unknown as Db, now);
   });
-  log.info("jobs.rebuilt", { finished, recoded, matchable, ms: Date.now() - started });
+  const companiesWritten = await rebuildCompanies(db, members);
+  log.info("jobs.rebuilt", {
+    finished,
+    recoded,
+    matchable,
+    companiesWritten,
+    ms: Date.now() - started,
+  });
   return matchable;
+}
+
+// The companies table follows the index; a database without it yet (before its migration) is skipped.
+async function rebuildCompanies(db: Db, members: readonly CompanyMember[]): Promise<number | null> {
+  try {
+    const boards = await db
+      .select({ id: jobBoards.id, company: jobBoards.company })
+      .from(jobBoards);
+    const names = new Map(boards.map((board) => [board.id, board.company]));
+    return await writeCompanies(db, buildCompanies(members, names));
+  } catch (error) {
+    if (missingTable(error)) return null;
+    throw error;
+  }
 }
 
 type Member = {
@@ -244,7 +267,10 @@ type Member = {
   oplaces: string;
 };
 
-async function buildMatchIndex(db: Db, now: number): Promise<number> {
+async function buildMatchIndex(
+  db: Db,
+  now: number,
+): Promise<{ matchable: number; members: CompanyMember[] }> {
   builtCache = null;
   const rows = await db
     .select({
@@ -257,6 +283,10 @@ async function buildMatchIndex(db: Db, now: number): Promise<number> {
       family: listings.family,
       places: listings.places,
       oplaces: listings.oplaces,
+      location: listings.location,
+      company: listings.company,
+      seen: listings.seen,
+      city: listings.city,
       titleText: listings.titleText,
       title: titles.text,
       titleOcc: titles.occ,
@@ -269,7 +299,15 @@ async function buildMatchIndex(db: Db, now: number): Promise<number> {
   // Read again from the title, so a change to the title rules reaches every stored job.
   const kinds = new Map<string, { occ: number; family: number }>();
   const groups = new Map<string, Member[]>();
-  const fresh: (Member & { kindOcc: number; kindFamily: number })[] = [];
+  const fresh: (Member & {
+    kindOcc: number;
+    kindFamily: number;
+    city: number;
+    readCity: number;
+    location: string;
+    company: string;
+    newest: number;
+  })[] = [];
   for (const row of rows) {
     const title = row.titleText || row.title;
     let kind = kinds.get(title);
@@ -292,7 +330,16 @@ async function buildMatchIndex(db: Db, now: number): Promise<number> {
       family: row.family,
       oplaces: row.oplaces,
     };
-    fresh.push({ ...member, kindOcc: kind.occ, kindFamily: kind.family });
+    fresh.push({
+      ...member,
+      kindOcc: kind.occ,
+      kindFamily: kind.family,
+      city: row.city,
+      readCity: jobCity(row.location, row.places),
+      location: row.location,
+      company: row.company,
+      newest: Math.min(row.posted, row.seen),
+    });
     const key = `${row.board}:${row.grp}`;
     const list = groups.get(key);
     if (list) list.push(member);
@@ -316,16 +363,26 @@ async function buildMatchIndex(db: Db, now: number): Promise<number> {
     for (const copy of list.slice(1)) next.set(copy.id, { flags: FLAG.copy, oplaces: "" });
   }
 
-  type Write = { id: number; flags: number; occ: number; family: number; oplaces: string };
+  type Write = {
+    id: number;
+    flags: number;
+    occ: number;
+    family: number;
+    oplaces: string;
+    city: number;
+  };
   const writes: Write[] = [];
+  const members: CompanyMember[] = [];
   for (const row of fresh) {
     const target = next.get(row.id) ?? { flags: 0, oplaces: "" };
     const flags = (row.flags & ~REBUILD_FLAGS) | target.flags;
+    // The city is read here too, so a job stored before cities (or before a better reading) gets one once.
     if (
       flags !== row.flags ||
       row.kindOcc !== row.occ ||
       row.kindFamily !== row.family ||
-      target.oplaces !== row.oplaces
+      target.oplaces !== row.oplaces ||
+      row.readCity !== row.city
     )
       writes.push({
         id: row.id,
@@ -333,22 +390,38 @@ async function buildMatchIndex(db: Db, now: number): Promise<number> {
         occ: row.kindOcc,
         family: row.kindFamily,
         oplaces: target.oplaces,
+        city: row.readCity,
       });
+    members.push({
+      board: row.board,
+      company: row.company,
+      city: row.readCity,
+      location: row.location,
+      remote: row.remote,
+      lead: (flags & FLAG.lead) !== 0,
+      newest: row.newest,
+    });
   }
   // Only changed rows are written: rewriting all leaves a dead copy of every row until vacuum.
   for (let i = 0; i < writes.length; i += CHUNK) {
     const part = writes.slice(i, i + CHUNK);
     await db
       .update(listings)
-      .set({ flags: sql`v.flags`, occ: sql`v.occ`, family: sql`v.family`, oplaces: sql`v.oplaces` })
+      .set({
+        flags: sql`v.flags`,
+        occ: sql`v.occ`,
+        family: sql`v.family`,
+        oplaces: sql`v.oplaces`,
+        city: sql`v.city`,
+      })
       .from(
         sql`(values ${sql.join(
           part.map(
             (row) =>
-              sql`(${row.id}::bigint, ${row.flags}::smallint, ${row.occ}::integer, ${row.family}::smallint, ${row.oplaces}::text)`,
+              sql`(${row.id}::bigint, ${row.flags}::smallint, ${row.occ}::integer, ${row.family}::smallint, ${row.oplaces}::text, ${row.city}::integer)`,
           ),
           sql`, `,
-        )}) as v(id, flags, occ, family, oplaces)`,
+        )}) as v(id, flags, occ, family, oplaces, city)`,
       )
       .where(sql`${listings.id} = v.id`);
   }
@@ -371,7 +444,7 @@ async function buildMatchIndex(db: Db, now: number): Promise<number> {
     .values({ id: 1, ...counts })
     .onConflictDoUpdate({ target: jobCountsRow.id, set: counts });
   await pruneTitles(db, now);
-  return matchable;
+  return { matchable, members };
 }
 
 // A call that changed no job keeps the index and its build time (so cached Matches stay), and only notes its read.
@@ -434,6 +507,8 @@ export type PoolQuery = {
   langs?: readonly ContentLang[] | null;
   // Internships are shown only to someone looking for one.
   interns?: boolean;
+  // The cities within the distance asked (filters.near), as GeoNames ids; null asks no distance.
+  near?: readonly number[] | null;
 };
 
 const intArray = (values: readonly number[]) => `{${values.join(",")}}`;
@@ -444,15 +519,22 @@ const textArrayLiteral = (values: readonly string[]) =>
 
 type Scored = { id: number; score: number; near: boolean; posted: number; groups: number };
 
+const HYBRID_WORD = "\\mhybrid\\M";
+const hybridIn = (location: string) => /\bhybrid\b/i.test(location);
+
 // A copy is kept as a page shows it: open to the same filters as the opening.
 function copyFits(
   row: CandidateRow,
   filters: JobFilters,
   now: number,
   langs: readonly ContentLang[] | null = null,
+  near: ReadonlySet<number> | null = null,
 ): boolean {
   if (langs && !langCodes(langs).includes((row.flags >> LANG_SHIFT) & 7)) return false;
   if (filters.remote && !row.remote) return false;
+  if (filters.workMode === "hybrid" && (row.remote || !hybridIn(row.location))) return false;
+  if (filters.workMode === "onsite" && (row.remote || hybridIn(row.location))) return false;
+  if (near && !near.has(row.city)) return false;
   if (filters.role && row.family !== filters.role) return false;
   if (filters.level && !LEVEL_SENIORITIES[filters.level].includes(row.seniority)) return false;
   if (filters.postedWithin && row.postedAt < now - filters.postedWithin * 24 * 60 * 60 * 1_000)
@@ -527,8 +609,21 @@ async function scoredOpenings(
     );
   const maxYears = query.seniority ? LEVEL_MAX_YEARS[query.seniority] : null;
   if (maxYears !== null) conditions.push(sql`l.min_years <= ${maxYears}::int`);
-  if (filters.remote)
-    conditions.push(sql`(l.flags & ${built ? FLAG.openingRemote : FLAG.remote}) <> 0`);
+  const remoteFlag = built ? FLAG.openingRemote : FLAG.remote;
+  if (filters.remote) conditions.push(sql`(l.flags & ${remoteFlag}) <> 0`);
+  if (filters.workMode === "hybrid")
+    conditions.push(sql`(l.flags & ${remoteFlag}) = 0 and l.location ~* ${HYBRID_WORD}`);
+  if (filters.workMode === "onsite")
+    conditions.push(sql`(l.flags & ${remoteFlag}) = 0 and l.location !~* ${HYBRID_WORD}`);
+  if (filters.hiring)
+    conditions.push(sql`exists (select 1 from companies c
+      where c.board = l.board and c.company = l.company and c.newest >= ${hiringSince(now)}::int)`);
+  if (query.near) {
+    const cities = sql`${intArray(query.near)}::int[]`;
+    conditions.push(sql`(l.city = any(${cities}) or ((l.flags & ${FLAG.hasCopies}) <> 0 and exists (
+      select 1 from listings c where (c.flags & ${sql.raw(String(FLAG.copy))}) <> 0
+        and c.board = l.board and c.grp = l.grp and c.city = any(${cities}))))`);
+  }
   if (filters.role) conditions.push(sql`l.family = ${familyCode(filters.role)}`);
   if (filters.level) {
     const levels = LEVEL_SENIORITIES[filters.level].map((item) => SENIORITIES.indexOf(item));
@@ -598,6 +693,7 @@ export async function poolOpenings(
   now: number,
 ): Promise<OpeningPool> {
   const table = await buildTables(db, counts?.builtAt ?? -1);
+  const near = query.near ? new Set(query.near) : null;
   const limit = query.limit ?? CANDIDATE_POOL;
   const offset = query.offset ?? 0;
   const words = [queryWords(query.filters.q), queryWords(query.filters.place)];
@@ -618,30 +714,7 @@ export async function poolOpenings(
       rows.filter((row) => row.flags & FLAG.hasCopies),
     );
   } else {
-    // The search box matches an opening when any copy has every word: every match's words are read, whole rows only for the page.
-    const all = await scoredOpenings(db, query, table, now, null, counts !== null);
-    const leads = await searchRows(
-      db,
-      all.map((item) => item.id),
-    );
-    const copiesOf = groupCopies(
-      await searchCopyRows(
-        db,
-        leads.filter((row) => row.flags & FLAG.hasCopies),
-      ),
-    );
-    const hit = new Set(
-      leads
-        .filter((row) =>
-          words.every((list) =>
-            [row, ...(copiesOf.get(`${row.board}:${row.grp}`) ?? [])].some((copy) =>
-              matchesWords(copy, list),
-            ),
-          ),
-        )
-        .map((row) => row.listing),
-    );
-    const matched = all.filter((item) => hit.has(item.id)).sort(order);
+    const matched = await searchMatches(db, query, table, now, counts !== null);
     groups = matched.length;
     scored = matched.slice(offset, offset + limit);
     rows = await listingRows(
@@ -661,7 +734,7 @@ export async function poolOpenings(
     if (!lead) continue;
     // The copies a page could show under these filters; the lead, else the newest of them.
     const list = [lead, ...(byGroup.get(`${lead.board}:${lead.grp}`) ?? [])]
-      .filter((copy) => copyFits(copy, query.filters, now, query.langs ?? null))
+      .filter((copy) => copyFits(copy, query.filters, now, query.langs ?? null, near))
       .sort((a, b) => b.postedAt - a.postedAt || b.listing - a.listing);
     const row = list.find((copy) => copy.listing === lead.listing) ?? list[0];
     if (!row) continue;
@@ -679,6 +752,79 @@ export async function poolOpenings(
     });
   }
   return { openings, groups };
+}
+
+// The search box matches an opening when any copy has every word: every match's words are read, whole rows only for the page.
+async function searchMatches(
+  db: Db,
+  query: PoolQuery,
+  table: SkillTable,
+  now: number,
+  built: boolean,
+): Promise<Scored[]> {
+  const words = [queryWords(query.filters.q), queryWords(query.filters.place)];
+  const all = await scoredOpenings(db, query, table, now, null, built);
+  const leads = await searchRows(
+    db,
+    all.map((item) => item.id),
+  );
+  const copiesOf = groupCopies(
+    await searchCopyRows(
+      db,
+      leads.filter((row) => row.flags & FLAG.hasCopies),
+    ),
+  );
+  const hit = new Set(
+    leads
+      .filter((row) =>
+        words.every((list) =>
+          [row, ...(copiesOf.get(`${row.board}:${row.grp}`) ?? [])].some((copy) =>
+            matchesWords(copy, list),
+          ),
+        ),
+      )
+      .map((row) => row.listing),
+  );
+  return all.filter((item) => hit.has(item.id)).sort(order);
+}
+
+// The map reads a list's first openings this far down.
+const MAP_POOL = 5_000;
+type PooledCompany = { board: number; company: string; city: number; roles: number };
+
+// How many of a list's openings each company has in each city (0: none named).
+export async function poolCompanies(
+  db: Db,
+  query: PoolQuery,
+  counts: StoredCounts | null,
+  now: number,
+): Promise<{ companies: PooledCompany[]; openings: number }> {
+  const table = await buildTables(db, counts?.builtAt ?? -1);
+  const searching = [query.filters.q, query.filters.place].some((text) => queryWords(text).length);
+  const scored = searching
+    ? (await searchMatches(db, query, table, now, counts !== null)).slice(0, MAP_POOL)
+    : await scoredOpenings(db, query, table, now, { limit: MAP_POOL, offset: 0 }, counts !== null);
+  const ids = scored.map((item) => item.id);
+  const tally = new Map<string, PooledCompany>();
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const rows = await db
+      .select({
+        board: listings.board,
+        company: listings.company,
+        city: listings.city,
+        roles: sql<number>`count(*)::int`,
+      })
+      .from(listings)
+      .where(inArray(listings.id, ids.slice(i, i + CHUNK)))
+      .groupBy(listings.board, listings.company, listings.city);
+    for (const row of rows) {
+      const key = `${row.board}:${row.city}:${row.company}`;
+      const known = tally.get(key);
+      if (known) known.roles += Number(row.roles);
+      else tally.set(key, { ...row, roles: Number(row.roles) });
+    }
+  }
+  return { companies: [...tally.values()], openings: ids.length };
 }
 
 const visaOf = (facts: VisaFacts | undefined) =>

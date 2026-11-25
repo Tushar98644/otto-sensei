@@ -176,6 +176,8 @@ export const userSettings = pgTable(
     locale: text("locale", { enum: LOCALES }),
     // The job post languages Looking for keeps (job-feed/job-langs.ts); null until the account picks them.
     jobLangs: text("job_langs", { enum: CONTENT_LANGS }).array(),
+    // Saved searches the bell watches (src/lib/job-feed/alerts.ts), at most five.
+    jobAlerts: jsonb("job_alerts").$type<unknown[]>(),
   },
   (t) => [
     index("user_settings_career_due_idx")
@@ -412,6 +414,8 @@ export const listings = pgTable(
     facts: text("facts").notNull().default(""),
     skills: smallint("skills").array().notNull().default([]),
     post: text("post").notNull().default(""),
+    // The GeoNames id of the first city its location names (src/lib/geo), 0 for none.
+    city: integer("city").notNull().default(0),
   },
   (t) => [
     index("listings_copies_idx")
@@ -424,6 +428,25 @@ export const listings = pgTable(
       .on(t.url)
       .where(sql`url <> ''`),
   ],
+);
+
+// Each employer with open jobs, by board and listings.company, rebuilt with the match index (companies.ts).
+export const companies = pgTable(
+  "companies",
+  {
+    board: smallint("board").notNull(),
+    // As listings store it: "" is the board's own company.
+    company: text("company").notNull(),
+    name: text("name").notNull(),
+    // Where most of its open jobs are (a GeoNames id), 0 when none names a city.
+    city: integer("city").notNull().default(0),
+    roles: integer("roles").notNull(),
+    remote: integer("remote").notNull().default(0),
+    hybrid: integer("hybrid").notNull().default(0),
+    // Minutes since 1970 its newest job was first posted or read.
+    newest: integer("newest").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.board, t.company] })],
 );
 
 // One row per way a title is written (titleVectorKey): its text, meaning code and nearest occupation.

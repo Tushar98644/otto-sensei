@@ -59,6 +59,8 @@ export default {
         writingStyle:
           "<b>Ton style d'écriture.</b> Si tu en définis un, nous stockons le ton, la longueur, l'orthographe et la formule de politesse que tu choisis, ainsi que les notes que tu écris pour Otto. Ils façonnent tes lettres de motivation, tes réponses de candidature et tes messages de prise de contact. Personne d'autre n'y a accès.",
         jobs: "<b>Les offres que tu compares et enregistres.</b> Pour classer les offres ouvertes pour toi, ton navigateur envoie les compétences, les intitulés de poste et les années d'expérience qu'il lit dans ton CV, jamais le CV lui-même ni tes coordonnées. Nous les utilisons pour cette seule requête, sans les stocker ni les envoyer à une IA. Si tu enregistres une offre, nous stockons laquelle et quand. Les offres elles-mêmes proviennent des pages carrières publiques et des flux d'offres publics des entreprises, chacune avec un lien vers l'annonce d'origine.",
+        jobsNear:
+          "<b>Offres près de toi et la carte.</b> Si tu cherches des offres près de ta position, ton navigateur te le demande d'abord, puis nous envoie ta position arrondie à environ 1 km pour cette seule recherche. Nous ne la gardons pas : elle n'est ni liée à ton compte, ni dans nos journaux, ni dans les listes enregistrées du jour. La ville que tu choisis pour chercher autour, et tes autres filtres, sont retenus dans ton navigateur seulement. Ce qu'une fiche d'offre dit de l'entreprise (combien d'offres elle a ouvertes, où se trouvent la plupart, si elle recrute en ce moment) vient des offres d'emploi publiques, pas de toi.",
         files:
           "<b>Les fichiers que tu importes.</b> Nous les lisons en mémoire pour en extraire le texte et lancer les vérifications. Nous ne stockons pas les fichiers.",
         usage:
@@ -181,6 +183,8 @@ export default {
           "<b>Sentry</b> reçoit des rapports d'erreur quand quelque chose ne fonctionne plus, après suppression des adresses e-mail, des numéros de téléphone et du texte des CV.",
         posthog:
           "<b>PostHog</b> reçoit les événements d'utilisation décrits plus haut, pour que nous puissions voir quelles étapes aident et où les gens bloquent.",
+        openFreeMap:
+          "<b>OpenFreeMap</b> fournit les tuiles de la carte quand tu ouvres la carte des offres, donc il reçoit ton adresse IP et les zones que tu regardes, y compris la zone autour de toi si tu utilises « Aller à ma position ». Nous ne lui envoyons rien d'autre.",
       },
       outro:
         "Ces prestataires peuvent traiter des données en dehors de ton pays, y compris aux États-Unis. Nous pouvons aussi partager des informations si la loi l'exige.",

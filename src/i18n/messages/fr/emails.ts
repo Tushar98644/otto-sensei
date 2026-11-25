@@ -160,5 +160,9 @@ export default {
     pair: "{first} et {second}.",
     single: "{name}.",
     free: "Avec Free, Emplois affiche tes correspondances les plus proches.",
+    alert: {
+      one: "{count} nouvelle offre pour « {name} »",
+      other: "{count} nouvelles offres pour « {name} »",
+    },
   },
 } satisfies Translation<Messages["emails"]>;

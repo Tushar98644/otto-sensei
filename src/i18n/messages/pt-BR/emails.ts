@@ -160,5 +160,6 @@ export default {
     pair: "{first} e {second}.",
     single: "{name}.",
     free: "No Free, Vagas mostra as mais próximas do seu perfil.",
+    alert: { one: "{count} vaga nova para “{name}”", other: "{count} vagas novas para “{name}”" },
   },
 } satisfies Translation<Messages["emails"]>;

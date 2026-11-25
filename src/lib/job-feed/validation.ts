@@ -10,11 +10,13 @@ import {
   MATCH_FEATURES,
   MATCH_PROFILE_LIMITS,
   MAX_JOB_PAGE,
+  NEAR_KM,
   NOT_FIT_REASONS,
   OCCUPATION_CODE,
   PLACE_GROUPS,
   ROLE_FAMILIES,
   SENIORITIES,
+  WORK_MODES,
   type PlaceChoice,
 } from "./types";
 
@@ -68,6 +70,21 @@ export const LookingForChoiceSchema = z.object({
   langs: JobLangsSchema.nullable().optional(),
 });
 
+// ~1 km: a point from the browser is rounded before it leaves, and again here; it is never stored.
+const roundPoint = (value: number) => Math.round(value * 100) / 100;
+
+// Within `km` of a city (a GeoNames id) or of the person's own rounded point.
+const NearSchema = z
+  .object({
+    city: z.number().int().positive().max(2_147_483_647).nullable().default(null),
+    lat: z.number().min(-90).max(90).transform(roundPoint).nullable().default(null),
+    lng: z.number().min(-180).max(180).transform(roundPoint).nullable().default(null),
+    km: z.literal([...NEAR_KM]),
+  })
+  .refine((near) => near.city !== null || (near.lat !== null && near.lng !== null), {
+    message: "Pick a city or use your location.",
+  });
+
 export const JobFiltersSchema = z.object({
   q: z.string().trim().max(100).default(""),
   remote: z.boolean().default(false),
@@ -79,6 +96,9 @@ export const JobFiltersSchema = z.object({
     .nullable()
     .default(null),
   eligibleOnly: z.boolean().default(false),
+  workMode: z.enum(WORK_MODES).nullable().default(null),
+  hiring: z.boolean().default(false),
+  near: NearSchema.nullable().default(null),
 });
 
 export const JobMatchesRequestSchema = z.object({
@@ -89,6 +109,9 @@ export const JobMatchesRequestSchema = z.object({
   deviceTimeZone: z.string().max(64).default(""),
   lookingFor: LookingForSchema.nullable().default(null),
 });
+
+// What the map reads: the list's own inputs, without a page.
+export const JobMapRequestSchema = JobMatchesRequestSchema.omit({ view: true, page: true });
 
 // Ids and labels only: never resume text.
 export const MatchActionSchema = z

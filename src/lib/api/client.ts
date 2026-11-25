@@ -1,4 +1,5 @@
 import type { BillingHistoryResponse } from "@/lib/billing/history-types";
+import type { JobAlertsResponse, NewJobAlert } from "@/lib/job-feed/alert-types";
 import type {
   CareerEntryResponse,
   CareerLogResponse,
@@ -127,6 +128,9 @@ import type {
   LookingForResponse,
   OccupationSearchResponse,
   JobMatchesResponse,
+  CitySearchResponse,
+  CompanyJobsResponse,
+  JobMapResponse,
   JobPostResponse,
   JobRequestBody,
   MatchActionInput,
@@ -316,6 +320,20 @@ export const api = {
         ? { headers: { "content-type": "application/json", [JOBS_PREFETCH_HEADER]: "1" } }
         : {}),
     }),
+  jobMap: (body: Omit<JobMatchesRequestBody, "view" | "page">, signal?: AbortSignal) =>
+    request<JobMapResponse>("/api/jobs/map", { ...postJson(body), signal }),
+  companyJobs: (name: string, signal?: AbortSignal) =>
+    request<CompanyJobsResponse>(`/api/jobs/company?name=${encodeURIComponent(name)}`, {
+      cache: "no-store",
+      signal,
+    }),
+  jobAlerts: () => request<JobAlertsResponse>("/api/jobs/alerts", { cache: "no-store" }),
+  addJobAlert: (body: NewJobAlert) =>
+    request<JobAlertsResponse>("/api/jobs/alerts", postJson(body)),
+  removeJobAlert: (id: string) =>
+    request<JobAlertsResponse>(`/api/jobs/alerts/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  searchCities: (query: string, signal?: AbortSignal) =>
+    request<CitySearchResponse>(`/api/jobs/cities?q=${encodeURIComponent(query)}`, { signal }),
   jobPost: (id: string) =>
     request<JobPostResponse>(`/api/jobs/${encodeURIComponent(id)}`, { cache: "no-store" }),
   savedJobs: () =>

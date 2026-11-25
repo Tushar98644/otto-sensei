@@ -28,6 +28,7 @@ import {
   type Kind,
   type MatchableJob,
 } from "./match";
+import { companyIndex, snapshotOf } from "./companies";
 import { MAJOR_GROUPS, OCCUPATIONS, occupationOf, readTitle } from "./occupations";
 import { matchCacheKey, readMatchCache, writeMatchCache } from "./match-cache";
 import {
@@ -35,8 +36,10 @@ import {
   poolOpenings,
   readStoredCounts,
   type PooledOpening,
+  type PoolQuery,
   type StoredCounts,
 } from "./match-index";
+import { nearCityIds, nearsPoint } from "./near";
 import {
   capPerCompany,
   compareRanked,
@@ -50,7 +53,7 @@ import {
   zoneFactor,
   type Ranked,
 } from "./order";
-import { gateAllows, roleGate } from "./role-gate";
+import { gateAllows, roleGate, type RoleGate } from "./role-gate";
 import { familyFits } from "./roles";
 import { personRole, roleSimilarity, sameness, SEMANTIC, type PersonRole } from "./semantic";
 import {
@@ -75,7 +78,7 @@ import {
   type OccupationOption,
   type RoleFamily,
 } from "./types";
-import { sponsorRegions, visaLines, type VisaFacts } from "./visa";
+import { companyKey, sponsorRegions, visaLines, type VisaFacts } from "./visa";
 
 const NO_RULES: EligibilityHint = { blocked: false, note: null };
 const COPIES_CHECKED = 6;
@@ -236,7 +239,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     ]);
     const stats = counts ?? (await jobStats(db, now));
     return {
-      jobs: ranked.slice(start, start + JOB_PAGE_SIZE),
+      jobs: await withCompanies(db, counts, now, ranked.slice(start, start + JOB_PAGE_SIZE)),
       page: request.page,
       pageSize: JOB_PAGE_SIZE,
       total: ranked.length,
@@ -255,7 +258,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
 
   const counts = await storedCounts(db, request);
   const keyFor = (page: number) =>
-    request.cache && counts
+    request.cache && counts && !nearsPoint(filters)
       ? matchCacheKey({
           variant: MATCH_VARIANT,
           builtAt: counts.builtAt,
@@ -277,7 +280,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   const cacheKey = keyFor(request.page);
   if (cacheKey) {
     const hit = await readMatchCache<RankResult>(db, request.userId, cacheKey);
-    if (hit) return withSaved(db, request.userId, hit);
+    if (hit) return withSaved(db, request.userId, hit, counts, now);
   }
 
   // The index keeps the weights it was built with; if it can't be read, poolOpenings falls back too.
@@ -286,41 +289,18 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     counts ? Promise.resolve(counts) : jobStats(db, now),
   ]);
   const weight = (skill: string) => weights.get(skill) ?? DEFAULT_SKILL_WEIGHT;
-  const families = [...person.families];
   // Without stored title vectors (a new database, or before the first embedding run) the rules decide.
   const role = await personRole(db, lookingFor, request.profile).catch(() => null);
-  const accepted = acceptedPlaces(lookingFor.place);
-  // Only the person's own kind of work is shown, however many skills another job shares.
-  const gate = roleGate(lookingFor);
-  const interns = person.seniority === "intern";
+  const query = poolQueryOf(person, lookingFor, filters, weights, langs);
+  const { places: accepted, gate } = query;
+  const interns = query.interns === true;
   // Past the pages ranked here in full, each page reads the next openings in the index's own order.
   const deep =
     !request.free && !filters.eligibleOnly && request.page > CANDIDATE_POOL / JOB_PAGE_SIZE;
   const offset = deep ? (request.page - 1) * JOB_PAGE_SIZE : 0;
   const pool = await poolOpenings(
     db,
-    {
-      skills: [...person.skills],
-      families: families.filter(([, w]) => w >= 1).map(([family]) => family) as RoleFamily[],
-      pastFamilies: families
-        .filter(([, w]) => w > 0 && w <= PAST_KIND_WEIGHT)
-        .map(([family]) => family) as RoleFamily[],
-      seniority: person.seniority,
-      filters,
-      weights,
-      places: accepted,
-      limit: request.free ? FREE_POOL : deep ? JOB_PAGE_SIZE : CANDIDATE_POOL,
-      offset,
-      kinds: {
-        occupations: person.occupations,
-        minors: person.minors,
-        majors: person.majors,
-        byFamily: person.families.size > 0,
-      },
-      gate,
-      interns,
-      langs,
-    },
+    { ...query, limit: request.free ? FREE_POOL : deep ? JOB_PAGE_SIZE : CANDIDATE_POOL, offset },
     counts,
     now,
   );
@@ -331,7 +311,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     if (fit === "miss") continue;
     const { row } = opening;
     const read = factsOf(row, opening.kind);
-    if (!gateAllows(gate, read) || (!interns && row.seniority === "intern")) continue;
+    if (!gateAllows(gate ?? null, read) || (!interns && row.seniority === "intern")) continue;
     // A job the gate let in stays at least a neighbouring kind; its title then orders it.
     const floor = gate && kindOf(person, read).weight >= KIND.same ? KIND.same : 0;
     const facts = {
@@ -429,22 +409,80 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     if (request.defer) request.defer(write);
     else await write();
   }
-  return withSaved(db, request.userId, result);
+  return withSaved(db, request.userId, result, counts, now);
+}
+
+type Person = ReturnType<typeof personFrom>;
+
+// What the match index query asks for a person, a role and filters; the map reads the same (map.ts).
+export function poolQueryOf(
+  person: Person,
+  lookingFor: LookingFor,
+  filters: JobFilters,
+  weights: ReadonlyMap<string, number>,
+  langs: readonly ContentLang[] | null,
+): PoolQuery & { places: readonly string[] | null; gate: RoleGate | null } {
+  const families = [...person.families];
+  return {
+    skills: [...person.skills],
+    families: families.filter(([, w]) => w >= 1).map(([family]) => family) as RoleFamily[],
+    pastFamilies: families
+      .filter(([, w]) => w > 0 && w <= PAST_KIND_WEIGHT)
+      .map(([family]) => family) as RoleFamily[],
+    seniority: person.seniority,
+    filters,
+    weights,
+    places: acceptedPlaces(lookingFor.place),
+    kinds: {
+      occupations: person.occupations,
+      minors: person.minors,
+      majors: person.majors,
+      byFamily: person.families.size > 0,
+    },
+    // Only the person's own kind of work is shown, however many skills another job shares.
+    gate: roleGate(lookingFor),
+    interns: person.seniority === "intern",
+    langs,
+    near: nearCityIds(filters.near),
+  };
+}
+
+// The employer's facts follow the latest build, so the cached page never holds them either.
+async function withCompanies(
+  db: Db,
+  counts: StoredCounts | null,
+  now: number,
+  jobs: MatchedJob[],
+): Promise<MatchedJob[]> {
+  if (!counts || jobs.length === 0) return jobs;
+  const index = await companyIndex(db, counts.builtAt).catch(() => null);
+  if (!index) return jobs;
+  return jobs.map((job) => {
+    const facts = index.byKey.get(companyKey(job.company));
+    return { ...job, employer: facts ? snapshotOf(facts, now) : null };
+  });
 }
 
 // Saved jobs change between visits, so the cached page never holds them.
-async function withSaved(db: Db, userId: string, result: RankResult): Promise<RankResult> {
-  const [saved, total] = await Promise.all([
+async function withSaved(
+  db: Db,
+  userId: string,
+  result: RankResult,
+  counts: StoredCounts | null,
+  now: number,
+): Promise<RankResult> {
+  const [saved, total, jobs] = await Promise.all([
     savedIds(
       db,
       userId,
       result.jobs.map((job) => job.id),
     ),
     savedCount(db, userId),
+    withCompanies(db, counts, now, result.jobs),
   ]);
   return {
     ...result,
-    jobs: result.jobs.map((job) => ({ ...job, saved: saved.has(job.id) })),
+    jobs: jobs.map((job) => ({ ...job, saved: saved.has(job.id) })),
     savedCount: total,
   };
 }

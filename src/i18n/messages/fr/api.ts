@@ -276,6 +276,19 @@ export default {
     savedGone: "Cette offre enregistrée n'est plus là.",
     board: "Le site de cette offre n'a pas pu être lu.",
     typeLess: "Écris {max} caractères au maximum.",
+    alertsSignIn: "Connecte-toi pour voir tes alertes d'offres.",
+    alertsFailed: "Impossible de charger tes alertes d'offres. Réessaie.",
+    alertBad:
+      "Cette alerte n'a pas fonctionné. Choisis une ville plutôt que ta position, puis réessaie.",
+    alertsFull:
+      "Tu peux garder jusqu'à {max} alertes d'offres. Supprimes-en une pour en ajouter une autre.",
+    alertSaveFailed: "Impossible d'enregistrer cette alerte d'offres. Réessaie.",
+    alertRemoveFailed: "Impossible de supprimer cette alerte d'offres. Réessaie.",
+    mapFailed: "Impossible de charger la carte pour l'instant. Réessaie.",
+    companySignIn: "Connecte-toi pour voir cette entreprise.",
+    companyName: "Ce nom d'entreprise n'a pas fonctionné.",
+    companyGone: "Cette entreprise n'a plus d'offre ouverte ici pour le moment.",
+    companyFailed: "Impossible de charger cette entreprise. Réessaie.",
   },
   github: {
     connect: "Connecte ton compte GitHub pour importer ses projets.",

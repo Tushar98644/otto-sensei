@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
@@ -32,8 +33,10 @@ import { jobCards } from "../page-code";
 import { LazyOutreachDialog } from "./lazy-outreach-dialog";
 import { useStudioActions } from "../use-studio-actions";
 import { AppliedAnnouncer, AppliedStrip } from "./applied-question";
-import { CLEARED, searchedOrNarrowed, type FilterMemory } from "./filter-memory";
-import { JobFiltersBar } from "./job-filters";
+import { CLEARED, searchedOrNarrowed, type FilterMemory, type Point } from "./filter-memory";
+import { JobAlerts } from "./job-alerts";
+import { JobFiltersBar, type JobLayout } from "./job-filters";
+import { LazyCompanyPanel } from "./lazy-company-panel";
 import {
   JobsHeader,
   JobsPager,
@@ -53,6 +56,12 @@ import { useTailorLink } from "./use-tailor-link";
 import { appliedFor, checkedLabel, matchingResumeId, moreWithProCopy, tailoredFor } from "./view";
 
 preload(jobCards);
+
+// The map and its library load only when someone opens the map.
+const JobsMap = dynamic(() => import("./jobs-map"), {
+  ssr: false,
+  loading: () => <LoadingCards />,
+});
 
 // Otto's line over the matches: how many fit, then how many look strong or are new.
 function foundLine(
@@ -101,17 +110,24 @@ export function JobsPage() {
 
   const memory = useFilterMemory(userId);
   const [view, setView] = useState<JobView>("matches");
+  const [layout, setLayout] = useState<JobLayout>("list");
   const [page, setPage] = useState(1);
+  // The person's own location, rounded; it stays in this page and is never stored.
+  const [point, setPoint] = useState<Point | null>(null);
+  const [company, setCompany] = useState<string | null>(null);
 
   const resumeId = matchingResumeId(resumes, memory.resumeId);
   const resume = resumes.find((item) => item.id === resumeId) ?? null;
   const profileSettled = work.status !== "unknown" && work.status !== "loading";
   const workProfile = work.status === "ready" ? work.profile : null;
   const profileReady = workProfile !== null && isProfileStarted(workProfile);
-  const filters = useMemo(() => pageFilters(memory, workProfile), [memory, workProfile]);
+  const filters = useMemo(
+    () => pageFilters(memory, workProfile, point),
+    [memory, workProfile, point],
+  );
   const choice = work.status === "ready" ? work.lookingFor : NO_CHOICE;
   const [savingChoice, setSavingChoice] = useState(false);
-  const { state, retry, patch, profile, lookingFor } = useJobMatches({
+  const { state, retry, patch, profile, lookingFor, body } = useJobMatches({
     userId,
     resume: profileSettled ? resume : null,
     view,
@@ -120,6 +136,7 @@ export function JobsPage() {
     choice,
     workProfile,
   });
+  const mapBody = useMemoBody(body);
   const data: JobMatchesResponse | null =
     state.status === "ready" ? state.data : state.status === "loading" ? state.previous : null;
   const locked = data?.locked === true;
@@ -160,6 +177,11 @@ export function JobsPage() {
 
   function changeFilters(next: Partial<FilterMemory>) {
     rememberFilters(userId, next);
+    setPage(1);
+  }
+
+  function changePoint(next: Point | null) {
+    setPoint(next);
     setPage(1);
   }
 
@@ -226,6 +248,7 @@ export function JobsPage() {
     busy?.action === "tailor" && !(data?.jobs.some((job) => job.id === busy.id) ?? false);
 
   const waiting = !data && state.status !== "error";
+  const showMap = layout === "map" && view === "matches" && !locked && !free;
   const lookingForLine =
     lookingFor && profile && view === "matches" ? (
       <LookingForCard
@@ -275,6 +298,24 @@ export function JobsPage() {
             savedCount={data?.savedCount ?? 0}
             filters={filters}
             onFilters={changeFilters}
+            memory={memory}
+            layout={layout}
+            onLayout={setLayout}
+            point={point}
+            onPoint={changePoint}
+            alerts={
+              pro === true && userId ? (
+                <JobAlerts
+                  userId={userId}
+                  filters={filters}
+                  memory={memory}
+                  point={point}
+                  choice={choice}
+                  role={lookingFor?.title ?? null}
+                  resumeId={resumeId}
+                />
+              ) : undefined
+            }
             onRemote={
               work.status === "ready"
                 ? (remote) => void changeLookingFor({ ...choice, remote })
@@ -343,11 +384,18 @@ export function JobsPage() {
           >
             {errorMessage(state.error)}
           </Alert>
+        ) : showMap && userId ? (
+          <JobsMap userId={userId} body={mapBody} onCompany={setCompany} />
         ) : !data || !cards ? (
           <LoadingCards />
         ) : data.jobs.length === 0 ? (
           filtered && view === "matches" ? (
-            <NoFilterMatches onClear={() => changeFilters(CLEARED)} />
+            <NoFilterMatches
+              onClear={() => {
+                changeFilters(CLEARED);
+                setPoint(null);
+              }}
+            />
           ) : null
         ) : (
           <>
@@ -378,6 +426,7 @@ export function JobsPage() {
                     onMarkApplied={(target) => void markApplied(target)}
                     onOpen={openJob}
                     onOutreach={writeOutreach}
+                    onCompany={free ? undefined : (target) => setCompany(target.company)}
                     asking={askingIds.has(job.id)}
                     onAnswer={(target, answer) => void answerApplied(target, answer)}
                     onNotFit={
@@ -399,10 +448,11 @@ export function JobsPage() {
           />
         ) : null}
 
-        {data && pages > 1 && view === "matches" && !locked ? (
+        {data && pages > 1 && view === "matches" && !locked && !showMap ? (
           <JobsPager page={page} pages={pages} onGo={goTo} />
         ) : null}
       </div>
+      {free ? null : <LazyCompanyPanel name={company} onClose={() => setCompany(null)} />}
       {free ? null : (
         <LazyOutreachDialog
           job={outreach}
@@ -416,4 +466,20 @@ export function JobsPage() {
 
 function isBare(resume: { skills: { items: string[] }[] }): boolean {
   return resume.skills.every((group) => group.items.length === 0);
+}
+
+// The map reads the list's own request, without its view and page.
+function useMemoBody(body: ReturnType<typeof useJobMatches>["body"]) {
+  return useMemo(
+    () =>
+      body
+        ? {
+            profile: body.profile,
+            filters: body.filters,
+            lookingFor: body.lookingFor,
+            deviceTimeZone: body.deviceTimeZone,
+          }
+        : null,
+    [body],
+  );
 }
