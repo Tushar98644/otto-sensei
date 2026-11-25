@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isCountryCode } from "@/lib/eligibility/places";
+import { CONTENT_LANGS } from "@/lib/i18n/languages";
 import {
   ASKED_APPLIED_ANSWERS,
   DEFAULT_FILTERS,
@@ -39,6 +40,9 @@ const PLACE_CHOICE = z
 
 const OccupationCodeSchema = z.string().regex(OCCUPATION_CODE);
 
+// The post languages a list keeps (job-langs.ts).
+const JobLangsSchema = z.array(z.enum(CONTENT_LANGS)).min(1).max(CONTENT_LANGS.length);
+
 export const LookingForSchema = z.object({
   title: z.string().trim().max(LOOKING_FOR_LIMITS.titleChars),
   family: z.enum(ROLE_FAMILIES).nullable(),
@@ -46,6 +50,7 @@ export const LookingForSchema = z.object({
   level: z.enum(SENIORITIES).nullable(),
   place: PLACE_CHOICE,
   remote: z.boolean(),
+  langs: JobLangsSchema.optional(),
 });
 
 export const LookingForChoiceSchema = z.object({
@@ -59,6 +64,8 @@ export const LookingForChoiceSchema = z.object({
   level: z.enum(SENIORITIES).nullable(),
   place: PLACE_CHOICE.nullable(),
   remote: z.boolean(),
+  // Null goes back to the default for the app's language; left out keeps what is saved.
+  langs: JobLangsSchema.nullable().optional(),
 });
 
 export const JobFiltersSchema = z.object({

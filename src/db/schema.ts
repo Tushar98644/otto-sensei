@@ -17,6 +17,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { LOCALES } from "@/i18n/config";
+import { CONTENT_LANGS } from "@/lib/i18n/languages";
 import {
   APPLICATION_STAGES,
   APPLICATION_STATUSES,
@@ -173,6 +174,8 @@ export const userSettings = pgTable(
     deletedResumes: jsonb("deleted_resumes").$type<Record<string, number>>(),
     // The app's language (src/i18n/config.ts); null until the account picks one.
     locale: text("locale", { enum: LOCALES }),
+    // The job post languages Looking for keeps (job-feed/job-langs.ts); null until the account picks them.
+    jobLangs: text("job_langs", { enum: CONTENT_LANGS }).array(),
   },
   (t) => [
     index("user_settings_career_due_idx")

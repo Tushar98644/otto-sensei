@@ -20,6 +20,7 @@ const SHARED_COLUMNS = {
   targetOccupation: userSettings.targetOccupation,
   targetLevel: userSettings.targetLevel,
   targetPlace: userSettings.targetPlace,
+  jobLangs: userSettings.jobLangs,
   workUpdatedAt: userSettings.workUpdatedAt,
   setupStepAt: userSettings.setupStepAt,
   setupStepOutcome: userSettings.setupStepOutcome,

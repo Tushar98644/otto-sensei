@@ -22,6 +22,7 @@ export const WORK_COLUMNS = {
   targetOccupation: userSettings.targetOccupation,
   targetLevel: userSettings.targetLevel,
   targetPlace: userSettings.targetPlace,
+  jobLangs: userSettings.jobLangs,
   updatedAt: userSettings.workUpdatedAt,
 };
 
@@ -59,6 +60,7 @@ export function toStored(row: WorkRow): StoredWorkProfile {
       level: row.targetLevel,
       place: row.targetPlace as PlaceChoice | null,
       remote: row.remoteOnly,
+      ...(row.jobLangs ? { langs: row.jobLangs } : {}),
     },
   };
 }
@@ -85,6 +87,7 @@ export async function saveLookingFor(
       targetLevel: choice.level,
       targetPlace: choice.place,
       remoteOnly: choice.remote,
+      ...(choice.langs === undefined ? {} : { jobLangs: choice.langs }),
       workUpdatedAt: now,
       updatedAt: now,
     };

@@ -2,10 +2,13 @@ import { and, eq, gt, inArray, max, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { companyVisa, jobBoards, jobCountsRow, listings, titles } from "@/db/schema";
 import { postFacts } from "@/lib/eligibility/facts";
+import type { ContentLang } from "@/lib/i18n/languages";
 import { log } from "@/lib/log";
 import {
   familyCode,
   FLAG,
+  langCodes,
+  LANG_SHIFT,
   packMajor,
   packMinor,
   packOccupation,
@@ -427,6 +430,8 @@ export type PoolQuery = {
   };
   // The kinds of work the person's role may be matched with (role-gate.ts); null lets skills decide.
   gate?: RoleGate | null;
+  // The post languages the person reads (job-langs.ts); null or left out shows every language.
+  langs?: readonly ContentLang[] | null;
   // Internships are shown only to someone looking for one.
   interns?: boolean;
 };
@@ -440,7 +445,13 @@ const textArrayLiteral = (values: readonly string[]) =>
 type Scored = { id: number; score: number; near: boolean; posted: number; groups: number };
 
 // A copy is kept as a page shows it: open to the same filters as the opening.
-function copyFits(row: CandidateRow, filters: JobFilters, now: number): boolean {
+function copyFits(
+  row: CandidateRow,
+  filters: JobFilters,
+  now: number,
+  langs: readonly ContentLang[] | null = null,
+): boolean {
+  if (langs && !langCodes(langs).includes((row.flags >> LANG_SHIFT) & 7)) return false;
   if (filters.remote && !row.remote) return false;
   if (filters.role && row.family !== filters.role) return false;
   if (filters.level && !LEVEL_SENIORITIES[filters.level].includes(row.seniority)) return false;
@@ -510,6 +521,10 @@ async function scoredOpenings(
     );
   }
   if (query.interns === false) conditions.push(sql`l.level <> 0`);
+  if (query.langs)
+    conditions.push(
+      sql`((l.flags >> ${LANG_SHIFT}::int) & 7) = any(${intArray(langCodes(query.langs))}::int[])`,
+    );
   const maxYears = query.seniority ? LEVEL_MAX_YEARS[query.seniority] : null;
   if (maxYears !== null) conditions.push(sql`l.min_years <= ${maxYears}::int`);
   if (filters.remote)
@@ -646,7 +661,7 @@ export async function poolOpenings(
     if (!lead) continue;
     // The copies a page could show under these filters; the lead, else the newest of them.
     const list = [lead, ...(byGroup.get(`${lead.board}:${lead.grp}`) ?? [])]
-      .filter((copy) => copyFits(copy, query.filters, now))
+      .filter((copy) => copyFits(copy, query.filters, now, query.langs ?? null))
       .sort((a, b) => b.postedAt - a.postedAt || b.listing - a.listing);
     const row = list.find((copy) => copy.listing === lead.listing) ?? list[0];
     if (!row) continue;

@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { ruleLines } from "@/lib/eligibility/check";
+import { detectLanguage } from "@/lib/i18n/detect";
+import type { ContentLang } from "@/lib/i18n/languages";
 import { postFacts } from "@/lib/eligibility/facts";
 import { capText } from "@/lib/jobs/posting";
 import { foldCase } from "@/lib/tailor/tokens";
@@ -37,6 +39,8 @@ export type NormalizedJob = {
   family: RoleFamily | null;
   occupation: string | null;
   minYears: number | null;
+  // The language the post is written in, when the detector is sure (docs/i18n.md, job-post language).
+  lang: ContentLang | null;
   postedAt: number;
   validThrough: number | null;
   url: string;
@@ -192,6 +196,14 @@ export function boilerplateLines(texts: readonly string[]): Set<string> {
   return shared;
 }
 
+const LANGUAGE_SAMPLE_CHARS = 4_000;
+
+// Read from the post's own words, so a careers page's shared English footer doesn't decide.
+export function postLanguage(title: string, text: string): ContentLang | null {
+  const { lang } = detectLanguage(`${title}\n${text.slice(0, LANGUAGE_SAMPLE_CHARS)}`);
+  return lang === "unknown" ? null : lang;
+}
+
 export function normalizeJob(
   job: RawJob,
   now: number,
@@ -230,6 +242,7 @@ export function normalizeJob(
     family: kind.family,
     occupation: kind.occupation,
     minYears: minYearsOf(own),
+    lang: postLanguage(title, own),
     postedAt,
     validThrough: job.validThrough,
     url: job.url.slice(0, JOB_LIMITS.urlChars),
