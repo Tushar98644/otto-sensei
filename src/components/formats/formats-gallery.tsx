@@ -4,8 +4,7 @@ import { useEffect, useId, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { resumeLabel } from "@/components/studio/resume-label";
 import { Select } from "@/components/ui/select";
-import { useMessagesOr } from "@/i18n/client";
-import EN_FORMATS from "@/i18n/messages/en/formats";
+import { useMessages } from "@/i18n/client";
 import { rich } from "@/i18n/rich";
 import { isProTemplate, TEMPLATE_INFO, TEMPLATE_LIST, templateOf } from "@/lib/pdf/templates";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
@@ -34,7 +33,7 @@ export function FormatsGallery() {
   const [previewId, setPreviewId] = useState<TemplateId | null>(null);
   const free = useProTools() === false;
   const current = target ? templateOf(target) : null;
-  const t = useMessagesOr("formats", EN_FORMATS).gallery;
+  const t = useMessages("formats").gallery;
   const actionFor = (id: TemplateId) => (id === current ? t.download : t.use);
   usePreloadPreviewsWhenIdle();
 
@@ -92,7 +91,7 @@ type ResumePickerProps = {
 
 function ResumePicker({ resumes, target, onPick }: ResumePickerProps) {
   const id = useId();
-  const t = useMessagesOr("formats", EN_FORMATS).gallery;
+  const t = useMessages("formats").gallery;
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
       <label htmlFor={id} className="text-sm/6 font-medium text-ink">

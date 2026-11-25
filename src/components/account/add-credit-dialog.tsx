@@ -10,10 +10,10 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { isTopupAmount, TOPUP_LIMITS } from "@/config/topup";
-import { useFormat, useMessagesOr } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
-import EN_UPGRADE from "@/i18n/messages/en/upgrade";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import { errorMessage } from "./errors";
@@ -33,7 +33,7 @@ type Choice = number | "other";
 const { minUsd, maxUsd, maxBalanceUsd, presetsUsd } = TOPUP_LIMITS;
 const DEFAULT_CHOICE: Choice = presetsUsd[1] ?? minUsd;
 
-type CreditWords = (typeof EN_UPGRADE)["credit"];
+type CreditWords = Messages["upgrade"]["credit"];
 
 function amountError(t: CreditWords, format: Format, usd: number, roomUsd: number): string | null {
   const dollars = (amount: number) => usdIn(format, amount);
@@ -48,7 +48,7 @@ function amountError(t: CreditWords, format: Format, usd: number, roomUsd: numbe
 
 export function AddCreditDialog({ open, onOpenChange, next }: AddCreditDialogProps) {
   const { me } = useMe();
-  const words = useMessagesOr("upgrade", EN_UPGRADE);
+  const words = useMessages("upgrade");
   const t = words.credit;
   const format = useFormat();
   const dollars = (amount: number) => usdIn(format, amount);

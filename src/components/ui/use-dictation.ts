@@ -17,8 +17,7 @@ import {
   type DictationSession,
   type VoicePhase,
 } from "@/lib/voice/dictation";
-import { useMessagesOr } from "@/i18n/client";
-import EN_UI from "@/i18n/messages/en/ui";
+import { useMessages } from "@/i18n/client";
 import { voiceProblemCopy, type VoiceProblem, type VoiceProblemWords } from "@/lib/voice/problems";
 import type { VoiceClip } from "@/lib/voice/recorder";
 import { toast } from "./toast";
@@ -51,7 +50,7 @@ async function transcribe(clip: VoiceClip, signal: AbortSignal): Promise<string>
 
 export function useDictation(onText: (text: string) => void): Dictation {
   const supported = useVoiceSupported();
-  const problems = useMessagesOr("ui", EN_UI).voice.problems;
+  const problems = useMessages("ui").voice.problems;
   const { me } = useMe();
   const [phase, setPhase] = useState<VoicePhase>("idle");
   const [startedAt, setStartedAt] = useState<number | null>(null);

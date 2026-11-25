@@ -10,9 +10,8 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { nextPlan, PLAN_ORDER, PLANS, type PaidPlanId, type PlanId } from "@/config/plans";
-import { useMessages, useMessagesOr } from "@/i18n/client";
+import { useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import EN_UPGRADE from "@/i18n/messages/en/upgrade";
 import { AccountSignIn } from "./account-sign-in";
 import { AccountSkeleton } from "./account-skeleton";
 import { AccountTabs } from "./account-tabs";
@@ -28,7 +27,7 @@ const ACTIVATION_SCREEN_MS = 10_000;
 
 export function AccountView() {
   const words = useMessages("account");
-  const upgradeToasts = useMessagesOr("upgrade", EN_UPGRADE).toast;
+  const upgradeToasts = useMessages("upgrade").toast;
   const { me, user, loading, refresh } = useMe();
   const arrival = useAccountArrival(words.arrival);
   const [upgradeRequested, setUpgradeRequested] = useState(arrival.upgrade);

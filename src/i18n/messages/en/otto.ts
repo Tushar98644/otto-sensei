@@ -1,4 +1,4 @@
-// Otto's lines about limits, plans and errors (OTTO in src/components/mascot/lines.ts), wherever the app draws them.
+// Otto's lines about limits, plans and errors (OTTO in src/components/mascot/lines-en.ts), wherever the app draws them.
 export default {
   comesWithPro: {
     fix: "More line fixes come with Pro.",
@@ -35,7 +35,7 @@ export default {
   },
   freeUsed: "You've used this month's {limit} {label}. {pro} has {proLimit} a month.",
   near: "Uh-oh, {used} of {limit} {label} used. {reset}",
-  // planFullText in src/lib/plan-limits-copy.ts: a paid plan at its number of resumes or applications.
+  // planFullText in src/lib/plan-limits-text.ts: a paid plan at its number of resumes or applications.
   full: {
     resumes: "{plan} keeps {limit} resumes. Delete one to save another{upsell}.",
     resumesOver:

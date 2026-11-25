@@ -10,9 +10,9 @@ import {
   type SavedRequirement,
 } from "@/lib/resume/schema";
 import type { TailorCopyMeta } from "@/lib/store/resume-store";
-import studioTailorEn from "@/i18n/messages/en/studio-tailor";
 import type { ReasonWords } from "@/lib/tailor/reasons";
-import { refPlace, type ScreenerOptions } from "@/lib/tailor/requirements";
+import { refPlace } from "@/lib/tailor/place";
+import type { ScreenerOptions } from "@/lib/tailor/requirements";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
 import type { PluralForms } from "@/i18n/types";
@@ -61,14 +61,9 @@ function isPermutation(current: readonly string[], proposed: readonly string[]):
 
 type TargetWords = Pick<ReasonWords, "places" | "targets">;
 
-const ENGLISH_TARGETS: TargetWords = studioTailorEn.reasons;
-
-export function reorderPlans(
-  resume: Resume,
-  result: TailorResult,
-  t: TargetWords = ENGLISH_TARGETS,
-): ReorderPlan[] {
-  const plans: ReorderPlan[] = [];
+// Each job whose lines the result moves, with the lines that move up; labels come with reorderPlans.
+function reorders(resume: Resume, result: TailorResult) {
+  const found: { job: Resume["experience"][number]; bulletIds: string[]; movedUp: Bullet[] }[] = [];
   const seen = new Set<string>();
   for (const order of result.bulletOrder) {
     const job = resume.experience.find((entry) => entry.id === order.experienceId);
@@ -82,16 +77,24 @@ export function reorderPlans(
       .map((id) => byId.get(id))
       .filter((bullet): bullet is Bullet => bullet !== undefined && bullet.text.trim() !== "");
     if (movedUp.length === 0) continue;
-    const label = refPlace(
-      { section: "experience", roleTitle: job.title, company: job.company, parentLabel: "" },
-      t.places,
-    );
-    plans.push({ experienceId: job.id, label, bulletIds: order.bulletIds, movedUp });
+    found.push({ job, bulletIds: order.bulletIds, movedUp });
   }
-  return plans;
+  return found;
 }
 
-export function lineTargets(resume: Resume, t: TargetWords = ENGLISH_TARGETS): LineTarget[] {
+export function reorderPlans(resume: Resume, result: TailorResult, t: TargetWords): ReorderPlan[] {
+  return reorders(resume, result).map(({ job, bulletIds, movedUp }) => ({
+    experienceId: job.id,
+    label: refPlace(
+      { section: "experience", roleTitle: job.title, company: job.company, parentLabel: "" },
+      t.places,
+    ),
+    bulletIds,
+    movedUp,
+  }));
+}
+
+export function lineTargets(resume: Resume, t: TargetWords): LineTarget[] {
   const named = (title: string, company: string) => {
     const parts = [title, company].filter((part) => part.trim());
     const [first = "", second] = parts;
@@ -175,10 +178,8 @@ export function applyTailorChoices(
   choices: TailorChoices,
 ): Resume {
   let next = resume;
-  for (const plan of reorderPlans(resume, result)) {
-    if (choices.reorder[plan.experienceId] !== false) {
-      next = reorderBullets(next, plan.experienceId, plan.bulletIds);
-    }
+  for (const { job, bulletIds } of reorders(resume, result)) {
+    if (choices.reorder[job.id] !== false) next = reorderBullets(next, job.id, bulletIds);
   }
   next = withAddedLines(next, result, choices);
   next = addConfirmedSkills(next, confirmedSkills(result, choices));
@@ -266,9 +267,8 @@ export function summarizeChoices(
   return {
     lines: addedLines(result, choices).length,
     skills: new Set(newSkills).size,
-    reorderedJobs: reorderPlans(resume, result).filter(
-      (plan) => choices.reorder[plan.experienceId] !== false,
-    ).length,
+    reorderedJobs: reorders(resume, result).filter(({ job }) => choices.reorder[job.id] !== false)
+      .length,
     summary: choices.useSummary && result.summary.trim() !== "",
   };
 }

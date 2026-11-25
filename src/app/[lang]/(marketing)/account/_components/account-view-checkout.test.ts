@@ -118,7 +118,11 @@ vi.mock("@/i18n/client", async () => {
   const { formatFor } = await import("@/i18n/intl");
   return {
     useMessages: (namespace: keyof typeof en) => en[namespace],
-    useMessagesOr: (namespace: keyof typeof en) => en[namespace],
+    useWordsOr:
+      (namespace: keyof typeof en) =>
+      <T>(given: T | undefined, pick: (messages: (typeof en)[typeof namespace]) => T) =>
+        given ?? pick(en[namespace]),
+    useProvidedMessages: (namespace: keyof typeof en) => en[namespace],
     useFormat: () => formatFor("en"),
     useLocale: () => "en",
   };

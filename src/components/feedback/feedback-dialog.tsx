@@ -9,9 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { api } from "@/lib/api/client";
 import { FEEDBACK_KINDS, FEEDBACK_LIMITS, type FeedbackKind } from "@/lib/feedback/types";
-import { useMessagesOr } from "@/i18n/client";
-import EN_APP from "@/i18n/messages/en/app";
-import EN_UI from "@/i18n/messages/en/ui";
+import { useMessages } from "@/i18n/client";
 
 export type FeedbackDialogProps = {
   open: boolean;
@@ -19,8 +17,8 @@ export type FeedbackDialogProps = {
 };
 
 export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
-  const t = useMessagesOr("ui", EN_UI).feedback;
-  const app = useMessagesOr("app", EN_APP);
+  const t = useMessages("ui").feedback;
+  const app = useMessages("app");
   const formId = useId();
   const kindName = useId();
   const [kind, setKind] = useState<FeedbackKind>("bug");

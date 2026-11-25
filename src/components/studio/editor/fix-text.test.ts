@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OTTO } from "@/components/mascot/lines";
+import { OTTO, OTTO_EN } from "@/components/mascot/lines-en";
 import { PLANS } from "@/config/plans";
 import { ApiClientError, isBudgetReached } from "@/lib/api/client";
 import { FixRequestSchema } from "@/lib/api/types";
@@ -69,15 +69,19 @@ describe("buildAnswers", () => {
 
 describe("messages", () => {
   it("maps errors to Otto's plain lines", () => {
-    expect(fixErrorMessage(new ApiClientError("network_error", "x", 0))).toBe(OTTO.errors.offline);
-    expect(fixErrorMessage(new ApiClientError("rate_limited", "x", 429))).toBe(
+    expect(fixErrorMessage(new ApiClientError("network_error", "x", 0), OTTO_EN)).toBe(
+      OTTO.errors.offline,
+    );
+    expect(fixErrorMessage(new ApiClientError("rate_limited", "x", 429), OTTO_EN)).toBe(
       OTTO.errors.rateLimited,
     );
-    expect(fixErrorMessage(new ApiClientError("ai_unavailable", "x", 502))).toBe(
+    expect(fixErrorMessage(new ApiClientError("ai_unavailable", "x", 502), OTTO_EN)).toBe(
       OTTO.errors.aiUnavailable,
     );
-    expect(fixErrorMessage(new ApiClientError("server_error", "x", 500))).toBe(OTTO.errors.generic);
-    expect(fixErrorMessage(new Error("boom"))).toBe(OTTO.errors.generic);
+    expect(fixErrorMessage(new ApiClientError("server_error", "x", 500), OTTO_EN)).toBe(
+      OTTO.errors.generic,
+    );
+    expect(fixErrorMessage(new Error("boom"), OTTO_EN)).toBe(OTTO.errors.generic);
   });
 
   it("explains a problem the account gate already handled", () => {

@@ -9,7 +9,7 @@ import { dismissEmail, trackingState } from "@/lib/inbound/records";
 import type { UndoEmailResponse } from "@/lib/inbound/types";
 import { EmailActionSchema } from "@/lib/inbound/validation";
 import { log } from "@/lib/log";
-import { planFullText } from "@/lib/plan-limits-copy";
+import { planFullText } from "@/lib/plan-limits-text";
 import { PRO_TOOL_MESSAGES } from "../../pro-tools";
 import { withApiLocale } from "@/lib/api/localize";
 

@@ -14,11 +14,10 @@ import {
   type Feature,
   type PaidPlanId,
 } from "@/config/plans";
-import { useFormat, useMessagesOr } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
-import EN_UPGRADE from "@/i18n/messages/en/upgrade";
 import { yearlySavingsPercent } from "@/lib/billing/prices";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
@@ -67,7 +66,7 @@ export function offerPrices(t: OfferWords, format: Format) {
 }
 
 export function useOfferWords(): OfferWords {
-  return useMessagesOr("upgrade", EN_UPGRADE).offer;
+  return useMessages("upgrade").offer;
 }
 
 export type PlanOfferProps = {

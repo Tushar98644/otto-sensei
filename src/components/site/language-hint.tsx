@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { DEFAULT_LOCALE, matchLocale, type Locale } from "@/i18n/config";
-import { pageLanguages, type PublishedPages } from "./language-picker";
+import { pageLanguages, type LanguageLinks } from "./page-languages";
 
 export type HintCopy = { text: string; link: string; dismiss: string };
 
@@ -51,13 +51,12 @@ export function hintTarget(
 }
 
 // English pages only: offers this page in the browser's language, never redirects. Fixed, so nothing moves.
-export function LanguageHint({
-  hints,
-  published,
-}: {
+export type HintProps = {
   hints: Partial<Record<Locale, HintCopy>>;
-  published: PublishedPages;
-}) {
+  links: LanguageLinks;
+};
+
+export function LanguageHint({ hints, links }: HintProps) {
   const pathname = usePathname() ?? "";
   // The server and hydration see no browser and render nothing; the browser's values follow.
   const languages = useSyncExternalStore(noSubscription, browserLanguages, () => null);
@@ -65,7 +64,7 @@ export function LanguageHint({
   const [closed, setClosed] = useState(false);
   const target =
     languages && !wasDismissed && !closed
-      ? hintTarget(languages, pageLanguages(pathname, published))
+      ? hintTarget(languages, pageLanguages(pathname, links))
       : null;
   const copy = target ? hints[target.locale] : undefined;
   if (!target || !copy) return null;

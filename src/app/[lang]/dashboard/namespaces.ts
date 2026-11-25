@@ -15,6 +15,8 @@ export const DASHBOARD_NAMESPACES = [
   "onboarding",
   "careerLog",
   "workProfile",
+  // The phone bar's account menu.
+  "accountMenu",
 ] as const satisfies readonly Namespace[];
 
 // Read by one page's parts only, so the page sends them in its own MessagesFor and every other page stays lighter.

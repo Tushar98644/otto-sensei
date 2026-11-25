@@ -10,7 +10,8 @@ import { listBullets, resumeToText, type BulletRef } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { otherForm, type OtherForm } from "./acronyms";
 import { findTermIn } from "./keywords";
-import { refPlace, type RequirementRow } from "./requirements";
+import { refPlace } from "./place";
+import type { RequirementRow } from "./requirements";
 import type { SummaryCheck, TitleCheck } from "./title-checks";
 import { foldCase, textTokens } from "./tokens";
 

@@ -3,15 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { TailorRequirement, TailorResult } from "@/lib/ai/types";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { TailorChoices } from "./apply";
-import {
-  buildScreener,
-  hasBlank,
-  lineQuestion,
-  missingName,
-  tidyLine,
-  verbNote,
-  writingAllowance,
-} from "./screener";
+import { buildScreener, hasBlank, lineQuestion, missingName, tidyLine, verbNote } from "./screener";
+import { OTTO_EN } from "@/components/mascot/lines-en";
+
+const writingAllowance = OTTO_EN.writing;
 
 const NOW = Date.UTC(2026, 10, 11);
 

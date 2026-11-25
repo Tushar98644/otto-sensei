@@ -15,15 +15,14 @@ import type { Application } from "@/lib/applications/schema";
 import { thankYouWritePath } from "@/lib/notifications/links";
 import type { InterviewOutcome } from "@/lib/notifications/types";
 import { settleOutcome } from "./use-notifications";
-import { useFormat, useMessagesOr } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
-import EN_APP from "@/i18n/messages/en/app";
-import EN_UI from "@/i18n/messages/en/ui";
 
 const ANSWERS: readonly InterviewOutcome[] = ["next_round", "waiting", "rejected"];
 
-type NotificationWords = (typeof EN_UI)["notifications"];
+type NotificationWords = Messages["ui"]["notifications"];
 
 function answeredToast(
   outcome: InterviewOutcome,
@@ -61,8 +60,8 @@ export function InterviewOutcomeActions({
   onNavigate: () => void;
 }) {
   const pro = useProTools();
-  const t = useMessagesOr("ui", EN_UI).notifications;
-  const app = useMessagesOr("app", EN_APP);
+  const t = useMessages("ui").notifications;
+  const app = useMessages("app");
   const format = useFormat();
   const [busy, setBusy] = useState<InterviewOutcome | null>(null);
 

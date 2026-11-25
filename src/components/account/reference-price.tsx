@@ -6,8 +6,7 @@ import {
   type BillingInterval,
   type PaidPlanId,
 } from "@/config/plans";
-import { useFormat, useMessagesOr } from "@/i18n/client";
-import EN_UPGRADE from "@/i18n/messages/en/upgrade";
+import { useFormat, useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { usdIn } from "./local-prices";
 
@@ -20,7 +19,7 @@ export function ReferencePrice({
   interval: BillingInterval;
   className?: string;
 }) {
-  const { referencePrice } = useMessagesOr("upgrade", EN_UPGRADE).offer;
+  const { referencePrice } = useMessages("upgrade").offer;
   const format = useFormat();
   if (!SHOW_REFERENCE_PRICES || interval !== "month") return null;
   return (

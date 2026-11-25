@@ -13,9 +13,8 @@ import { toast } from "@/components/ui/toast";
 import { api } from "@/lib/api/client";
 import type { FeedLinks } from "@/lib/calendar/types";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
-import { useMessagesOr } from "@/i18n/client";
-import EN_APP from "@/i18n/messages/en/app";
-import EN_CALENDAR from "@/i18n/messages/en/calendar";
+import { useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 
 const feedKey = (userId: string) => ["calendar-feed", userId] as const;
 
@@ -33,10 +32,10 @@ function useCalendarFeed(userId: string | null) {
   );
 }
 
-type CalendarWords = typeof EN_CALENDAR;
+type CalendarWords = Messages["calendar"];
 
 function useCalendarWords(): CalendarWords {
-  return useMessagesOr("calendar", EN_CALENDAR);
+  return useMessages("calendar");
 }
 
 function Links({ links, renewable }: { links: FeedLinks; renewable: boolean }) {
@@ -95,7 +94,7 @@ function Links({ links, renewable }: { links: FeedLinks; renewable: boolean }) {
 
 function Renew({ userId }: { userId: string }) {
   const t = useCalendarWords();
-  const app = useMessagesOr("app", EN_APP);
+  const app = useMessages("app");
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const hintId = useId();
@@ -150,7 +149,7 @@ export function CalendarFeed({ renewable = false }: { renewable?: boolean }) {
   const userId = useSessionUserId();
   const feed = useCalendarFeed(userId);
   const t = useCalendarWords();
-  const app = useMessagesOr("app", EN_APP);
+  const app = useMessages("app");
   if (!userId) return null;
   return (
     <div className="flex flex-col gap-4">

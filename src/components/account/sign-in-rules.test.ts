@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ACCOUNT_OTTO, SESSION_ENDED_REASON, SUPPORT_MAILTO } from "./copy";
+import { englishMessages } from "@/i18n/messages";
+import { SUPPORT_MAILTO } from "./copy";
 import { CODE_LENGTH, EMAIL_MAX_LENGTH, codeDigits, looksLikeEmail } from "./sign-in-rules";
 
 describe("codeDigits", () => {
@@ -44,8 +45,21 @@ describe("looksLikeEmail", () => {
   });
 });
 
+const { signIn, login, upgrade } = englishMessages();
+
+// Otto's account lines in English.
+const ACCOUNT_OTTO = {
+  signInDialog: signIn.dialog.otto,
+  login: login.otto,
+  signedOut: signIn.account,
+  upgradePitch: upgrade.otto.pitch,
+  upgradeSignIn: signIn.upgrade.otto,
+  billingOff: upgrade.otto.billingOff,
+  alreadyMax: upgrade.otto.alreadyMax,
+};
+
 describe("account copy", () => {
-  it.each([...Object.entries(ACCOUNT_OTTO), ["sessionEnded", SESSION_ENDED_REASON]])(
+  it.each([...Object.entries(ACCOUNT_OTTO), ["sessionEnded", signIn.gate.sessionEnded]])(
     "%s stays short, plain and complete",
     (_key, text) => {
       expect(text.trim()).toBe(text);

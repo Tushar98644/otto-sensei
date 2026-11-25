@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { useMessagesOr } from "@/i18n/client";
-import EN_UI from "@/i18n/messages/en/ui";
+import { useProvidedMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import { checkFile } from "./file-check";
 
 export type DropzoneProps = {
@@ -27,7 +27,7 @@ export function Dropzone({
   children,
   className,
 }: DropzoneProps) {
-  const words = useMessagesOr("ui", EN_UI);
+  const provided = useProvidedMessages("ui");
   const zoneRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // dragenter/dragleave also fire for every child element, so count them instead of toggling.
@@ -59,6 +59,16 @@ export function Dropzone({
 
   function take(files: FileList | null) {
     if (disabled || !files || files.length === 0) return;
+    const picked = Array.from(files);
+    if (provided) {
+      check(picked, provided);
+      return;
+    }
+    // /job-match has no provider: the English words come with the first file.
+    void import("@/i18n/messages/en/ui").then(({ default: ui }) => check(picked, ui));
+  }
+
+  function check(files: File[], words: Messages["ui"]) {
     if (files.length > 1) {
       onReject(words.dropOne);
       return;

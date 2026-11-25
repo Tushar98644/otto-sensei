@@ -23,10 +23,8 @@ import {
   type ProTool,
 } from "@/config/plans";
 import { TOPUP_LIMITS } from "@/config/topup";
-import { useFormat, useMessagesOr } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import EN_APP from "@/i18n/messages/en/app";
-import EN_UPGRADE from "@/i18n/messages/en/upgrade";
 import type { SessionUser } from "@/lib/auth/types";
 import { isKeptTool } from "@/lib/plan-limits-copy";
 import { TRASH_DAYS } from "@/lib/store/history";
@@ -87,11 +85,11 @@ export function UpgradeDialog({
   startAtSignIn = false,
 }: UpgradeDialogProps) {
   const { me, user, loading } = useMe();
-  const t = useMessagesOr("upgrade", EN_UPGRADE);
+  const t = useMessages("upgrade");
   const signInWords = useSignInWords();
   const otto = useOtto();
   const format = useFormat();
-  const periods = usageCopy(useMessagesOr("app", EN_APP).usage, format);
+  const periods = usageCopy(useMessages("app").usage, format);
   const trialCopy = useTrialUpgradeCopy();
   const checkout = useBillingRedirect("checkout");
   const portal = useBillingRedirect("portal");

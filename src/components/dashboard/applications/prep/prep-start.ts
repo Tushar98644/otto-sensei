@@ -1,18 +1,15 @@
 import type { Usage, UsagePeriod } from "@/config/plans";
 import { fmt } from "@/i18n/format";
-import { formatFor, type Format } from "@/i18n/intl";
-import EN_APP from "@/i18n/messages/en/app";
+import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
 import { usageCopy } from "@/lib/usage-copy";
 
-const EN_FORMAT = formatFor("en");
-
-// What one prep costs from the letter allowance; English unless the reader's words are given.
+// What one prep costs from the letter allowance, in the reader's words.
 export function prepAllowance(
   usage: Usage | null | undefined,
-  period?: UsagePeriod | null,
-  words: Messages["app"] = EN_APP,
-  format: Format = EN_FORMAT,
+  period: UsagePeriod | null | undefined,
+  words: Messages["app"],
+  format: Format,
 ): string | null {
   if (!usage || usage.limit <= 0) return null;
   const left = Math.max(0, usage.limit - usage.used);

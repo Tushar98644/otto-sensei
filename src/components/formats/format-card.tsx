@@ -5,9 +5,8 @@ import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import { ProMark } from "@/components/ui/pro-mark";
-import { useMessagesOr } from "@/i18n/client";
+import { useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import EN_FORMATS from "@/i18n/messages/en/formats";
 import type { TemplateInfo } from "@/lib/pdf/templates";
 import { CARD_SIZES, FormatImage, preloadFormatPreview } from "./format-image";
 
@@ -33,7 +32,7 @@ export function FormatCard({
   onPreview,
 }: FormatCardProps) {
   const titleId = useId();
-  const words = useMessagesOr("formats", EN_FORMATS);
+  const words = useMessages("formats");
   const t = words.gallery;
   const preview = () => preloadFormatPreview(info.id);
   return (

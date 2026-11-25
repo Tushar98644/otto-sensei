@@ -1,6 +1,6 @@
 import { lang } from "next/root-params";
 import type { ReactNode } from "react";
-import { MessagesProvider } from "./client";
+import { MessagesProvider } from "./provider";
 import { DEFAULT_LOCALE, isEnabledLocale, localeFromSegment, type Locale } from "./config";
 import { formatFor, type Format } from "./intl";
 import { loadMessages, type Messages, type Namespace } from "./messages";

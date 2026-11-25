@@ -9,7 +9,10 @@ import {
   type ReferralSummary,
 } from "@/lib/referrals/referrals";
 import { extrasNote } from "./invite-card";
-import { INVITE_ANNOUNCEMENT, INVITE_PROMPT_TEXT, InviteOffer } from "./invite-prompt";
+import { InviteOffer, inviteText } from "./invite-prompt";
+
+const INVITE_PROMPT_TEXT = inviteText(en.shareLinks.invite);
+const INVITE_ANNOUNCEMENT = en.shareLinks.invite.announcement;
 
 const mocks = vi.hoisted(() => ({ meSnapshot: vi.fn(), referrals: vi.fn() }));
 

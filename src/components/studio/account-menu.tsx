@@ -29,9 +29,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { BRAND } from "@/config/brand";
 import { PLANS } from "@/config/plans";
-import { useMessagesOr } from "@/i18n/client";
+import { useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import englishAccountMenu from "@/i18n/messages/en/account-menu";
 import type { SessionUser } from "@/lib/auth/types";
 import { signOutAndRelease } from "@/lib/sync/use-cloud-sync";
 import { Popover, usePopover } from "./popover";
@@ -43,9 +42,9 @@ export type AccountMenuProps = {
   onSignIn: () => void;
 };
 
-// The dashboard's phone bar renders this menu too, and reads English until it passes accountMenu.
+// The dashboard's phone bar renders this menu too; both layouts send accountMenu.
 function useAccountMenuCopy() {
-  return useMessagesOr("accountMenu", englishAccountMenu);
+  return useMessages("accountMenu");
 }
 
 export function AccountMenu({ onSignIn }: AccountMenuProps) {

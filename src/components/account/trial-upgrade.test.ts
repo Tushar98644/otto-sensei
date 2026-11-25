@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { PRICES_USD, PRO_TRIAL } from "@/config/plans";
-import {
-  PAYMENT_ISSUE_NOTICE,
+import { formatFor } from "@/i18n/intl";
+import EN_UPGRADE from "@/i18n/messages/en/upgrade";
+import { trialUpgradeButton, trialUpgradeCopy } from "./trial-upgrade";
+
+const {
+  charge: trialUpgradeCharge,
+  notice: trialUpgradeNotice,
+  paymentIssue: PAYMENT_ISSUE_NOTICE,
   resumeFirstNotice,
-  trialUpgradeButton,
-  trialUpgradeCharge,
-  trialUpgradeNotice,
-} from "./trial-upgrade";
+} = trialUpgradeCopy(EN_UPGRADE.trial, formatFor("en"));
 
 const usd = (amount: number) => `$${amount}`;
 

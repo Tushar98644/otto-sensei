@@ -3,14 +3,13 @@
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { BRAND } from "@/config/brand";
-import { useMessagesOr } from "@/i18n/client";
-import EN_UPGRADE from "@/i18n/messages/en/upgrade";
+import { useMessages } from "@/i18n/client";
 import { rich } from "@/i18n/rich";
 import type { BillingMode } from "@/lib/billing/types";
 import { SUPPORT_MAILTO } from "./copy";
 
 export function BillingNote({ mode }: { mode: BillingMode | undefined }) {
-  const t = useMessagesOr("upgrade", EN_UPGRADE).billing;
+  const t = useMessages("upgrade").billing;
   if (mode === "mock") {
     return (
       <p className="flex flex-wrap items-center gap-2 text-sm text-muted">

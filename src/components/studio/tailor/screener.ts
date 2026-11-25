@@ -31,7 +31,6 @@ import {
 import { screenerOptions, screenerResume, type TailorChoices } from "./apply";
 
 export { lineQuestion } from "./line-question";
-export { writingAllowance } from "./writing-allowance";
 
 export type Screener = {
   rows: RequirementRow[];

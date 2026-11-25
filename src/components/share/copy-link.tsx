@@ -4,8 +4,7 @@ import { Check, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button, buttonClasses, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { useMessagesOr } from "@/i18n/client";
-import EN_SHARE_LINKS from "@/i18n/messages/en/share-links";
+import { useMessages } from "@/i18n/client";
 import { sharePath } from "@/lib/share/types";
 
 const noSubscribe = () => () => {};
@@ -22,7 +21,7 @@ export function useShareUrl(slug: string): string {
 const COPIED_MS = 2_500;
 
 export function useShareLinksWords() {
-  return useMessagesOr("shareLinks", EN_SHARE_LINKS);
+  return useMessages("shareLinks");
 }
 
 export function useCopyLink() {

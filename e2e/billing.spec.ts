@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { maxLine as maxLineIn } from "@/app/[lang]/(marketing)/account/_components/plan-copy";
-import { trialUpgradeNotice } from "@/components/account/trial-upgrade";
+import { trialUpgradeCopy } from "@/components/account/trial-upgrade";
 import { PLANS, type BillingInterval, type PaidPlanId, type PlanId } from "@/config/plans";
 import type { MeResponse, UrlResponse } from "@/lib/api/types";
 import {
@@ -18,6 +18,7 @@ import en from "@/i18n/messages/en";
 import { expect, test } from "./fixtures";
 
 const maxLine = () => maxLineIn(en.account.plan, formatFor("en"));
+const trialUpgradeNotice = trialUpgradeCopy(en.upgrade.trial, formatFor("en")).notice;
 import { signIn, subscribe, uniqueEmail } from "./helpers";
 
 // Trial end dates are shown in the browser's time zone, so both sides use UTC.

@@ -1,6 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { loadOtto } from "./lazy-otto";
 import { LOADING_SCREEN_TITLE, LoadingScreenHost, LoadingScreenView } from "./otto-loading-screen";
+import { StillLoadingScreen } from "./still-loading-screen";
 
 describe("LoadingScreenView", () => {
   it("keeps an empty status region in the page while hidden", () => {
@@ -8,7 +10,15 @@ describe("LoadingScreenView", () => {
     expect(html).toBe('<div role="status" aria-live="polite" class="sr-only"></div>');
   });
 
-  it("covers the viewport with Otto, the title and what is happening", () => {
+  it("keeps Otto's place until his drawing code arrives", () => {
+    const html = renderToStaticMarkup(<LoadingScreenView phase="shown" detail={null} />);
+    expect(html).toContain(
+      '<span aria-hidden="true"><span class="inline-block size-32 sm:size-36"></span></span>',
+    );
+  });
+
+  it("covers the viewport with Otto, the title and what is happening", async () => {
+    await loadOtto();
     const html = renderToStaticMarkup(
       <LoadingScreenView phase="shown" detail="Setting up your Pro plan" />,
     );
@@ -39,5 +49,12 @@ describe("LoadingScreenHost", () => {
     );
     expect(html).toContain('<div class="contents"><main>App</main></div>');
     expect(html).not.toContain("aria-busy");
+  });
+
+  it("draws what the 404 for unmatched URLs draws without its code", () => {
+    const app = <main>App</main>;
+    expect(renderToStaticMarkup(<StillLoadingScreen>{app}</StillLoadingScreen>)).toBe(
+      renderToStaticMarkup(<LoadingScreenHost>{app}</LoadingScreenHost>),
+    );
   });
 });

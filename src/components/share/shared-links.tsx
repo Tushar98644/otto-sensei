@@ -4,9 +4,8 @@ import { useMemo } from "react";
 import { useMe } from "@/components/account/use-me";
 import { useNow } from "@/components/studio/use-now";
 import { Button } from "@/components/ui/button";
-import { useFormat, useMessagesOr } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import EN_SHARE from "@/i18n/messages/en/share";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import type { SharedLink } from "@/lib/share/types";
@@ -60,7 +59,7 @@ type RowProps = {
 
 function SharedLinkRow({ link, resume, now, onTurnOff }: RowProps) {
   const t = useShareLinksWords().list;
-  const { facts } = useMessagesOr("share", EN_SHARE);
+  const { facts } = useMessages("share");
   const format = useFormat();
   const name = resume ? resumeTitle(resume) : link.name || t.untitled;
   const details = [

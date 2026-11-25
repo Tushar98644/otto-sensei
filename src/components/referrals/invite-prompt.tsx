@@ -3,9 +3,9 @@
 import { Check, Copy, X } from "lucide-react";
 import { meSnapshot } from "@/components/account/use-me";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { useMessagesOr } from "@/i18n/client";
+import { useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import { fmt } from "@/i18n/format";
-import EN_SHARE_LINKS from "@/i18n/messages/en/share-links";
 import { api } from "@/lib/api/client";
 import { readItem, writeItem } from "@/lib/browser-storage";
 import { REFERRAL_BONUS } from "@/lib/referrals/referrals";
@@ -15,17 +15,13 @@ const OFFERED_KEY = "otto-invite-offered";
 // Stands in for the session flag when storage is blocked, so the offer still comes once a page load.
 let offered = false;
 
-type InviteWords = (typeof EN_SHARE_LINKS)["invite"];
+type InviteWords = Messages["shareLinks"]["invite"];
 
-const inviteText = (t: InviteWords) =>
+export const inviteText = (t: InviteWords) =>
   fmt(t.text, { fix: REFERRAL_BONUS.fix, tailor: REFERRAL_BONUS.tailor });
 
-export const INVITE_PROMPT_TEXT = inviteText(EN_SHARE_LINKS.invite);
-
-export const INVITE_ANNOUNCEMENT = EN_SHARE_LINKS.invite.announcement;
-
 function useInviteWords(): InviteWords {
-  return useMessagesOr("shareLinks", EN_SHARE_LINKS).invite;
+  return useMessages("shareLinks").invite;
 }
 
 // Once a session, signed in only, and only while the inviter still earns extras; never throws.

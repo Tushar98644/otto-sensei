@@ -8,9 +8,8 @@ import {
   type ProTool,
 } from "@/config/plans";
 import { fmt } from "@/i18n/format";
-import { formatFor, type Format } from "@/i18n/intl";
+import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
-import EN_OTTO from "@/i18n/messages/en/otto";
 
 export type KeptTool = Extract<ProTool, "resumes" | "tracker">;
 
@@ -42,5 +41,3 @@ export function planFullCopy(words: PlanFullWords, format: Format) {
     });
   };
 }
-
-export const planFullText = planFullCopy(EN_OTTO.full, formatFor("en"));

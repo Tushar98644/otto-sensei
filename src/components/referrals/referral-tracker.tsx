@@ -3,7 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { refreshMe, useMe } from "@/components/account/use-me";
 import { toast } from "@/components/ui/toast";
-import { fmt } from "@/i18n/format";
+import { fmt } from "@/i18n/fmt";
 import type { Messages } from "@/i18n/messages";
 import { api } from "@/lib/api/client";
 import {

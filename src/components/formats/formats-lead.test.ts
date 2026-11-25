@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { formatsLead } from "./formats-lead";
+import EN_FORMATS from "@/i18n/messages/en/formats";
+import { formatsLead as lead } from "./formats-lead";
+
+const formatsLead = (free: boolean) => lead(free, EN_FORMATS.lead);
 
 describe("formatsLead", () => {
   it("tells Free which formats are free and that the others can be tried first", () => {

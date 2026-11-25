@@ -50,7 +50,7 @@ export async function NotFoundPage({
           </div>
         </div>
       </main>
-      {await SiteFooter({ locale, languages: false })}
+      {await SiteFooter({ locale })}
     </div>
   );
 }

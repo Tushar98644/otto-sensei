@@ -100,7 +100,7 @@ function withLines(): TailorChoices {
 
 describe("reorderPlans", () => {
   it("lists the lines that move up, in their new order", () => {
-    expect(reorderPlans(resume(), result())).toEqual([
+    expect(reorderPlans(resume(), result(), EN.studioTailor.reasons)).toEqual([
       {
         experienceId: "job",
         label: "Backend Engineer at Stripe",
@@ -118,9 +118,9 @@ describe("reorderPlans", () => {
         { experienceId: "missing", bulletIds: ["a"] },
       ],
     });
-    expect(reorderPlans(resume(), bad)).toEqual([]);
+    expect(reorderPlans(resume(), bad, EN.studioTailor.reasons)).toEqual([]);
     const same = result({ bulletOrder: [{ experienceId: "job", bulletIds: ["a", "b", "c"] }] });
-    expect(reorderPlans(resume(), same)).toEqual([]);
+    expect(reorderPlans(resume(), same, EN.studioTailor.reasons)).toEqual([]);
   });
 });
 
@@ -209,7 +209,7 @@ describe("screenerResume and screenerOptions", () => {
 
 describe("lineTargets", () => {
   it("offers every job, then every project", () => {
-    expect(lineTargets(resume())).toEqual([
+    expect(lineTargets(resume(), EN.studioTailor.reasons)).toEqual([
       { id: "job", section: "experience", label: "Backend Engineer at Stripe" },
       { id: "proj", section: "projects", label: "Project: Ledger" },
     ]);

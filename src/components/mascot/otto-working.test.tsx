@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { OTTO } from "./lines";
+import { OTTO } from "./lines-en";
 import { OTTO_WORKING_DELAY_MS, OttoWorking, revealAfter } from "./otto-working";
 
 describe("OttoWorking", () => {

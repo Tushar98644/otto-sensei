@@ -1,12 +1,12 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { MERCHANT } from "@/app/[lang]/(marketing)/_components/merchant";
 import { BRAND } from "@/config/brand";
 import { DEFAULT_LOCALE, type Locale } from "@/i18n/config";
 import { fmt } from "@/i18n/format";
 import { loadMessages } from "@/i18n/messages";
 import { localizer, pageKey } from "@/i18n/pages";
-import { publishedByLocale, publishedPages } from "@/i18n/publish";
-import { LanguagePicker } from "./language-picker";
+import { publishedPages } from "@/i18n/publish";
 import { FOOTER_GROUPS, ROUTES } from "./routes";
 import { SiteLogo } from "./site-logo";
 
@@ -14,11 +14,11 @@ const SHOW_SUPPORT_EMAIL = !BRAND.supportEmail.toLowerCase().endsWith("@example.
 
 export async function SiteFooter({
   locale = DEFAULT_LOCALE,
-  languages = true,
+  languages,
 }: {
   locale?: Locale;
-  // Off on a 404, whose address isn't a page in any language.
-  languages?: boolean;
+  // footerLanguages(locale) (./footer-languages); none on a 404, whose address isn't a page in any language.
+  languages?: ReactNode;
 }) {
   const { footer } = await loadMessages(locale, "site");
   const published = await publishedPages(locale);
@@ -80,14 +80,7 @@ export async function SiteFooter({
           © {new Date().getUTCFullYear()} {BRAND.name} ·{" "}
           {fmt(footer.payments, { merchant: MERCHANT.name })}
         </p>
-        {languages ? (
-          <LanguagePicker
-            label={footer.language}
-            current={locale}
-            published={await publishedByLocale()}
-            className="-mt-6"
-          />
-        ) : null}
+        {languages}
       </div>
     </footer>
   );

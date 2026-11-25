@@ -36,7 +36,12 @@ const nextConfig: NextConfig = {
   // Tabs open across a deploy reload once instead of requesting code that no longer exists.
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID?.trim() || undefined,
   // With the root layout under [lang], unmatched URLs get src/app/global-not-found.tsx, a static page.
-  experimental: { staleTimes: { dynamic: 30 }, globalNotFound: true },
+  experimental: {
+    staleTimes: { dynamic: 30 },
+    globalNotFound: true,
+    // Small shared chunks stay shared: at the 50 KB default each root (404, crash page) merged its own copies.
+    turbopackChunking: { minChunkSize: 15_000 },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

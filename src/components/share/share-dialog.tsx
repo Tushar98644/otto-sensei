@@ -11,9 +11,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { useFormat, useMessagesOr } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import EN_SHARE from "@/i18n/messages/en/share";
 import { api, isApiError } from "@/lib/api/client";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
@@ -45,7 +44,7 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   const { user } = useMe();
   const words = useShareLinksWords();
   const t = words.dialog;
-  const share = useMessagesOr("share", EN_SHARE);
+  const share = useMessages("share");
   const shares = useShares(open);
   const { status, error: loadError } = shares;
   const link = shares.links.find((item) => item.resumeId === resume.id) ?? null;
@@ -210,7 +209,7 @@ type LinkDetailsProps = {
 
 function LinkDetails({ link, resume, busy, onUpdate, inputRef }: LinkDetailsProps) {
   const t = useShareLinksWords().dialog;
-  const { facts } = useMessagesOr("share", EN_SHARE);
+  const { facts } = useMessages("share");
   const format = useFormat();
   const inputId = useId();
   const factsId = useId();

@@ -50,12 +50,21 @@ export default async function ResumeTemplatesPage() {
   const t = await getMessages("resumeTemplates");
   const product = await getMessages("product");
   const seo = await getMessages("seo");
+  const { templates } = await getMessages("formats");
+  const { pro } = await getMessages("app");
   const content = templatesContent(t, format, href);
   const formats: readonly PreviewFormat[] = TEMPLATE_LIST.map((info) => ({
     info: formatInfo(t, info),
     pro: isProTemplate(info.id),
+    description: templates[info.id].description,
   }));
-  const labels = { preview: t.preview, use: t.use, close: t.close, imageAlt: t.imageAlt };
+  const labels = {
+    preview: t.preview,
+    use: t.use,
+    close: t.close,
+    imageAlt: t.imageAlt,
+    pro: pro.comesWith,
+  };
   return (
     <div className={PAGE_CLASSES}>
       <JsonLd

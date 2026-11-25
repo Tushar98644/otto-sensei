@@ -4,12 +4,11 @@ import { MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { LazyFeedbackDialog } from "./lazy-feedback-dialog";
-import { useMessagesOr } from "@/i18n/client";
-import EN_UI from "@/i18n/messages/en/ui";
+import { useMessages } from "@/i18n/client";
 
 export function FeedbackButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
-  const label = useMessagesOr("ui", EN_UI).feedback.button;
+  const label = useMessages("ui").feedback.button;
   return (
     <>
       <button

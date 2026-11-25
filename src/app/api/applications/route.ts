@@ -13,7 +13,7 @@ import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
-import { planFullText } from "@/lib/plan-limits-copy";
+import { planFullText } from "@/lib/plan-limits-text";
 import { proToolRequired } from "../pro-tools";
 import { INVALID, SIGN_IN } from "./messages";
 import { createApplication, listApplications, parseCursor, setStatusMany } from "./records";

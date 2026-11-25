@@ -2,8 +2,8 @@
 
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { loadOtto, useLoadedOtto } from "./lazy-otto";
 import { createLoadingScreen, type LoadingScreenState } from "./loading-screen";
-import { Otto } from "./otto";
 
 const screen = createLoadingScreen();
 const HIDDEN: LoadingScreenState = { phase: "hidden", detail: null };
@@ -16,6 +16,7 @@ export function loadingScreenUp(): boolean {
 export function useOttoLoadingScreen(active: boolean, detail?: string | null): void {
   useEffect(() => {
     if (!active) return;
+    void loadOtto();
     return screen.request(detail ?? null);
   }, [active, detail]);
 }
@@ -40,6 +41,7 @@ export function LoadingScreenHost({ children }: { children: ReactNode }) {
 
 // The status region stays mounted: readers only announce text added to a known live region.
 export function LoadingScreenView({ phase, detail }: LoadingScreenState) {
+  const otto = useLoadedOtto();
   const hidden = phase === "hidden";
   const leaving = phase === "leaving";
   return (
@@ -57,7 +59,11 @@ export function LoadingScreenView({ phase, detail }: LoadingScreenState) {
       {hidden ? null : (
         <>
           <span aria-hidden>
-            <Otto pose="read" size={144} lively className="size-32 sm:size-36" />
+            {otto ? (
+              <otto.Otto pose="read" size={144} lively className="size-32 sm:size-36" />
+            ) : (
+              <span className="inline-block size-32 sm:size-36" />
+            )}
           </span>
           <p className="mt-6 max-w-md font-display text-3xl/9 font-normal text-balance text-ink sm:text-4xl/10">
             {LOADING_SCREEN_TITLE}

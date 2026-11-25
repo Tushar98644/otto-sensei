@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { StillLoadingScreen } from "@/components/mascot/still-loading-screen";
 import { NotFoundFonts } from "@/components/site/not-found-fonts";
 import { NotFoundPage } from "@/components/site/not-found-page";
-import { RootDocument, ROOT_VIEWPORT, rootMetadata } from "@/components/site/root-document";
+import { RootFrame, ROOT_VIEWPORT, rootMetadata } from "@/components/site/root-frame";
 import { fullTitle } from "@/components/site/page-metadata";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 import { loadMessages } from "@/i18n/messages";
@@ -18,13 +19,16 @@ export const metadata: Metadata = {
 export default async function GlobalNotFound() {
   const common = await loadMessages(DEFAULT_LOCALE, "common");
   return (
-    <RootDocument
+    <RootFrame
       lang={DEFAULT_LOCALE}
       skipLabel={common.skipToContent}
       referral={common.referral}
       toast={common.toast}
     >
-      {await NotFoundPage({ locale: DEFAULT_LOCALE, fonts: <NotFoundFonts /> })}
-    </RootDocument>
+      {/* Every link here leaves this root with a full page load, so nothing can raise the loading screen. */}
+      <StillLoadingScreen>
+        {await NotFoundPage({ locale: DEFAULT_LOCALE, fonts: <NotFoundFonts /> })}
+      </StillLoadingScreen>
+    </RootFrame>
   );
 }

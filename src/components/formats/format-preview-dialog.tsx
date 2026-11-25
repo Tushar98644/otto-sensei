@@ -3,9 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { ProMark } from "@/components/ui/pro-mark";
-import { useMessagesOr } from "@/i18n/client";
+import { useWordsOr } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import EN_FORMATS from "@/i18n/messages/en/formats";
 import type { TemplateInfo } from "@/lib/pdf/templates";
 import { FormatImage, PREVIEW_SIZES } from "./format-image";
 
@@ -17,9 +16,11 @@ export type FormatPreviewDialogProps = {
   ready: boolean;
   opening?: boolean;
   onUse: (info: TemplateInfo) => void;
-  // A page in another language passes its own; the image's takes {name}.
+  // Pages without a provider pass these; the image's takes {name}.
   closeLabel?: string;
   imageAlt?: string;
+  description?: string;
+  proLabel?: string;
 };
 
 export function FormatPreviewDialog({
@@ -32,8 +33,11 @@ export function FormatPreviewDialog({
   onUse,
   closeLabel,
   imageAlt,
+  description,
+  proLabel,
 }: FormatPreviewDialogProps) {
-  const words = useMessagesOr("formats", EN_FORMATS);
+  const formats = useWordsOr("formats");
+  const close = info ? formats(closeLabel, (words) => words.gallery.close) : closeLabel;
   return (
     <Dialog
       open={info !== null}
@@ -41,19 +45,21 @@ export function FormatPreviewDialog({
         if (!open) onClose();
       }}
       size="lg"
-      closeLabel={closeLabel ?? words.gallery.close}
+      closeLabel={close}
       title={
         <span className="flex items-center gap-2">
           {info?.name}
-          {pro ? <ProMark /> : null}
+          {pro ? <ProMark label={proLabel} /> : null}
         </span>
       }
-      description={info ? words.templates[info.id].description : undefined}
+      description={
+        info ? formats(description, (words) => words.templates[info.id].description) : undefined
+      }
       footer={
         info ? (
           <>
             <Button variant="ghost" onClick={onClose}>
-              {closeLabel ?? words.gallery.close}
+              {close}
             </Button>
             <Button onClick={() => onUse(info)} disabled={!ready} loading={opening} data-autofocus>
               {actionLabel}
@@ -67,7 +73,10 @@ export function FormatPreviewDialog({
           <FormatImage
             info={info}
             sizes={PREVIEW_SIZES}
-            alt={fmt(imageAlt ?? words.gallery.alt, { name: info.name })}
+            alt={fmt(
+              formats(imageAlt, (words) => words.gallery.alt),
+              { name: info.name },
+            )}
             decoding="sync"
             className="mx-auto max-h-[65dvh] w-auto max-w-full shadow-page"
           />

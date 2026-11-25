@@ -1,4 +1,4 @@
-import { OTTO_EN, type OttoLines } from "@/components/mascot/lines";
+import type { OttoLines } from "@/components/mascot/lines";
 import { PLANS, type PlanId, type Usage, type UsagePeriod } from "@/config/plans";
 import { fmt } from "@/i18n/format";
 import type { Format } from "@/i18n/intl";
@@ -11,7 +11,7 @@ export type FixWords = {
   t: Messages["studioEditor"];
   usage: Messages["studio"]["usage"];
   format: Format;
-  otto?: OttoLines;
+  otto: OttoLines;
 };
 
 export const FIX_ANSWER_LIMITS = { count: 5, questionChars: 300, answerChars: 500 } as const;
@@ -84,7 +84,7 @@ export function buildAnswers(
     .slice(0, FIX_ANSWER_LIMITS.count);
 }
 
-export function fixErrorMessage(error: unknown, otto: OttoLines = OTTO_EN): string {
+export function fixErrorMessage(error: unknown, otto: OttoLines): string {
   if (isApiError(error, "network_error")) return otto.errors.offline;
   if (isApiError(error, "rate_limited")) return otto.errors.rateLimited;
   if (isApiError(error, "ai_unavailable")) return otto.errors.aiUnavailable;
@@ -99,7 +99,7 @@ export function problemMessage(
   period?: UsagePeriod | null,
   plan?: PlanId | null,
 ): string {
-  const otto = words.otto ?? OTTO_EN;
+  const { otto } = words;
   switch (problem.kind) {
     case "limit":
       if (problem.budget) return otto.budget(period);
@@ -114,7 +114,7 @@ export function problemMessage(
 }
 
 export function fixAllowanceText(
-  { t, usage: u, format, otto = OTTO_EN }: FixWords,
+  { t, usage: u, format, otto }: FixWords,
   usage: Usage | null | undefined,
   plan: PlanId | null | undefined,
   period?: UsagePeriod | null,

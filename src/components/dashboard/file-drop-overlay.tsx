@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useState } from "react";
 import { ROUTES } from "@/components/site/routes";
 import { toast } from "@/components/ui/toast";
-import { useMessages, useMessagesOr } from "@/i18n/client";
-import EN_UI from "@/i18n/messages/en/ui";
+import { useMessages } from "@/i18n/client";
 import { carriesFiles, dropHint, droppedResume } from "./drop-upload";
 
 // A modal dialog makes the page under it inert, so a drop there is refused instead of taken.
@@ -14,7 +13,7 @@ const dialogOpen = () => document.querySelector("dialog[open]") !== null;
 
 export function FileDropOverlay() {
   const t = useMessages("dashboard");
-  const { fileCheck } = useMessagesOr("ui", EN_UI);
+  const { fileCheck } = useMessages("ui");
   const router = useRouter();
   const [shown, setShown] = useState(false);
 

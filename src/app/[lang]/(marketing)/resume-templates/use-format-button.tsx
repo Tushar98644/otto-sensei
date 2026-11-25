@@ -109,9 +109,9 @@ export function PreviewFormatButton({
   );
 }
 
-export type PreviewFormat = { info: TemplateInfo; pro: boolean };
+export type PreviewFormat = { info: TemplateInfo; pro: boolean; description: string };
 
-export type FormatPreviewLabels = { use: string; close: string; imageAlt: string };
+export type FormatPreviewLabels = { use: string; close: string; imageAlt: string; pro: string };
 
 export type FormatPreviewHostProps = {
   formats: readonly PreviewFormat[];
@@ -139,6 +139,8 @@ export function FormatPreviewHost({ formats, labels }: FormatPreviewHostProps) {
       actionLabel={labels?.use ?? "Use this format"}
       closeLabel={labels?.close}
       imageAlt={labels?.imageAlt}
+      description={shown?.description}
+      proLabel={labels?.pro}
       ready={opening === null}
       opening={opening !== null}
       onUse={(info) => void open(info.id)}

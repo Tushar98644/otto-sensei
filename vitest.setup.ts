@@ -78,3 +78,37 @@ for (const name of [
 ]) {
   delete process.env[name];
 }
+
+// Parts tested without a page around them read these namespaces in English, as the app's providers send them.
+vi.mock("@/i18n/client", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/i18n/client")>();
+  const { default: en } = await import("@/i18n/messages/en");
+  type Messages = typeof en;
+  const alone = new Set<keyof Messages>([
+    "accountMenu",
+    "app",
+    "calendar",
+    "formats",
+    "letters",
+    "onboarding",
+    "otto",
+    "share",
+    "shareLinks",
+    "signIn",
+    "ui",
+    "upgrade",
+  ]);
+  const provided = <N extends keyof Messages>(namespace: N): Messages[N] | undefined =>
+    real.useProvidedMessages(namespace) ?? (alone.has(namespace) ? en[namespace] : undefined);
+  return {
+    ...real,
+    useProvidedMessages: provided,
+    useMessages: <N extends keyof Messages>(namespace: N) =>
+      provided(namespace) ?? real.useMessages(namespace),
+    useWordsOr: <N extends keyof Messages>(namespace: N) => {
+      const messages = provided(namespace);
+      if (!messages) return real.useWordsOr(namespace);
+      return <T>(given: T | undefined, pick: (words: Messages[N]) => T) => given ?? pick(messages);
+    },
+  };
+});

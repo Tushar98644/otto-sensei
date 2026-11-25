@@ -32,12 +32,9 @@ export type PageKey = keyof typeof PAGE_NAMESPACES;
 export const PAGE_KEYS = Object.keys(PAGE_NAMESPACES) as PageKey[];
 
 // The sections with pages under them; every other key is a single page.
-const SECTIONS: ReadonlySet<PageKey> = new Set([
-  "/login",
-  "/resume-examples",
-  "/ats",
-  "/compare",
-] satisfies PageKey[]);
+export const SECTION_KEYS: readonly PageKey[] = ["/login", "/resume-examples", "/ats", "/compare"];
+
+const SECTIONS: ReadonlySet<PageKey> = new Set(SECTION_KEYS);
 
 export function pageNamespaces(key: PageKey): readonly Namespace[] {
   return [...FRAME_NAMESPACES, ...PAGE_NAMESPACES[key]];

@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
-import { LanguageHint, type HintCopy } from "@/components/site/language-hint";
+import { footerLanguages } from "@/components/site/footer-languages";
+import type { HintCopy } from "@/components/site/language-hint";
+import { LanguageHintLoader } from "@/components/site/language-hint-loader";
+import { languageLinks } from "@/components/site/language-links";
 import { SiteFonts } from "@/components/site/site-fonts";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { DEFAULT_LOCALE, ENABLED_LOCALES, type Locale } from "@/i18n/config";
 import { loadMessages } from "@/i18n/messages";
-import { publishedByLocale } from "@/i18n/publish";
 import { getLocale } from "@/i18n/server";
 import { SmoothScroll } from "./_components/smooth-scroll";
 
@@ -21,6 +23,7 @@ async function languageHints(): Promise<Partial<Record<Locale, HintCopy>>> {
 // Renders the page's <main> (the skip link targets #main): pages here must not add their own.
 export default async function MarketingLayout({ children }: { children: ReactNode }) {
   const locale = await getLocale();
+  const links = await languageLinks();
   return (
     <div className="flex min-h-dvh flex-col">
       <SiteFonts />
@@ -29,9 +32,9 @@ export default async function MarketingLayout({ children }: { children: ReactNod
       <main id="main" className="flex-1">
         {children}
       </main>
-      <SiteFooter locale={locale} />
+      <SiteFooter locale={locale} languages={await footerLanguages(locale, links)} />
       {locale === DEFAULT_LOCALE ? (
-        <LanguageHint hints={await languageHints()} published={await publishedByLocale()} />
+        <LanguageHintLoader hints={await languageHints()} links={links} />
       ) : null}
     </div>
   );

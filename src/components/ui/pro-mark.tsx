@@ -1,13 +1,12 @@
 "use client";
 
 import { Lock } from "lucide-react";
-import { useMessagesOr } from "@/i18n/client";
-import EN_APP from "@/i18n/messages/en/app";
+import { useWordsOr } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 // Quiet on purpose: Free should read as the product, not a demo of it.
-export function ProMark({ className }: { className?: string }) {
-  const { pro } = useMessagesOr("app", EN_APP);
+export function ProMark({ className, label }: { className?: string; label?: string }) {
+  const comesWith = useWordsOr("app")(label, (app) => app.pro.comesWith);
   return (
     <span
       className={cn(
@@ -16,7 +15,7 @@ export function ProMark({ className }: { className?: string }) {
       )}
     >
       <Lock aria-hidden className="size-3" />
-      <span className="sr-only">{pro.comesWith}</span>
+      <span className="sr-only">{comesWith}</span>
       Pro
     </span>
   );

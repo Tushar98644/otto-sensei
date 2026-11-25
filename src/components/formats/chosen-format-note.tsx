@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { Button } from "@/components/ui/button";
 import { PLANS } from "@/config/plans";
-import { useMessagesOr } from "@/i18n/client";
+import { useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import { fmt } from "@/i18n/format";
-import EN_FORMATS from "@/i18n/messages/en/formats";
 import type { RecruiterReport } from "@/lib/checks/types";
 import { isProTemplate, TEMPLATE_INFO } from "@/lib/pdf/templates";
 import { DEFAULT_TEMPLATE, type Resume, type TemplateId } from "@/lib/resume/schema";
@@ -32,12 +32,12 @@ export function useChosenFormat(): ChosenFormat {
   return { format, addResume };
 }
 
-type ChosenWords = (typeof EN_FORMATS)["chosen"];
+type ChosenWords = Messages["formats"]["chosen"];
 
 export function chosenFormatLines(
   format: TemplateId,
   pro: boolean | null,
-  t: ChosenWords = EN_FORMATS.chosen,
+  t: ChosenWords,
 ): { title: string; detail: string } {
   const { name } = TEMPLATE_INFO[format];
   if (!isProTemplate(format) || pro === true) {
@@ -62,7 +62,7 @@ export type ChosenFormatNoteProps = {
 };
 
 export function ChosenFormatNote({ format, onSample, disabled = false }: ChosenFormatNoteProps) {
-  const words = useMessagesOr("formats", EN_FORMATS);
+  const words = useMessages("formats");
   const { title, detail } = chosenFormatLines(format, useProTools(), words.chosen);
   return (
     <div className="flex items-center gap-4 rounded-2xl bg-surface p-3 sm:px-4">

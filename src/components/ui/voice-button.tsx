@@ -3,8 +3,8 @@
 import { Mic } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
-import { useMessagesOr } from "@/i18n/client";
-import EN_UI from "@/i18n/messages/en/ui";
+import { useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import { isListening, type VoicePhase } from "@/lib/voice/dictation";
 import { appendDictation } from "@/lib/voice/join";
 import { elapsedText } from "@/lib/voice/recorder";
@@ -34,7 +34,7 @@ export function VoiceButton({
   className,
   ...props
 }: VoiceButtonProps) {
-  const words = useMessagesOr("ui", EN_UI).voice;
+  const words = useMessages("ui").voice;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const latest = useRef(value);
   const dictation = useDictation(take);
@@ -107,7 +107,7 @@ export function VoiceButton({
   );
 }
 
-function labelFor(phase: VoicePhase, words: (typeof EN_UI)["voice"]): string {
+function labelFor(phase: VoicePhase, words: Messages["ui"]["voice"]): string {
   if (phase === "idle") return words.start;
   if (phase === "listening") return words.listening;
   if (phase === "sending") return words.sending;

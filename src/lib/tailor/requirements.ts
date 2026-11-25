@@ -7,9 +7,9 @@ import type {
   RequirementSource,
   TailorRequirement,
 } from "@/lib/ai/types";
-import type { BulletRef } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { snippetAround } from "./evidence";
+import type { ResumePlaces } from "./place";
 import { findTermIn, termKey } from "./keywords";
 import { foldCase, textTokens, type Token } from "./tokens";
 
@@ -59,8 +59,6 @@ export type RequirementRow = TailorRequirement & { status: RequirementStatus; pr
 export type ProvenCount = { proven: number; total: number };
 export type ScreenerCounts = { must: ProvenCount; nice: ProvenCount };
 
-// Where a resume line sits, in the reader's language.
-export type ResumePlaces = Translation<typeof studioTailorEn.reasons.places>;
 export type ScreenerHeadlineWords = Translation<typeof studioTailorEn.reasons.headline>;
 
 export const ENGLISH_PLACES: ResumePlaces = studioTailorEn.reasons.places;
@@ -170,23 +168,6 @@ function joined(parts: readonly string[], separator: string): string {
 export function entryLabel(title: string, company: string, places: ResumePlaces = ENGLISH_PLACES): string {
   const [first = "", second] = [title, company].map((part) => part.trim()).filter(Boolean);
   return second ? fmt(places.at, { title: first, company: second }) : first;
-}
-
-type PlaceWords = Pick<ResumePlaces, "at" | "experience" | "project" | "education">;
-
-// A bullet's job, project or school as listBullets labels it, in the reader's words.
-export function refPlace(
-  ref: Pick<BulletRef, "section" | "parentLabel" | "roleTitle" | "company">,
-  places: PlaceWords,
-): string {
-  const named = [ref.roleTitle, ref.company].filter(Boolean);
-  if (ref.section === "experience") {
-    const [title = "", company] = named;
-    return company ? fmt(places.at, { title, company }) : title || places.experience;
-  }
-  if (ref.section === "projects") return ref.roleTitle || places.project;
-  if (ref.section === "education") return named.join(", ") || places.education;
-  return ref.parentLabel;
 }
 
 function resumeLines(resume: Resume, places: ResumePlaces = ENGLISH_PLACES): ResumeLines {

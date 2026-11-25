@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useMessagesOr } from "@/i18n/client";
-import EN_APP from "@/i18n/messages/en/app";
+import { useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
-import { OTTO } from "./lines";
 import { Otto } from "./otto";
 import type { OttoPose } from "./otto-poses";
 
-export type OttoTask = keyof typeof OTTO.working;
+export type OttoTask = keyof Messages["app"]["working"];
 
 const TASK_POSE: Record<OttoTask, OttoPose> = {
   import: "read",
@@ -52,7 +51,7 @@ export function OttoWorking({
   delayMs = OTTO_WORKING_DELAY_MS,
   className,
 }: OttoWorkingProps) {
-  const { working } = useMessagesOr("app", EN_APP);
+  const { working } = useMessages("app");
   const [shown, setShown] = useState(delayMs <= 0);
   useEffect(() => {
     if (delayMs <= 0) return;

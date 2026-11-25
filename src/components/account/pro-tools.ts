@@ -14,9 +14,8 @@ import {
   type PlanId,
   type ProTool,
 } from "@/config/plans";
-import { useMessagesOr } from "@/i18n/client";
+import { useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import EN_APP from "@/i18n/messages/en/app";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
@@ -42,7 +41,7 @@ export function useProTools(): boolean | null {
 
 export function useTryProLabel(): string {
   const { me } = useMe();
-  const words = useMessagesOr("app", EN_APP);
+  const words = useMessages("app");
   if (me?.billing.trial === false) return words.seePro;
   return fmt(words.tryOffer, { plan: PLANS[PRO_TRIAL.plan].name, days: PRO_TRIAL.days });
 }

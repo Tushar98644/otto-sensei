@@ -11,7 +11,7 @@ export default {
   titleEm: "each one column of real text.",
   intro:
     "Each one copies a widely used resume layout, and each PDF is tested by reading it back. {freeFormats} are free to download as PDFs; the other {proCount} come with {pro}, and you can try them on your resume first.",
-  // OTTO.formats.tip in src/components/mascot/lines.ts.
+  // OTTO.formats.tip in src/components/mascot/lines-en.ts.
   tip: "Not sure? Classic suits any job. Compact fits a long career on one page.",
   formatsTitle: "Formats",
   listName: "Resume formats",

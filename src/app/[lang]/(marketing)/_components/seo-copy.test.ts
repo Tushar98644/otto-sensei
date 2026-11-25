@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OTTO } from "@/components/mascot/lines";
+import { OTTO } from "@/components/mascot/lines-en";
 import { formatFor } from "@/i18n/intl";
 import { englishMessages } from "@/i18n/messages";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";

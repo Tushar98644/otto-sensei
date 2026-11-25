@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PLANS, type UsagePeriod } from "@/config/plans";
 import { OTTO_ERRORS } from "./error-lines";
-import { OTTO } from "./lines";
+import { OTTO } from "./lines-en";
 
 const CALENDAR: UsagePeriod = { kind: "month", resetsAt: Date.UTC(2026, 10, 14, 12) };
 const TRIAL: UsagePeriod = { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12) };

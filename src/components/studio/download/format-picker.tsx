@@ -6,8 +6,7 @@ import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { ResumeThumbnail } from "@/components/dashboard/resume-thumbnail";
 import { Button } from "@/components/ui/button";
 import { ProMark } from "@/components/ui/pro-mark";
-import { useMessages, useMessagesOr } from "@/i18n/client";
-import EN_FORMATS from "@/i18n/messages/en/formats";
+import { useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import {
   isProTemplate,
@@ -41,7 +40,7 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
   const locked = (id: TemplateId) => pro === false && isProTemplate(id);
   const pageSize = usePageSize();
   const t = useMessages("studioDownload").format;
-  const templates = useMessagesOr("formats", EN_FORMATS).templates;
+  const templates = useMessages("formats").templates;
   const stopPreparing = useRef(() => {});
 
   function stop() {

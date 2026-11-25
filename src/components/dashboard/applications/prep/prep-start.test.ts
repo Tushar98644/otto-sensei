@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { UsagePeriod } from "@/config/plans";
-import { prepAllowance, startsByItself, type StartFacts } from "./prep-start";
+import { formatFor } from "@/i18n/intl";
+import EN_APP from "@/i18n/messages/en/app";
+import { prepAllowance as allowanceIn, startsByItself, type StartFacts } from "./prep-start";
+
+const prepAllowance = (
+  usage: Parameters<typeof allowanceIn>[0],
+  period: Parameters<typeof allowanceIn>[1],
+) => allowanceIn(usage, period, EN_APP, formatFor("en"));
 
 const TRIAL: UsagePeriod = { kind: "trial", resetsAt: Date.UTC(2026, 10, 24, 12) };
 const MONTH: UsagePeriod = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 12), renews: true };

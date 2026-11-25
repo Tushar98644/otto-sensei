@@ -16,7 +16,7 @@ import { canonicalJobUrl } from "@/lib/extension/urls";
 import { ExtensionApplicationSchema } from "@/lib/extension/validation";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
-import { planFullText } from "@/lib/plan-limits-copy";
+import { planFullText } from "@/lib/plan-limits-text";
 import { resumeTitle } from "@/lib/resume/ops";
 import { HOUR_MS } from "@/lib/time";
 import { createApplication } from "../../applications/records";

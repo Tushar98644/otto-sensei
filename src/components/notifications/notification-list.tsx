@@ -8,9 +8,7 @@ import { cn } from "@/lib/utils";
 import { FollowUpActions } from "./follow-up-actions";
 import { asksOutcome, interviewOutcomeActions } from "./outcome-actions";
 import { timeAgo } from "./time-ago";
-import { useFormat, useMessagesOr } from "@/i18n/client";
-import EN_APP from "@/i18n/messages/en/app";
-import EN_UI from "@/i18n/messages/en/ui";
+import { useFormat, useMessages } from "@/i18n/client";
 
 export type NotificationListProps = {
   items: readonly Notification[];
@@ -49,8 +47,8 @@ function NotificationRow({
   onNavigate: () => void;
 }) {
   const titleId = useId();
-  const t = useMessagesOr("ui", EN_UI).notifications;
-  const app = useMessagesOr("app", EN_APP);
+  const t = useMessages("ui").notifications;
+  const app = useMessages("app");
   const format = useFormat();
   const content = (
     <>

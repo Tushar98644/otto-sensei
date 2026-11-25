@@ -16,10 +16,8 @@ import type { FollowUpAction } from "@/lib/notifications/types";
 import { getQueryClient } from "@/lib/queries/client";
 import { APPLICATIONS } from "@/lib/queries/keys";
 import { settleFollowUp } from "./use-notifications";
-import { useFormat, useMessagesOr } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import EN_APP from "@/i18n/messages/en/app";
-import EN_UI from "@/i18n/messages/en/ui";
 
 // The follow-up chip's choices on the newest bell row about it; the row's own link stays as it was.
 export function FollowUpActions({
@@ -32,8 +30,8 @@ export function FollowUpActions({
   onNavigate: () => void;
 }) {
   const pro = useProTools();
-  const t = useMessagesOr("ui", EN_UI).notifications;
-  const app = useMessagesOr("app", EN_APP);
+  const t = useMessages("ui").notifications;
+  const app = useMessages("app");
   const format = useFormat();
   const [busy, setBusy] = useState<FollowUpAction | null>(null);
 

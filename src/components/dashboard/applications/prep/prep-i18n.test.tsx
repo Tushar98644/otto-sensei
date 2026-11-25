@@ -7,7 +7,7 @@ import { loadMessages } from "@/i18n/messages";
 import EN_APP from "@/i18n/messages/en/app";
 import EN_PREP from "@/i18n/messages/en/prep";
 import type { Application } from "@/lib/applications/schema";
-import { OTTO } from "@/components/mascot/lines";
+import { OTTO } from "@/components/mascot/lines-en";
 import { FEATURE_LABELS } from "@/config/plans";
 import { FOCUS_COPY, LEVEL_COPY } from "@/lib/insights/prep-focus";
 import type { InterviewPrep } from "@/lib/insights/prep";
@@ -113,10 +113,10 @@ describe("interview prep in Spanish", () => {
     const period = { kind: "month", resetsAt: noon(30), renews: true } as const;
     const es = prepAllowance(usage, period, await loadMessages("es", "app"), formatFor("es"));
     expect(es).toMatch(/^Usa 1 de tus 30 cartas de presentación/);
-    expect(prepAllowance(usage, period)).toBe(
+    expect(prepAllowance(usage, period, EN_APP, formatFor("en"))).toBe(
       "Uses 1 of your 30 cover letters, outreach messages, answers and interview prep this month. 28 left.",
     );
-    expect(prepAllowance({ used: 30, limit: 30 }, period)).toBe(
+    expect(prepAllowance({ used: 30, limit: 30 }, period, EN_APP, formatFor("en"))).toBe(
       "You've used all 30 cover letters, outreach messages, answers and interview prep this month. They reset on Nov 30, when your plan renews.",
     );
   });

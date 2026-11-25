@@ -1,7 +1,7 @@
 import type { Locale } from "@/i18n/config";
 import { fmt, selectPlural } from "@/i18n/format";
 import { issueText, joinList, type LintMessages } from "./i18n";
-import { refPlace } from "@/lib/tailor/requirements";
+import { refPlace } from "@/lib/tailor/place";
 import type { ResumeReview, ReviewItem, ReviewLine } from "./review";
 
 function count(locale: Locale, forms: LintMessages["review"]["skills"]["title"], value: number) {

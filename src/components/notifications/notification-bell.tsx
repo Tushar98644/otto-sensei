@@ -11,9 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { asksOutcome, interviewOutcomeActions } from "./outcome-actions";
 import { forgetFresh, markAllSeen, useNotifications } from "./use-notifications";
-import { useMessagesOr } from "@/i18n/client";
+import { useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import EN_UI from "@/i18n/messages/en/ui";
 
 export type NotificationBellProps = {
   align?: "start" | "end";
@@ -38,7 +37,7 @@ export function NotificationBell({
   className,
 }: NotificationBellProps) {
   const notifications = useNotifications();
-  const t = useMessagesOr("ui", EN_UI).notifications;
+  const t = useMessages("ui").notifications;
   const panelId = useId();
   const titleId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);

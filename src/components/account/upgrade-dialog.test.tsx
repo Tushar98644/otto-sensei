@@ -2,7 +2,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { Feature } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
-import { PAYMENT_ISSUE_NOTICE, trialUpgradeNotice } from "./trial-upgrade";
+import { formatFor } from "@/i18n/intl";
+import EN_UPGRADE from "@/i18n/messages/en/upgrade";
+import { trialUpgradeCopy } from "./trial-upgrade";
 import { UpgradeDialog, type UpgradeDialogProps } from "./upgrade-dialog";
 import type { Me } from "./use-me";
 
@@ -13,6 +15,10 @@ vi.mock("./use-me", () => ({
   refreshMe: async () => {},
 }));
 
+const { notice: trialUpgradeNotice, paymentIssue: PAYMENT_ISSUE_NOTICE } = trialUpgradeCopy(
+  EN_UPGRADE.trial,
+  formatFor("en"),
+);
 const OFFER = { pro: ["month", "year"], max: ["month", "year"] } satisfies Me["billing"]["offer"];
 const TRIAL_END = Date.UTC(2026, 10, 23, 12);
 const ON_TRIAL = { plan: "pro", planInterval: "month", trialEndsAt: TRIAL_END } as const;

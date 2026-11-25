@@ -6,7 +6,7 @@ import { rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
-import { planFullText } from "@/lib/plan-limits-copy";
+import { planFullText } from "@/lib/plan-limits-text";
 import { syncPortfolioWith } from "@/lib/portfolio/sync";
 import { ResumeSchema } from "@/lib/resume/validation";
 import type { PutResumeResult } from "@/lib/sync/api-types";

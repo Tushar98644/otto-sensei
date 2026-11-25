@@ -5,8 +5,7 @@ import { useId, useLayoutEffect, useRef, type ReactNode, type SyntheticEvent } f
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { registerModalHost } from "./modal-stack";
-import { useMessagesOr } from "@/i18n/client";
-import EN_UI from "@/i18n/messages/en/ui";
+import { useWordsOr } from "@/i18n/client";
 
 export type DialogSize = "sm" | "md" | "lg";
 
@@ -19,7 +18,7 @@ export type DialogProps = {
   footer?: ReactNode;
   illustration?: ReactNode;
   size?: DialogSize;
-  // The close button's name; English unless the page passes its language's.
+  // The close button's name; pages without a provider pass their language's.
   closeLabel?: string;
   className?: string;
 };
@@ -39,11 +38,9 @@ export function Dialog({
   footer,
   illustration,
   size = "md",
-  closeLabel: givenCloseLabel,
+  closeLabel,
   className,
 }: DialogProps) {
-  const uiClose = useMessagesOr("ui", EN_UI).close;
-  const closeLabel = givenCloseLabel ?? uiClose;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -141,18 +138,25 @@ export function Dialog({
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">{footer}</div>
           ) : null}
           {/* Last in the DOM so opening focuses the first field, not the close button. */}
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={closeLabel}
-            onClick={() => onOpenChange(false)}
-            className="absolute top-3 right-3 text-muted hover:text-ink sm:top-4 sm:right-4"
-          >
-            <X className="size-5" />
-          </Button>
+          <CloseButton label={closeLabel} onClose={() => onOpenChange(false)} />
         </div>
       ) : null}
       <div ref={hostRef} />
     </dialog>
+  );
+}
+
+// Read only while open, so a closed dialog on a page without a provider needs no words.
+function CloseButton({ label, onClose }: { label?: string; onClose: () => void }) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={useWordsOr("ui")(label, (ui) => ui.close)}
+      onClick={onClose}
+      className="absolute top-3 right-3 text-muted hover:text-ink sm:top-4 sm:right-4"
+    >
+      <X className="size-5" />
+    </Button>
   );
 }

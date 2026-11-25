@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { chosenFormatLines } from "./chosen-format-note";
+import EN_FORMATS from "@/i18n/messages/en/formats";
+import { chosenFormatLines as lines } from "./chosen-format-note";
+
+const chosenFormatLines = (format: Parameters<typeof lines>[0], pro: boolean | null) =>
+  lines(format, pro, EN_FORMATS.chosen);
 
 describe("chosenFormatLines", () => {
   it("promises the chosen look when the download will have it", () => {
-    expect(chosenFormatLines("compact", false).title).toBe(
-      "Your resume will come out in Compact.",
-    );
+    expect(chosenFormatLines("compact", false).title).toBe("Your resume will come out in Compact.");
     expect(chosenFormatLines("modern", true)).toEqual({
       title: "Your resume will come out in Modern.",
       detail: "You can change it on the download step.",
