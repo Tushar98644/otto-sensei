@@ -4,7 +4,7 @@ import type { Namespace } from "@/i18n/messages";
 import { pickMessages } from "@/i18n/server";
 import { DASHBOARD_NAMESPACES, PAGE_NAMESPACES } from "./namespaces";
 
-// MessagesFor puts these into every full dashboard load (about 45 KB in English and 52 KB in German today); a page's own namespaces come on top (Interview prep about 15 KB more, Applications about 7 KB). Room for the rest of the dashboard, not for a stray namespace.
+// MessagesFor puts these into every full dashboard load (about 47 KB in English and 55 KB in German today); a page's own namespaces come on top (Interview prep about 15 KB more, Applications about 7 KB). Room for the rest of the dashboard, not for a stray namespace.
 const BUDGET_BYTES = 90_000;
 
 async function payloadBytes(locale: Locale, namespaces: readonly Namespace[]): Promise<number> {
