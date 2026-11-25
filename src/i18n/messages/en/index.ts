@@ -14,6 +14,7 @@ import product from "./product";
 import seo from "./seo";
 import site from "./site";
 import studio from "./studio";
+import studioDownload from "./studioDownload";
 import studioEditor from "./studioEditor";
 import studioTailor from "./studioTailor";
 
@@ -35,6 +36,7 @@ const en = {
   seo,
   site,
   studio,
+  studioDownload,
   studioEditor,
   studioTailor,
 } as const;

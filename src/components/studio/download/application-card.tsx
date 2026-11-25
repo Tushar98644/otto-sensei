@@ -13,6 +13,8 @@ import { loadResult } from "@/components/studio/tailor/session";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import { applicationHref, copyLetter } from "@/lib/applications/thread";
 import type { Resume } from "@/lib/resume/schema";
@@ -24,22 +26,21 @@ export function ApplicationCard({ resume }: { resume: Resume }) {
 
 function FindAJobCard() {
   const setStep = useStudioStore((s) => s.setStep);
+  const t = useMessages("studioDownload").next;
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">Next: a job to send it to</CardTitle>
-        <CardDescription>
-          Tailor it to one job post, or see open jobs that fit this resume.
-        </CardDescription>
+        <CardTitle as="h2">{t.title}</CardTitle>
+        <CardDescription>{t.description}</CardDescription>
       </CardHeader>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="secondary" onClick={() => setStep("tailor")}>
           <Target aria-hidden />
-          Tailor to a job
+          {t.tailor}
         </Button>
         <Link href={ROUTES.dashboardJobs} className={buttonClasses({ variant: "ghost" })}>
           <Search aria-hidden />
-          See matching jobs
+          {t.jobs}
         </Link>
       </div>
     </Card>
@@ -52,8 +53,11 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
   const locked = useProTools() === false;
   const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
+  const t = useMessages("studioDownload").application;
   if (!resume.tailor || !user) return null;
-  const job = [resume.tailor.jobTitle, resume.tailor.company].filter(Boolean).join(" at ");
+  const { jobTitle, company } = resume.tailor;
+  const job =
+    jobTitle && company ? fmt(t.titleAt, { title: jobTitle, company }) : jobTitle || company;
   const letter = copyLetter(resume) !== "";
   const tailoredHere = loadResult(resume.tailor.baseResumeId)?.copyId === resume.id;
   const proBadge = locked ? (
@@ -71,11 +75,11 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">{application ? "Your application" : "Sent it?"}</CardTitle>
+        <CardTitle as="h2">{application ? t.yours : t.sent}</CardTitle>
         <CardDescription>
           {application
-            ? `${job || application.company}. ${letter ? "Its cover letter is kept with it." : "Letters you write for this job join it."}`
-            : `Log ${job || "this job"} when you send it. ${letter ? "The letter on this copy goes with it." : "I'll remind you to follow up."}`}
+            ? `${job || application.company}. ${letter ? t.letterKept : t.lettersJoin}`
+            : `${fmt(t.log, { job: job || t.thisJob })} ${letter ? t.letterGoes : t.remind}`}
         </CardDescription>
       </CardHeader>
       <div className="flex flex-wrap items-center gap-2">
@@ -87,14 +91,14 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
             >
               <StatusIcon status={application.status} />
               {STATUS_NAMES[application.status]}
-              <span className="sr-only">: open this application</span>
+              <span className="sr-only">{t.openIt}</span>
             </Link>
             <Link
               href={applicationHref(application.id)}
               className={buttonClasses({ variant: "ghost" })}
             >
               <PanelsTopLeft aria-hidden />
-              See everything for this job
+              {t.everything}
             </Link>
           </>
         ) : (
@@ -105,13 +109,13 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
         {letter ? null : tailoredHere ? (
           <Button variant="ghost" onClick={writeLetter}>
             <FileText aria-hidden />
-            Write the cover letter
+            {t.writeLetter}
             {proBadge}
           </Button>
         ) : (
           <Link href={ROUTES.dashboardLetters} className={buttonClasses({ variant: "ghost" })}>
             <FileText aria-hidden />
-            Write the cover letter
+            {t.writeLetter}
             {proBadge}
           </Link>
         )}
@@ -120,7 +124,7 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
           className={buttonClasses({ variant: "ghost" })}
         >
           <MessagesSquare aria-hidden />
-          {application?.hasPrep ? "Open interview prep" : "Prepare for the interview"}
+          {application?.hasPrep ? t.openPrep : t.prepare}
           {application?.hasPrep ? null : proBadge}
         </Link>
       </div>

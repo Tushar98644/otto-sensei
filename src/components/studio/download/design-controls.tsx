@@ -2,6 +2,8 @@
 
 import { useId, type ReactNode } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import {
   ACCENT_COLORS,
   ACCENT_LABELS,
@@ -28,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { FormatPicker } from "./format-picker";
 import { setPageSize } from "./use-page-size";
 
-const LOOK_LABEL = "Changed the look";
+type DesignCopy = Messages["studioDownload"]["design"];
 
 const FORMAT_FONT: Record<TemplateId, DesignFont> = {
   classic: "sans",
@@ -92,14 +94,16 @@ function Segmented<T extends string>({
 
 type AccentValue = DesignAccent | "format";
 
-const ACCENT_CHOICES: readonly { value: AccentValue; color: string | null; label: string }[] = [
-  { value: "format", color: null, label: "The format's own" },
-  ...DESIGN_ACCENTS.map((value) => ({
-    value,
-    color: ACCENT_COLORS[value],
-    label: ACCENT_LABELS[value],
-  })),
-];
+function accentChoices(t: DesignCopy): { value: AccentValue; color: string | null; label: string }[] {
+  return [
+    { value: "format", color: null, label: t.formatColor },
+    ...DESIGN_ACCENTS.map((value) => ({
+      value,
+      color: ACCENT_COLORS[value],
+      label: t.accents[value],
+    })),
+  ];
+}
 
 function ColorPicker({
   value,
@@ -110,14 +114,16 @@ function ColorPicker({
 }) {
   const name = useId();
   const hintId = `${name}-hint`;
-  const current = ACCENT_CHOICES.find((choice) => choice.value === value) ?? ACCENT_CHOICES[0]!;
+  const t = useMessages("studioDownload").design;
+  const choices = accentChoices(t);
+  const current = choices.find((choice) => choice.value === value) ?? choices[0]!;
   return (
     <fieldset className="flex flex-col gap-1.5" aria-describedby={hintId}>
       <legend className="mb-1.5 text-sm font-medium text-ink">
-        Color <span className="font-normal text-muted">· {current.label}</span>
+        {t.color} <span className="font-normal text-muted">· {current.label}</span>
       </legend>
       <div className="-mx-1.5 flex flex-wrap">
-        {ACCENT_CHOICES.map((choice) => (
+        {choices.map((choice) => (
           <label key={choice.value} className="relative" title={choice.label}>
             <input
               type="radio"
@@ -142,35 +148,36 @@ function ColorPicker({
         ))}
       </div>
       <p id={hintId} className="text-sm text-muted">
-        Colors the headings and lines. Everything else stays black.
+        {t.colorHint}
       </p>
     </fieldset>
   );
 }
 
-const FONT_CHOICES: readonly Choice<DesignFont>[] = DESIGN_FONTS.map((value) => ({
+const fontChoices = (t: DesignCopy): Choice<DesignFont>[] => DESIGN_FONTS.map((value) => ({
   value,
   label: (
     <span className={value === "serif" ? "font-page-serif text-base" : "font-page-sans"}>
-      {FONT_LABELS[value]}
+      {t.fonts[value]}
     </span>
   ),
 }));
 
-const DENSITY_CHOICES: readonly Choice<DesignDensity>[] = DESIGN_DENSITIES.map((value) => ({
+const densityChoices = (t: DesignCopy): Choice<DesignDensity>[] => DESIGN_DENSITIES.map((value) => ({
   value,
-  label: DENSITY_LABELS[value],
+  label: t.densities[value],
 }));
 
-const PAGE_SIZE_CHOICES: readonly Choice<PdfPageSize>[] = PDF_PAGE_SIZES.map((value) => ({
+const pageSizeChoices = (t: DesignCopy): Choice<PdfPageSize>[] => PDF_PAGE_SIZES.map((value) => ({
   value,
-  label: PAGE_SIZE_LABELS[value],
+  label: value === "LETTER" ? t.letter : PAGE_SIZE_LABELS[value],
 }));
 
 export type DesignCardProps = { resume: Resume; printed: Resume; pageSize: PdfPageSize };
 
 export function DesignCard({ resume, printed, pageSize }: DesignCardProps) {
   const updateResume = useStudioStore((s) => s.updateResume);
+  const t = useMessages("studioDownload").design;
   const design = designOf(resume);
 
   function set(patch: Partial<ResumeDesign>) {
@@ -182,7 +189,7 @@ export function DesignCard({ resume, printed, pageSize }: DesignCardProps) {
     ) {
       return;
     }
-    updateResume(resume.id, (r) => withDesign(r, patch), { label: LOOK_LABEL });
+    updateResume(resume.id, (r) => withDesign(r, patch), { label: t.changedLook });
   }
 
   const accent: AccentValue = design.accent ?? "format";
@@ -194,10 +201,8 @@ export function DesignCard({ resume, printed, pageSize }: DesignCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">Design</CardTitle>
-        <CardDescription>
-          Saved with this resume. Hiring software reads every choice the same way.
-        </CardDescription>
+        <CardTitle as="h2">{t.title}</CardTitle>
+        <CardDescription>{t.description}</CardDescription>
       </CardHeader>
       <FormatPicker resume={resume} />
       <ColorPicker
@@ -206,25 +211,25 @@ export function DesignCard({ resume, printed, pageSize }: DesignCardProps) {
       />
       <div className="flex flex-wrap gap-x-3 gap-y-4">
         <Segmented
-          legend="Font"
+          legend={t.font}
           value={font}
-          choices={FONT_CHOICES}
+          choices={fontChoices(t)}
           onChange={(value) => set({ font: value === formatFont ? undefined : value })}
           className={PAIR}
         />
         <Segmented
-          legend="Spacing"
+          legend={t.spacing}
           value={density}
-          choices={DENSITY_CHOICES}
+          choices={densityChoices(t)}
           onChange={(value) => set({ density: value === "normal" ? undefined : value })}
           className={PAIR}
         />
       </div>
       <Segmented
-        legend="Page size"
-        hint="Letter for the US and Canada, A4 almost everywhere else."
+        legend={t.pageSize}
+        hint={t.pageSizeHint}
         value={pageSize}
-        choices={PAGE_SIZE_CHOICES}
+        choices={pageSizeChoices(t)}
         onChange={setPageSize}
         className={PAIR}
       />

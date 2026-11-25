@@ -14,7 +14,9 @@ import { track } from "@/lib/analytics/client";
 import { PAGE_SIZE_LABELS, type PdfPageSize } from "@/lib/pdf/page-size";
 import { TEMPLATE_INFO, templateOf } from "@/lib/pdf/templates";
 import type { Resume } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { countText } from "../count";
 import { downloadMenuItems } from "./download-menu";
 import { FitOffer, type NearFitState } from "./fit-offer";
 import { OpenJob } from "./open-job";
@@ -36,8 +38,8 @@ export type DownloadActionsProps = {
 const MAIN = "min-w-0 flex-1 rounded-r-none focus-visible:z-10";
 const MORE = "-ml-px w-12 rounded-l-none px-0 focus-visible:z-10";
 
-function quoteList(chars: string[]): string {
-  return chars.map((char) => `“${char}”`).join(", ");
+function quoteList(quoted: string, chars: string[]): string {
+  return chars.map((char) => fmt(quoted, { text: char })).join(", ");
 }
 
 function openPreview(url: string) {
@@ -57,23 +59,28 @@ export function DownloadActions({
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const downloadLink = useRef<HTMLAnchorElement>(null);
   const pro = useProTools();
+  const download = useMessages("studioDownload");
+  const t = download.pdf;
+  const studio = useMessages("studio");
+  const format = useFormat();
   const share = useShareResume(resume);
   const word = useWordDownload(resume, pageSize, fileName);
   const file = ready ? pdf.file : null;
-  const items = downloadMenuItems({
+  const items = downloadMenuItems(download.menu, {
     pro,
     wordBuilding: word.building,
     previewUrl: file?.url ?? null,
     onWord: word.download,
-    onCopyText: () => void copyPlainText(resume),
+    onCopyText: () => void copyPlainText(resume, download.plainText),
     onShare: share.share,
     onPreview: openPreview,
   });
+  const size = pageSize === "LETTER" ? download.design.letter : PAGE_SIZE_LABELS[pageSize];
   const meta = file
-    ? `${pluralize(file.pages, "page")} · ${PAGE_SIZE_LABELS[pageSize]} · ${TEMPLATE_INFO[templateOf(printed)].name}`
+    ? `${countText(format, studio.counts.pages, file.pages)} · ${size} · ${TEMPLATE_INFO[templateOf(printed)].name}`
     : pdf.failed
-      ? "Not made yet."
-      : "Putting it together.";
+      ? t.notMade
+      : t.puttingTogether;
 
   // The link's own download goes ahead; the invite, if any, shows up beside it after.
   function downloaded() {
@@ -86,27 +93,27 @@ export function DownloadActions({
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">Your PDF</CardTitle>
+        <CardTitle as="h2">{t.title}</CardTitle>
         <CardDescription aria-live="polite">{meta}</CardDescription>
       </CardHeader>
       {changedCharacters.length ? (
-        <Alert variant="warn" title="A few characters look different">
-          The PDF fonts can&apos;t show {quoteList(changedCharacters.slice(0, 8))}
-          {changedCharacters.length > 8 ? " and a few more" : ""}, so they were swapped for close
-          matches or left out. Check that your name and links still look right.
+        <Alert variant="warn" title={t.characters}>
+          {fmt(changedCharacters.length > 8 ? t.charactersMore : t.charactersNote, {
+            chars: quoteList(download.quoted, changedCharacters.slice(0, 8)),
+          })}
         </Alert>
       ) : null}
       {pdf.failed ? (
         <Alert
           variant="error"
-          title="Your PDF didn't come out"
+          title={t.failed}
           action={
             <Button variant="secondary" onClick={pdf.retry}>
-              Try again
+              {t.tryAgain}
             </Button>
           }
         >
-          Something went wrong while making it. Your resume is safe in this browser.
+          {t.failedNote}
         </Alert>
       ) : null}
       <FitOffer fit={fit} />
@@ -121,16 +128,16 @@ export function DownloadActions({
               className={buttonClasses({ size: "lg", className: MAIN })}
             >
               <Download />
-              Download PDF, free
+              {t.download}
             </a>
           ) : (
             <Button size="lg" loading={!pdf.failed} disabled className={MAIN}>
-              {pdf.failed ? "Download PDF, free" : pdf.file ? "Updating your PDF" : "Making your PDF"}
+              {pdf.failed ? t.download : pdf.file ? t.updating : t.making}
             </Button>
           )}
           <Menu
-            label="More ways to save or share"
-            triggerLabel="More ways to save or share"
+            label={t.more}
+            triggerLabel={t.more}
             trigger={word.building ? <Spinner className="size-5" /> : <ChevronDown aria-hidden />}
             triggerClassName={buttonClasses({ size: "lg", className: MORE })}
             align="end"

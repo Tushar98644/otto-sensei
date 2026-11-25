@@ -3,7 +3,7 @@ import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
 import { countText } from "./count";
 
-// What Otto says in the studio's upload and recruiter-view steps, in the page's language.
+// What Otto says across the studio's steps, in the page's language.
 type Otto = Messages["studio"]["otto"];
 type CheckCounts = { fail: number; warn: number; pass: number };
 
@@ -47,4 +47,23 @@ export function reviewOverall(
   if (whole(counts.fail) > 0 || words === 0) return reviewSummary(otto, format, counts);
   const start = whole(counts.warn) > 0 ? t.readableWithSnags : t.readable;
   return `${start} ${countText(format, t.wordsFirst, words)}`;
+}
+
+export function fixIssues(t: Messages["studioEditor"]["otto"], format: Format, count: number): string {
+  const n = whole(count);
+  return n === 0 ? t.noIssues : countText(format, t.issues, n);
+}
+
+export function downloadChecked(
+  t: Messages["studioDownload"]["otto"],
+  format: Format,
+  before: number,
+  after: number,
+): string {
+  const b = whole(before);
+  const a = whole(after);
+  if (b === 0 && a === 0) return t.cleanThrough;
+  const was = countText(format, t.before, b);
+  if (a === 0) return fmt(t.afterNone, { before: was });
+  return fmt(a < b ? t.afterBetter : t.afterSame, { before: was, after: a });
 }

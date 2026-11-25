@@ -6,9 +6,11 @@ import { flushSync } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { Resume } from "@/lib/resume/schema";
 import type { SendCheckItem } from "@/lib/sendcheck";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 import { checkSummary, ExportCheckResult } from "./export-check-result";
 import { openSendCheckTarget } from "./jump";
 import type { ExportCheck } from "./use-export-check";
@@ -26,6 +28,7 @@ function Item({
   onOk: (item: SendCheckItem) => void;
 }) {
   const messageId = useId();
+  const t = useMessages("studioDownload").send;
   return (
     <li className="flex flex-col gap-1.5 border-t border-border pt-3">
       <Badge variant="warn">
@@ -52,10 +55,10 @@ function Item({
           data-send-check-fix={item.id}
           onClick={() => openSendCheckTarget(resume, item.target)}
         >
-          Fix it
+          {t.fix}
         </Button>
         <Button variant="ghost" size="sm" aria-describedby={messageId} onClick={() => onOk(item)}>
-          This is correct
+          {t.correct}
         </Button>
       </div>
     </li>
@@ -72,6 +75,9 @@ export function SendCheckCard({ resume, check, pdfReady }: SendCheckCardProps) {
   const wordsHeadingId = useId();
   const shown = showAll ? items : items.slice(0, FIRST_SHOWN);
   const more = items.length - shown.length;
+  const download = useMessages("studioDownload");
+  const t = download.send;
+  const format = useFormat();
 
   function ok(item: SendCheckItem) {
     const index = items.indexOf(item);
@@ -87,15 +93,15 @@ export function SendCheckCard({ resume, check, pdfReady }: SendCheckCardProps) {
     <Card>
       <CardHeader>
         <CardTitle as="h2" ref={titleRef} tabIndex={-1} className="outline-none">
-          Before you send it
+          {t.title}
         </CardTitle>
       </CardHeader>
       <section aria-labelledby={pdfHeadingId} className="flex flex-col gap-2">
         <h3 id={pdfHeadingId} className="text-sm font-medium text-ink">
-          What hiring software reads
+          {t.software}
         </h3>
         <p aria-live="polite" className="sr-only">
-          {checkSummary(check)}
+          {checkSummary(download.check, format, check)}
         </p>
         <ExportCheckResult check={check} ready={pdfReady} />
       </section>
@@ -105,16 +111,16 @@ export function SendCheckCard({ resume, check, pdfReady }: SendCheckCardProps) {
       >
         <div className="flex flex-col gap-1">
           <h3 id={wordsHeadingId} className="text-sm font-medium text-ink">
-            What a recruiter might notice
+            {t.recruiter}
           </h3>
           <p aria-live="polite" className="flex items-center gap-2 text-sm text-muted">
             {items.length === 0 ? (
               <>
                 <CircleCheck className="size-4 shrink-0 text-pass" />
-                Dates, tool names, company names and blanks all check out.
+                {t.allClear}
               </>
             ) : (
-              `${pluralize(items.length, "thing")} to look at before you send it.`
+              countText(format, t.toLook, items.length)
             )}
           </p>
         </div>
@@ -129,12 +135,12 @@ export function SendCheckCard({ resume, check, pdfReady }: SendCheckCardProps) {
           <div className="flex flex-wrap gap-2">
             {more > 0 ? (
               <Button variant="ghost" size="sm" onClick={() => setShowAll(true)}>
-                Show {more} more
+                {fmt(t.showMore, { count: more })}
               </Button>
             ) : null}
             {okCount > 0 ? (
               <Button variant="ghost" size="sm" onClick={restore} className="text-muted">
-                Show {pluralize(okCount, "item")} marked correct
+                {countText(format, t.showOk, okCount)}
               </Button>
             ) : null}
           </div>

@@ -43,6 +43,7 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
           <Input
             value={basics.name}
             onChange={(event) => update({ name: event.target.value })}
+            data-basics="name"
             maxLength={CHAR_LIMITS.name}
             autoComplete="name"
             placeholder="Alex Morgan"
@@ -52,6 +53,7 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
           <Input
             value={basics.headline}
             onChange={(event) => update({ headline: event.target.value })}
+            data-basics="headline"
             maxLength={CHAR_LIMITS.headline}
             placeholder={t.headlinePlaceholder}
           />
@@ -64,6 +66,7 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
             spellCheck={false}
             value={basics.email}
             onChange={(event) => update({ email: event.target.value })}
+            data-basics="email"
             onBlur={() => setCheckEmail(true)}
             maxLength={CHAR_LIMITS.email}
             placeholder="alex@example.com"
@@ -76,6 +79,7 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
             autoComplete="tel"
             value={basics.phone}
             onChange={(event) => update({ phone: event.target.value })}
+            data-basics="phone"
             maxLength={CHAR_LIMITS.phone}
             placeholder="+1 555 0100"
           />
@@ -89,6 +93,7 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
           <Input
             value={basics.location}
             onChange={(event) => update({ location: event.target.value })}
+            data-basics="location"
             maxLength={CHAR_LIMITS.location}
             placeholder={t.locationPlaceholder}
           />

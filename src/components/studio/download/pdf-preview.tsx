@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LivePill } from "@/components/ui/live-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
+import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "../use-media-query";
 import { addFrame, dropHiddenFrames, showFrame, type FrameView } from "./pdf-frames";
@@ -36,6 +37,7 @@ export function PdfFrame({ url, pageSize, updating, className }: PdfFrameProps) 
     shown: null,
   }));
   const newest = frames.at(-1) ?? null;
+  const t = useMessages("studioDownload");
   if (url && url !== newest) setView((view) => addFrame(view, url));
 
   const timers = useRef<number[]>([]);
@@ -75,7 +77,7 @@ export function PdfFrame({ url, pageSize, updating, className }: PdfFrameProps) 
         <iframe
           key={frame}
           src={`${frame}#view=FitH&navpanes=0`}
-          title="Preview of your resume PDF"
+          title={t.previewTitle}
           onLoad={() => reveal(frame)}
           className={cn(
             "absolute inset-0 size-full transition-opacity duration-200 motion-reduce:transition-none",

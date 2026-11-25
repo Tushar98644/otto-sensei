@@ -1,35 +1,14 @@
 "use client";
 
-import { bulletInputId, entryFieldId } from "@/components/studio/editor/focus";
-import { SECTION_LABELS, sectionTitleOf, type Resume } from "@/lib/resume/schema";
+import { bulletInputId, entryFieldId, SUMMARY_INPUT_ID } from "@/components/studio/editor/focus";
+import { sectionTitleOf, type Resume } from "@/lib/resume/schema";
 import type { SendCheckTarget } from "@/lib/sendcheck";
 import { useStudioStore } from "@/lib/store/resume-store";
 
 const MAX_FRAMES = 30;
 
-const BASICS_LABELS = {
-  name: "Full name",
-  headline: "Headline",
-  email: "Email",
-  phone: "Phone",
-  location: "Location",
-  links: "Web address",
-} as const;
-
 function isShown(element: HTMLElement): boolean {
   return element.getClientRects().length > 0;
-}
-
-function byLabel(text: string, scope: ParentNode = document): HTMLElement | null {
-  for (const label of scope.querySelectorAll("label")) {
-    const name = label.textContent?.trim() ?? "";
-    if (!name.toLowerCase().startsWith(text.toLowerCase())) continue;
-    const field = label.htmlFor
-      ? document.getElementById(label.htmlFor)
-      : label.querySelector<HTMLElement>("input, textarea, select");
-    if (field) return field;
-  }
-  return null;
 }
 
 function sectionToggle(title: string): HTMLElement | null {
@@ -81,14 +60,16 @@ function find(target: SendCheckTarget, resume: Resume): (() => boolean) | null {
       return () => openEntry(target.entryId);
     case "summary":
       return () => {
-        const field = byLabel(sectionTitleOf(resume, "summary")) ?? byLabel(SECTION_LABELS.summary);
+        const field = document.getElementById(SUMMARY_INPUT_ID);
         if (!field) return false;
         land(field);
         return true;
       };
     case "basics":
       return () => {
-        const field = byLabel(BASICS_LABELS[target.field]);
+        const field = document.querySelector<HTMLElement>(
+          `[data-basics="${CSS.escape(target.field)}"]`,
+        );
         if (!field) return false;
         land(field);
         return true;

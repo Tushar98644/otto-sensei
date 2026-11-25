@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useState } from "react";
 import { OTTO } from "@/components/mascot/lines";
+import { useMessages } from "@/i18n/client";
 import { api, isApiError } from "@/lib/api/client";
 import type { RecruiterReport } from "@/lib/checks/types";
 import type { Resume } from "@/lib/resume/schema";
@@ -23,10 +24,10 @@ const AUTO_CHECK_PAUSE_MS = 2_000;
 // Checks have a daily per-device limit, so a long run of small changes stops checking on its own.
 export const MAX_AUTO_CHECKS = 3;
 
-function errorMessage(error: unknown): string {
+function errorMessage(error: unknown, fallback: string): string {
   if (isApiError(error, "rate_limited")) return OTTO.errors.rateLimited;
   if (isApiError(error, "network_error")) return OTTO.errors.offline;
-  return "I couldn't check your PDF just now. Try again in a minute.";
+  return fallback;
 }
 
 function useOriginalReport(resume: Resume): RecruiterReport | null {
@@ -60,6 +61,7 @@ export function useExportCheck(resume: Resume, file: PdfFile | null, fileName: s
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoRuns, setAutoRuns] = useState(0);
+  const failed = useMessages("studioDownload").check.failed;
 
   async function run() {
     if (!file || checking) return;
@@ -71,7 +73,7 @@ export function useExportCheck(resume: Resume, file: PdfFile | null, fileName: s
       const { report } = await api.checkFile(file.blob, fileName);
       setExportReport(resume.id, { ...report, checkedAt: startedAt });
     } catch (caught) {
-      setError(errorMessage(caught));
+      setError(errorMessage(caught, failed));
     } finally {
       setChecking(false);
     }

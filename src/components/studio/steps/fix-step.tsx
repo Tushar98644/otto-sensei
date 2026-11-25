@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { FixIntro } from "@/components/studio/editor/fix-intro";
 import { FixOutline } from "@/components/studio/editor/fix-outline";
@@ -12,7 +11,8 @@ import { StepActions } from "@/components/studio/editor/step-actions";
 import { focusWhenShown, takeArrivingLine } from "@/components/studio/tailor/jump";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { STEP_LABELS, useStudioStore } from "@/lib/store/resume-store";
+import { useMessages } from "@/i18n/client";
+import { useStudioStore } from "@/lib/store/resume-store";
 
 export function FixStep() {
   const resumeId = useStudioStore((state) =>
@@ -24,11 +24,12 @@ export function FixStep() {
     if (bulletId) focusWhenShown(bulletInputId(bulletId));
   }, []);
 
+  const steps = useMessages("studio").steps;
   if (!resumeId) return <NoResumeOpen />;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 lg:grid lg:max-w-5xl lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start lg:gap-8">
-      <h2 className="sr-only">{STEP_LABELS.fix}</h2>
+      <h2 className="sr-only">{steps.fix}</h2>
       <FixOutline key={`outline-${resumeId}`} resumeId={resumeId} />
       <div className="flex min-w-0 flex-col gap-6">
         <ResumeEditor
@@ -49,13 +50,14 @@ export function FixStep() {
 
 function NoResumeOpen() {
   const setStep = useStudioStore((state) => state.setStep);
+  const studio = useMessages("studio");
   return (
     <EmptyState
       titleAs="h2"
       illustration={<Otto pose="read" size={120} />}
-      title="No resume open"
-      description={OTTO.empty.noResumes}
-      action={<Button onClick={() => setStep("upload")}>Upload a resume</Button>}
+      title={studio.noResumeOpen}
+      description={studio.otto.noResumes}
+      action={<Button onClick={() => setStep("upload")}>{studio.uploadResume}</Button>}
     />
   );
 }

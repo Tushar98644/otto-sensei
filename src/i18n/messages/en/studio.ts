@@ -10,6 +10,7 @@ export default {
   accountEmailAdded: "Added your account email",
   justNow: "just now",
   uploadResume: "Upload a resume",
+  noResumeOpen: "No resume open",
   fixFirst: "Fix these first",
   demoNote: "Demo mode: these are sample suggestions. Add an AI key for real ones.",
   steps: {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { unlockProTool } from "@/components/account/pro-tools";
 import { downloadBlob } from "@/components/studio/tailor/jump";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { track } from "@/lib/analytics/client";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume } from "@/lib/resume/schema";
@@ -16,6 +17,7 @@ export function useWordDownload(
   fileName: string,
 ): WordDownload {
   const [building, setBuilding] = useState(false);
+  const t = useMessages("studioDownload").word;
 
   async function download() {
     if (building || !(await unlockProTool("word"))) return;
@@ -26,11 +28,7 @@ export function useWordDownload(
       track("docx_downloaded");
     } catch (error) {
       console.error("Word export failed", error);
-      toast({
-        title: "Your Word file didn't come out",
-        description: "Try again, or download the PDF instead.",
-        variant: "error",
-      });
+      toast({ title: t.failed, description: t.failedNote, variant: "error" });
     } finally {
       setBuilding(false);
     }

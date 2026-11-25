@@ -7,13 +7,16 @@ import { withDesign } from "@/lib/pdf/design";
 import { hideLines, showLines } from "@/lib/pdf/fit";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume } from "@/lib/resume/schema";
+import { useFormat, useMessages } from "@/i18n/client";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
 import { useStudioStore } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 import { findNearFit, stillApplied, tightened, type NearFit, type NearFitApplied } from "./near-fit";
 import { renderPdfCached } from "./pdf-cache";
 import type { ResumePdf } from "./use-resume-pdf";
 
-export const FIT_LABEL = "Hid lines to fit one page";
+type FitCopy = Messages["studioDownload"]["fit"];
 // Lets the preview paint before the probe renders in the background.
 const PROBE_DELAY_MS = 300;
 
@@ -31,6 +34,7 @@ export type NearFitState = {
 
 export function useNearFit(resume: Resume, pdf: ResumePdf, pageSize: PdfPageSize): NearFitState {
   const updateResume = useStudioStore((s) => s.updateResume);
+  const t = useMessages("studioDownload").fit;
   const key = pdf.file && pdf.isCurrent ? pdf.file.key : null;
   const pages = key !== null && pdf.file ? pdf.file.pages : null;
   const spills = pages === 2;
@@ -66,12 +70,12 @@ export function useNearFit(resume: Resume, pdf: ResumePdf, pageSize: PdfPageSize
   function apply() {
     if (!offer) return;
     if (offer.kind === "tighten") {
-      updateResume(resume.id, tightened, { label: "Tightened the spacing" });
+      updateResume(resume.id, tightened, { label: t.history.tightened });
       setApplied({ kind: "tighten", resumeId: resume.id });
       return;
     }
     const ids = offer.lines.map((line) => line.bulletId);
-    updateResume(resume.id, (r) => hideLines(r, new Set(ids)), { label: FIT_LABEL });
+    updateResume(resume.id, (r) => hideLines(r, new Set(ids)), { label: t.history.hid });
     setApplied({ kind: "hide", ids, resumeId: resume.id });
   }
 
@@ -79,11 +83,11 @@ export function useNearFit(resume: Resume, pdf: ResumePdf, pageSize: PdfPageSize
     if (!applied) return;
     if (applied.kind === "tighten") {
       updateResume(resume.id, (r) => withDesign(r, { density: undefined }), {
-        label: "Put the spacing back",
+        label: t.history.spacingBack,
       });
     } else {
       updateResume(resume.id, (r) => showLines(r, new Set(applied.ids)), {
-        label: "Showed hidden lines",
+        label: t.history.showed,
       });
     }
     setApplied(null);
@@ -99,23 +103,27 @@ export function useNearFit(resume: Resume, pdf: ResumePdf, pageSize: PdfPageSize
   };
 }
 
-function offerText(offer: NearFit): string {
-  if (offer.kind === "tighten") {
-    return "It runs just onto page 2. Tighter spacing fits it on one page, with every word kept.";
-  }
-  const lines = pluralize(offer.lines.length, "weak line");
-  return `It runs just onto page 2. Hiding ${lines} fits it on one page. Hidden lines stay in your resume.`;
+function offerText(t: FitCopy, format: Format, offer: NearFit): string {
+  if (offer.kind === "tighten") return t.offerTighten;
+  return countText(format, t.offerHide, offer.lines.length);
 }
 
-function appliedText(applied: NearFitApplied, pages: number | null): string {
-  if (pages === null) return "Updating your PDF.";
-  if (pages > 1) return "Still a little over one page.";
+function appliedText(
+  t: FitCopy,
+  format: Format,
+  applied: NearFitApplied,
+  pages: number | null,
+): string {
+  if (pages === null) return t.updating;
+  if (pages > 1) return t.stillOver;
   return applied.kind === "tighten"
-    ? "On one page now, with tighter spacing."
-    : `On one page now. ${pluralize(applied.ids.length, "line")} hidden, still in your resume.`;
+    ? t.onePageTighter
+    : countText(format, t.onePageHidden, applied.ids.length);
 }
 
 export function FitOffer({ fit }: { fit: NearFitState }) {
+  const t = useMessages("studioDownload").fit;
+  const format = useFormat();
   if (fit.applied) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-surface-muted py-2 pr-2 pl-4">
@@ -123,11 +131,11 @@ export function FitOffer({ fit }: { fit: NearFitState }) {
           {fit.pages !== null && fit.pages <= 1 ? (
             <CircleCheck aria-hidden className="size-4 shrink-0 text-pass" />
           ) : null}
-          {appliedText(fit.applied, fit.pages)}
+          {appliedText(t, format, fit.applied, fit.pages)}
         </p>
         <Button variant="ghost" size="sm" onClick={fit.undo}>
           <Undo2 />
-          Undo
+          {t.undo}
         </Button>
       </div>
     );
@@ -136,7 +144,7 @@ export function FitOffer({ fit }: { fit: NearFitState }) {
   if (!offer) return null;
   return (
     <div className="flex flex-col gap-3 rounded-xl bg-surface-muted p-4">
-      <p className="text-sm/6 text-pretty text-ink">{offerText(offer)}</p>
+      <p className="text-sm/6 text-pretty text-ink">{offerText(t, format, offer)}</p>
       {offer.kind === "hide" ? (
         <ul className="flex flex-col gap-1">
           {offer.lines.map((line) => (
@@ -148,7 +156,7 @@ export function FitOffer({ fit }: { fit: NearFitState }) {
       ) : null}
       <Button variant="secondary" onClick={fit.apply} className="w-full sm:w-fit">
         {offer.kind === "tighten" ? <Rows3 /> : <Scissors />}
-        Fit to one page
+        {t.title}
       </Button>
     </div>
   );

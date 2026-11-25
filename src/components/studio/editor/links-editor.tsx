@@ -75,6 +75,7 @@ export function LinksEditor({ resumeId, links }: { resumeId: string; links: Resu
                   spellCheck={false}
                   value={link.url}
                   onChange={(event) => patch(link.id, { url: event.target.value })}
+                  data-basics="links"
                   maxLength={CHAR_LIMITS.linkUrl}
                   placeholder="linkedin.com/in/alex-morgan"
                 />

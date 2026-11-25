@@ -12,6 +12,7 @@ import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
 import type { ResumeLint } from "@/lib/lint/types";
 import { countText } from "../count";
+import { fixIssues } from "../otto";
 import { useOpenFix, useStartFixAll } from "./fix-launcher";
 import { useLintTotals, useResumeValue, useWeakLines } from "./use-editor";
 
@@ -26,10 +27,7 @@ function totalsMeta(t: Editor, format: Format, { bullets, withIssues, withNumber
   ].join(" · ");
 }
 
-function manyIssues(t: Editor, format: Format, count: number): string {
-  const n = Number.isFinite(count) ? Math.max(0, Math.round(count)) : 0;
-  return n === 0 ? t.otto.noIssues : countText(format, t.otto.issues, n);
-}
+
 
 export const FixIntro = memo(function FixIntro({ resumeId }: { resumeId: string }) {
   const totals = useLintTotals(resumeId);
@@ -47,7 +45,7 @@ export const FixIntro = memo(function FixIntro({ resumeId }: { resumeId: string 
     <OttoNote
       live={false}
       meta={lines ? totalsMeta(t, format, lines) : undefined}
-      message={settled ? manyIssues(t, format, count) : t.otto.intro}
+      message={settled ? fixIssues(t.otto, format, count) : t.otto.intro}
     >
       {firstId || github ? (
         <>
