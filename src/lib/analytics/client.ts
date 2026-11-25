@@ -27,6 +27,8 @@ let memory: Visitor | null = null;
 
 export function analyticsEnabled(): boolean {
   if (typeof window === "undefined" || !posthogKey()) return false;
+  // A browser run by a script (Playwright, Puppeteer, Selenium) says so here, whatever its user agent.
+  if (window.navigator.webdriver === true) return false;
   const legacyDnt = (window as Window & { doNotTrack?: string | null }).doNotTrack;
   return !trackingRefused(window.navigator, legacyDnt);
 }

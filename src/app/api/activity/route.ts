@@ -13,6 +13,7 @@ import { appUrl } from "@/lib/env";
 import { clientIp, readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit } from "@/lib/rate-limit";
+import { isAutomatedAgent } from "@/lib/share/visits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +25,12 @@ const NOT_NOTED = { noted: false, identified: false };
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
-  if (!posthogKey() || trackingRefusedByHeaders(req.headers)) {
+  // Crawlers, speed tests and headless browsers aren't visitors; PostHog can't tell without the agent.
+  if (
+    !posthogKey() ||
+    trackingRefusedByHeaders(req.headers) ||
+    isAutomatedAgent(req.headers.get("user-agent"))
+  ) {
     return ok(NOT_NOTED, { headers: NO_STORE });
   }
   if (!burstAllowed(`activity:${clientIp(req)}`, PER_MINUTE, 60_000)) {

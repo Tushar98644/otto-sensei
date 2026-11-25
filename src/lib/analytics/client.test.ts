@@ -131,18 +131,19 @@ describe("when it may not send", () => {
     expect(client.analyticsEnabled()).toBe(false);
   });
 
-  it.each([{ doNotTrack: "1" }, { doNotTrack: null, globalPrivacyControl: true }])(
-    "sends nothing for %o",
-    async (navigator) => {
-      const page = stubBrowser({ navigator });
-      const client = await loadClient();
-      client.trackPageView("/pricing", "/pricing");
-      client.track("resume_imported", { source: "pdf" });
-      runIdle(page);
-      expect(page.idle).toHaveLength(0);
-      expect(fetch).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    { doNotTrack: "1" },
+    { doNotTrack: null, globalPrivacyControl: true },
+    { doNotTrack: null, webdriver: true },
+  ])("sends nothing for %o", async (navigator) => {
+    const page = stubBrowser({ navigator });
+    const client = await loadClient();
+    client.trackPageView("/pricing", "/pricing");
+    client.track("resume_imported", { source: "pdf" });
+    runIdle(page);
+    expect(page.idle).toHaveLength(0);
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });
 
 describe("page views", () => {

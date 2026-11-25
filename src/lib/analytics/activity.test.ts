@@ -33,11 +33,14 @@ const { POST } = await import("@/app/api/activity/route");
 
 const NOON_UTC = Date.UTC(2026, 10, 22, 12);
 
+const BROWSER =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
 function post(body: unknown, headers: Record<string, string> = {}) {
   return POST(
     new Request("http://localhost/api/activity", {
       method: "POST",
-      headers: { "content-type": "application/json", ...headers },
+      headers: { "content-type": "application/json", "user-agent": BROWSER, ...headers },
       body: JSON.stringify(body),
     }),
   );
@@ -260,6 +263,19 @@ describe("POST /api/activity", () => {
     }
     expect(forwarded()).toEqual([]);
     expect(events.views).toEqual([]);
+  });
+
+  it("forwards nothing from crawlers, speed tests or headless browsers", async () => {
+    for (const agent of [
+      "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+      "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36 Chrome-Lighthouse",
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/131.0.0.0 Safari/537.36",
+      "",
+    ]) {
+      const res = await post(beacon([view("/")]), { "user-agent": agent });
+      expect(await res.json()).toEqual({ ok: true, noted: false, identified: false });
+    }
+    expect(forwarded()).toEqual([]);
   });
 
   it("notes nothing when analytics is off", async () => {
