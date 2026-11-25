@@ -6,9 +6,11 @@ import { flushBeacon, track } from "@/lib/analytics/client";
 import { api } from "@/lib/api/client";
 import type { AuthMode } from "@/lib/auth/types";
 import { errorMessage } from "./errors";
+import type { SignInWords } from "./use-sign-in-words";
 import { useMe } from "./use-me";
 
 export type GoogleSignInProps = {
+  words: Pick<SignInWords, "google" | "googleOff">;
   next?: string;
   disabled?: boolean;
   onError: (message: string) => void;
@@ -20,7 +22,13 @@ export function googleUnavailable(mode: AuthMode | undefined): boolean {
   return mode === "dev" || mode === "off";
 }
 
-export function GoogleSignIn({ next, disabled = false, onError, onRedirect }: GoogleSignInProps) {
+export function GoogleSignIn({
+  words,
+  next,
+  disabled = false,
+  onError,
+  onRedirect,
+}: GoogleSignInProps) {
   const [pending, setPending] = useState(false);
   const unavailable = googleUnavailable(useMe().me?.auth.mode);
 
@@ -64,7 +72,7 @@ export function GoogleSignIn({ next, disabled = false, onError, onRedirect }: Go
           <GoogleMark />
         </span>
       )}
-      Continue with Google
+      {words.google}
     </Button>
   );
   if (!unavailable) return button;
@@ -72,7 +80,7 @@ export function GoogleSignIn({ next, disabled = false, onError, onRedirect }: Go
     <div className="flex flex-col gap-1.5">
       {button}
       <p id="google-unavailable" className="text-xs text-subtle">
-        Google sign-in works once Supabase is set up.
+        {words.googleOff}
       </p>
     </div>
   );

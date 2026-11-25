@@ -6,6 +6,7 @@ import { unlockProTool } from "@/components/account/pro-tools";
 import { currentUserId, useMe } from "@/components/account/use-me";
 import { Lazy, lazyComponent } from "@/components/ui/lazy";
 import type { Resume } from "@/lib/resume/schema";
+import { useShareLinksWords } from "./copy-link";
 import { shareAndCopy } from "./share-actions";
 
 const shareDialog = lazyComponent(() => import("./share-dialog").then((m) => m.ShareDialog));
@@ -19,6 +20,7 @@ export type ShareResume = {
 export function useShareResume(resume: Resume): ShareResume {
   const gate = useAccountGate();
   const { user } = useMe();
+  const t = useShareLinksWords().actions;
   const [used, setUsed] = useState(false);
   const [isOpen, setOpen] = useState(false);
   const [gateUsed, setGateUsed] = useState(false);
@@ -36,12 +38,12 @@ export function useShareResume(resume: Resume): ShareResume {
       let owner = user?.id ?? null;
       if (!owner) {
         setGateUsed(true);
-        if (!(await gate.requireUser("Sign in to share a link to your resume."))) return;
+        if (!(await gate.requireUser(t.signIn))) return;
         owner = await currentUserId();
         if (!owner) return;
       }
       if (!(await unlockProTool("share"))) return;
-      await shareAndCopy(resume, owner, open);
+      await shareAndCopy(resume, owner, open, t);
     } finally {
       busy.current = false;
     }

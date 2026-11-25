@@ -4,21 +4,22 @@ import { useEffect, useState } from "react";
 import { api, isApiError } from "@/lib/api/client";
 import type { GitHubConnection } from "@/lib/github/connect";
 import { returnPathFor } from "./connect-return";
+import { useGitHubWords } from "./use-github-words";
 
 export type GitHubConnectionState =
   | { status: "loading" }
   | { status: "ready"; connection: GitHubConnection | null }
   | { status: "failed"; error: unknown };
 
-function messageOf(error: unknown, fallback: string): string {
-  if (isApiError(error, "network_error"))
-    return "Can't reach Otto right now. Check your connection.";
+function messageOf(error: unknown, fallback: string, offline: string): string {
+  if (isApiError(error, "network_error")) return offline;
   return isApiError(error) ? error.message : fallback;
 }
 
 export type GitHubConnectionFlow = ReturnType<typeof useGitHubConnection>;
 
 export function useGitHubConnection(active: boolean) {
+  const t = useGitHubWords().connect;
   const [state, setState] = useState<GitHubConnectionState>({ status: "loading" });
   const [round, setRound] = useState(0);
   const [busy, setBusy] = useState<"connect" | "disconnect" | null>(null);
@@ -48,7 +49,7 @@ export function useGitHubConnection(active: boolean) {
       window.location.assign(url);
     } catch (failure) {
       setBusy(null);
-      setError(messageOf(failure, "Couldn't start connecting GitHub. Please try again."));
+      setError(messageOf(failure, t.startFailed, t.offline));
     }
   }
 
@@ -60,7 +61,7 @@ export function useGitHubConnection(active: boolean) {
       setState({ status: "ready", connection });
       return true;
     } catch (failure) {
-      setError(messageOf(failure, "Couldn't disconnect GitHub. Please try again."));
+      setError(messageOf(failure, t.disconnectFailed, t.offline));
       return false;
     } finally {
       setBusy(null);

@@ -13,6 +13,9 @@ import { toast } from "@/components/ui/toast";
 import { api } from "@/lib/api/client";
 import type { FeedLinks } from "@/lib/calendar/types";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
+import { useMessagesOr } from "@/i18n/client";
+import EN_APP from "@/i18n/messages/en/app";
+import EN_CALENDAR from "@/i18n/messages/en/calendar";
 
 const feedKey = (userId: string) => ["calendar-feed", userId] as const;
 
@@ -30,10 +33,14 @@ function useCalendarFeed(userId: string | null) {
   );
 }
 
-const GOOGLE_REFRESH_NOTE =
-  "Google refreshes subscribed calendars every several hours, so for a change on the day, use Add to calendar on the interview too.";
+type CalendarWords = typeof EN_CALENDAR;
+
+function useCalendarWords(): CalendarWords {
+  return useMessagesOr("calendar", EN_CALENDAR);
+}
 
 function Links({ links, renewable }: { links: FeedLinks; renewable: boolean }) {
+  const t = useCalendarWords();
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
@@ -47,9 +54,9 @@ function Links({ links, renewable }: { links: FeedLinks; renewable: boolean }) {
             className: "max-sm:flex-1",
           })}
         >
-          Subscribe in Google Calendar
+          {t.google}
           <ArrowUpRight aria-hidden />
-          <span className="sr-only">(opens Google Calendar in a new tab)</span>
+          <span className="sr-only">{t.googleNewTab}</span>
         </a>
         <a
           href={links.webcal}
@@ -59,26 +66,36 @@ function Links({ links, renewable }: { links: FeedLinks; renewable: boolean }) {
             className: "max-sm:flex-1",
           })}
         >
-          Apple / Outlook
+          {t.apple}
         </a>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => void copyText(links.https, "calendar link in your calendar app")}
+          onClick={() =>
+            void copyText(links.https, "calendar link in your calendar app", {
+              words: {
+                copied: t.copied,
+                paste: t.paste,
+                cantCopy: t.cantCopy,
+                selectText: t.selectText,
+              },
+            })
+          }
         >
           <Copy aria-hidden />
-          Copy link
+          {t.copy}
         </Button>
       </div>
       <p className="max-w-prose text-xs/5 text-pretty text-subtle">
-        {GOOGLE_REFRESH_NOTE} The link is private: anyone who has it can see your interviews
-        {renewable ? ", so make a new one if it gets out" : ""}.
+        {renewable ? t.noteRenewable : t.note}
       </p>
     </div>
   );
 }
 
 function Renew({ userId }: { userId: string }) {
+  const t = useCalendarWords();
+  const app = useMessagesOr("app", EN_APP);
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const hintId = useId();
@@ -90,14 +107,14 @@ function Renew({ userId }: { userId: string }) {
       getQueryClient().setQueryData(feedKey(userId), links);
       setAsking(false);
       toast({
-        title: "New calendar link ready",
-        description: "Calendars using the old link stop updating. Subscribe again with this one.",
+        title: t.renewed,
+        description: t.renewedNote,
         variant: "success",
       });
     } catch (error) {
       toast({
-        title: "Couldn't make a new link",
-        description: errorMessage(error),
+        title: t.renewFailed,
+        description: errorMessage(error, app.errors),
         variant: "error",
       });
     } finally {
@@ -109,20 +126,20 @@ function Renew({ userId }: { userId: string }) {
     return (
       <Button variant="ghost" size="sm" className="self-start" onClick={() => setAsking(true)}>
         <RotateCcw aria-hidden />
-        Make a new link
+        {t.renew}
       </Button>
     );
   }
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-describedby={hintId}>
       <p id={hintId} className="text-sm/6 text-muted">
-        Calendars using the old link stop updating.
+        {t.renewHint}
       </p>
       <Button variant="secondary" size="sm" loading={busy} onClick={() => void renew()}>
-        Make a new link
+        {t.renew}
       </Button>
       <Button variant="ghost" size="sm" disabled={busy} onClick={() => setAsking(false)}>
-        Cancel
+        {t.cancel}
       </Button>
     </div>
   );
@@ -132,6 +149,8 @@ function Renew({ userId }: { userId: string }) {
 export function CalendarFeed({ renewable = false }: { renewable?: boolean }) {
   const userId = useSessionUserId();
   const feed = useCalendarFeed(userId);
+  const t = useCalendarWords();
+  const app = useMessagesOr("app", EN_APP);
   if (!userId) return null;
   return (
     <div className="flex flex-col gap-4">
@@ -143,13 +162,8 @@ export function CalendarFeed({ renewable = false }: { renewable?: boolean }) {
           <CalendarSync className="size-4" />
         </span>
         <div className="min-w-0">
-          <p className="font-sans text-base/6 font-medium text-pretty text-ink">
-            Every interview in your calendar
-          </p>
-          <p className="mt-1 max-w-prose text-sm/6 text-pretty text-muted">
-            Subscribe once. The interviews you log, at their times, and your follow-up days show up
-            by themselves, each linking back to its prep.
-          </p>
+          <p className="font-sans text-base/6 font-medium text-pretty text-ink">{t.title}</p>
+          <p className="mt-1 max-w-prose text-sm/6 text-pretty text-muted">{t.intro}</p>
         </div>
       </div>
       <div className="flex flex-col gap-3 sm:pl-12.5">
@@ -161,19 +175,19 @@ export function CalendarFeed({ renewable = false }: { renewable?: boolean }) {
         ) : feed.isError && feed.fetchStatus === "idle" ? (
           <Alert
             variant="error"
-            title="Your calendar link didn't load"
+            title={t.loadFailed}
             action={
               <Button variant="secondary" size="sm" onClick={() => void feed.refetch()}>
-                Try again
+                {t.tryAgain}
               </Button>
             }
           >
-            {errorMessage(feed.error)}
+            {errorMessage(feed.error, app.errors)}
           </Alert>
         ) : (
           <div aria-busy className="flex flex-wrap gap-2">
             <span className="sr-only" role="status">
-              Getting your calendar link
+              {t.loading}
             </span>
             <Skeleton aria-hidden className="h-9 w-56 rounded-lg" />
             <Skeleton aria-hidden className="h-9 w-32 rounded-lg" />

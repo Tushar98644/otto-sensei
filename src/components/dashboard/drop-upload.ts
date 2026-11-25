@@ -1,5 +1,5 @@
 import { UPLOAD_ACCEPT } from "@/components/studio/upload/upload-handoff";
-import { checkFile, formatBytes } from "@/components/ui/file-check";
+import { checkFile, formatBytes, type FileCheckCopy } from "@/components/ui/file-check";
 import { UPLOAD_LIMITS } from "@/config/plans";
 import { fmt } from "@/i18n/format";
 import type { DashboardMessages } from "./i18n";
@@ -16,11 +16,16 @@ type DroppedResume<F extends FileLike> =
 export function droppedResume<F extends FileLike>(
   files: readonly F[],
   t: DashboardMessages,
+  problems?: FileCheckCopy,
 ): DroppedResume<F> {
   const [file, ...rest] = files;
   if (!file) return { file: null, problem: t.drop.notFile };
   if (rest.length > 0) return { file: null, problem: t.drop.oneFile };
-  const problem = checkFile(file, { accept: UPLOAD_ACCEPT, maxBytes: UPLOAD_LIMITS.maxBytes });
+  const problem = checkFile(
+    file,
+    { accept: UPLOAD_ACCEPT, maxBytes: UPLOAD_LIMITS.maxBytes },
+    problems,
+  );
   return problem ? { file: null, problem } : { file, problem: null };
 }
 

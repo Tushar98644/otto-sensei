@@ -413,6 +413,8 @@ export default {
     },
   },
   gaps: {
+    fromJobs: { one: "Sur {count} offre adaptée", other: "Sur {count} offres adaptées" },
+    shortIn: "Manque pour {jobs}",
     heading: "Ce que tes offres demandent sans cesse",
     tab: "Compétences manquantes",
     addLabel: "Ajouter une ligne sur {term} à ta copie la plus récente qui n'en parle pas",

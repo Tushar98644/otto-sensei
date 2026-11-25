@@ -1,4 +1,5 @@
 import { parseGitHubUsername } from "@/lib/github/username";
+import type { ContentLang } from "@/lib/i18n/languages";
 import { webLink } from "@/lib/pdf/links";
 import { extrasOf, sectionTitleOf, type Resume } from "@/lib/resume/schema";
 import { isLinkText } from "@/lib/resume/sections";
@@ -71,6 +72,8 @@ export type PortfolioView = {
   titles: Record<Exclude<PortfolioSection, "links" | "extras">, string>;
   updatedAt: number;
   hidden: PortfolioSection[];
+  // The resume's language when it isn't English: what Otto fills in follows it.
+  lang?: ContentLang;
 };
 
 export type ViewSettings = Pick<PortfolioSettings, "showEmail" | "showPhone" | "hiddenSections">;
@@ -270,6 +273,7 @@ export function portfolioView(source: Resume, settings: ViewSettings): Portfolio
     },
     updatedAt: resume.updatedAt,
     hidden: PORTFOLIO_SECTIONS.filter((section) => hidden.has(section)),
+    ...(source.lang && source.lang !== "en" ? { lang: source.lang } : {}),
   };
 }
 

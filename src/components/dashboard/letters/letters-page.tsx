@@ -7,7 +7,7 @@ import { useProTools } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { useMe } from "@/components/account/use-me";
 import { saveLetterOnCopy } from "@/components/studio/tailor/copy-letter";
-import { writingAllowance } from "@/components/studio/tailor/writing-allowance";
+import { useOtto } from "@/components/mascot/use-otto";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -104,6 +104,7 @@ export function LettersPage() {
   const pro = useProTools();
   const locked = pro === false;
   const { me, user, loading: planLoading } = useMe();
+  const otto = useOtto();
   const tryPro = me?.billing.trial === false ? page.seePro : offerLabel(true, dashboard);
   const savedJobs = useSavedJobs(pro === true);
   const reader = useOpenLetter();
@@ -142,7 +143,7 @@ export function LettersPage() {
   const kinds = LETTER_FILTERS.filter((item) => item !== "all" && counts[item] > 0).length;
   const allowance = planLoading
     ? null
-    : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
+    : otto.writing(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
 
   // A link to a letter that's gone opens the list instead.
   useEffect(() => {

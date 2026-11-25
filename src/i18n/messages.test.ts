@@ -10,7 +10,7 @@ import { publishedPages } from "./publish";
 
 const DIR = fileURLToPath(new URL("./messages", import.meta.url));
 
-// The pages P2 translated; the guides (P5) and sign-in (with the app, P3) follow.
+// The pages P2 translated, and sign-in (with the app, P3); the guides (P5) follow.
 const MARKETING_CORE: readonly PageKey[] = [
   "/",
   "/pricing",
@@ -20,6 +20,7 @@ const MARKETING_CORE: readonly PageKey[] = [
   "/job-application-tracker",
   "/interview-prep",
   "/portfolio-website-builder",
+  "/login",
   "/privacy",
   "/terms",
   "/refunds",
@@ -73,6 +74,11 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "offer.quoted",
     "projects.devices.laptop",
     "writing.minutesPlaceholder",
+    "offer.popular",
+    "feedback.kinds.idea",
+    "apple",
+    "pick.repos",
+    "pick.pulls",
   ]),
   "pt-BR": new Set([
     "card.via",
@@ -120,6 +126,10 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "milestones.kinds.hackathon",
     "milestones.slidesPlaceholder",
     "writing.minutesPlaceholder",
+    "offer.popular",
+    "dialog.link",
+    "apple",
+    "pick.pulls",
   ]),
   fr: new Set([
     "meta.portfolio",
@@ -196,6 +206,10 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "writing.rolePlaceholder",
     "personal.kinds.album",
     "personal.kinds.film",
+    "notifications.title",
+    "toast.region",
+    "apple",
+    "pick.pulls",
   ]),
   de: new Set([
     "meta.jobs",
@@ -275,6 +289,11 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "personal.kinds.album",
     "personal.kinds.film",
     "github.repos",
+    "dialog.link",
+    "optional",
+    "feedback.kinds.bug",
+    "apple",
+    "pick.repos",
   ]),
 };
 

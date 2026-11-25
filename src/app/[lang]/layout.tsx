@@ -25,7 +25,12 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   if (!isEnabledLocale(locale)) notFound();
   const common = await getMessages("common");
   return (
-    <RootDocument lang={locale} skipLabel={common.skipToContent}>
+    <RootDocument
+      lang={locale}
+      skipLabel={common.skipToContent}
+      referral={common.referral}
+      toast={common.toast}
+    >
       {children}
     </RootDocument>
   );

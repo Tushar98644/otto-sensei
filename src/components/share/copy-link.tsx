@@ -4,6 +4,8 @@ import { Check, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button, buttonClasses, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useMessagesOr } from "@/i18n/client";
+import EN_SHARE_LINKS from "@/i18n/messages/en/share-links";
 import { sharePath } from "@/lib/share/types";
 
 const noSubscribe = () => () => {};
@@ -19,27 +21,31 @@ export function useShareUrl(slug: string): string {
 
 const COPIED_MS = 2_500;
 
+export function useShareLinksWords() {
+  return useMessagesOr("shareLinks", EN_SHARE_LINKS);
+}
+
 export function useCopyLink() {
+  const t = useShareLinksWords().copy;
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  const copy = useCallback(async (url: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      toast({
-        title: "Couldn't copy",
-        description: "Select the link and copy it yourself.",
-        variant: "error",
-      });
-      return;
-    }
-    window.clearTimeout(timer.current);
-    setCopied(true);
-    timer.current = window.setTimeout(() => setCopied(false), COPIED_MS);
-  }, []);
+  const copy = useCallback(
+    async (url: string) => {
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        toast({ title: t.cantCopy, description: t.selectLink, variant: "error" });
+        return;
+      }
+      window.clearTimeout(timer.current);
+      setCopied(true);
+      timer.current = window.setTimeout(() => setCopied(false), COPIED_MS);
+    },
+    [t],
+  );
 
   return { copied, copy };
 }
@@ -54,6 +60,7 @@ type LinkButtonProps = {
 export function CopyLinkButton({ slug, variant = "primary", size = "md", label }: LinkButtonProps) {
   const url = useShareUrl(slug);
   const { copied, copy } = useCopyLink();
+  const t = useShareLinksWords().copy;
   return (
     <>
       <Button
@@ -65,10 +72,10 @@ export function CopyLinkButton({ slug, variant = "primary", size = "md", label }
         className="min-w-28"
       >
         {copied ? <Check aria-hidden /> : null}
-        {copied ? "Copied" : "Copy link"}
+        {copied ? t.copied : t.copyLink}
       </Button>
       <span aria-live="polite" className="sr-only">
-        {copied ? "Link copied" : ""}
+        {copied ? t.linkCopied : ""}
       </span>
     </>
   );
@@ -76,6 +83,7 @@ export function CopyLinkButton({ slug, variant = "primary", size = "md", label }
 
 export function OpenShareLink({ slug, variant = "ghost", size = "md", label }: LinkButtonProps) {
   const url = useShareUrl(slug);
+  const t = useShareLinksWords().copy;
   return (
     <a
       href={url || sharePath(slug)}
@@ -84,9 +92,9 @@ export function OpenShareLink({ slug, variant = "ghost", size = "md", label }: L
       aria-label={label}
       className={buttonClasses({ variant, size })}
     >
-      Open page
+      {t.open}
       <ExternalLink aria-hidden />
-      {label ? null : <span className="sr-only">(opens in a new tab)</span>}
+      {label ? null : <span className="sr-only">{t.newTab}</span>}
     </a>
   );
 }

@@ -3,11 +3,11 @@
 import { useRef, useState, type ReactNode } from "react";
 import { useAccountGate } from "@/components/account/account-gate";
 import { patchMe, useMe } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
+import type { OttoLines } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { fixErrorMessage } from "@/components/studio/editor/fix-text";
 import type { Feature, UsagePeriod } from "@/config/plans";
 import type { TailorRequirement } from "@/lib/ai/types";
-import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import { newId, type Resume } from "@/lib/resume/schema";
 import type { LineTarget } from "./apply";
@@ -47,15 +47,14 @@ function errorMessage(
   feature: Feature,
   limit: number | undefined,
   period: UsagePeriod | null | undefined,
+  otto: OttoLines,
 ): string {
-  if (isBudgetReached(error)) return budgetReachedText(period);
-  if (isApiError(error, "limit_reached")) return OTTO.limit.reached(feature, limit, period);
-  if (isApiError(error, "unauthorized")) {
-    return "You've been signed out. Sign in again to keep going.";
-  }
+  if (isBudgetReached(error)) return otto.budget(period);
+  if (isApiError(error, "limit_reached")) return otto.limit.reached(feature, limit, period);
+  if (isApiError(error, "unauthorized")) return otto.signedOut;
   if (isApiError(error, "ai_refused")) return error.message;
   if (isApiError(error, "bad_request")) return error.message;
-  return fixErrorMessage(error);
+  return fixErrorMessage(error, otto);
 }
 
 function jobOf(draft: TailorDraft) {
@@ -74,6 +73,7 @@ function roleOf(resume: Resume, target: LineTarget) {
 export function useWriting(source: Resume, job: TailorDraft): Writing {
   const gate = useAccountGate();
   const { me } = useMe();
+  const otto = useOtto();
   const [busy, setBusy] = useState<WritingTask | null>(null);
   const [error, setError] = useState<Writing["error"]>(null);
   const running = useRef(false);
@@ -87,14 +87,14 @@ export function useWriting(source: Resume, job: TailorDraft): Writing {
     running.current = true;
     setError(null);
     try {
-      if (!(await gate.requireUser(OTTO.signIn.reason(feature)))) return null;
+      if (!(await gate.requireUser(otto.signIn.reason(feature)))) return null;
       setBusy(task);
       return await call();
     } catch (caught) {
       if (!gate.handleApiError(caught, feature)) {
         setError({
           task,
-          message: errorMessage(caught, feature, me?.usage?.[feature]?.limit, me?.period),
+          message: errorMessage(caught, feature, me?.usage?.[feature]?.limit, me?.period, otto),
         });
       }
       return null;

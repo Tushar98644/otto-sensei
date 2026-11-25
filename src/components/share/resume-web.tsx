@@ -30,6 +30,7 @@ import { templateOf } from "@/lib/pdf/templates";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { points, webStyle } from "./web-style";
+import { documentTitles } from "@/lib/resume/labels";
 
 type Styled = { theme: TemplateTheme };
 
@@ -103,7 +104,7 @@ function Header({ model, theme, level }: Styled & Leveled & { model: PdfModel })
         </HeadingTag>
       ) : (
         <HeadingTag level={level} className="sr-only">
-          Resume
+          {documentTitles(model.lang ?? "en").resume}
         </HeadingTag>
       )}
       {headline ? <p style={webStyle(styles.headline)}>{headline}</p> : null}

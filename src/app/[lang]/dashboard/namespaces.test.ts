@@ -4,8 +4,9 @@ import type { Namespace } from "@/i18n/messages";
 import { pickMessages } from "@/i18n/server";
 import { DASHBOARD_NAMESPACES, PAGE_NAMESPACES } from "./namespaces";
 
-// MessagesFor puts these into every full dashboard load (about 47 KB in English and 55 KB in German today); a page's own namespaces come on top (Interview prep about 15 KB more, Applications about 7 KB). Room for the rest of the dashboard, not for a stray namespace.
-const BUDGET_BYTES = 90_000;
+// MessagesFor puts these into every full dashboard load (about 66 KB in English and 77 KB in German today); a page's own namespaces come on top (Interview prep about 15 KB more, Applications about 7 KB). Room for the rest of the dashboard, not for a stray namespace.
+// Raised from 90 KB when the sign-in, upgrade and share dialogs, Otto's limit lines, the bell, feedback and the first-run tour joined the layout.
+const BUDGET_BYTES = 110_000;
 
 async function payloadBytes(locale: Locale, namespaces: readonly Namespace[]): Promise<number> {
   return Buffer.byteLength(JSON.stringify(await pickMessages(locale, namespaces)));

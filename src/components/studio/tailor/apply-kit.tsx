@@ -8,7 +8,7 @@ import { AnswerBox } from "./answer-box";
 import { LetterPanel } from "./letter-panel";
 import { APPLY_KIT_ID } from "./letter-request";
 import { ResultSection } from "./result-section";
-import { writingAllowance } from "./writing-allowance";
+import { useOtto } from "@/components/mascot/use-otto";
 import type { SavedAnswer, SavedWriting } from "./session";
 import type { Writing } from "./use-writing";
 
@@ -29,9 +29,10 @@ export type ApplyKitProps = {
 
 export function ApplyKit(props: ApplyKitProps) {
   const { user, me, loading } = useMe();
+  const otto = useOtto();
   const allowance = loading
     ? null
-    : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
+    : otto.writing(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
   const t = useMessages("studioTailor").kit;
   const format = useFormat();
   const written = [

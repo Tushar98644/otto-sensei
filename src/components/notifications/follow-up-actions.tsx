@@ -5,7 +5,7 @@ import { useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
-import { formatDay } from "@/components/dashboard/applications/view";
+import { formatDayIn } from "@/components/dashboard/applications/view";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { ProMark } from "@/components/ui/pro-mark";
 import { toast } from "@/components/ui/toast";
@@ -16,6 +16,10 @@ import type { FollowUpAction } from "@/lib/notifications/types";
 import { getQueryClient } from "@/lib/queries/client";
 import { APPLICATIONS } from "@/lib/queries/keys";
 import { settleFollowUp } from "./use-notifications";
+import { useFormat, useMessagesOr } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import EN_APP from "@/i18n/messages/en/app";
+import EN_UI from "@/i18n/messages/en/ui";
 
 // The follow-up chip's choices on the newest bell row about it; the row's own link stays as it was.
 export function FollowUpActions({
@@ -28,6 +32,9 @@ export function FollowUpActions({
   onNavigate: () => void;
 }) {
   const pro = useProTools();
+  const t = useMessagesOr("ui", EN_UI).notifications;
+  const app = useMessagesOr("app", EN_APP);
+  const format = useFormat();
   const [busy, setBusy] = useState<FollowUpAction | null>(null);
 
   async function act(action: FollowUpAction) {
@@ -39,14 +46,18 @@ export function FollowUpActions({
       toast({
         title:
           result.followUpAt === null
-            ? "Follow-up marked done"
-            : `Snoozed until ${formatDay(result.followUpAt, Date.now())}`,
+            ? t.markedDone
+            : fmt(t.snoozed, { day: formatDayIn(format, result.followUpAt, Date.now()) }),
         description: result.company,
         variant: "success",
       });
     } catch (error) {
       if (isApiError(error, "not_found")) settleFollowUp(applicationId);
-      toast({ title: "Couldn't change the reminder", description: errorMessage(error), variant: "error" });
+      toast({
+        title: t.reminderFailed,
+        description: errorMessage(error, app.errors),
+        variant: "error",
+      });
     } finally {
       setBusy(null);
     }
@@ -64,7 +75,7 @@ export function FollowUpActions({
             openFeaturePrompt("letter");
           }}
         >
-          Write it for me
+          {t.writeIt}
           <ProMark />
         </Button>
       ) : (
@@ -74,7 +85,7 @@ export function FollowUpActions({
           aria-describedby={describedBy}
           className={buttonClasses({ variant: "secondary", size: "sm" })}
         >
-          Write it for me
+          {t.writeIt}
         </Link>
       )}
       <Button
@@ -85,18 +96,18 @@ export function FollowUpActions({
         disabled={busy !== null}
         onClick={() => void act("done")}
       >
-        Done
+        {t.done}
       </Button>
       <Button
         variant="ghost"
         size="sm"
-        aria-label={`Snooze ${SNOOZE_DAYS} days`}
+        aria-label={fmt(t.snoozeDays, { days: SNOOZE_DAYS })}
         aria-describedby={describedBy}
         loading={busy === "snooze"}
         disabled={busy !== null}
         onClick={() => void act("snooze")}
       >
-        Snooze
+        {t.snooze}
       </Button>
     </div>
   );

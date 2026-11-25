@@ -4,7 +4,7 @@ import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { getMessages, MessagesFor } from "@/i18n/server";
 import { AccountSkeleton } from "./_components/account-skeleton";
 import { AccountView } from "./_components/account-view";
-import { ACCOUNT_NAMESPACES } from "./namespaces";
+import { ACCOUNT_PAGE_NAMESPACES } from "./namespaces";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { meta } = await getMessages("account");
@@ -20,13 +20,13 @@ export default async function AccountPage() {
       </h1>
       {/* An error narrows only the panel, so the heading stays where the loading page put it; sign-in swaps both for its own, like /login. */}
       <div className="rounded-3xl bg-surface-muted p-3 has-data-narrow:max-w-2xl has-data-sign-in:bg-transparent has-data-sign-in:p-0 sm:p-6">
-        <MessagesFor namespaces={ACCOUNT_NAMESPACES}>
+        <MessagesFor namespaces={ACCOUNT_PAGE_NAMESPACES}>
           <Suspense fallback={<AccountSkeleton words={words.skeleton} />}>
             <AccountView />
           </Suspense>
+          <UpgradePromptHost />
         </MessagesFor>
       </div>
-      <UpgradePromptHost />
     </div>
   );
 }

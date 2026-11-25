@@ -57,6 +57,9 @@ const react = vi.hoisted(() => {
     useId() {
       return `id-${index++}`;
     },
+    useMemo<T>(factory: () => T): T {
+      return factory();
+    },
     useEffectEvent<F extends (...args: never[]) => unknown>(callback: F): F {
       const slot = next();
       slot.latest = callback;
@@ -100,6 +103,7 @@ vi.mock("react", async (importOriginal) => ({
   useState: react.useState,
   useRef: react.useRef,
   useId: react.useId,
+  useMemo: react.useMemo,
   useEffect: react.useEffect,
   useEffectEvent: react.useEffectEvent,
 }));
@@ -114,6 +118,7 @@ vi.mock("@/i18n/client", async () => {
   const { formatFor } = await import("@/i18n/intl");
   return {
     useMessages: (namespace: keyof typeof en) => en[namespace],
+    useMessagesOr: (namespace: keyof typeof en) => en[namespace],
     useFormat: () => formatFor("en"),
     useLocale: () => "en",
   };

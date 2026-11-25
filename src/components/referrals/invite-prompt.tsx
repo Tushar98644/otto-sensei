@@ -3,6 +3,9 @@
 import { Check, Copy, X } from "lucide-react";
 import { meSnapshot } from "@/components/account/use-me";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { useMessagesOr } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import EN_SHARE_LINKS from "@/i18n/messages/en/share-links";
 import { api } from "@/lib/api/client";
 import { readItem, writeItem } from "@/lib/browser-storage";
 import { REFERRAL_BONUS } from "@/lib/referrals/referrals";
@@ -12,10 +15,18 @@ const OFFERED_KEY = "otto-invite-offered";
 // Stands in for the session flag when storage is blocked, so the offer still comes once a page load.
 let offered = false;
 
-export const INVITE_PROMPT_TEXT = `Share your link: when they sign up and check a resume, you both get ${REFERRAL_BONUS.fix} more line fixes, plus ${REFERRAL_BONUS.tailor} tailored versions on Pro or Max.`;
+type InviteWords = (typeof EN_SHARE_LINKS)["invite"];
 
-export const INVITE_ANNOUNCEMENT =
-  "Invite a friend and you both get extras. The invite is just below the download button.";
+const inviteText = (t: InviteWords) =>
+  fmt(t.text, { fix: REFERRAL_BONUS.fix, tailor: REFERRAL_BONUS.tailor });
+
+export const INVITE_PROMPT_TEXT = inviteText(EN_SHARE_LINKS.invite);
+
+export const INVITE_ANNOUNCEMENT = EN_SHARE_LINKS.invite.announcement;
+
+function useInviteWords(): InviteWords {
+  return useMessagesOr("shareLinks", EN_SHARE_LINKS).invite;
+}
 
 // Once a session, signed in only, and only while the inviter still earns extras; never throws.
 export async function inviteToOffer(): Promise<string | null> {
@@ -32,10 +43,11 @@ export async function inviteToOffer(): Promise<string | null> {
 
 // The live region is always there, so its one line is read out; the prompt itself sits outside it.
 export function InviteOffer({ url, onDismiss }: { url: string | null; onDismiss: () => void }) {
+  const t = useInviteWords();
   return (
     <>
       <p className="sr-only" aria-live="polite">
-        {url ? INVITE_ANNOUNCEMENT : ""}
+        {url ? t.announcement : ""}
       </p>
       {url ? <InvitePrompt url={url} onDismiss={onDismiss} /> : null}
     </>
@@ -43,31 +55,32 @@ export function InviteOffer({ url, onDismiss }: { url: string | null; onDismiss:
 }
 
 function InvitePrompt({ url, onDismiss }: { url: string; onDismiss: () => void }) {
+  const t = useInviteWords();
   const { copied, copy } = useCopyLink(url, {
-    title: "Couldn't copy the link",
-    description: "Your invite link is on your account page too.",
+    title: t.copyFailed,
+    description: t.copyFailedNote,
   });
   return (
     <section
-      aria-label="Invite a friend"
+      aria-label={t.label}
       className="flex items-start gap-3 rounded-2xl bg-surface-muted p-4 text-sm"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="font-medium text-ink">Know someone job hunting?</p>
-        <p className="leading-relaxed text-muted">{INVITE_PROMPT_TEXT}</p>
+        <p className="font-medium text-ink">{t.heading}</p>
+        <p className="leading-relaxed text-muted">{inviteText(t)}</p>
         <div className="mt-2">
           <Button variant="secondary" size="sm" onClick={() => void copy()}>
             {copied ? <Check /> : <Copy />}
-            {copied ? "Copied" : "Copy invite link"}
+            {copied ? t.copied : t.copy}
           </Button>
         </div>
         <p className="sr-only" aria-live="polite">
-          {copied ? "Invite link copied." : ""}
+          {copied ? t.announced : ""}
         </p>
       </div>
       <button
         type="button"
-        aria-label="Dismiss the invite"
+        aria-label={t.dismiss}
         onClick={onDismiss}
         className={buttonClasses({
           variant: "ghost",

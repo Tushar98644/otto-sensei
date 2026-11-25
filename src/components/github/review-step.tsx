@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { isOnResume } from "@/lib/github/to-projects";
 import type { GitHubDraftEntry, GitHubDraftResult } from "@/lib/github/types";
 import type { Resume } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
+import { useFormat } from "@/i18n/client";
 import { shortLink } from "./format";
+import { useGitHubWords } from "./use-github-words";
 
 export type ReviewStepProps = {
   draft: GitHubDraftResult;
@@ -17,13 +18,12 @@ export type ReviewStepProps = {
 };
 
 export function ReviewStep({ draft, resume, left, onToggle }: ReviewStepProps) {
+  const t = useGitHubWords().review;
+  const format = useFormat();
   return (
     <div className="flex flex-col gap-4">
       {draft.missing > 0 ? (
-        <Alert variant="warn">
-          {pluralize(draft.missing, "pick isn't", "picks aren't")} on GitHub anymore, so Otto left{" "}
-          {draft.missing === 1 ? "it" : "them"} out.
-        </Alert>
+        <Alert variant="warn">{format.plural(t.missing, draft.missing)}</Alert>
       ) : null}
       <ul className="flex flex-col gap-3">
         {draft.entries.map((entry) => (
@@ -49,6 +49,7 @@ type ReviewEntryProps = {
 
 function ReviewEntry({ entry, checked, onResume, onToggle }: ReviewEntryProps) {
   const titleId = useId();
+  const t = useGitHubWords().review;
   return (
     <li className="rounded-2xl bg-surface-muted p-4">
       <label className="flex min-h-11 cursor-pointer items-start gap-3">
@@ -64,7 +65,7 @@ function ReviewEntry({ entry, checked, onResume, onToggle }: ReviewEntryProps) {
             <span id={titleId} className="min-w-0 text-sm/5 font-medium break-words text-ink">
               {entry.name}
             </span>
-            {onResume ? <Badge>Already on your resume</Badge> : null}
+            {onResume ? <Badge>{t.already}</Badge> : null}
           </span>
           <span className="truncate text-xs/5 text-subtle">{shortLink(entry.link)}</span>
         </span>
@@ -76,7 +77,7 @@ function ReviewEntry({ entry, checked, onResume, onToggle }: ReviewEntryProps) {
           ))}
         </ul>
       ) : (
-        <p className="mt-3 pl-8 text-sm/6 text-muted">No lines yet. You can write them after adding.</p>
+        <p className="mt-3 pl-8 text-sm/6 text-muted">{t.noLines}</p>
       )}
     </li>
   );

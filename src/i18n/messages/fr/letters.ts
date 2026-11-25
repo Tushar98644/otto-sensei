@@ -92,6 +92,7 @@ export default {
     another: "Une autre offre : colle son lien",
   },
   ready: {
+    writtenFrom: "Écrite d'après « {source} »",
     savedJob: "Offre enregistrée",
     tailoredCopy: "Copie adaptée",
     postReady: "Offre prête",
@@ -166,6 +167,13 @@ export default {
     upload: "Importer un CV",
   },
   reader: {
+    from: "D'après « {source} »",
+    sampleHeading: "Un exemple : lettre de motivation pour {job}",
+    sampleNote: "D'après Jordan Ellis, un CV d'exemple. Rien d'inventé.",
+    styleCustom: "Écrit dans ton style : <b>{style}</b>.",
+    stylePlain: "Otto écrit dans un style simple et naturel.",
+    changeStyle: "Changer de style",
+    setStyle: "Définir ton style",
     saving: "Enregistrement…",
     saved: "Enregistré",
     failed: "Pas encore enregistré",

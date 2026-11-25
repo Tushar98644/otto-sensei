@@ -11,6 +11,9 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { useFormat, useMessagesOr } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import EN_SHARE from "@/i18n/messages/en/share";
 import { api, isApiError } from "@/lib/api/client";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
@@ -20,7 +23,7 @@ import { absolute, copyWhenReady, turnOffWithUndo } from "./share-actions";
 import { isBehind, viewFacts } from "./share-facts";
 import { DEFAULT_SHARE_OPTIONS, ShareOptions, type ShareOptionValues } from "./share-options";
 import { dropShare, putShare, useShares } from "./share-store";
-import { CopyLinkButton, OpenShareLink, useShareUrl } from "./copy-link";
+import { CopyLinkButton, OpenShareLink, useShareLinksWords, useShareUrl } from "./copy-link";
 
 type ShareDialogProps = {
   resume: Resume;
@@ -30,8 +33,8 @@ type ShareDialogProps = {
 
 type Busy = "save" | "options" | null;
 
-function messageOf(error: unknown): string {
-  return isApiError(error) ? error.message : "Something went wrong. Please try again.";
+function messageOf(error: unknown, fallback: string): string {
+  return isApiError(error) ? error.message : fallback;
 }
 
 function focusSoon(ref: RefObject<HTMLElement | null>) {
@@ -40,6 +43,9 @@ function focusSoon(ref: RefObject<HTMLElement | null>) {
 
 export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   const { user } = useMe();
+  const words = useShareLinksWords();
+  const t = words.dialog;
+  const share = useMessagesOr("share", EN_SHARE);
   const shares = useShares(open);
   const { status, error: loadError } = shares;
   const link = shares.links.find((item) => item.resumeId === resume.id) ?? null;
@@ -77,16 +83,10 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
       const copied = await copyWhenReady(request.then(({ link: made }) => absolute(made)));
       const { link: saved, created } = await request;
       putShare(saved);
-      setNotice(
-        created
-          ? copied
-            ? "Link made and copied. Paste it anywhere."
-            : "Link made. Copy it and send it to anyone."
-          : "Link updated to this version.",
-      );
+      setNotice(created ? (copied ? t.madeCopied : t.made) : t.updated);
       focusSoon(linkInput);
     } catch (failure) {
-      setError(messageOf(failure));
+      setError(messageOf(failure, words.actions.fallback));
     } finally {
       setBusy(null);
     }
@@ -106,7 +106,7 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
     } catch (failure) {
       if (isApiError(failure, "not_found")) dropShare(link.id);
       else putShare(link);
-      setError(messageOf(failure));
+      setError(messageOf(failure, words.actions.fallback));
     } finally {
       setBusy(null);
     }
@@ -115,7 +115,7 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   function turnOff(target: SharedLink) {
     close();
     setDraft(DEFAULT_SHARE_OPTIONS);
-    turnOffWithUndo(target);
+    turnOffWithUndo(target, words.actions);
   }
 
   function retryLoad() {
@@ -128,13 +128,13 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
     <Dialog
       open={open}
       onOpenChange={onDialogChange}
-      title="Share this resume"
-      description={`“${title}” as a web page anyone with the link can read, with a PDF download. No account needed to open it.`}
+      title={t.title}
+      description={fmt(t.description, { title })}
       footer={
         link ? (
           <>
             <Button variant="ghost" onClick={() => turnOff(link)} disabled={busy !== null}>
-              Turn off link
+              {t.turnOff}
             </Button>
             <OpenShareLink slug={link.slug} />
             <CopyLinkButton slug={link.slug} />
@@ -142,7 +142,7 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
         ) : (
           <>
             <Button variant="ghost" onClick={close}>
-              Cancel
+              {t.cancel}
             </Button>
             <Button
               ref={makeButton}
@@ -151,7 +151,7 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
               disabled={checking || status === "error"}
             >
               <Link2 aria-hidden />
-              Make link
+              {t.make}
             </Button>
           </>
         )
@@ -169,22 +169,23 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
         ) : checking ? (
           <p className="flex items-center gap-2 text-sm/6 text-muted">
             <Spinner />
-            Checking for a link you already made
+            {t.checking}
           </p>
         ) : status === "error" ? (
           <Alert
             variant="error"
-            title="Couldn't check your links"
+            title={t.checkFailed}
             action={
               <Button size="sm" variant="secondary" onClick={retryLoad}>
-                Try again
+                {t.tryAgain}
               </Button>
             }
           >
-            {loadError ?? "Check your connection, then try again."}
+            {loadError ?? t.checkConnection}
           </Alert>
         ) : null}
         <ShareOptions
+          copy={share.options}
           value={options}
           onChange={changeOptions}
           disabled={busy !== null || checking}
@@ -208,6 +209,9 @@ type LinkDetailsProps = {
 };
 
 function LinkDetails({ link, resume, busy, onUpdate, inputRef }: LinkDetailsProps) {
+  const t = useShareLinksWords().dialog;
+  const { facts } = useMessagesOr("share", EN_SHARE);
+  const format = useFormat();
   const inputId = useId();
   const factsId = useId();
   const url = useShareUrl(link.slug);
@@ -215,7 +219,7 @@ function LinkDetails({ link, resume, busy, onUpdate, inputRef }: LinkDetailsProp
   return (
     <>
       <div className="flex flex-col gap-2">
-        <Label htmlFor={inputId}>Link</Label>
+        <Label htmlFor={inputId}>{t.link}</Label>
         <Input
           ref={inputRef}
           id={inputId}
@@ -226,19 +230,19 @@ function LinkDetails({ link, resume, busy, onUpdate, inputRef }: LinkDetailsProp
           className="font-mono"
         />
         <p id={factsId} className="text-sm/5 text-subtle">
-          {now > 0 ? viewFacts(link, now) : null}
+          {now > 0 ? viewFacts(link, now, facts, format) : null}
         </p>
       </div>
       {isBehind(link, resume) ? (
         <Alert
-          title="This link shows an older version"
+          title={t.behindTitle}
           action={
             <Button size="sm" variant="secondary" loading={busy === "save"} onClick={onUpdate}>
-              Update link
+              {t.update}
             </Button>
           }
         >
-          You changed this resume after sharing it. Updating keeps the same link.
+          {t.behind}
         </Alert>
       ) : null}
     </>

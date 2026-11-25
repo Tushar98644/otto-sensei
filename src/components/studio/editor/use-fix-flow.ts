@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccountGate, useResumeAfterSignIn } from "@/components/account/account-gate";
 import { patchMe } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { toast } from "@/components/ui/toast";
 import { TEXT_LIMITS, type UsageSnapshot } from "@/config/plans";
 import { useMessages } from "@/i18n/client";
@@ -71,12 +71,15 @@ export function useFixFlow(resumeId: string) {
   const t = useMessages("studioEditor").dialog;
   const [state, setState] = useState<FixState>(CLOSED);
   const [seen, setSeen] = useState<readonly string[]>(NONE_SEEN);
+  const otto = useOtto();
   const gateRef = useRef(gate);
+  const ottoRef = useRef(otto);
   const requestRef = useRef(0);
   const busyRef = useRef(false);
 
   useEffect(() => {
     gateRef.current = gate;
+    ottoRef.current = otto;
   });
 
   const send = useCallback(
@@ -105,7 +108,7 @@ export function useFixFlow(resumeId: string) {
                 : { kind: "signin" },
           };
         }
-        return { problem: { kind: "error", message: fixErrorMessage(error) } };
+        return { problem: { kind: "error", message: fixErrorMessage(error, ottoRef.current) } };
       }
     },
     [],
@@ -139,7 +142,10 @@ export function useFixFlow(resumeId: string) {
         return null;
       }
       const signedIn = await gateRef.current
-        .requireUser(OTTO.signIn.reason("fix"), { kind: `fix:${resumeId}`, ids: { bulletId } })
+        .requireUser(ottoRef.current.signIn.reason("fix"), {
+          kind: `fix:${resumeId}`,
+          ids: { bulletId },
+        })
         .catch(() => false);
       return signedIn
         ? {
@@ -184,7 +190,7 @@ export function useFixFlow(resumeId: string) {
     const skip = new Set([...seen, fromId]);
     setSeen([...skip]);
     const signedIn = await gateRef.current
-      .requireUser(OTTO.signIn.reason("fix"))
+      .requireUser(ottoRef.current.signIn.reason("fix"))
       .catch(() => false);
     for (;;) {
       if (requestRef.current !== token) return;

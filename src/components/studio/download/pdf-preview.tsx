@@ -89,7 +89,7 @@ export function PdfFrame({ url, pageSize, updating, className }: PdfFrameProps) 
       ))}
       {updating && url ? (
         <LivePill busy className="absolute top-3 right-3">
-          Updating
+          {t.pdf.pill}
         </LivePill>
       ) : null}
     </div>

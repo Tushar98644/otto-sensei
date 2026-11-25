@@ -7,8 +7,7 @@ import {
 } from "@/components/account/login-heading";
 import { ROUTES } from "@/components/site/routes";
 import { requirePublished } from "@/i18n/publish";
-import { getMessages } from "@/i18n/server";
-import { LoginScreen, loginMetadata } from "../_components/login-screen";
+import { LoginScreen, loginMetadata, loginWords } from "../_components/login-screen";
 
 export async function generateMetadata(): Promise<Metadata> {
   return loginMetadata();
@@ -29,5 +28,5 @@ export default async function LoginVariantPage({
   await requirePublished(ROUTES.login);
   const { variant } = await params;
   if (!isLoginVariant(variant)) notFound();
-  return <LoginScreen t={await getMessages("login")} variant={variant} />;
+  return <LoginScreen {...await loginWords()} variant={variant} />;
 }

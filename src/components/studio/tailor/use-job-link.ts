@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState, type RefObject } from "react";
-import { OTTO } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { fmt } from "@/i18n/format";
 import { api, isApiError } from "@/lib/api/client";
 import { useJobFormCopy, type JobFormCopy } from "./job-form-copy";
@@ -21,8 +21,12 @@ function linkProblem(t: JobFormCopy, link: string): string | null {
   return null;
 }
 
-function readFailure(t: JobFormCopy, error: unknown): { message: string; backup: boolean } {
-  if (isApiError(error, "network_error")) return { message: OTTO.errors.offline, backup: false };
+function readFailure(
+  t: JobFormCopy,
+  error: unknown,
+  offline: string,
+): { message: string; backup: boolean } {
+  if (isApiError(error, "network_error")) return { message: offline, backup: false };
   if (isApiError(error, "bad_request")) return { message: error.message, backup: false };
   if (isApiError(error, "parse_failed") || isApiError(error, "rate_limited")) {
     return { message: error.message, backup: true };
@@ -83,6 +87,7 @@ export function useJobLink({
   const linkRef = useRef<HTMLInputElement>(null);
   const postRef = useRef<HTMLTextAreaElement>(null);
   const t = useJobFormCopy();
+  const offline = useOtto().errors.offline;
   const [reading, setReading] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   // Matched by identity, so an edit made before the read draft renders cancels the send.
@@ -164,7 +169,7 @@ export function useJobLink({
         backup?.compare !== false,
       );
     } catch (caught) {
-      const failure = readFailure(t, caught);
+      const failure = readFailure(t, caught, offline);
       if (!failure.backup) {
         setNotice({ link: raw, message: failure.message, on: "field" });
         linkRef.current?.focus();

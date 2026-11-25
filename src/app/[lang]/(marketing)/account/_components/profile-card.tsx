@@ -2,7 +2,7 @@
 
 import { LogOut } from "lucide-react";
 import { useState } from "react";
-import { signedOutNote } from "@/components/account/copy";
+import { useSignedOutNote } from "@/components/account/use-sign-in-words";
 import { errorMessage } from "@/components/account/errors";
 import { patchMe, refreshMe } from "@/components/account/use-me";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ export function signInMethod(words: Messages["account"]["profile"], mode: AuthMo
 
 export function ProfileCard({ user, authMode }: { user: SessionUser; authMode: AuthMode }) {
   const words = useMessages("account").profile;
+  const signedOutNote = useSignedOutNote();
   const [signingOut, setSigningOut] = useState(false);
 
   async function signOut() {

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { signedOutNote } from "@/components/account/copy";
+import { useSignedOutNote } from "@/components/account/use-sign-in-words";
 import { refreshMe, useMe } from "@/components/account/use-me";
 import {
   openCommandPalette,
@@ -94,6 +94,7 @@ function AccountPanel({ user, onFeedback }: { user: SessionUser; onFeedback: () 
   const searchable = useCommandPaletteAvailable();
   const plan = PLANS[user.plan];
   const t = useAccountMenuCopy();
+  const signedOutNote = useSignedOutNote();
 
   async function signOut() {
     setSigningOut(true);

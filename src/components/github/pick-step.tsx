@@ -10,6 +10,9 @@ import { isOnResume } from "@/lib/github/to-projects";
 import { GITHUB_PICK_LIMITS, type GitHubLookup } from "@/lib/github/types";
 import type { Resume } from "@/lib/resume/schema";
 import { matchesQuery, pullMeta, repoMeta } from "./format";
+import { useFormat } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { useGitHubWords } from "./use-github-words";
 
 export type PickStepProps = {
   profile: GitHubLookup;
@@ -22,8 +25,17 @@ export type PickStepProps = {
 
 const SEARCH_FROM = 8;
 
-export function PickStep({ profile, resume, repos, pulls, onToggleRepo, onTogglePull }: PickStepProps) {
+export function PickStep({
+  profile,
+  resume,
+  repos,
+  pulls,
+  onToggleRepo,
+  onTogglePull,
+}: PickStepProps) {
   const [query, setQuery] = useState("");
+  const t = useGitHubWords().pick;
+  const format = useFormat();
   const shownRepos = profile.repos.filter((repo) =>
     matchesQuery([repo.name, repo.description, repo.language, ...repo.topics], query),
   );
@@ -33,24 +45,31 @@ export function PickStep({ profile, resume, repos, pulls, onToggleRepo, onToggle
   return (
     <Tabs defaultValue={profile.repos.length === 0 && profile.pulls.length > 0 ? "pulls" : "repos"}>
       <div className="flex flex-col gap-4">
-        <TabList aria-label="What to import" className="w-full sm:w-auto">
+        <TabList aria-label={t.tabs} className="w-full sm:w-auto">
           <Tab value="repos" className="flex-1 sm:flex-none">
-            Repos <span className="tabular-nums text-subtle">{profile.repos.length}</span>
+            {t.repos} <span className="text-subtle tabular-nums">{profile.repos.length}</span>
           </Tab>
           <Tab value="pulls" className="flex-1 sm:flex-none">
-            Pull requests <span className="tabular-nums text-subtle">{profile.pulls.length}</span>
+            {t.pulls} <span className="text-subtle tabular-nums">{profile.pulls.length}</span>
           </Tab>
         </TabList>
 
         <p aria-live="polite" className="text-sm/5 text-muted">
-          {repos.length} of {GITHUB_PICK_LIMITS.repos} repos and {pulls.length} of{" "}
-          {GITHUB_PICK_LIMITS.pulls} pull requests picked
+          {fmt(t.picked, {
+            repos: repos.length,
+            reposMax: GITHUB_PICK_LIMITS.repos,
+            pulls: pulls.length,
+            pullsMax: GITHUB_PICK_LIMITS.pulls,
+          })}
         </p>
 
         <TabPanel value="repos" className="flex flex-col gap-3 focus-visible:outline-offset-4">
           {profile.repos.length > SEARCH_FROM ? (
             <div className="relative">
-              <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-subtle" />
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-subtle"
+              />
               <Input
                 type="search"
                 value={query}
@@ -62,8 +81,8 @@ export function PickStep({ profile, resume, repos, pulls, onToggleRepo, onToggle
                     setQuery("");
                   }
                 }}
-                aria-label="Search your repos"
-                placeholder="Search by name, language or topic"
+                aria-label={t.search}
+                placeholder={t.searchPlaceholder}
                 className="pl-10"
                 autoComplete="off"
                 spellCheck={false}
@@ -71,9 +90,9 @@ export function PickStep({ profile, resume, repos, pulls, onToggleRepo, onToggle
             </div>
           ) : null}
           {profile.repos.length === 0 ? (
-            <Empty>No public repos of your own on GitHub. Forks are left out, since they start as someone else&apos;s work.</Empty>
+            <Empty>{t.noRepos}</Empty>
           ) : shownRepos.length === 0 ? (
-            <Empty>No repos match “{query.trim()}”.</Empty>
+            <Empty>{fmt(t.noMatch, { query: query.trim() })}</Empty>
           ) : (
             <ul className="divide-y divide-border border-y border-border">
               {shownRepos.map((repo) => {
@@ -86,7 +105,7 @@ export function PickStep({ profile, resume, repos, pulls, onToggleRepo, onToggle
                     onChange={() => onToggleRepo(repo.fullName)}
                     title={repo.name}
                     detail={repo.description}
-                    meta={repoMeta(repo)}
+                    meta={repoMeta(repo, t, format)}
                     onResume={isOnResume(resume, { name: repo.name, link: repo.url })}
                   />
                 );
@@ -97,9 +116,9 @@ export function PickStep({ profile, resume, repos, pulls, onToggleRepo, onToggle
 
         <TabPanel value="pulls" className="flex flex-col gap-3 focus-visible:outline-offset-4">
           {profile.pullsUnavailable ? (
-            <Alert variant="warn">GitHub was too busy to list pull requests. Go back and look again in a minute.</Alert>
+            <Alert variant="warn">{t.pullsBusy}</Alert>
           ) : profile.pulls.length === 0 ? (
-            <Empty>No merged pull requests to other people&apos;s public repos.</Empty>
+            <Empty>{t.noPulls}</Empty>
           ) : (
             <ul className="divide-y divide-border border-y border-border">
               {profile.pulls.map((pull) => {
@@ -111,7 +130,7 @@ export function PickStep({ profile, resume, repos, pulls, onToggleRepo, onToggle
                     disabled={!checked && pullsFull}
                     onChange={() => onTogglePull(pull.id)}
                     title={pull.title}
-                    meta={pullMeta(pull)}
+                    meta={pullMeta(pull, t, format)}
                   />
                 );
               })}
@@ -133,7 +152,16 @@ type PickRowProps = {
   onResume?: boolean;
 };
 
-function PickRow({ checked, disabled, onChange, title, detail, meta, onResume = false }: PickRowProps) {
+function PickRow({
+  checked,
+  disabled,
+  onChange,
+  title,
+  detail,
+  meta,
+  onResume = false,
+}: PickRowProps) {
+  const t = useGitHubWords().pick;
   return (
     <li>
       <label className="flex min-h-11 cursor-pointer items-start gap-3 py-3 has-disabled:cursor-not-allowed">
@@ -147,7 +175,7 @@ function PickRow({ checked, disabled, onChange, title, detail, meta, onResume = 
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <span className="min-w-0 text-sm/5 font-medium break-words text-ink">{title}</span>
-            {onResume ? <Badge>On your resume</Badge> : null}
+            {onResume ? <Badge>{t.onResume}</Badge> : null}
           </span>
           {detail ? <span className="line-clamp-2 text-sm/5 text-muted">{detail}</span> : null}
           {meta ? <span className="text-xs/5 text-subtle">{meta}</span> : null}

@@ -1,2 +1,58 @@
-// The sign-in form, dialog and terms line: /login waits on this before it goes live in other languages.
-export default {} as const;
+// The sign-in form, dialog and terms line, and the reasons Otto gives for asking: /login waits on this before it goes live in other languages.
+export default {
+  google: "Continue with Google",
+  googleOff: "Google sign-in works once Supabase is set up.",
+  or: "or",
+  email: "Email",
+  emailPlaceholder: "you@example.com",
+  emailMe: "Email me a code",
+  badEmail: "Enter your email address, like name@example.com.",
+  badCode: "Enter the {length}-digit code from the email.",
+  sent: "We sent a {length}-digit code to {email}.",
+  sentNew: "We sent a new code to {email}.",
+  codeSent: "We sent a {length}-digit code to <b>{email}</b>.",
+  codeSentNew: "We sent a new code to <b>{email}</b>. Only the newest one works.",
+  devCode: "Dev mode: your code is <b>{code}</b>",
+  codeLabel: "{length}-digit code",
+  codeHint: "Type or paste it. You're signed in as soon as all {length} digits are in.",
+  signIn: "Sign in",
+  sending: "Sending…",
+  resendIn: "Resend code in {seconds}s",
+  resend: "Resend code",
+  otherEmail: "Use a different email",
+  done: "You're signed in.",
+  terms:
+    "New here? This creates your free account. By continuing you agree to the <link>Terms</link> and <link>Privacy Policy</link>.",
+  newTab: "(opens in a new tab)",
+  dialog: {
+    reason: "A free account lets Otto fix lines and tailor your resume.",
+    otto: "Use Google or a 6-digit email code, then we're back where you left off.",
+  },
+  upgrade: {
+    trial: "Sign in to start your trial",
+    upgrade: "Sign in to upgrade",
+    otto: "Sign in first. Then I'll take you straight to checkout.",
+    description: "Use Google or a 6-digit email code. No password.",
+  },
+  account: "Sign in to see your plan and what you've used this month.",
+  signedOut: {
+    safe: "Your resumes are safe in your account. Sign in again to see them here.",
+    kept: {
+      one: "1 resume hasn't finished backing up, so it's still in this browser.",
+      other: "{count} resumes haven't finished backing up, so they're still in this browser.",
+    },
+  },
+  gate: {
+    sessionEnded: "You were signed out. Sign in again to keep going.",
+    tryAgain: "Try that again now.",
+    backIn: "You're in. Let's pick up where you left off.",
+    reasons: {
+      fix: "Sign in to fix lines with me. On Free you get {limit} a month.",
+      tailor: "Sign in, then try {plan} for {days} days to tailor with me.",
+      letter: "Sign in, then try {plan} for {days} days for letters, messages and answers.",
+      import: "Sign in, then try {plan} for {days} days for AI reads.",
+      draft: "Sign in, then try {plan} for {days} days to build drafts with me.",
+      github: "Sign in, then try {plan} for {days} days to draft from GitHub.",
+    },
+  },
+} as const;

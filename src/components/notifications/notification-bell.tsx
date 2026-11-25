@@ -11,6 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { asksOutcome, interviewOutcomeActions } from "./outcome-actions";
 import { forgetFresh, markAllSeen, useNotifications } from "./use-notifications";
+import { useMessagesOr } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import EN_UI from "@/i18n/messages/en/ui";
 
 export type NotificationBellProps = {
   align?: "start" | "end";
@@ -35,6 +38,7 @@ export function NotificationBell({
   className,
 }: NotificationBellProps) {
   const notifications = useNotifications();
+  const t = useMessagesOr("ui", EN_UI).notifications;
   const panelId = useId();
   const titleId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -77,7 +81,7 @@ export function NotificationBell({
   }
 
   const close = () => panelRef.current?.hidePopover();
-  const label = unread > 0 ? `Notifications, ${unread} unread` : "Notifications";
+  const label = unread > 0 ? fmt(t.unread, { count: unread }) : t.title;
 
   return (
     <>
@@ -120,30 +124,25 @@ export function NotificationBell({
         className="inset-auto m-0 w-80 animate-pop overflow-y-auto overscroll-contain rounded-xl bg-surface p-1.5 text-ink shadow-float ring-1 ring-ink/6 focus-visible:outline-none"
       >
         <h2 id={titleId} className="px-2.5 pt-1.5 pb-2 font-sans text-sm/5 font-semibold text-ink">
-          Notifications
+          {t.title}
         </h2>
         {notifications.status === "loading" ? (
           <PanelSkeleton />
         ) : notifications.status === "error" ? (
           <div className="flex flex-col items-start gap-2 px-2.5 pb-2.5">
-            <p className="text-sm/6 text-muted">Couldn&apos;t load your notifications.</p>
+            <p className="text-sm/6 text-muted">{t.loadFailed}</p>
             <Button size="sm" variant="secondary" onClick={notifications.retry}>
-              Try again
+              {t.tryAgain}
             </Button>
           </div>
         ) : notifications.items.length === 0 ? (
-          <OttoNote
-            size="sm"
-            live={false}
-            className="px-2.5 pb-2.5"
-            message="Nothing yet. Mark a job applied and I'll remind you here to follow up."
-          >
+          <OttoNote size="sm" live={false} className="px-2.5 pb-2.5" message={t.empty}>
             <Link
               href={ROUTES.dashboardApplications}
               onClick={close}
               className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
-              Open applications
+              {t.openApplications}
             </Link>
           </OttoNote>
         ) : list ? (

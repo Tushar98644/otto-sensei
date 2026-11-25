@@ -23,7 +23,12 @@ export default async function PortfolioRootLayout({ children, params }: Props) {
   const locale = await localeOf(params);
   const common = await loadMessages(locale, "common");
   return (
-    <RootDocument lang={locale} skipLabel={common.skipToContent}>
+    <RootDocument
+      lang={locale}
+      skipLabel={common.skipToContent}
+      referral={common.referral}
+      toast={common.toast}
+    >
       {children}
     </RootDocument>
   );

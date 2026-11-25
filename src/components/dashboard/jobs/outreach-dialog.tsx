@@ -6,7 +6,7 @@ import { useMe } from "@/components/account/use-me";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { WritingStyleHint } from "@/components/settings/writing-style-hint";
-import { writingAllowance } from "@/components/studio/tailor/writing-allowance";
+import { useOtto } from "@/components/mascot/use-otto";
 import { useWriting } from "@/components/studio/tailor/use-writing";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -119,6 +119,7 @@ function OutreachFlow({
   const { outreach: t, card } = useMessages("jobs");
   const format = useFormat();
   const { user, me, loading } = useMe();
+  const otto = useOtto();
   const studio = useStudioActions();
   const message = kept?.draft ?? null;
   const [post, setPost] = useState<Post>(() => firstPost(job, kept));
@@ -201,7 +202,7 @@ function OutreachFlow({
   const noResume = !resume && !message && !checking;
   const allowance = loading
     ? null
-    : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
+    : otto.writing(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
   const source = kept?.resumeTitle || (resume ? resumeTitle(resume) : "");
   const role = job.title.trim() || t.thisRole;
   const company = job.company.trim();

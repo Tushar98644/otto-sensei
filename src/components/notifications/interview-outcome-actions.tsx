@@ -6,7 +6,7 @@ import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { keepApplication } from "@/components/dashboard/applications/use-applications";
-import { formatDay } from "@/components/dashboard/applications/view";
+import { formatDayIn } from "@/components/dashboard/applications/view";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { ProMark } from "@/components/ui/pro-mark";
 import { toast } from "@/components/ui/toast";
@@ -15,33 +15,38 @@ import type { Application } from "@/lib/applications/schema";
 import { thankYouWritePath } from "@/lib/notifications/links";
 import type { InterviewOutcome } from "@/lib/notifications/types";
 import { settleOutcome } from "./use-notifications";
+import { useFormat, useMessagesOr } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import EN_APP from "@/i18n/messages/en/app";
+import EN_UI from "@/i18n/messages/en/ui";
 
-const ANSWERS: { outcome: InterviewOutcome; label: string }[] = [
-  { outcome: "next_round", label: "Next round" },
-  { outcome: "waiting", label: "Waiting" },
-  { outcome: "rejected", label: "Rejected" },
-];
+const ANSWERS: readonly InterviewOutcome[] = ["next_round", "waiting", "rejected"];
 
-function answeredToast(outcome: InterviewOutcome, application: Application) {
+type NotificationWords = (typeof EN_UI)["notifications"];
+
+function answeredToast(
+  outcome: InterviewOutcome,
+  application: Application,
+  t: NotificationWords,
+  format: Format,
+) {
   const company = application.company;
   if (outcome === "next_round") {
-    return {
-      title: `On to the next round with ${company}`,
-      description: "Add its day on the card when you know it.",
-    };
+    return { title: fmt(t.nextRound, { company }), description: t.nextRoundNote };
   }
   if (outcome === "rejected") {
-    return {
-      title: "Moved to Closed",
-      description: `${company}. It still counts in your record of what works.`,
-    };
+    return { title: t.closed, description: fmt(t.closedNote, { company }) };
   }
   return {
-    title: "Waiting to hear back",
+    title: t.waiting,
     description:
       application.followUpAt === null
         ? company
-        : `I'll remind you to follow up with ${company} on ${formatDay(application.followUpAt, Date.now())}.`,
+        : fmt(t.remind, {
+            company,
+            day: formatDayIn(format, application.followUpAt, Date.now()),
+          }),
   };
 }
 
@@ -56,6 +61,9 @@ export function InterviewOutcomeActions({
   onNavigate: () => void;
 }) {
   const pro = useProTools();
+  const t = useMessagesOr("ui", EN_UI).notifications;
+  const app = useMessagesOr("app", EN_APP);
+  const format = useFormat();
   const [busy, setBusy] = useState<InterviewOutcome | null>(null);
 
   async function answer(outcome: InterviewOutcome) {
@@ -64,10 +72,14 @@ export function InterviewOutcomeActions({
       const { application } = await api.interviewOutcome(applicationId, { outcome });
       settleOutcome(applicationId);
       keepApplication(application);
-      toast({ ...answeredToast(outcome, application), variant: "success" });
+      toast({ ...answeredToast(outcome, application, t, format), variant: "success" });
     } catch (error) {
       if (isApiError(error, "not_found")) settleOutcome(applicationId);
-      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+      toast({
+        title: t.saveFailed,
+        description: errorMessage(error, app.errors),
+        variant: "error",
+      });
     } finally {
       setBusy(null);
     }
@@ -85,7 +97,7 @@ export function InterviewOutcomeActions({
             openFeaturePrompt("letter");
           }}
         >
-          Write a thank-you
+          {t.thankYou}
           <ProMark />
         </Button>
       ) : (
@@ -95,11 +107,11 @@ export function InterviewOutcomeActions({
           aria-describedby={describedBy}
           className={buttonClasses({ variant: "secondary", size: "sm" })}
         >
-          Write a thank-you
+          {t.thankYou}
         </Link>
       )}
-      <div role="group" aria-label="How it went" className="-ml-1 flex flex-wrap gap-1">
-        {ANSWERS.map(({ outcome, label }) => (
+      <div role="group" aria-label={t.howItWent} className="-ml-1 flex flex-wrap gap-1">
+        {ANSWERS.map((outcome) => (
           <Button
             key={outcome}
             variant="ghost"
@@ -109,7 +121,7 @@ export function InterviewOutcomeActions({
             disabled={busy !== null}
             onClick={() => void answer(outcome)}
           >
-            {label}
+            {t.outcomes[outcome]}
           </Button>
         ))}
       </div>

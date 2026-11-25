@@ -3,7 +3,7 @@
 import { useId } from "react";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
-import { OTTO } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { SECTION_SCROLL } from "@/components/settings/sections";
 import { ACCOUNT_SECTIONS } from "@/components/setup/links";
 import { Alert } from "@/components/ui/alert";
@@ -21,6 +21,7 @@ export function WorkProfileCard() {
   const titleId = useId();
   const locked = useProTools() === false;
   const tryPro = useTryProLabel();
+  const otto = useOtto();
   if (work.status === "unknown" || work.status === "signed_out") return null;
 
   return (
@@ -38,7 +39,7 @@ export function WorkProfileCard() {
       </CardHeader>
       {locked ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm/6 text-muted">{OTTO.limit.tool("eligibility", false)}</p>
+          <p className="text-sm/6 text-muted">{otto.limit.tool("eligibility", false)}</p>
           <Button variant="secondary" onClick={() => openUpgradePrompt("eligibility")}>
             {tryPro}
           </Button>

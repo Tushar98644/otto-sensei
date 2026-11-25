@@ -2,7 +2,8 @@
 
 import { ArrowLeft, Plus, RotateCcw, X } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
-import { OTTO } from "@/components/mascot/lines";
+import type { OttoLines } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const gate = useAccountGate();
   const t = useMessages("studio").guided;
+  const ottoErrors = useOtto().errors;
 
   const job = screen >= 0 ? jobs[screen] : undefined;
   const drafting = status.kind === "drafting";
@@ -124,7 +126,7 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
       onDrafted(named, usedAI);
     } catch (error) {
       if (gate.handleApiError(error, "draft")) setStatus({ kind: "editing" });
-      else setStatus({ kind: "failed", message: describeError(t, error) });
+      else setStatus({ kind: "failed", message: describeError(t, error, ottoErrors) });
     }
   }
 
@@ -315,7 +317,7 @@ function JobFields({ job, errors, onChange, t }: JobFieldsProps) {
   );
 }
 
-function describeError(t: GuidedCopy, error: unknown): string {
+function describeError(t: GuidedCopy, error: unknown, errors: OttoLines["errors"]): string {
   if (
     isApiError(error, "rate_limited") ||
     isApiError(error, "limit_reached") ||
@@ -325,5 +327,5 @@ function describeError(t: GuidedCopy, error: unknown): string {
   }
   if (isApiError(error, "network_error")) return t.offline;
   if (isApiError(error, "bad_request")) return t.badForm;
-  return OTTO.errors.generic;
+  return errors.generic;
 }

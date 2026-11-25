@@ -358,7 +358,7 @@ export function PackCard({ pack, now, index }: { pack: PrepSummary; now: number;
                 {jobName(pack.company, pack.role, t)}
               </h3>
             </div>
-            {pack.demo ? <Badge>Demo</Badge> : null}
+            {pack.demo ? <Badge>{t.cards.demo}</Badge> : null}
           </div>
           <p className="text-sm/5 text-muted">
             {format.plural(t.count.questions, pack.questions)}

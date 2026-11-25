@@ -6,7 +6,8 @@ import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { ResumeThumbnail } from "@/components/dashboard/resume-thumbnail";
 import { Button } from "@/components/ui/button";
 import { ProMark } from "@/components/ui/pro-mark";
-import { useMessages } from "@/i18n/client";
+import { useMessages, useMessagesOr } from "@/i18n/client";
+import EN_FORMATS from "@/i18n/messages/en/formats";
 import { fmt } from "@/i18n/format";
 import {
   isProTemplate,
@@ -40,6 +41,7 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
   const locked = (id: TemplateId) => pro === false && isProTemplate(id);
   const pageSize = usePageSize();
   const t = useMessages("studioDownload").format;
+  const templates = useMessagesOr("formats", EN_FORMATS).templates;
   const stopPreparing = useRef(() => {});
 
   function stop() {
@@ -119,7 +121,7 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
         })}
       </div>
       <p id={hintId} className="text-sm text-muted">
-        {TEMPLATE_INFO[current].bestFor} {t.clean}
+        {templates[current].bestFor} {t.clean}
       </p>
       {locked(current) ? (
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">

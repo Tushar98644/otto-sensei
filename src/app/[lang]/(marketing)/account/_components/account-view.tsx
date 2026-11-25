@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
-import { alreadyOnPlanToast, backFromUpgradeToast } from "@/components/account/copy";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { useBillingRedirect } from "@/components/account/use-billing-redirect";
 import { useMe } from "@/components/account/use-me";
@@ -11,8 +10,9 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { nextPlan, PLAN_ORDER, PLANS, type PaidPlanId, type PlanId } from "@/config/plans";
-import { useMessages } from "@/i18n/client";
+import { useMessages, useMessagesOr } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
+import EN_UPGRADE from "@/i18n/messages/en/upgrade";
 import { AccountSignIn } from "./account-sign-in";
 import { AccountSkeleton } from "./account-skeleton";
 import { AccountTabs } from "./account-tabs";
@@ -28,6 +28,7 @@ const ACTIVATION_SCREEN_MS = 10_000;
 
 export function AccountView() {
   const words = useMessages("account");
+  const upgradeToasts = useMessagesOr("upgrade", EN_UPGRADE).toast;
   const { me, user, loading, refresh } = useMe();
   const arrival = useAccountArrival(words.arrival);
   const [upgradeRequested, setUpgradeRequested] = useState(arrival.upgrade);
@@ -55,9 +56,9 @@ export function AccountView() {
   useUpgradeReturn(
     arrival.next,
     arrivedPlan
-      ? backFromUpgradeToast(PLANS[arrivedPlan].name)
+      ? fmt(upgradeToasts.backOn, { plan: PLANS[arrivedPlan].name })
       : alreadyOn
-        ? alreadyOnPlanToast(PLANS[alreadyOn].name)
+        ? fmt(upgradeToasts.alreadyOn, { plan: PLANS[alreadyOn].name })
         : null,
   );
   const wantsUpgrade =

@@ -8,18 +8,10 @@ import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { api } from "@/lib/api/client";
-import {
-  FEEDBACK_KINDS,
-  FEEDBACK_KIND_LABELS,
-  FEEDBACK_LIMITS,
-  type FeedbackKind,
-} from "@/lib/feedback/types";
-
-const PLACEHOLDERS: Record<FeedbackKind, string> = {
-  bug: "What did you do, and what happened?",
-  idea: "What would make Otto more useful?",
-  other: "What's on your mind?",
-};
+import { FEEDBACK_KINDS, FEEDBACK_LIMITS, type FeedbackKind } from "@/lib/feedback/types";
+import { useMessagesOr } from "@/i18n/client";
+import EN_APP from "@/i18n/messages/en/app";
+import EN_UI from "@/i18n/messages/en/ui";
 
 export type FeedbackDialogProps = {
   open: boolean;
@@ -27,6 +19,8 @@ export type FeedbackDialogProps = {
 };
 
 export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
+  const t = useMessagesOr("ui", EN_UI).feedback;
+  const app = useMessagesOr("app", EN_APP);
   const formId = useId();
   const kindName = useId();
   const [kind, setKind] = useState<FeedbackKind>("bug");
@@ -43,7 +37,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     event.preventDefault();
     const text = message.trim();
     if (text.length < FEEDBACK_LIMITS.minChars) {
-      setError("Write a few more words.");
+      setError(t.tooShort);
       return;
     }
     setSending(true);
@@ -53,9 +47,9 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
       await api.feedback({ kind, message: text, pagePath: window.location.pathname });
       setMessage("");
       onOpenChange(false);
-      toast({ title: "Thanks. Your note was sent.", variant: "success" });
+      toast({ title: t.sent, variant: "success" });
     } catch (failure) {
-      setError(errorMessage(failure));
+      setError(errorMessage(failure, app.errors));
     } finally {
       setSending(false);
     }
@@ -66,22 +60,22 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
       open={open}
       onOpenChange={onOpenChange}
       size="sm"
-      title="Send feedback"
-      description="Tell us what broke or what would help. We also see which page you sent it from."
+      title={t.title}
+      description={t.description}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t.cancel}
           </Button>
           <Button type="submit" form={formId} loading={sending}>
-            Send
+            {t.send}
           </Button>
         </>
       }
     >
       <form id={formId} onSubmit={submit} noValidate className="flex flex-col gap-5">
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-medium text-ink">What is it about?</legend>
+          <legend className="mb-2 text-sm font-medium text-ink">{t.about}</legend>
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface-muted p-1">
             {FEEDBACK_KINDS.map((value) => (
               <label key={value} className="relative min-w-0">
@@ -94,17 +88,17 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                   className="peer sr-only"
                 />
                 <span className="flex h-11 cursor-pointer items-center justify-center rounded-lg px-2 text-center text-sm font-medium text-muted transition-colors peer-checked:bg-surface peer-checked:text-ink peer-checked:shadow-control peer-checked:ring-1 peer-checked:ring-ink/5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink hover:text-ink">
-                  {FEEDBACK_KIND_LABELS[value]}
+                  {t.kinds[value]}
                 </span>
               </label>
             ))}
           </div>
         </fieldset>
-        <Field label="Your note" error={error}>
+        <Field label={t.note} error={error}>
           <Textarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            placeholder={PLACEHOLDERS[kind]}
+            placeholder={t.placeholders[kind]}
             maxLength={FEEDBACK_LIMITS.maxChars}
             rows={5}
             data-autofocus

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
-import { OTTO } from "@/components/mascot/lines";
+import type { OttoLines } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { useFormat, useMessages } from "@/i18n/client";
 import type { Format } from "@/i18n/intl";
 import type { Messages } from "@/i18n/messages";
@@ -42,8 +43,14 @@ const FIT_SCREEN: Record<PdfPageSize, string> = {
 
 type Otto = Messages["studioDownload"]["otto"];
 
-function ottoLine(t: Otto, format: Format, pdf: ResumePdf, check: ExportCheck): string {
-  if (pdf.failed) return OTTO.errors.generic;
+function ottoLine(
+  t: Otto,
+  format: Format,
+  pdf: ResumePdf,
+  check: ExportCheck,
+  errors: OttoLines["errors"],
+): string {
+  if (pdf.failed) return errors.generic;
   if (check.checking) return t.checking;
   if (check.report) {
     const after = check.report.counts.fail;
@@ -69,7 +76,7 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
   const changedCharacters = useMemo(() => buildPdfModel(resume).changedCharacters, [resume]);
   const t = useMessages("studioDownload");
   const format = useFormat();
-  const otto = ottoLine(t.otto, format, pdf, check);
+  const otto = ottoLine(t.otto, format, pdf, check, useOtto().errors);
   const [freshId] = useState(() => (isFreshCopy(resume.id) ? resume.id : null));
   useEffect(() => forgetFreshCopy(), []);
 

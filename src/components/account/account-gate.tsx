@@ -9,11 +9,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { OTTO } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { toast } from "@/components/ui/toast";
 import type { Feature } from "@/config/plans";
 import { api, isApiError, isBudgetReached } from "@/lib/api/client";
-import { SESSION_ENDED_REASON } from "./copy";
 import { LazySignInDialog, LazyUpgradeDialog } from "./lazy-dialogs";
 import {
   clearPendingAction,
@@ -22,6 +21,7 @@ import {
   type PendingAction,
 } from "./pending-action";
 import { refreshMe, useMe } from "./use-me";
+import { useSignInWords } from "./use-sign-in-words";
 
 export type AccountGate = {
   // Google reloads the page, so `action` is kept for useResumeAfterSignIn to run once the user is back.
@@ -44,6 +44,8 @@ async function signedInNow(): Promise<boolean> {
 
 export function useAccountGate(): AccountGate {
   const { user, loading } = useMe();
+  const words = useSignInWords();
+  const otto = useOtto();
   const [signIn, setSignIn] = useState<SignInPrompt>({ open: false });
   const [upgrade, setUpgrade] = useState<UpgradePrompt>({ open: false });
   const waiting = useRef<Array<(signedIn: boolean) => void>>([]);
@@ -77,7 +79,10 @@ export function useAccountGate(): AccountGate {
   const handleApiError = useCallback(
     (error: unknown, feature: Feature) => {
       if (isApiError(error, "unauthorized")) {
-        setSignIn({ open: true, reason: user ? SESSION_ENDED_REASON : OTTO.signIn.reason(feature) });
+        setSignIn({
+          open: true,
+          reason: user ? words.gate.sessionEnded : otto.signIn.reason(feature),
+        });
         void refreshMe();
         return true;
       }
@@ -88,7 +93,7 @@ export function useAccountGate(): AccountGate {
       }
       return false;
     },
-    [user],
+    [user, words, otto],
   );
 
   // Back from Google's page (bfcache) the dialog is still open; closing it or using the code ends that try.
@@ -115,9 +120,9 @@ export function useAccountGate(): AccountGate {
     forgetSaved();
     settle(true);
     if (!someoneWaiting) {
-      toast({ title: "You're signed in.", description: "Try that again now.", variant: "success" });
+      toast({ title: words.done, description: words.gate.tryAgain, variant: "success" });
     }
-  }, [settle, forgetSaved]);
+  }, [settle, forgetSaved, words]);
 
   const handleUpgradeOpenChange = useCallback(
     (open: boolean) => setUpgrade((prompt) => ({ ...prompt, open })),
@@ -164,12 +169,13 @@ export function useResumeAfterSignIn(
   replay: (ids: Record<string, string>) => void,
 ): void {
   const signedIn = useMe().user !== null;
+  const backIn = useOtto().signIn.done;
   const run = useEffectEvent(replay);
   useEffect(() => {
     if (!signedIn) return;
     const ids = takePendingAction(kind);
     if (!ids) return;
-    toast({ title: OTTO.signIn.done, variant: "success" });
+    toast({ title: backIn, variant: "success" });
     run(ids);
-  }, [kind, signedIn]);
+  }, [kind, signedIn, backIn]);
 }

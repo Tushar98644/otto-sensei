@@ -4,12 +4,15 @@ import { useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
 import { offersGitHubImport, usernameFromResume } from "./format";
 import { GitHubImportButton } from "./github-import-button";
+import { fmt } from "@/i18n/format";
+import { useGitHubWords } from "./use-github-words";
 
 export function GitHubOffer({ resumeId, className }: { resumeId: string; className?: string }) {
   const username = useStudioStore((state) => {
     const resume = Object.hasOwn(state.resumes, resumeId) ? state.resumes[resumeId] : undefined;
     return resume && offersGitHubImport(resume) ? usernameFromResume(resume) : "";
   });
+  const t = useGitHubWords().offer;
   if (!username) return null;
 
   return (
@@ -20,14 +23,12 @@ export function GitHubOffer({ resumeId, className }: { resumeId: string; classNa
       )}
     >
       <div className="min-w-0">
-        <p className="text-sm/6 font-medium text-ink">Your resume links to github.com/{username}</p>
-        <p className="text-sm/6 text-muted">
-          Pick your best public repos and Otto drafts the project lines. You check them first.
-        </p>
+        <p className="text-sm/6 font-medium text-ink">{fmt(t.links, { username })}</p>
+        <p className="text-sm/6 text-muted">{t.text}</p>
       </div>
       <GitHubImportButton
         resumeId={resumeId}
-        label="Add projects from my GitHub"
+        label={t.button}
         className="self-start sm:self-auto"
       />
     </div>

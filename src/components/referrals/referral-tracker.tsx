@@ -3,6 +3,8 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { refreshMe, useMe } from "@/components/account/use-me";
 import { toast } from "@/components/ui/toast";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { api } from "@/lib/api/client";
 import {
   REF_COOKIE,
@@ -47,34 +49,30 @@ function captureInvite(): boolean {
   return true;
 }
 
-const EXTRAS = `${REFERRAL_BONUS.fix} more line fixes, plus ${REFERRAL_BONUS.tailor} tailored versions on Pro or Max`;
+// The root layout's words, in the page's language: no messages provider reaches this high.
+export type ReferralWords = Messages["common"]["referral"];
 
-function announce(outcome: ReferralClaimOutcome) {
+const EXTRAS = { fix: REFERRAL_BONUS.fix, tailor: REFERRAL_BONUS.tailor };
+
+function announce(outcome: ReferralClaimOutcome, t: ReferralWords) {
   if (outcome === "rewarded") {
-    toast({
-      title: "You and your friend got extras",
-      description: `You each get ${EXTRAS}.`,
-      variant: "success",
-    });
+    toast({ title: t.rewardedTitle, description: fmt(t.rewarded, EXTRAS), variant: "success" });
   } else if (outcome === "pending") {
-    toast({
-      title: "You joined through an invite",
-      description: `Check a resume, and you both get ${EXTRAS}.`,
-    });
+    toast({ title: t.pendingTitle, description: fmt(t.pending, EXTRAS) });
   }
 }
 
-export function ReferralTracker() {
+export function ReferralTracker({ words }: { words: ReferralWords }) {
   const raw = useSyncExternalStore(subscribe, readCookie, () => null);
   useEffect(() => {
     if (captureInvite()) cookieChanged();
   }, []);
   const cookie = parseRefCookie(raw);
   if (!cookie || cookie.stage === "joined") return null;
-  return <ClaimWhenSignedIn />;
+  return <ClaimWhenSignedIn words={words} />;
 }
 
-function ClaimWhenSignedIn() {
+function ClaimWhenSignedIn({ words }: { words: ReferralWords }) {
   const { user } = useMe();
   const sent = useRef(false);
   useEffect(() => {
@@ -83,11 +81,11 @@ function ClaimWhenSignedIn() {
     api
       .claimReferral()
       .then(({ outcome }) => {
-        announce(outcome);
+        announce(outcome, words);
         if (outcome === "rewarded") void refreshMe();
       })
       .catch(() => undefined)
       .finally(cookieChanged);
-  }, [user]);
+  }, [user, words]);
   return null;
 }

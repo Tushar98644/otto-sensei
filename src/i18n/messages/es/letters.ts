@@ -89,6 +89,7 @@ export default {
     another: "Otro empleo: pega su enlace",
   },
   ready: {
+    writtenFrom: "Escrita a partir de “{source}”",
     savedJob: "Oferta guardada",
     tailoredCopy: "Copia adaptada",
     postReady: "Oferta lista",
@@ -163,6 +164,13 @@ export default {
     upload: "Subir un currículum",
   },
   reader: {
+    from: "De “{source}”",
+    sampleHeading: "Un ejemplo: carta de presentación para {job}",
+    sampleNote: "De Jordan Ellis, un currículum de ejemplo. Nada inventado.",
+    styleCustom: "Escrito con tu estilo: <b>{style}</b>.",
+    stylePlain: "Otto escribe con un estilo sencillo y natural.",
+    changeStyle: "Cambiar estilo",
+    setStyle: "Definir tu estilo",
     saving: "Guardando…",
     saved: "Guardado",
     failed: "Aún no se guardó",

@@ -43,17 +43,18 @@ describe("the publishing gate", () => {
     expect(await isPublished("en", "/login/trial")).toBe(true);
   });
 
-  it("keeps the guides and sign-in English-only until their namespaces are translated", async () => {
+  it("keeps the guides English-only until their namespaces are translated", async () => {
     for (const locale of ["es", "pt-BR", "fr", "de"] as const) {
       for (const path of ["/compare/rezi", "/compare", "/ats/workday", "/resume-examples"]) {
         expect(await isPublished(locale, path), `${locale} ${path}`).toBe(false);
       }
       expect(await isPublished(locale, "/resume-templates")).toBe(false);
-      expect(await isPublished(locale, "/login")).toBe(false);
       expect(await isPublished(locale, "/pricing")).toBe(true);
     }
     expect(await publishedLocales("/compare/rezi")).toEqual(["en"]);
     expect(await publishedLocales("/pricing")).toEqual(ALL);
+    expect(await publishedLocales("/login")).toEqual(ALL);
+    expect(await publishedLocales("/login/trial")).toEqual(ALL);
     expect(await publishedLocales("/studio")).toEqual([]);
   });
 
@@ -71,7 +72,7 @@ describe("the publishing gate", () => {
     expect(href("/")).toBe("/es");
     expect(href("/#how")).toBe("/es#how");
     expect(href("/compare")).toBe("/compare");
-    expect(href("/login")).toBe("/login");
+    expect(href("/login")).toBe("/es/login");
     expect(href("/studio")).toBe("/studio");
     expect(href("/dashboard/jobs")).toBe("/dashboard/jobs");
     expect(href("https://example.com/x")).toBe("https://example.com/x");

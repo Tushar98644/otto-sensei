@@ -1,16 +1,15 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { SUPPORT_MAILTO } from "@/components/account/copy";
-import { OTTO } from "@/components/mascot/lines";
+import { useOtto } from "@/components/mascot/use-otto";
 import { ROUTES } from "@/components/site/routes";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
 import { PLANS, type PlanId } from "@/config/plans";
-import { useMessages } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import { rich } from "@/i18n/rich";
-import { trialEndDay } from "@/lib/usage-copy";
 import { planArrived, type UpgradeWatch } from "./use-upgrade-watch";
 
 export function UpgradeStatus({
@@ -27,6 +26,8 @@ export function UpgradeStatus({
   next?: string | null;
 }) {
   const words = useMessages("account").status;
+  const otto = useOtto();
+  const format = useFormat();
   if (planArrived(plan, target)) {
     const onward = (
       <Link href={next ?? ROUTES.dashboard} className={buttonClasses()}>
@@ -37,8 +38,8 @@ export function UpgradeStatus({
     return (
       <Alert variant="success" action={onward}>
         {plan !== "free" && trialEndsAt
-          ? OTTO.upgrade.trialStarted(trialEndDay(trialEndsAt))
-          : OTTO.upgrade.done(PLANS[plan].name)}
+          ? otto.upgrade.trialStarted(format.date(trialEndsAt, { month: "short", day: "numeric" }))
+          : otto.upgrade.done(PLANS[plan].name)}
       </Alert>
     );
   }

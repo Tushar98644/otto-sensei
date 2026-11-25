@@ -1,35 +1,33 @@
 import { BRAND } from "@/config/brand";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
+import EN_LOGIN from "@/i18n/messages/en/login";
+import EN_SIGN_IN from "@/i18n/messages/en/sign-in";
+import EN_UPGRADE from "@/i18n/messages/en/upgrade";
 
+// Otto's account lines in English; the app reads them from the signIn and upgrade namespaces.
 export const ACCOUNT_OTTO = {
-  signInDialog: "Use Google or a 6-digit email code, then we're back where you left off.",
-  login: "Use Google, or I'll email you a 6-digit code. No password to remember.",
-  signedOut: "Sign in to see your plan and what you've used this month.",
-  upgradePitch: "Tailoring, letters and line fixes each month, for a busy job hunt.",
-  upgradeSignIn: "Sign in first. Then I'll take you straight to checkout.",
-  billingOff: "Payments aren't switched on yet, but you can still email us about a plan.",
-  alreadyMax: "You're on Max, the biggest plan. Email us if you need more.",
+  signInDialog: EN_SIGN_IN.dialog.otto,
+  login: EN_LOGIN.otto,
+  signedOut: EN_SIGN_IN.account,
+  upgradePitch: EN_UPGRADE.otto.pitch,
+  upgradeSignIn: EN_SIGN_IN.upgrade.otto,
+  billingOff: EN_UPGRADE.otto.billingOff,
+  alreadyMax: EN_UPGRADE.otto.alreadyMax,
 } as const;
 
-export const UPGRADE_SIGN_IN_TITLE = {
-  trial: "Sign in to start your trial",
-  upgrade: "Sign in to upgrade",
-} as const;
+export const SESSION_ENDED_REASON = EN_SIGN_IN.gate.sessionEnded;
 
-export function backFromUpgradeToast(plan: string): string {
-  return `You're on ${plan}. Let's pick up where you left off.`;
-}
-
-export function alreadyOnPlanToast(plan: string): string {
-  return `You're already on ${plan}.`;
-}
-
-export const SESSION_ENDED_REASON = "You were signed out. Sign in again to keep going.";
-
-export function signedOutNote(kept: number): string {
-  if (kept === 0) return "Your resumes are safe in your account. Sign in again to see them here.";
-  return kept === 1
-    ? "1 resume hasn't finished backing up, so it's still in this browser."
-    : `${kept} resumes haven't finished backing up, so they're still in this browser.`;
+// The toast after signing out, in the reader's language.
+export function signedOutNote(
+  kept: number,
+  words: Messages["signIn"]["signedOut"] = EN_SIGN_IN.signedOut,
+  format?: Format,
+): string {
+  if (kept === 0) return words.safe;
+  if (!format) return fmt(kept === 1 ? words.kept.one : words.kept.other, { count: kept });
+  return format.plural(words.kept, kept);
 }
 
 export const SUPPORT_MAILTO = `mailto:${BRAND.supportEmail}?subject=${encodeURIComponent(

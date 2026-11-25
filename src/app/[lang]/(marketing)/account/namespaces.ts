@@ -1,4 +1,11 @@
+import { APP_CHROME_NAMESPACES } from "@/i18n/app-namespaces";
 import type { Namespace } from "@/i18n/messages";
 
 // The Account page's client components read these, on /account and in the dashboard.
-export const ACCOUNT_NAMESPACES = ["account"] as const satisfies readonly Namespace[];
+export const ACCOUNT_NAMESPACES = ["account", "calendar"] as const satisfies readonly Namespace[];
+
+// /account stands alone, so it also sends what the dashboard's layout would: Otto's lines and the app's dialogs.
+export const ACCOUNT_PAGE_NAMESPACES = [
+  ...ACCOUNT_NAMESPACES,
+  ...APP_CHROME_NAMESPACES,
+] as const satisfies readonly Namespace[];
