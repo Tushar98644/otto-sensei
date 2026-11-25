@@ -15,4 +15,6 @@ export const STUDIO_NAMESPACES = [
   "lint",
   "share",
   "shareLinks",
+  "formats",
+  "github",
 ] as const satisfies readonly Namespace[];

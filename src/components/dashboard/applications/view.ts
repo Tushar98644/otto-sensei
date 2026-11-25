@@ -1,3 +1,4 @@
+import type { Format } from "@/i18n/intl";
 import type { Application } from "@/lib/applications/schema";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/applications/status";
 
@@ -72,6 +73,15 @@ const otherYear = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   year: "numeric",
 });
+
+// formatDay in the reader's language.
+export function formatDayIn(format: Format, timestamp: number, now: number): string {
+  const year = new Date(timestamp).getFullYear() === new Date(now).getFullYear();
+  return format.date(
+    timestamp,
+    year ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" },
+  );
+}
 
 export function formatDay(timestamp: number, now: number): string {
   const format =

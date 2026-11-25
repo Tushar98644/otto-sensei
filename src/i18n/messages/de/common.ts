@@ -17,4 +17,5 @@ export default {
     pending:
       "Prüf einen Lebenslauf, dann bekommt ihr beide {fix} Zeilenkorrekturen mehr, dazu {tailor} angepasste Versionen mit Pro oder Max.",
   },
+  toast: { region: "Benachrichtigungen", dismiss: "Schließen" },
 } satisfies Translation<Messages["common"]>;

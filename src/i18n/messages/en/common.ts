@@ -15,4 +15,6 @@ export default {
     pending:
       "Check a resume, and you both get {fix} more line fixes, plus {tailor} tailored versions on Pro or Max.",
   },
+  // The toast region and its close button (src/components/ui/toast.tsx), drawn by the root layout.
+  toast: { region: "Notifications", dismiss: "Dismiss" },
 } as const;

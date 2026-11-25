@@ -4,4 +4,5 @@ import type { Namespace } from "@/i18n/messages";
 export const PORTFOLIO_NAMESPACES = [
   "portfolio",
   "portfolioContent",
+  "github",
 ] as const satisfies readonly Namespace[];

@@ -17,4 +17,5 @@ export default {
     pending:
       "Vérifie un CV, et vous recevez tous les deux {fix} corrections de ligne en plus, et {tailor} versions adaptées sur Pro ou Max.",
   },
+  toast: { region: "Notifications", dismiss: "Fermer" },
 } satisfies Translation<Messages["common"]>;

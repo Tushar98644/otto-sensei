@@ -26,7 +26,10 @@ describe("the Account page's messages payload", () => {
     expect(await payloadBytes(locale, ACCOUNT_PAGE_NAMESPACES)).toBeLessThan(PAGE_BUDGET_BYTES);
   });
 
-  it("sends only the account namespace", async () => {
-    expect(Object.keys(await pickMessages("en", ACCOUNT_NAMESPACES))).toEqual(["account"]);
+  it("sends only the account and calendar namespaces", async () => {
+    expect(Object.keys(await pickMessages("en", ACCOUNT_NAMESPACES))).toEqual([
+      "account",
+      "calendar",
+    ]);
   });
 });

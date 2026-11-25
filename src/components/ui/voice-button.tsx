@@ -3,7 +3,9 @@
 import { Mic } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
-import { isListening, VOICE_LABELS, type VoicePhase } from "@/lib/voice/dictation";
+import { useMessagesOr } from "@/i18n/client";
+import EN_UI from "@/i18n/messages/en/ui";
+import { isListening, type VoicePhase } from "@/lib/voice/dictation";
 import { appendDictation } from "@/lib/voice/join";
 import { elapsedText } from "@/lib/voice/recorder";
 import { Button } from "./button";
@@ -32,6 +34,7 @@ export function VoiceButton({
   className,
   ...props
 }: VoiceButtonProps) {
+  const words = useMessagesOr("ui", EN_UI).voice;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const latest = useRef(value);
   const dictation = useDictation(take);
@@ -57,10 +60,7 @@ export function VoiceButton({
     }
     if (full) {
       dictation.stop();
-      toast({
-        title: "This box is full",
-        description: "Some of what you said didn't fit. Cut a few words to add more.",
-      });
+      toast({ title: words.fullTitle, description: words.full });
     }
   }
 
@@ -74,7 +74,7 @@ export function VoiceButton({
       size={size}
       aria-pressed={listening}
       aria-disabled={sending || undefined}
-      aria-label={labelFor(phase)}
+      aria-label={labelFor(phase, words)}
       data-listening={listening || undefined}
       data-sending={sending || undefined}
       onClick={dictation.toggle}
@@ -99,7 +99,7 @@ export function VoiceButton({
           aria-hidden
           className={cn(PILL, "border border-border bg-surface text-muted shadow-sm")}
         >
-          {VOICE_LABELS.sending}
+          {words.sending}
         </span>
       ) : null}
       {sending ? <Spinner /> : <Mic />}
@@ -107,11 +107,11 @@ export function VoiceButton({
   );
 }
 
-function labelFor(phase: VoicePhase): string {
-  if (phase === "idle") return VOICE_LABELS.start;
-  if (phase === "listening") return VOICE_LABELS.listening;
-  if (phase === "sending") return VOICE_LABELS.sending;
-  return VOICE_LABELS.recording;
+function labelFor(phase: VoicePhase, words: (typeof EN_UI)["voice"]): string {
+  if (phase === "idle") return words.start;
+  if (phase === "listening") return words.listening;
+  if (phase === "sending") return words.sending;
+  return words.recording;
 }
 
 function Elapsed({ since }: { since: number }) {

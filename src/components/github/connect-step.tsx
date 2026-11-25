@@ -7,6 +7,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { isApiError } from "@/lib/api/client";
 import type { GitHubConnection } from "@/lib/github/connect";
 import type { GitHubConnectionFlow } from "./use-github-connection";
+import { rich } from "@/i18n/rich";
+import { useGitHubWords } from "./use-github-words";
 
 // Only a connected account can be imported from, so nobody can add someone else's public work.
 
@@ -19,14 +21,19 @@ export function ConnectedAs({
   busy: boolean;
   onDisconnect: () => void;
 }) {
+  const t = useGitHubWords().connect;
   return (
     <p className="text-sm/6 text-muted">
-      Connected as <span className="font-medium text-ink">{connection.login}</span>
+      {rich(
+        t.connectedAs,
+        { b: (chunk) => <span className="font-medium text-ink">{chunk}</span> },
+        { login: connection.login },
+      )}
       {connection.canDisconnect ? (
         <>
-          {" · Not you? "}
+          {t.notYou}
           <Button variant="link" onClick={onDisconnect} loading={busy}>
-            Disconnect
+            {t.disconnect}
           </Button>
         </>
       ) : null}
@@ -60,6 +67,7 @@ export function GitHubStartDialog({
   onSignIn,
 }: GitHubStartDialogProps) {
   const { state } = github;
+  const t = useGitHubWords().connect;
   const problem = error ?? github.error;
   const alert = problem ? (
     <Alert variant="error" className="mt-4">
@@ -68,7 +76,7 @@ export function GitHubStartDialog({
   ) : null;
   const cancel = (
     <Button variant="ghost" onClick={onClose}>
-      Cancel
+      {t.cancel}
     </Button>
   );
 
@@ -79,17 +87,13 @@ export function GitHubStartDialog({
         open={open}
         onOpenChange={onOpenChange}
         size="sm"
-        title="Import from GitHub"
-        description={
-          signedOut
-            ? "Sign in first, then connect your GitHub account."
-            : "Couldn't check your GitHub account just now."
-        }
+        title={t.title}
+        description={signedOut ? t.signInFirst : t.checkFailed}
         footer={
           <>
             {cancel}
             <Button onClick={signedOut ? onSignIn : github.reload}>
-              {signedOut ? "Sign in" : "Try again"}
+              {signedOut ? t.signIn : t.tryAgain}
             </Button>
           </>
         }
@@ -103,20 +107,18 @@ export function GitHubStartDialog({
         open={open}
         onOpenChange={onOpenChange}
         size="sm"
-        title="Connect your GitHub"
-        description="Otto only adds work from a GitHub account you own. Sign in to GitHub once to connect it."
+        title={t.connectTitle}
+        description={t.connectDescription}
         footer={
           <>
             {cancel}
             <Button onClick={() => void github.connect(target)} loading={github.busy === "connect"}>
-              Connect GitHub
+              {t.connect}
             </Button>
           </>
         }
       >
-        <p className="text-sm/6 text-muted">
-          Otto reads your public repos and merged pull requests. It never posts anything to GitHub.
-        </p>
+        <p className="text-sm/6 text-muted">{t.reads}</p>
         {alert}
       </Dialog>
     );
@@ -127,13 +129,13 @@ export function GitHubStartDialog({
       open={open}
       onOpenChange={onOpenChange}
       size="sm"
-      title="Import from GitHub"
-      description="Pick public repos and merged pull requests, and Otto drafts project lines from them."
+      title={t.title}
+      description={t.description}
       footer={
         <>
           {cancel}
           <Button onClick={onFind} loading={lookingUp || state.status === "loading"}>
-            Find my work
+            {t.find}
           </Button>
         </>
       }

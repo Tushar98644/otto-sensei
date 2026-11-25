@@ -4,9 +4,12 @@ import accountMenu from "./account-menu";
 import api from "./api";
 import app from "./app";
 import applications from "./applications";
+import calendar from "./calendar";
 import common from "./common";
 import dashboard from "./dashboard";
 import email from "./email";
+import formats from "./formats";
+import github from "./github";
 import home from "./home";
 import interview from "./interview";
 import jobForm from "./job-form";
@@ -33,6 +36,7 @@ import studioDownload from "./studio-download";
 import studioEditor from "./studio-editor";
 import studioSections from "./studio-sections";
 import studioTailor from "./studio-tailor";
+import ui from "./ui";
 import upgrade from "./upgrade";
 
 // Spanish (neutral Latin American, tú): list each namespace here as its file lands.
@@ -42,9 +46,12 @@ const es: Translations = {
   api,
   app,
   applications,
+  calendar,
   common,
   dashboard,
   email,
+  formats,
+  github,
   home,
   interview,
   jobForm,
@@ -71,6 +78,7 @@ const es: Translations = {
   studioEditor,
   studioSections,
   studioTailor,
+  ui,
   upgrade,
 };
 

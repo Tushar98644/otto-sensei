@@ -21,7 +21,8 @@ import { Dropzone } from "@/components/ui/dropzone";
 import { Lazy, whenIdle } from "@/components/ui/lazy";
 import { checkFile, formatBytes } from "@/components/ui/file-check";
 import { RESUME_LIMITS, UPLOAD_LIMITS } from "@/config/plans";
-import { useMessages } from "@/i18n/client";
+import { useMessages, useMessagesOr } from "@/i18n/client";
+import EN_UI from "@/i18n/messages/en/ui";
 import { fmt } from "@/i18n/format";
 import type { Messages } from "@/i18n/messages";
 import { track } from "@/lib/analytics/client";
@@ -51,6 +52,7 @@ type Otto = Messages["studio"]["otto"];
 export function UploadStep() {
   const studio = useMessages("studio");
   const ottoLines = useOtto();
+  const { fileCheck } = useMessagesOr("ui", EN_UI);
   const t = studio.upload;
   const { format, addResume } = useChosenFormat();
   const setActive = useStudioStore((s) => s.setActive);
@@ -59,7 +61,11 @@ export function UploadStep() {
   const [handed] = useState(handedUpload);
   const [state, setState] = useState<UploadState>(() => {
     if (!handed) return { status: "idle" };
-    const problem = checkFile(handed, { accept: ACCEPT, maxBytes: UPLOAD_LIMITS.maxBytes });
+    const problem = checkFile(
+      handed,
+      { accept: ACCEPT, maxBytes: UPLOAD_LIMITS.maxBytes },
+      fileCheck,
+    );
     return problem
       ? { status: "failed", message: uploadFailed(studio.otto, problem), file: null }
       : { status: "reading", file: handed };

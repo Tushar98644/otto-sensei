@@ -63,11 +63,13 @@ export function RootDocument({
   lang,
   skipLabel,
   referral,
+  toast,
   children,
 }: {
   lang: string;
   skipLabel: string;
   referral: Messages["common"]["referral"];
+  toast?: Messages["common"]["toast"];
   children: ReactNode;
 }) {
   return (
@@ -81,7 +83,7 @@ export function RootDocument({
           {skipLabel}
         </a>
         <LoadingScreenHost>{children}</LoadingScreenHost>
-        <Toaster />
+        <Toaster words={toast} />
         <Analytics />
         <ReferralTracker words={referral} />
       </body>

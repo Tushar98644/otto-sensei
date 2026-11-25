@@ -4,6 +4,9 @@ import { useEffect, useId, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { resumeLabel } from "@/components/studio/resume-label";
 import { Select } from "@/components/ui/select";
+import { useMessagesOr } from "@/i18n/client";
+import EN_FORMATS from "@/i18n/messages/en/formats";
+import { rich } from "@/i18n/rich";
 import { isProTemplate, TEMPLATE_INFO, TEMPLATE_LIST, templateOf } from "@/lib/pdf/templates";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { FormatCard } from "./format-card";
@@ -31,7 +34,8 @@ export function FormatsGallery() {
   const [previewId, setPreviewId] = useState<TemplateId | null>(null);
   const free = useProTools() === false;
   const current = target ? templateOf(target) : null;
-  const actionFor = (id: TemplateId) => (id === current ? "Download" : "Use this format");
+  const t = useMessagesOr("formats", EN_FORMATS).gallery;
+  const actionFor = (id: TemplateId) => (id === current ? t.download : t.use);
   usePreloadPreviewsWhenIdle();
 
   return (
@@ -41,14 +45,14 @@ export function FormatsGallery() {
           <ResumePicker resumes={resumes} target={target} onPick={pick} />
         ) : target ? (
           <p className="py-2.5 text-sm/6 text-muted">
-            Picking a format applies it to{" "}
-            <span className="font-medium text-ink">{resumeLabel(target)}</span> and opens the
-            download step.
+            {rich(
+              t.appliesTo,
+              { b: (chunk) => <span className="font-medium text-ink">{chunk}</span> },
+              { name: resumeLabel(target) },
+            )}
           </p>
         ) : (
-          <p className="py-2.5 text-sm/6 text-muted">
-            No resume yet. Pick a format, then add your resume or try it with a sample.
-          </p>
+          <p className="py-2.5 text-sm/6 text-muted">{t.noResume}</p>
         )}
       </div>
       <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -71,7 +75,7 @@ export function FormatsGallery() {
         info={previewId ? TEMPLATE_INFO[previewId] : null}
         pro={previewId ? free && isProTemplate(previewId) : false}
         onClose={() => setPreviewId(null)}
-        actionLabel={previewId ? actionFor(previewId) : "Use this format"}
+        actionLabel={previewId ? actionFor(previewId) : t.use}
         ready={ready && opening === null}
         opening={opening !== null && opening === previewId}
         onUse={(info) => apply(info.id)}
@@ -88,10 +92,11 @@ type ResumePickerProps = {
 
 function ResumePicker({ resumes, target, onPick }: ResumePickerProps) {
   const id = useId();
+  const t = useMessagesOr("formats", EN_FORMATS).gallery;
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
       <label htmlFor={id} className="text-sm/6 font-medium text-ink">
-        Apply to
+        {t.applyTo}
       </label>
       <Select
         id={id}
@@ -107,7 +112,7 @@ function ResumePicker({ resumes, target, onPick }: ResumePickerProps) {
         ))}
       </Select>
       <p id={`${id}-hint`} className="text-sm/6 text-muted">
-        Picking a format applies it to this resume and opens the download step.
+        {t.appliesHint}
       </p>
     </div>
   );

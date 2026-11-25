@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { Button } from "@/components/ui/button";
 import { PLANS } from "@/config/plans";
+import { useMessagesOr } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import EN_FORMATS from "@/i18n/messages/en/formats";
 import type { RecruiterReport } from "@/lib/checks/types";
 import { isProTemplate, TEMPLATE_INFO } from "@/lib/pdf/templates";
 import { DEFAULT_TEMPLATE, type Resume, type TemplateId } from "@/lib/resume/schema";
@@ -29,26 +32,26 @@ export function useChosenFormat(): ChosenFormat {
   return { format, addResume };
 }
 
+type ChosenWords = (typeof EN_FORMATS)["chosen"];
+
 export function chosenFormatLines(
   format: TemplateId,
   pro: boolean | null,
+  t: ChosenWords = EN_FORMATS.chosen,
 ): { title: string; detail: string } {
   const { name } = TEMPLATE_INFO[format];
   if (!isProTemplate(format) || pro === true) {
-    return {
-      title: `Your resume will come out in ${name}.`,
-      detail: "You can change it on the download step.",
-    };
+    return { title: fmt(t.comesOut, { name }), detail: t.change };
   }
-  if (pro === null) {
-    return {
-      title: `Your resume will be set to ${name}.`,
-      detail: "You can change it on the download step.",
-    };
-  }
+  if (pro === null) return { title: fmt(t.setTo, { name }), detail: t.change };
   return {
-    title: `Your resume will be set to ${name}.`,
-    detail: `${name} is a ${PLANS.pro.name} format, so on ${PLANS.free.name} your download comes out in ${TEMPLATE_INFO[DEFAULT_TEMPLATE].name}.`,
+    title: fmt(t.setTo, { name }),
+    detail: fmt(t.proOnly, {
+      name,
+      pro: PLANS.pro.name,
+      free: PLANS.free.name,
+      fallback: TEMPLATE_INFO[DEFAULT_TEMPLATE].name,
+    }),
   };
 }
 
@@ -59,14 +62,20 @@ export type ChosenFormatNoteProps = {
 };
 
 export function ChosenFormatNote({ format, onSample, disabled = false }: ChosenFormatNoteProps) {
-  const { title, detail } = chosenFormatLines(format, useProTools());
+  const words = useMessagesOr("formats", EN_FORMATS);
+  const { title, detail } = chosenFormatLines(format, useProTools(), words.chosen);
   return (
     <div className="flex items-center gap-4 rounded-2xl bg-surface p-3 sm:px-4">
       <div
         aria-hidden
         className="h-14 w-12 shrink-0 overflow-hidden rounded-lg bg-surface-muted px-1.5 pt-1.5"
       >
-        <FormatImage info={TEMPLATE_INFO[format]} sizes="3rem" className="shadow-page" />
+        <FormatImage
+          info={TEMPLATE_INFO[format]}
+          sizes="3rem"
+          alt={fmt(words.gallery.alt, { name: TEMPLATE_INFO[format].name })}
+          className="shadow-page"
+        />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -80,7 +89,7 @@ export function ChosenFormatNote({ format, onSample, disabled = false }: ChosenF
           disabled={disabled}
           className="self-start sm:self-auto"
         >
-          Try it with a sample
+          {words.chosen.sample}
         </Button>
       </div>
     </div>

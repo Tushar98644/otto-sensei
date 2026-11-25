@@ -1,8 +1,10 @@
 import type { GitHubContact, GitHubPull, GitHubRepo } from "@/lib/github/types";
 import { parseGitHubUsername } from "@/lib/github/username";
 import type { Resume } from "@/lib/resume/schema";
-
-const MONTH = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+import { fmt } from "@/i18n/format";
+import { formatFor, type Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
+import EN_GITHUB from "@/i18n/messages/en/github";
 
 export function usernameFromResume(resume: Resume): string {
   for (const link of resume.basics.links) {
@@ -24,23 +26,39 @@ export function contactOf(resume: Resume): GitHubContact {
     name: basics.name.trim().slice(0, 200),
     email: basics.email.trim().slice(0, 320),
     phone: basics.phone.trim().slice(0, 50),
-    links: basics.links.map((link) => link.url.trim().slice(0, 500)).filter(Boolean).slice(0, 20),
+    links: basics.links
+      .map((link) => link.url.trim().slice(0, 500))
+      .filter(Boolean)
+      .slice(0, 20),
   };
 }
 
-export function repoMeta(repo: GitHubRepo): string {
+type PickWords = Messages["github"]["pick"];
+
+export function repoMeta(
+  repo: GitHubRepo,
+  t: PickWords = EN_GITHUB.pick,
+  format: Format = formatFor("en"),
+): string {
   return [
     repo.language,
-    repo.stars > 0 ? `${repo.stars.toLocaleString("en-US")} ${repo.stars === 1 ? "star" : "stars"}` : "",
-    repo.archived ? "Archived" : "",
+    repo.stars > 0 ? format.plural(t.stars, repo.stars) : "",
+    repo.archived ? t.archived : "",
   ]
     .filter(Boolean)
     .join(" · ");
 }
 
-export function pullMeta(pull: GitHubPull): string {
+export function pullMeta(
+  pull: GitHubPull,
+  t: PickWords = EN_GITHUB.pick,
+  format: Format = formatFor("en"),
+): string {
   const time = Date.parse(pull.mergedAt);
-  const merged = Number.isNaN(time) ? "" : `Merged ${MONTH.format(time)}`;
+  const month = Number.isNaN(time)
+    ? ""
+    : format.date(time, { month: "short", year: "numeric", timeZone: "UTC" });
+  const merged = month ? fmt(t.merged, { month }) : "";
   return [`${pull.repo} #${pull.number}`, merged].filter(Boolean).join(" · ");
 }
 
@@ -60,8 +78,8 @@ export function shortLink(url: string): string {
 }
 
 export const GITHUB_OTTO = {
-  pick: "Pick your best work. I'll write lines only from what GitHub shows.",
-  nothing: (username: string) => `I found no public repos or merged pull requests for ${username}.`,
-  reviewAI: "I used only facts and numbers from GitHub. Untick anything you don't want.",
-  reviewPlain: "These lines use GitHub's own words. Make them yours after adding.",
+  pick: EN_GITHUB.pick.otto,
+  nothing: (username: string) => fmt(EN_GITHUB.pick.nothing, { username }),
+  reviewAI: EN_GITHUB.review.usedAI,
+  reviewPlain: EN_GITHUB.review.plain,
 } as const;

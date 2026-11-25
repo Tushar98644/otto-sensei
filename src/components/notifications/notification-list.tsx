@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils";
 import { FollowUpActions } from "./follow-up-actions";
 import { asksOutcome, interviewOutcomeActions } from "./outcome-actions";
 import { timeAgo } from "./time-ago";
+import { useFormat, useMessagesOr } from "@/i18n/client";
+import EN_APP from "@/i18n/messages/en/app";
+import EN_UI from "@/i18n/messages/en/ui";
 
 export type NotificationListProps = {
   items: readonly Notification[];
@@ -46,6 +49,9 @@ function NotificationRow({
   onNavigate: () => void;
 }) {
   const titleId = useId();
+  const t = useMessagesOr("ui", EN_UI).notifications;
+  const app = useMessagesOr("app", EN_APP);
+  const format = useFormat();
   const content = (
     <>
       <span
@@ -57,7 +63,7 @@ function NotificationRow({
       />
       <span className="min-w-0 flex-1">
         <span id={titleId} className="block text-sm/5 font-medium text-pretty text-ink">
-          {isNew ? <span className="sr-only">New: </span> : null}
+          {isNew ? <span className="sr-only">{t.new}</span> : null}
           {item.title}
         </span>
         {item.body ? (
@@ -67,7 +73,7 @@ function NotificationRow({
           dateTime={new Date(item.createdAt).toISOString()}
           className="mt-1 block text-xs/4 text-subtle"
         >
-          {now > 0 ? timeAgo(item.createdAt, now) : null}
+          {now > 0 ? timeAgo(item.createdAt, now, { format, justNow: app.justNow }) : null}
         </time>
       </span>
     </>

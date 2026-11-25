@@ -11,10 +11,12 @@ export const DASHBOARD_NAMESPACES = [
   "letters",
   "share",
   "shareLinks",
+  "onboarding",
 ] as const satisfies readonly Namespace[];
 
 // Read by one page's parts only, so the page sends them in its own MessagesFor and every other page stays lighter.
 export const PAGE_NAMESPACES = {
-  interview: ["prep"],
+  interview: ["prep", "calendar"],
   applications: ["email"],
+  formats: ["formats"],
 } as const satisfies Record<string, readonly Namespace[]>;

@@ -8,6 +8,7 @@ import type { GitHubDraftEntry, GitHubDraftResult } from "@/lib/github/types";
 import type { Resume } from "@/lib/resume/schema";
 import { pluralize } from "@/lib/utils";
 import { shortLink } from "./format";
+import { useGitHubWords } from "./use-github-words";
 
 export type ReviewStepProps = {
   draft: GitHubDraftResult;
@@ -49,6 +50,7 @@ type ReviewEntryProps = {
 
 function ReviewEntry({ entry, checked, onResume, onToggle }: ReviewEntryProps) {
   const titleId = useId();
+  const t = useGitHubWords().review;
   return (
     <li className="rounded-2xl bg-surface-muted p-4">
       <label className="flex min-h-11 cursor-pointer items-start gap-3">
@@ -64,7 +66,7 @@ function ReviewEntry({ entry, checked, onResume, onToggle }: ReviewEntryProps) {
             <span id={titleId} className="min-w-0 text-sm/5 font-medium break-words text-ink">
               {entry.name}
             </span>
-            {onResume ? <Badge>Already on your resume</Badge> : null}
+            {onResume ? <Badge>{t.already}</Badge> : null}
           </span>
           <span className="truncate text-xs/5 text-subtle">{shortLink(entry.link)}</span>
         </span>
@@ -76,7 +78,7 @@ function ReviewEntry({ entry, checked, onResume, onToggle }: ReviewEntryProps) {
           ))}
         </ul>
       ) : (
-        <p className="mt-3 pl-8 text-sm/6 text-muted">No lines yet. You can write them after adding.</p>
+        <p className="mt-3 pl-8 text-sm/6 text-muted">{t.noLines}</p>
       )}
     </li>
   );

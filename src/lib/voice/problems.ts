@@ -1,36 +1,33 @@
+import type { Messages } from "@/i18n/messages";
+import EN_UI from "@/i18n/messages/en/ui";
+
 export type VoiceProblemCode =
   "mic-blocked" | "no-mic" | "no-speech" | "offline" | "sign-in" | "too-many" | "failed";
 export type VoiceProblem = { code: VoiceProblemCode; message?: string };
 
 export type VoiceProblemCopy = { title: string; description: string };
 
-export function voiceProblemCopy({ code, message }: VoiceProblem): VoiceProblemCopy {
+export type VoiceProblemWords = Messages["ui"]["voice"]["problems"];
+
+// A server message (sign-in, too many) is already in the reader's language, so it wins.
+export function voiceProblemCopy(
+  { code, message }: VoiceProblem,
+  words: VoiceProblemWords = EN_UI.voice.problems,
+): VoiceProblemCopy {
   switch (code) {
     case "mic-blocked":
-      return {
-        title: "Otto can't hear you",
-        description: "Allow the microphone in your browser to talk to Otto.",
-      };
+      return words.micBlocked;
     case "no-mic":
-      return {
-        title: "Otto can't reach your microphone",
-        description: "Check it's plugged in and not used by another app, then try again.",
-      };
+      return words.noMic;
     case "no-speech":
-      return {
-        title: "Otto didn't catch anything",
-        description: "Try again a little closer to the mic.",
-      };
+      return words.noSpeech;
     case "offline":
-      return {
-        title: "Voice typing needs the internet",
-        description: "Check your connection and try again, or type instead.",
-      };
+      return words.offline;
     case "sign-in":
-      return { title: "Sign in first", description: message ?? "Sign in to talk to Otto." };
+      return { title: words.signIn.title, description: message ?? words.signIn.description };
     case "too-many":
-      return { title: "Take a short break", description: message ?? "Try again in a few minutes." };
+      return { title: words.tooMany.title, description: message ?? words.tooMany.description };
     case "failed":
-      return { title: "Couldn't turn that into text", description: "Try again, or type instead." };
+      return words.failed;
   }
 }

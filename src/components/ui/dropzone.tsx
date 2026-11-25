@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useMessagesOr } from "@/i18n/client";
+import EN_UI from "@/i18n/messages/en/ui";
 import { checkFile } from "./file-check";
 
 export type DropzoneProps = {
@@ -25,6 +27,7 @@ export function Dropzone({
   children,
   className,
 }: DropzoneProps) {
+  const words = useMessagesOr("ui", EN_UI);
   const zoneRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // dragenter/dragleave also fire for every child element, so count them instead of toggling.
@@ -57,12 +60,12 @@ export function Dropzone({
   function take(files: FileList | null) {
     if (disabled || !files || files.length === 0) return;
     if (files.length > 1) {
-      onReject("Drop one file at a time.");
+      onReject(words.dropOne);
       return;
     }
     const file = files[0];
     if (!file) return;
-    const problem = checkFile(file, { accept, maxBytes });
+    const problem = checkFile(file, { accept, maxBytes }, words.fileCheck);
     if (problem) onReject(problem);
     else onFile(file);
   }

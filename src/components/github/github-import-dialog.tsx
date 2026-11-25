@@ -13,13 +13,14 @@ import { addGitHubProjects, isOnResume, MAX_PROJECTS } from "@/lib/github/to-pro
 import { GITHUB_PICK_LIMITS, type GitHubDraftResult } from "@/lib/github/types";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
 import { GitHubStartDialog } from "./connect-step";
-import { GITHUB_OTTO } from "./format";
 import { PickStep } from "./pick-step";
 import { ReviewStep } from "./review-step";
 import { useGitHubConnection } from "./use-github-connection";
 import { useGitHubImport, type GitHubImport } from "./use-github-import";
+import { useFormat } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { useGitHubWords } from "./use-github-words";
 
 export type GitHubImportDialogProps = {
   resume: Resume;
@@ -27,8 +28,6 @@ export type GitHubImportDialogProps = {
   onOpenChange: (open: boolean) => void;
   onAdded?: (resume: Resume) => void;
 };
-
-const EDIT_LABEL = "Added projects from GitHub";
 
 function alreadyOnFor(resume: Resume) {
   return (draft: GitHubDraftResult) =>
@@ -50,6 +49,8 @@ export function GitHubImportDialog({
   onAdded,
 }: GitHubImportDialogProps) {
   const gate = useAccountGate();
+  const words = useGitHubWords();
+  const format = useFormat();
   const github = useGitHubConnection(open);
   const flow = useGitHubImport(resume, github.login, alreadyOnFor(resume), (error) => {
     if (isApiError(error, "github_not_connected")) github.reload();
@@ -80,7 +81,7 @@ export function GitHubImportDialog({
   }
 
   async function signIn() {
-    if (await gate.requireUser("Sign in to connect your GitHub account.")) github.reload();
+    if (await gate.requireUser(words.connect.signInReason)) github.reload();
   }
 
   function add() {
@@ -88,27 +89,35 @@ export function GitHubImportDialog({
     if (chosen.length === 0) return;
     const { added, skipped } = addGitHubProjects(resume, chosen);
     if (added > 0) {
-      updateResume(resume.id, (current) => addGitHubProjects(current, chosen).resume, { label: EDIT_LABEL });
+      updateResume(resume.id, (current) => addGitHubProjects(current, chosen).resume, {
+        label: words.added.undo,
+      });
       const latest = useStudioStore.getState().resumes[resume.id];
       if (latest) onAdded?.(latest);
     }
     toast(
       added > 0
         ? {
-            title: `Added ${pluralize(added, "project")} from GitHub`,
+            title: format.plural(words.added.title, added),
             description:
               skipped > 0
-                ? `A resume holds ${MAX_PROJECTS} projects, so ${skipped} didn't fit.`
-                : "They're under Projects. Edit any line to make it yours.",
+                ? fmt(words.added.skipped, { max: MAX_PROJECTS, skipped })
+                : words.added.where,
             variant: "success",
           }
-        : { title: `This resume already has ${MAX_PROJECTS} projects`, description: "Remove one to make room.", variant: "error" },
+        : {
+            title: fmt(words.added.full, { max: MAX_PROJECTS }),
+            description: words.added.makeRoom,
+            variant: "error",
+          },
     );
     close();
   }
 
   const count = projectCount(flow);
-  const chosen = (state.draft?.entries ?? []).filter((entry) => !state.left.includes(entry.key)).length;
+  const chosen = (state.draft?.entries ?? []).filter(
+    (entry) => !state.left.includes(entry.key),
+  ).length;
   const error = state.error ? (
     <Alert variant="error" className="mt-4">
       {state.error}
@@ -126,26 +135,34 @@ export function GitHubImportDialog({
           open={open}
           onOpenChange={(next) => (next ? onOpenChange(true) : close())}
           size="lg"
-          title="Pick what to add"
-          description={`Public work by ${profile.username}. Up to ${GITHUB_PICK_LIMITS.repos} repos and ${GITHUB_PICK_LIMITS.pulls} pull requests.`}
+          title={words.pick.title}
+          description={fmt(words.pick.description, {
+            username: profile.username,
+            repos: GITHUB_PICK_LIMITS.repos,
+            pulls: GITHUB_PICK_LIMITS.pulls,
+          })}
           illustration={
             <OttoNote
               size="sm"
-              meta={`${pluralize(profile.repos.length, "repo")} · ${pluralize(profile.pulls.length, "pull request")}`}
+              meta={`${format.plural(words.pick.repoCount, profile.repos.length)} · ${format.plural(words.pick.pullCount, profile.pulls.length)}`}
               message={
                 found === 0 && !profile.pullsUnavailable
-                  ? GITHUB_OTTO.nothing(profile.username)
-                  : GITHUB_OTTO.pick
+                  ? fmt(words.pick.nothing, { username: profile.username })
+                  : words.pick.otto
               }
             />
           }
           footer={
             <>
               <Button variant="ghost" onClick={flow.back}>
-                Back
+                {words.pick.back}
               </Button>
-              <Button onClick={() => void flow.draft()} disabled={count === 0} loading={state.busy === "draft"}>
-                {count > 0 ? `Draft ${pluralize(count, "project")}` : "Draft projects"}
+              <Button
+                onClick={() => void flow.draft()}
+                disabled={count === 0}
+                loading={state.busy === "draft"}
+              >
+                {count > 0 ? format.plural(words.pick.draft, count) : words.pick.draftNone}
               </Button>
             </>
           }
@@ -175,24 +192,22 @@ export function GitHubImportDialog({
           open={open}
           onOpenChange={(next) => (next ? onOpenChange(true) : close())}
           size="lg"
-          title="Keep the projects you want"
-          description="Otto picked your best public work. Untick anything you don't want; nothing is added until you say so."
+          title={words.review.title}
+          description={words.review.description}
           illustration={
             <OttoNote
               size="sm"
-              meta={`${pluralize(draft.entries.length, "project")} · ${pluralize(lines, "line")}`}
-              message={
-                draft.usedAI ? GITHUB_OTTO.reviewAI : GITHUB_OTTO.reviewPlain
-              }
+              meta={`${format.plural(words.review.projects, draft.entries.length)} · ${format.plural(words.review.lines, lines)}`}
+              message={draft.usedAI ? words.review.usedAI : words.review.plain}
             />
           }
           footer={
             <>
               <Button variant="ghost" onClick={flow.back}>
-                Pick other repos
+                {words.review.pickOther}
               </Button>
               <Button onClick={add} disabled={chosen === 0}>
-                {chosen > 0 ? `Add ${pluralize(chosen, "project")}` : "Add projects"}
+                {chosen > 0 ? format.plural(words.review.add, chosen) : words.review.addNone}
               </Button>
             </>
           }

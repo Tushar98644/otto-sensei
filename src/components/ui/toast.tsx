@@ -107,21 +107,26 @@ function runAction(id: string) {
   handler?.onClose?.("action");
 }
 
-export function Toaster() {
+// The root layout's words, in the page's language: no messages provider reaches this high.
+export type ToasterWords = { region: string; dismiss: string };
+
+const ENGLISH_WORDS: ToasterWords = { region: "Notifications", dismiss: "Dismiss" };
+
+export function Toaster({ words = ENGLISH_WORDS }: { words?: ToasterWords }) {
   const items = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const modalHost = useSyncExternalStore(subscribeModalHosts, getTopModalHost, () => null);
 
   // The live region is always in the page, so screen readers notice toasts added to it.
   const region = (
     <section
-      aria-label="Notifications"
+      aria-label={words.region}
       aria-live="polite"
       aria-relevant="additions text"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center p-4 sm:justify-end sm:p-6"
     >
       <ol className="flex w-full max-w-sm flex-col gap-2">
         {items.map((item) => (
-          <ToastCard key={item.id} item={item} />
+          <ToastCard key={item.id} item={item} dismiss={words.dismiss} />
         ))}
       </ol>
     </section>
@@ -130,7 +135,7 @@ export function Toaster() {
   return modalHost ? createPortal(region, modalHost) : region;
 }
 
-function ToastCard({ item }: { item: ToastItem }) {
+function ToastCard({ item, dismiss }: { item: ToastItem; dismiss: string }) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const remainingMs = useRef(item.durationMs);
@@ -167,7 +172,9 @@ function ToastCard({ item }: { item: ToastItem }) {
           {item.variant === "success" ? (
             <CircleCheck className="mt-0.5 size-4 shrink-0 text-pass" />
           ) : null}
-          {item.variant === "error" ? <CircleX className="mt-0.5 size-4 shrink-0 text-fail" /> : null}
+          {item.variant === "error" ? (
+            <CircleX className="mt-0.5 size-4 shrink-0 text-fail" />
+          ) : null}
           {item.title}
         </p>
         {item.description ? <p className="mt-1 text-muted">{item.description}</p> : null}
@@ -176,14 +183,18 @@ function ToastCard({ item }: { item: ToastItem }) {
         <button
           type="button"
           onClick={() => runAction(item.id)}
-          className={buttonClasses({ variant: "secondary", size: "sm", className: "-my-1 shrink-0" })}
+          className={buttonClasses({
+            variant: "secondary",
+            size: "sm",
+            className: "-my-1 shrink-0",
+          })}
         >
           {item.actionLabel}
         </button>
       ) : null}
       <button
         type="button"
-        aria-label="Dismiss"
+        aria-label={dismiss}
         onClick={() => dismissToast(item.id)}
         className={buttonClasses({
           variant: "ghost",

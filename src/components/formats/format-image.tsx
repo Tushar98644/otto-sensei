@@ -28,6 +28,8 @@ export type FormatImageProps = {
   sizes: string;
   decoding?: "async" | "sync";
   loading?: "lazy" | "eager";
+  // The page's words for "Page 1 of a sample resume in the … format"; English where none are given.
+  alt?: string;
   className?: string;
 };
 
@@ -36,8 +38,10 @@ export function FormatImage({
   sizes,
   decoding = "async",
   loading,
+  alt,
   className,
 }: FormatImageProps) {
+  const label = alt ?? `Page 1 of a sample resume in the ${info.name} format`;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP; the preload must match this srcset
     <img
@@ -48,7 +52,7 @@ export function FormatImage({
       height={HEIGHT}
       decoding={decoding}
       loading={loading}
-      alt={`Page 1 of a sample resume in the ${info.name} format`}
+      alt={label}
       className={cn("h-auto w-full bg-surface", className)}
     />
   );

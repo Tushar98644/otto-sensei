@@ -6,4 +6,5 @@ export const APP_CHROME_NAMESPACES = [
   "signIn",
   "otto",
   "upgrade",
+  "ui",
 ] as const satisfies readonly Namespace[];

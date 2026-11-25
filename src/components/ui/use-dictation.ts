@@ -17,7 +17,9 @@ import {
   type DictationSession,
   type VoicePhase,
 } from "@/lib/voice/dictation";
-import { voiceProblemCopy, type VoiceProblem } from "@/lib/voice/problems";
+import { useMessagesOr } from "@/i18n/client";
+import EN_UI from "@/i18n/messages/en/ui";
+import { voiceProblemCopy, type VoiceProblem, type VoiceProblemWords } from "@/lib/voice/problems";
 import type { VoiceClip } from "@/lib/voice/recorder";
 import { toast } from "./toast";
 
@@ -39,8 +41,8 @@ export function useVoiceSupported(): boolean {
   return useSyncExternalStore(subscribe, browserSupports, serverSupports);
 }
 
-export function reportVoiceProblem(problem: VoiceProblem): void {
-  toast({ ...voiceProblemCopy(problem), variant: "error" });
+export function reportVoiceProblem(problem: VoiceProblem, words?: VoiceProblemWords): void {
+  toast({ ...voiceProblemCopy(problem, words), variant: "error" });
 }
 
 async function transcribe(clip: VoiceClip, signal: AbortSignal): Promise<string> {
@@ -49,6 +51,7 @@ async function transcribe(clip: VoiceClip, signal: AbortSignal): Promise<string>
 
 export function useDictation(onText: (text: string) => void): Dictation {
   const supported = useVoiceSupported();
+  const problems = useMessagesOr("ui", EN_UI).voice.problems;
   const { me } = useMe();
   const [phase, setPhase] = useState<VoicePhase>("idle");
   const [startedAt, setStartedAt] = useState<number | null>(null);
@@ -99,7 +102,7 @@ export function useDictation(onText: (text: string) => void): Dictation {
         onText: (text) => {
           if (mine()) onTextRef.current(text);
         },
-        onProblem: reportVoiceProblem,
+        onProblem: (problem: VoiceProblem) => reportVoiceProblem(problem, problems),
         onEnd: () => {
           if (!mine()) return;
           session.current = null;

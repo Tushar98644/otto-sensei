@@ -5,6 +5,8 @@ import { useId, useLayoutEffect, useRef, type ReactNode, type SyntheticEvent } f
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { registerModalHost } from "./modal-stack";
+import { useMessagesOr } from "@/i18n/client";
+import EN_UI from "@/i18n/messages/en/ui";
 
 export type DialogSize = "sm" | "md" | "lg";
 
@@ -37,6 +39,7 @@ export function Dialog({
   size = "md",
   className,
 }: DialogProps) {
+  const closeLabel = useMessagesOr("ui", EN_UI).close;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -137,7 +140,7 @@ export function Dialog({
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Close"
+            aria-label={closeLabel}
             onClick={() => onOpenChange(false)}
             className="absolute top-3 right-3 text-muted hover:text-ink sm:top-4 sm:right-4"
           >

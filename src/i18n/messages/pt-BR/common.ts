@@ -17,4 +17,5 @@ export default {
     pending:
       "Verifique um currículo e vocês dois ganham {fix} ajustes de linha a mais, além de {tailor} versões personalizadas no Pro ou no Max.",
   },
+  toast: { region: "Notificações", dismiss: "Dispensar" },
 } satisfies Translation<Messages["common"]>;
