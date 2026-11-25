@@ -36,6 +36,7 @@ import { useStudioStore } from "@/lib/store/resume-store";
 import { signOutAndRelease } from "@/lib/sync/use-cloud-sync";
 import { cn } from "@/lib/utils";
 import { openCommandPalette, useCommandPaletteShortcut } from "./command-palette-store";
+import { FocusMusicToggle } from "./focus-music/focus-music-toggle";
 import { useHoverIntent, useSettled } from "./hover-intent";
 import type { DashboardMessages } from "./i18n";
 import { NewResumeMenu } from "./new-resume-menu";
@@ -48,6 +49,9 @@ import { SidebarPlan } from "./sidebar-plan";
 import type { StudioActions } from "./use-studio-actions";
 
 type Upgrade = { label: string; open: () => void };
+
+// The 215px row can't fit the wordmark and two 44px keys, so they stay 36px on touch screens too.
+const CHROME_KEY = "pointer-coarse:size-9";
 
 export function Sidebar({
   user,
@@ -78,7 +82,7 @@ export function Sidebar({
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto border-r border-border px-3 pt-4 pb-3 lg:flex">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between">
         <Link
           href={ROUTES.dashboard}
           aria-label={fmt(t.shell.brandHome, { brand: BRAND.name })}
@@ -89,7 +93,10 @@ export function Sidebar({
             {BRAND.name}
           </span>
         </Link>
-        <NotificationBell />
+        <div className="flex items-center">
+          <FocusMusicToggle className={CHROME_KEY} />
+          <NotificationBell className={CHROME_KEY} />
+        </div>
       </div>
 
       <NewResumeMenu actions={actions} className="mt-5 w-full" />

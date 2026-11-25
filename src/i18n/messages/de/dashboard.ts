@@ -54,6 +54,11 @@ export default {
     signedOut: "Du bist abgemeldet.",
     loadingResumes: "Deine Lebensläufe werden geladen",
   },
+  focusMusic: {
+    label: "Fokusmusik",
+    turnOn: "Ruhige Musik abspielen",
+    turnOff: "Musik stoppen",
+  },
   plan: {
     fixPayment: "Zahlung korrigieren",
     daysLeft: { one: "Noch {count} Tag", other: "Noch {count} Tage" },

@@ -52,6 +52,11 @@ export default {
     signedOut: "You're signed out.",
     loadingResumes: "Loading your resumes",
   },
+  focusMusic: {
+    label: "Focus music",
+    turnOn: "Play calm focus music",
+    turnOff: "Stop focus music",
+  },
   plan: {
     fixPayment: "Fix payment",
     daysLeft: { one: "{count} day left", other: "{count} days left" },
