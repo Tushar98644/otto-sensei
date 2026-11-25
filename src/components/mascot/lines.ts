@@ -14,17 +14,10 @@ import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 import { OTTO_ERRORS } from "./error-lines";
 
-type CheckCounts = { fail: number; warn: number; pass: number };
-type BeforeAfter = { before: number; after: number };
 type Line = string | ((...args: never[]) => string);
 
 function whole(n: number) {
   return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
-}
-
-function asSentence(text: string) {
-  const trimmed = text.trim();
-  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
 const count = new Intl.NumberFormat("en-US");
@@ -67,69 +60,6 @@ const SHORT_LABELS: Record<Feature, string> = {
   github: "GitHub drafts",
 };
 
-const REVIEW_ALL_GOOD = "Every check passed. Hiring software can read all of it.";
-
-function reviewOverall(counts: CheckCounts, toFix: number) {
-  const fail = whole(counts.fail);
-  const words = whole(toFix);
-  if (fail > 0 || words === 0) return reviewSummary(counts);
-  const start =
-    whole(counts.warn) > 0
-      ? "Software can read it, with small snags."
-      : "Hiring software can read it all.";
-  return `${start} A recruiter would notice ${pluralize(words, "thing")} in your words first.`;
-}
-
-function reviewSummary(counts: CheckCounts) {
-  const fail = whole(counts.fail);
-  const warn = whole(counts.warn);
-  const pass = whole(counts.pass);
-  if (fail > 0) {
-    const toFix = `${pluralize(fail, "check")} ${fail === 1 ? "needs" : "need"} fixing`;
-    const toImprove = warn > 0 ? ` and ${warn} could be better` : "";
-    const good = pass > 0 ? ` ${pass} already ${pass === 1 ? "looks" : "look"} good.` : "";
-    return `${toFix}${toImprove}.${good}`;
-  }
-  if (warn > 0) return `Nothing's broken. ${pluralize(warn, "small thing")} could be better.`;
-  return REVIEW_ALL_GOOD;
-}
-
-type ProvenCount = { proven: number; total: number };
-
-function tailorScreener(must: ProvenCount, nice: ProvenCount) {
-  const mustTotal = whole(must.total);
-  const niceTotal = whole(nice.total);
-  if (mustTotal === 0) {
-    if (niceTotal === 0) {
-      return "I couldn't find clear requirements in this post. A fuller post works better.";
-    }
-    const shown = Math.min(whole(nice.proven), niceTotal);
-    return `This post names no must-haves. Your resume shows ${shown} of ${niceTotal} nice-to-haves.`;
-  }
-  const proven = Math.min(whole(must.proven), mustTotal);
-  if (proven === mustTotal) {
-    return mustTotal === 1
-      ? "Your resume proves the one must-have. Screeners check exactly that."
-      : `Your resume proves all ${mustTotal} must-haves. Screeners check them one by one.`;
-  }
-  if (proven === 0) {
-    return `I can't find proof of the ${mustTotal} must-haves yet. Let's go through them.`;
-  }
-  const left = mustTotal - proven;
-  const rest = left === 1 ? "the one left" : `the other ${left}`;
-  return `Your resume proves ${proven} of ${mustTotal} must-haves. Let's look at ${rest}.`;
-}
-
-function downloadChecked({ before, after }: BeforeAfter) {
-  const b = whole(before);
-  const a = whole(after);
-  if (b === 0 && a === 0) return "No problems before, none now. Clean all the way through.";
-  const was = `Before: ${pluralize(b, "problem")}.`;
-  if (a === 0) return `${was} After: none. Hiring software can read every line.`;
-  if (a < b) return `${was} After: ${a}. Better, with a little left to fix.`;
-  return `${was} After: ${a}. Let's look at what's left.`;
-}
-
 function jobsFound(matching: number, shown: number, strong: number, newToday: number) {
   const n = whole(matching);
   if (n === 0 || whole(shown) === 0)
@@ -155,55 +85,6 @@ export const OTTO = {
     first: "Upload your resume and I'll show you what hiring software reads.",
     sampleOnly: "That's the sample. Now drop in yours.",
     returning: "Pick up where you left off, or tailor a resume to a new job.",
-  },
-  upload: {
-    idle: "I'll show you what hiring software reads from your file, and what to fix first.",
-    reading: "Glasses on. Reading your resume now.",
-    failed: (reason: string) =>
-      reason.trim()
-        ? `Hmm, I couldn't read that. ${asSentence(reason)}`
-        : "Hmm, I couldn't read that. Want to try another file?",
-    scratch: "No resume yet? No problem. We'll build one together, a section at a time.",
-  },
-  review: {
-    intro: "This is exactly what hiring software reads from your file. Let's check it.",
-    summary: reviewSummary,
-    overall: reviewOverall,
-    allGood: REVIEW_ALL_GOOD,
-    scanned: "This PDF is only a picture, so hiring software sees a blank page. Let's fix that.",
-  },
-  fix: {
-    intro: "Let's make every line count. Pick one and I'll help you sharpen it.",
-    lineGood: "This line already works: a clear action and a real result.",
-    asking: "Quick question first. I only use facts you give me, never made-up numbers.",
-    manyIssues: (count: number) => {
-      const n = whole(count);
-      if (n === 0) return "Every line reads well. Nothing to fix here.";
-      return n === 1
-        ? "1 line could be stronger. Let's fix it together."
-        : `${n} lines could be stronger. I can take them all at once, or one at a time.`;
-    },
-    working: "Working on a stronger version. One moment.",
-    suggestion: "Here's a stronger version. Keep it, edit it, or skip it.",
-    signedInAgain: "You're signed in again. Try that once more and I'll take a look.",
-    allWorking: "Rewriting your weak lines now. Check each one as it comes in.",
-    allReview: "Here are your new lines. Accept the ones that are true.",
-    allAsking: "Some lines need a fact only you know. Answer below and I'll finish them.",
-    allStopped: "I stopped there. The lines I didn't reach stay as they are.",
-    allDone: "That's every line. Nothing left to accept.",
-  },
-  tailor: {
-    intro: "Paste a job link. I'll show what it asks for and what you already have.",
-    needsPost: "Paste the job link first. If it won't open, paste the job text.",
-    working: "Glasses on. This takes up to a minute. You can leave this step, I'll keep going.",
-    screener: tailorScreener,
-    done: "Your tailored copy is ready. Your original stays untouched.",
-    cancelled: "Stopped. It may still count as 1 tailored version, since I had already started.",
-  },
-  download: {
-    ready: "Your PDF is ready. Free, like always.",
-    checking: "Checking your new PDF the way hiring software would.",
-    checked: downloadChecked,
   },
   signIn: {
     reason: (feature: Feature) => SIGN_IN_REASONS[feature],
@@ -259,9 +140,6 @@ export const OTTO = {
     trialStarted: (endsOn: string) => `Your Pro trial runs until ${endsOn}. Let's get to work.`,
   },
   errors: OTTO_ERRORS,
-  empty: {
-    noResumes: "No resumes here yet. Upload one, or start fresh with me.",
-  },
   jobs: {
     found: jobsFound,
     filtered: "Nothing matches these filters. Try loosening one of them.",
@@ -293,5 +171,4 @@ export const OTTO = {
       "With Pro, I prep you for each interview from your own resume lines. Here's an example.",
     lockedKept: "Making new prep comes with Pro. The prep you made before stays here to read.",
   },
-  demoMode: "Demo mode: AI is off, so my suggestions are samples, not real rewrites.",
 } as const satisfies Record<string, Line | Record<string, Line>>;

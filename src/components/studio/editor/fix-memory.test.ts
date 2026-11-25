@@ -8,6 +8,14 @@ const response = (suggestion: string) => ({ suggestion }) as unknown as FixRespo
 beforeEach(() => forgetFixesForTests());
 
 describe("fix memory", () => {
+  it("keeps a separate suggestion for each resume language", () => {
+    const request = { bullet: "Gestioné el inventario", role, answers: [] };
+    rememberFix({ ...request, lang: "es" }, response("es"));
+
+    expect(recallFix(request)).toBeNull();
+    expect(recallFix({ ...request, lang: "es" })).toEqual(response("es"));
+  });
+
   it("gives back the suggestion for the same line, role and answers", () => {
     rememberFix({ bullet: "Worked on the CI pipeline", role, answers: [] }, response("a"));
 

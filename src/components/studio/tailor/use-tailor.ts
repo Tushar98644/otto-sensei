@@ -5,6 +5,8 @@ import { useAccountGate } from "@/components/account/account-gate";
 import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import type { UsagePeriod } from "@/config/plans";
+import { useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { isApiError, isBudgetReached } from "@/lib/api/client";
 import type { Resume } from "@/lib/resume/schema";
@@ -38,6 +40,7 @@ export type TailorRun = {
 };
 
 function errorMessage(
+  t: Messages["studioTailor"]["errors"],
   error: unknown,
   tailorLimit: number | undefined,
   period: UsagePeriod | null | undefined,
@@ -47,13 +50,9 @@ function errorMessage(
   if (isApiError(error, "ai_unavailable")) return OTTO.errors.aiUnavailable;
   if (isBudgetReached(error)) return budgetReachedText(period);
   if (isApiError(error, "limit_reached")) return OTTO.limit.reached("tailor", tailorLimit, period);
-  if (isApiError(error, "unauthorized"))
-    return "You've been signed out. Sign in again to keep going.";
-  if (isApiError(error, "ai_refused"))
-    return "I can't work with that post. Try pasting just the job description.";
-  if (isApiError(error, "bad_request")) {
-    return "That post didn't go through. Check it's the full job post, then try again.";
-  }
+  if (isApiError(error, "unauthorized")) return t.signedOut;
+  if (isApiError(error, "ai_refused")) return t.refused;
+  if (isApiError(error, "bad_request")) return t.badPost;
   return OTTO.errors.generic;
 }
 
@@ -66,13 +65,14 @@ export function useTailorRun(source: Resume): TailorRun {
   const [error, setError] = useState<string | null>(null);
   const [cancelled, setCancelled] = useState(false);
   const busy = useRef(false);
+  const t = useMessages("studioTailor").errors;
 
   const signIn = () =>
     gate.requireUser(OTTO.signIn.reason("tailor"), { kind: compareActionKind(source.id) });
 
   function report(caught: unknown) {
     if (!gate.handleApiError(caught, "tailor"))
-      setError(errorMessage(caught, me?.usage?.tailor.limit, me?.period));
+      setError(errorMessage(t, caught, me?.usage?.tailor.limit, me?.period));
   }
 
   const settle = useEffectEvent(

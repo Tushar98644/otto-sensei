@@ -4,9 +4,11 @@ import { ChevronDown, Info, ListChecks, TriangleExclamationPoint } from "lucide-
 import { memo, useId, useMemo, useState } from "react";
 import { openTarget, targetLabel } from "@/components/studio/review/open-target";
 import { Button } from "@/components/ui/button";
+import { useFormat, useMessages } from "@/i18n/client";
 import { reviewResume, type ReviewItem } from "@/lib/lint/review";
 import type { Resume } from "@/lib/resume/schema";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { countText } from "../count";
 import { resumeLintOf } from "./lint-cache";
 import { useResumeValue } from "./use-editor";
 import { useSettled } from "./use-settled";
@@ -29,6 +31,8 @@ const SettledSummary = memo(function SettledSummary({
 }) {
   const [open, setOpen] = useState(false);
   const listId = useId();
+  const t = useMessages("studioEditor").review;
+  const format = useFormat();
   const review = useMemo(() => reviewResume(resume, resumeLintOf(resume)), [resume]);
   if (review.items.length === 0) return null;
   const items = [...review.top, ...review.items.filter((item) => !review.top.includes(item))];
@@ -44,11 +48,11 @@ const SettledSummary = memo(function SettledSummary({
         className="-ml-3 self-start text-muted hover:text-ink max-sm:h-11"
       >
         <ListChecks />
-        {`${pluralize(items.length, "thing")} worth a look`}
+        {countText(format, t.worthALook, items.length)}
         <span aria-hidden className="text-subtle">
           ·
         </span>
-        {open ? "Hide" : "Show"}
+        {open ? t.hide : t.show}
         <ChevronDown className={cn("transition-transform", open && "rotate-180")} />
       </Button>
       <ul
@@ -67,6 +71,7 @@ const SettledSummary = memo(function SettledSummary({
 function ReviewRow({ resumeId, item }: { resumeId: string; item: ReviewItem }) {
   const high = item.severity === "high";
   const Icon = high ? TriangleExclamationPoint : Info;
+  const studio = useMessages("studio");
   return (
     <li className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:gap-4">
       <div className="flex min-w-0 flex-1 gap-2.5">
@@ -76,7 +81,7 @@ function ReviewRow({ resumeId, item }: { resumeId: string; item: ReviewItem }) {
         />
         <div className="flex min-w-0 flex-col gap-0.5">
           <p className="text-sm/6 font-medium text-pretty text-ink">
-            <span className="sr-only">{high ? "Needs work: " : "Tip: "}</span>
+            <span className="sr-only">{high ? studio.words.needsWork : studio.words.tip} </span>
             {item.title}
           </p>
           <p className="text-sm/6 text-pretty text-muted">{item.reason}</p>
@@ -89,7 +94,7 @@ function ReviewRow({ resumeId, item }: { resumeId: string; item: ReviewItem }) {
           onClick={() => openTarget(resumeId, item.target)}
           className="shrink-0 self-start max-sm:ml-3"
         >
-          {targetLabel(item.target)}
+          {targetLabel(studio.targets, item.target)}
         </Button>
       ) : null}
     </li>

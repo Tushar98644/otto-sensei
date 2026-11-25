@@ -1,0 +1,37 @@
+import type { Messages } from "..";
+import type { Translation } from "../../types";
+
+export default {
+  link: "Lien de l’offre",
+  linkHint: "Colle le lien et Otto le lit tout de suite.",
+  noLink: "Pas de lien ? Colle le texte de l’offre",
+  linkFirst: "Colle d’abord le lien de l’offre d’emploi.",
+  notALink: "Ça ne ressemble pas à un lien. Copie-le depuis la barre d’adresse de ton navigateur.",
+  linkTooLong: "Ce lien est trop long. Copie l’adresse de l’offre elle-même.",
+  readFailed: "Otto n’a pas pu lire ce lien pour l’instant. Colle plutôt le texte de l’offre.",
+  closedSite: "{site} cache l’offre aux applis. Copie la description du poste et colle-la ici.",
+  readJob: "Offre lue : {name}.",
+  titleAt: "{title} chez {company}",
+  untitledShort: "sans titre",
+  fromLink: "Depuis le lien",
+  untitled: "Offre sans titre",
+  postedToday: "Publiée aujourd’hui",
+  postedYesterday: "Publiée hier",
+  postedOn: "Publiée le {date}",
+  postedDaysAgo: "Publiée le {date} (il y a {days} jours)",
+  closed: "L’offre indique qu’elle a fermé le {date}.",
+  pasteInstead: "Ce n’est pas la bonne ? Colle plutôt le texte",
+  moreOptions: "Plus d’options",
+  title: "Intitulé du poste",
+  titlePlaceholder: "ex. : Designer produit",
+  company: "Entreprise",
+  companyPlaceholder: "ex. : Doctolib",
+  post: "Offre d’emploi",
+  postHint: "Colle-la en entier : missions, exigences et atouts souhaités.",
+  postPlaceholder: "Colle l’offre d’emploi ici",
+  needsPost: "Colle d’abord le lien de l’offre. S’il ne s’ouvre pas, colle le texte.",
+  tooShort: "C’est un peu court. Colle l’offre entière, pas seulement le titre.",
+  tooLong:
+    "Ça dépasse {max} caractères. Coupe la présentation de l’entreprise ou les avantages, puis réessaie.",
+  compare: "Comparer avec mon CV",
+} satisfies Translation<Messages["jobForm"]>;

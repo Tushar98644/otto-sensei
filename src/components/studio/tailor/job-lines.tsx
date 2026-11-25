@@ -4,7 +4,9 @@ import { ArrowUpRight, TriangleExclamationPoint } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { JobLine } from "@/lib/tailor/reasons";
-import { pluralize } from "@/lib/utils";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { countText } from "../count";
 import { ResultSection } from "./result-section";
 
 const JOB_LINES_ID = "tailor-lines";
@@ -19,17 +21,17 @@ export type JobLinesProps = {
 
 export function JobLines({ lines, unrelated, addedIds, onJump }: JobLinesProps) {
   const [all, setAll] = useState(false);
+  const t = useMessages("studioTailor").lines;
+  const format = useFormat();
   if (lines.length === 0) return null;
   const shown = all ? lines : lines.slice(0, SHOWN);
   const weak = lines.filter((line) => line.problem).length;
-  const meta = `${pluralize(lines.length, "line")} ${lines.length === 1 ? "shows" : "show"} what this post asks for${weak > 0 ? ` · ${weak} could say it better` : ""}`;
+  const shows = countText(format, t.shows, lines.length);
+  const meta = weak > 0 ? `${shows} · ${fmt(t.weak, { count: weak })}` : shows;
   return (
-    <ResultSection id={JOB_LINES_ID} title="Your lines for this job" meta={meta}>
+    <ResultSection id={JOB_LINES_ID} title={t.title} meta={meta}>
       {unrelated > 0 ? (
-        <p className="text-sm text-muted">
-          {pluralize(unrelated, "other line")} {unrelated === 1 ? "shows" : "show"} nothing it asks
-          for; {unrelated === 1 ? "it" : "they"} can stay, lower down.
-        </p>
+        <p className="text-sm text-muted">{countText(format, t.unrelated, unrelated)}</p>
       ) : null}
       <ul className="divide-y divide-border border-y border-border">
         {shown.map((line) => (
@@ -42,21 +44,21 @@ export function JobLines({ lines, unrelated, addedIds, onJump }: JobLinesProps) 
                 >
                   {proof.text}
                   <span className="font-normal text-subtle">
-                    {proof.importance === "must" ? " · must-have" : " · nice-to-have"}
+                    {` · ${proof.importance === "must" ? t.must : t.nice}`}
                   </span>
                 </span>
               ))}
             </div>
             <q className="text-sm/6 text-ink">{line.text}</q>
             <p className="text-xs/5 text-subtle">
-              {addedIds.has(line.bulletId) ? "Your new line, for the tailored copy" : line.place}
+              {addedIds.has(line.bulletId) ? t.newLine : line.place}
             </p>
             <p className="flex items-start gap-2 text-sm/6 text-pretty text-muted">
               {line.problem ? (
                 <TriangleExclamationPoint aria-hidden className="mt-1 size-4 shrink-0 text-warn" />
               ) : null}
               <span>
-                {line.problem ? <span className="sr-only">Could be better: </span> : null}
+                {line.problem ? <span className="sr-only">{t.couldBeBetter} </span> : null}
                 {line.note}
               </span>
             </p>
@@ -67,7 +69,7 @@ export function JobLines({ lines, unrelated, addedIds, onJump }: JobLinesProps) 
                 onClick={() => onJump(line.bulletId)}
                 className="-ml-3 self-start text-muted"
               >
-                Show line
+                {t.showLine}
                 <ArrowUpRight />
               </Button>
             )}
@@ -82,7 +84,7 @@ export function JobLines({ lines, unrelated, addedIds, onJump }: JobLinesProps) 
           aria-expanded={all}
           className="self-start"
         >
-          {all ? "Show fewer" : `Show all ${lines.length} lines`}
+          {all ? t.fewer : fmt(t.all, { count: lines.length })}
         </Button>
       ) : null}
     </ResultSection>

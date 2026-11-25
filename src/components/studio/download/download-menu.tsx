@@ -12,36 +12,49 @@ export type DownloadMenuInput = {
 };
 
 // Pro marks show on Free only, never while the plan is still loading.
-export function downloadMenuItems(input: DownloadMenuInput): MenuEntry[] {
+export type DownloadMenuCopy = {
+  word: string;
+  wordBuilding: string;
+  wordHint: string;
+  copyText: string;
+  copyTextHint: string;
+  share: string;
+  shareHint: string;
+  preview: string;
+  previewHint: string;
+  previewWaiting: string;
+};
+
+export function downloadMenuItems(t: DownloadMenuCopy, input: DownloadMenuInput): MenuEntry[] {
   const locked = input.pro === false;
   const { previewUrl } = input;
   return [
     {
-      label: "Download Word",
+      label: t.word,
       icon: FileText,
       pro: locked,
-      description: input.wordBuilding ? "Making your Word file" : "Opens in Word or Google Docs",
+      description: input.wordBuilding ? t.wordBuilding : t.wordHint,
       disabled: input.wordBuilding,
       onSelect: input.onWord,
     },
     {
-      label: "Copy plain text",
+      label: t.copyText,
       icon: Copy,
-      description: "For application forms",
+      description: t.copyTextHint,
       onSelect: input.onCopyText,
     },
     {
-      label: "Copy share link",
+      label: t.share,
       icon: Link2,
       pro: locked,
-      description: "A web page with your resume",
+      description: t.shareHint,
       onSelect: input.onShare,
     },
     "separator",
     {
-      label: "Preview",
+      label: t.preview,
       icon: Eye,
-      description: previewUrl ? "Opens the PDF in a new tab" : "Once your PDF is ready",
+      description: previewUrl ? t.previewHint : t.previewWaiting,
       disabled: previewUrl === null,
       onSelect: () => {
         if (previewUrl) input.onPreview(previewUrl);

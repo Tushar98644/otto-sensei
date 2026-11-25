@@ -1,8 +1,9 @@
 "use client";
 
 import { useMe } from "@/components/account/use-me";
+import { useFormat, useMessages } from "@/i18n/client";
 import type { Resume } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 import { AnswerBox } from "./answer-box";
 import { LetterPanel } from "./letter-panel";
 import { APPLY_KIT_ID } from "./letter-request";
@@ -31,21 +32,19 @@ export function ApplyKit(props: ApplyKitProps) {
   const allowance = loading
     ? null
     : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
+  const t = useMessages("studioTailor").kit;
+  const format = useFormat();
   const written = [
-    props.letter ? "Cover letter written" : null,
-    props.answers.length > 0 ? pluralize(props.answers.length, "answer") : null,
+    props.letter ? t.letterWritten : null,
+    props.answers.length > 0 ? countText(format, t.answers, props.answers.length) : null,
   ].filter((part): part is string => part !== null);
   return (
     <ResultSection
       id={APPLY_KIT_ID}
-      title="Apply to this job"
-      meta={
-        written.length > 0 ? written.join(" · ") : "A cover letter and answers to form questions"
-      }
+      title={t.title}
+      meta={written.length > 0 ? written.join(" · ") : t.meta}
     >
-      <p className="text-sm text-muted">
-        Written only from your resume and this post, in plain words. You copy it where it goes.
-      </p>
+      <p className="text-sm text-muted">{t.note}</p>
       <LetterPanel
         letter={props.letter}
         writing={props.writing}

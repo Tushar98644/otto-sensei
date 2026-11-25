@@ -3,9 +3,11 @@
 import { ChevronRight, FileText } from "lucide-react";
 import { useId } from "react";
 import { Badge } from "@/components/ui/badge";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { Resume } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
-import { formatRelativeTime } from "../relative-time";
+import { countText } from "../count";
+import { relativeTimeIn } from "../relative-time";
 import { resumeLabel, tailoredLabel } from "../resume-label";
 import { useNow } from "../use-now";
 
@@ -22,15 +24,18 @@ export function RecentResumes({ resumes, onOpen, disabled = false }: RecentResum
   const now = useNow();
   const shown = resumes.slice(0, SHOWN);
   const hidden = resumes.length - shown.length;
+  const studio = useMessages("studio");
+  const t = studio.recent;
+  const format = useFormat();
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <h2 id={headingId} className="font-sans text-base font-semibold text-ink">
-        Pick up where you left off
+        {t.title}
       </h2>
       <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl bg-surface">
         {shown.map((resume) => {
-          const tailored = tailoredLabel(resume);
+          const tailored = tailoredLabel(resume, studio.resume);
           return (
             <li key={resume.id}>
               <button
@@ -46,7 +51,11 @@ export function RecentResumes({ resumes, onOpen, disabled = false }: RecentResum
                   </span>
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                     {tailored ? <Badge className="max-w-full truncate">{tailored}</Badge> : null}
-                    <span>Edited {formatRelativeTime(resume.updatedAt, now)}</span>
+                    <span>
+                      {fmt(studio.resume.edited, {
+                        when: relativeTimeIn(format, studio.justNow, resume.updatedAt, now),
+                      })}
+                    </span>
                   </span>
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-subtle" aria-hidden />
@@ -56,9 +65,7 @@ export function RecentResumes({ resumes, onOpen, disabled = false }: RecentResum
         })}
       </ul>
       {hidden > 0 ? (
-        <p className="text-sm text-muted">
-          {pluralize(hidden, "more resume")} in the menu at the top.
-        </p>
+        <p className="text-sm text-muted">{countText(format, t.more, hidden)}</p>
       ) : null}
     </section>
   );

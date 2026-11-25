@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
+import { useFormat, useMessages } from "@/i18n/client";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
+import { countText } from "@/components/studio/count";
+import { downloadChecked } from "@/components/studio/otto";
 import { Otto } from "@/components/mascot/otto";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
 import { OttoNote } from "@/components/mascot/otto-note";
@@ -27,7 +32,7 @@ import { isProTemplate, templateOf } from "@/lib/pdf/templates";
 import { suggestedFileName } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useActiveResume, useStudioStore } from "@/lib/store/resume-store";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 // The preview sticks 16px below the 64px top bar and stays clear of the bottom of the screen.
 const FIT_SCREEN: Record<PdfPageSize, string> = {
@@ -35,18 +40,18 @@ const FIT_SCREEN: Record<PdfPageSize, string> = {
   A4: "max-w-[calc((100dvh_-_6rem)*210/297)]",
 };
 
-function ottoLine(pdf: ResumePdf, check: ExportCheck): string {
+type Otto = Messages["studioDownload"]["otto"];
+
+function ottoLine(t: Otto, format: Format, pdf: ResumePdf, check: ExportCheck): string {
   if (pdf.failed) return OTTO.errors.generic;
-  if (check.checking) return OTTO.download.checking;
+  if (check.checking) return t.checking;
   if (check.report) {
     const after = check.report.counts.fail;
-    if (check.original) return OTTO.download.checked({ before: check.original.counts.fail, after });
-    return after === 0
-      ? "No problems. Hiring software can read every line."
-      : `${pluralize(after, "problem")} left. The list shows how to fix ${after === 1 ? "it" : "them"}.`;
+    if (check.original) return downloadChecked(t, format, check.original.counts.fail, after);
+    return after === 0 ? t.noProblems : countText(format, t.problemsLeft, after);
   }
-  if (!pdf.file) return "Putting your PDF together. One moment.";
-  return OTTO.download.ready;
+  if (!pdf.file) return t.puttingTogether;
+  return t.ready;
 }
 
 function DownloadWorkspace({ resume }: { resume: Resume }) {
@@ -62,7 +67,9 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
   const fit = useNearFit(printed, pdf, pageSize);
   const inline = useInlinePdfPreview();
   const changedCharacters = useMemo(() => buildPdfModel(resume).changedCharacters, [resume]);
-  const otto = ottoLine(pdf, check);
+  const t = useMessages("studioDownload");
+  const format = useFormat();
+  const otto = ottoLine(t.otto, format, pdf, check);
   const [freshId] = useState(() => (isFreshCopy(resume.id) ? resume.id : null));
   useEffect(() => forgetFreshCopy(), []);
 
@@ -97,7 +104,7 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
         </div>
         {inline ? (
           <section
-            aria-label="PDF preview"
+            aria-label={t.previewLabel}
             className="md:sticky md:top-20 md:col-start-1 md:row-start-1 md:self-start lg:col-span-3"
           >
             <PdfFrame
@@ -116,13 +123,15 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
 export function DownloadStep() {
   const resume = useActiveResume();
   const setStep = useStudioStore((s) => s.setStep);
+  const studio = useMessages("studio");
+  const t = useMessages("studioDownload");
   if (!resume) {
     return (
       <EmptyState
         illustration={<Otto pose="think" size={120} />}
-        title="Nothing to download yet"
-        description={OTTO.empty.noResumes}
-        action={<Button onClick={() => setStep("upload")}>Upload a resume</Button>}
+        title={t.empty}
+        description={studio.otto.noResumes}
+        action={<Button onClick={() => setStep("upload")}>{studio.uploadResume}</Button>}
       />
     );
   }

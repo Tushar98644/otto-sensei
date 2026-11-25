@@ -4,6 +4,8 @@ import { ChevronRight, Info, TriangleExclamationPoint } from "lucide-react";
 import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { ResumeReview, ReviewItem } from "@/lib/lint/review";
 import { cn } from "@/lib/utils";
 import { openTarget, targetLabel } from "./open-target";
@@ -18,6 +20,7 @@ export type WordsChecksProps = {
 
 export function WordsChecks({ resumeId, review, hideHeading = false }: WordsChecksProps) {
   const headingId = useId();
+  const t = useMessages("studio").words;
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
@@ -25,16 +28,13 @@ export function WordsChecks({ resumeId, review, hideHeading = false }: WordsChec
           id={headingId}
           className={hideHeading ? "sr-only" : "font-sans text-lg font-semibold text-ink"}
         >
-          What a recruiter notices
+          {t.title}
         </h2>
-        <p className="text-sm text-muted">
-          Your words, checked against common resume rules: results, not duties; a strong verb first;
-          no I or me.
-        </p>
+        <p className="text-sm text-muted">{t.description}</p>
       </div>
       {review.items.length === 0 ? (
         <p className="rounded-2xl bg-surface p-4">
-          <StatusPill status="pass">Your lines read well</StatusPill>
+          <StatusPill status="pass">{t.allGood}</StatusPill>
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -50,6 +50,8 @@ export function WordsChecks({ resumeId, review, hideHeading = false }: WordsChec
 function WordsItem({ item, resumeId }: { item: ReviewItem; resumeId: string }) {
   const high = item.severity === "high";
   const Icon = high ? TriangleExclamationPoint : Info;
+  const studio = useMessages("studio");
+  const t = studio.words;
   return (
     <li>
       <details
@@ -62,7 +64,7 @@ function WordsItem({ item, resumeId }: { item: ReviewItem; resumeId: string }) {
             className={cn("mt-0.5 size-4 shrink-0", high ? "text-warn" : "text-subtle")}
           />
           <span className="min-w-0 flex-1 text-sm/6 font-medium text-ink">
-            <span className="sr-only">{high ? "Needs work: " : "Tip: "}</span>
+            <span className="sr-only">{high ? t.needsWork : t.tip} </span>
             {item.title}
           </span>
           <ChevronRight
@@ -85,7 +87,7 @@ function WordsItem({ item, resumeId }: { item: ReviewItem; resumeId: string }) {
                     onClick={() => openTarget(resumeId, line.target)}
                     className="-ml-3 self-start"
                   >
-                    {targetLabel(line.target)}
+                    {targetLabel(studio.targets, line.target)}
                   </Button>
                 </li>
               ))}
@@ -97,13 +99,11 @@ function WordsItem({ item, resumeId }: { item: ReviewItem; resumeId: string }) {
               onClick={() => openTarget(resumeId, item.target)}
               className="self-start"
             >
-              {targetLabel(item.target)}
+              {targetLabel(studio.targets, item.target)}
             </Button>
           ) : null}
           {item.more > 0 ? (
-            <p className="text-sm text-subtle">
-              And {item.more} more. Fix lines shows each one with a tip.
-            </p>
+            <p className="text-sm text-subtle">{fmt(t.more, { count: item.more })}</p>
           ) : null}
         </div>
       </details>

@@ -12,6 +12,9 @@ import {
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import type { RowReason } from "@/lib/tailor/reasons";
 import type { RequirementRow, RequirementStatus } from "@/lib/tailor/requirements";
 import { cn } from "@/lib/utils";
@@ -19,44 +22,53 @@ import { AddLineForm } from "./add-line-form";
 import type { AddedLine, LineTarget, RequirementChoice } from "./apply";
 import type { Writing } from "./use-writing";
 
-const STATUS: Record<RequirementStatus, { label: string; chip: ReactNode }> = {
-  proven: {
-    label: "Proven",
-    chip: (
-      <Badge variant="pass">
-        <CircleCheck className="text-pass" aria-hidden />
-        Proven
-      </Badge>
-    ),
-  },
-  listed: {
-    label: "Listed but not shown",
-    chip: (
-      <Badge variant="warn">
-        <TriangleExclamationPoint className="text-warn" aria-hidden />
-        Listed, not shown
-      </Badge>
-    ),
-  },
-  missing: {
-    label: "Not shown",
-    chip: (
-      <Badge variant="neutral">
-        <Circle aria-hidden />
-        Not shown
-      </Badge>
-    ),
-  },
-  declined: {
-    label: "You said no",
-    chip: (
-      <Badge variant="neutral">
-        <CircleMinus aria-hidden />
-        You said no
-      </Badge>
-    ),
-  },
-};
+type RowCopy = Messages["studioTailor"]["row"];
+
+function statusOf(t: RowCopy, status: RequirementStatus): { label: string; chip: ReactNode } {
+  const words = t.status[status];
+  switch (status) {
+    case "proven":
+      return {
+        label: words.label,
+        chip: (
+          <Badge variant="pass">
+            <CircleCheck className="text-pass" aria-hidden />
+            {words.chip}
+          </Badge>
+        ),
+      };
+    case "listed":
+      return {
+        label: words.label,
+        chip: (
+          <Badge variant="warn">
+            <TriangleExclamationPoint className="text-warn" aria-hidden />
+            {words.chip}
+          </Badge>
+        ),
+      };
+    case "missing":
+      return {
+        label: words.label,
+        chip: (
+          <Badge variant="neutral">
+            <Circle aria-hidden />
+            {words.chip}
+          </Badge>
+        ),
+      };
+    case "declined":
+      return {
+        label: words.label,
+        chip: (
+          <Badge variant="neutral">
+            <CircleMinus aria-hidden />
+            {words.chip}
+          </Badge>
+        ),
+      };
+  }
+}
 
 export const requirementDomId = (rowId: string) => `tailor-requirement-${rowId}`;
 
@@ -81,6 +93,7 @@ type ProofProps = {
 };
 
 function Proof({ row, addedIds, onRemove, onJump }: ProofProps) {
+  const t = useMessages("studioTailor").row;
   const { line, via } = row.proof;
   if (!line) return null;
   const added = via === "added" || (line.bulletId !== null && addedIds.has(line.bulletId));
@@ -89,13 +102,13 @@ function Proof({ row, addedIds, onRemove, onJump }: ProofProps) {
       <q className="text-sm/6 text-ink">{line.text}</q>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <p className="text-xs/5 text-subtle">
-          {added ? "Your new line, for the tailored copy" : line.place}
-          {via === "quote" ? " · matched by Otto" : null}
+          {added ? t.newLine : line.place}
+          {via === "quote" ? ` · ${t.matchedByOtto}` : null}
         </p>
         {added && onRemove ? (
           <Button size="sm" variant="ghost" onClick={onRemove} className="-ml-2 text-muted">
             <X />
-            Remove line
+            {t.removeLine}
           </Button>
         ) : !added && line.bulletId ? (
           <Button
@@ -104,7 +117,7 @@ function Proof({ row, addedIds, onRemove, onJump }: ProofProps) {
             onClick={() => onJump(line.bulletId ?? "")}
             className="-ml-2 text-muted"
           >
-            Show line
+            {t.showLine}
             <ArrowUpRight />
           </Button>
         ) : null}
@@ -116,16 +129,14 @@ function Proof({ row, addedIds, onRemove, onJump }: ProofProps) {
 type UnprovenLineProps = { text: string; name: string; onRemove: () => void };
 
 function UnprovenLine({ text, name, onRemove }: UnprovenLineProps) {
+  const t = useMessages("studioTailor").row;
   return (
     <div className="flex flex-col gap-1.5">
       <q className="text-sm/6 text-ink">{text}</q>
-      <p className="text-sm text-muted">
-        This line goes into the tailored copy, but it doesn&apos;t name {name}, so a screener
-        won&apos;t count it.
-      </p>
+      <p className="text-sm text-muted">{fmt(t.unproven, { name })}</p>
       <Button size="sm" variant="ghost" onClick={onRemove} className="-ml-2 self-start text-muted">
         <X />
-        Remove line
+        {t.removeLine}
       </Button>
     </div>
   );
@@ -161,7 +172,8 @@ export function RequirementRowItem({
   onChoice,
   onJump,
 }: RequirementRowProps) {
-  const status = STATUS[row.status];
+  const t = useMessages("studioTailor").row;
+  const status = statusOf(t, row.status);
   const pending = choice?.kind === "line" && row.status !== "proven" ? choice.line : null;
   const add = (line: AddedLine) => {
     onChoice({ kind: "line", line });
@@ -225,7 +237,7 @@ export function RequirementRowItem({
               onClick={() => onOpen(true)}
               className="self-start"
             >
-              Show where you used it
+              {t.showWhere}
             </Button>
           )}
         </div>
@@ -240,11 +252,11 @@ export function RequirementRowItem({
               <div role="group" aria-label={row.ask} className="flex shrink-0 gap-2">
                 <Button size="sm" variant="secondary" onClick={() => onOpen(true)}>
                   <Check />
-                  Yes
+                  {t.yes}
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => onChoice({ kind: "no" })}>
                   <X />
-                  No
+                  {t.no}
                 </Button>
               </div>
             )}
@@ -255,9 +267,9 @@ export function RequirementRowItem({
 
       {row.status === "declined" ? (
         <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
-          It stays off your resume.
+          {t.staysOff}
           <Button size="sm" variant="link" onClick={() => onChoice(null)} className="h-auto px-0">
-            Change answer
+            {t.changeAnswer}
           </Button>
         </p>
       ) : null}

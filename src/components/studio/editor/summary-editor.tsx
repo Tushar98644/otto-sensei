@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import { SUMMARY_IMPROVE_CHARS } from "@/config/plans";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { listBullets } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { SUMMARY_INPUT_ID } from "./focus";
@@ -16,7 +19,7 @@ import { ReadyOptions } from "./summary-options";
 import { editSection, useResumeValue } from "./use-editor";
 import { sameText, useSummaryHelp, type Help } from "./use-summary-help";
 
-const MAX_LABEL = CHAR_LIMITS.summary.toLocaleString("en-US");
+type SummaryCopy = Messages["studioEditor"]["summary"];
 
 function wordsIn(text: string): number {
   return text.match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
@@ -30,35 +33,31 @@ function hasFacts(resume: Resume): boolean {
   );
 }
 
-function ottoLine(help: Help): string {
+function ottoLine(t: SummaryCopy, help: Help): string {
   switch (help.status) {
     case "idle":
     case "loading":
       return help.status === "loading" && help.mode === "improve"
-        ? "Tightening your summary. Same facts, fewer words."
-        : "Reading your resume for its strongest facts. One moment.";
+        ? t.otto.tightening
+        : t.otto.reading;
     case "failed":
       return help.message;
     case "ready": {
       const [first] = help.options;
-      if (!first) return "I need a bit more to go on. Add a job or a few lines first.";
+      if (!first) return t.otto.needMore;
       if (help.mode === "improve") {
-        return sameText(first.text, help.original)
-          ? "Yours already reads well. I'd keep it as it is."
-          : "Same facts, fewer words. Use it, edit it, or keep yours.";
+        return sameText(first.text, help.original) ? t.otto.alreadyGood : t.otto.tightened;
       }
-      return help.options.length > 1
-        ? "Two takes, built only from your resume. Pick one, edit it, or keep yours."
-        : "One take, built only from your resume. Use it, edit it, or keep yours.";
+      return help.options.length > 1 ? t.otto.twoTakes : t.otto.oneTake;
     }
   }
 }
 
-function ottoMeta(help: Help): string | undefined {
+function ottoMeta(t: SummaryCopy, help: Help): string | undefined {
   if (help.status !== "ready" || help.options.length === 0) return undefined;
-  if (help.mode === "write") return help.options.length > 1 ? "2 takes" : "1 take";
+  if (help.mode === "write") return help.options.length > 1 ? t.twoTakes : t.oneTake;
   const after = help.options[0]?.text ?? "";
-  return `${wordsIn(help.original)} → ${wordsIn(after)} words`;
+  return fmt(t.wordsChange, { before: wordsIn(help.original), after: wordsIn(after) });
 }
 
 export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeId: string }) {
@@ -73,6 +72,8 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
   const { help } = flow;
   const working = help.status === "loading";
   const canImprove = summary.trim().length >= SUMMARY_IMPROVE_CHARS.min;
+  const t = useMessages("studioEditor").summary;
+  const format = useFormat();
 
   function setSummary(text: string) {
     editSection(resumeId, "summary", (resume) => ({ ...resume, summary: text }));
@@ -86,7 +87,7 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
   return (
     <div className="flex flex-col gap-2">
       <Label htmlFor={inputId} className="sr-only">
-        Summary
+        {t.label}
       </Label>
       <VoiceTextarea
         id={inputId}
@@ -96,16 +97,14 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
         onDictate={setSummary}
         maxLength={CHAR_LIMITS.summary}
         aria-describedby={`${hintId} ${countId}`}
-        placeholder="Product designer with 6 years in fintech. Turns messy sign-up flows into simple ones and works best close to engineering."
+        placeholder={t.placeholder}
         className="min-h-28"
       />
       <div className="flex items-start justify-between gap-4 text-sm text-muted">
-        <p id={hintId}>
-          Two or three sentences: what you do, what you&apos;re best at, and what you want next.
-        </p>
+        <p id={hintId}>{t.hint}</p>
         <p id={countId} className="shrink-0 tabular-nums">
-          {summary.length.toLocaleString("en-US")} / {MAX_LABEL}
-          <span className="sr-only"> characters</span>
+          {format.number(summary.length)} / {format.number(CHAR_LIMITS.summary)}
+          <span className="sr-only"> {t.characters}</span>
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-1">
@@ -118,7 +117,7 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
           onClick={() => void flow.ask("write")}
         >
           <OttoMark tone="line" small className="size-5 text-ink" />
-          Write with Otto
+          {t.write}
         </Button>
         <Button
           variant="ghost"
@@ -128,11 +127,9 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
           loading={working && help.mode === "improve"}
           onClick={() => void flow.ask("improve")}
         >
-          Improve mine
+          {t.improve}
         </Button>
-        {canWrite ? null : (
-          <p className="text-sm text-muted">Add a job or a few lines and Otto can draft one.</p>
-        )}
+        {canWrite ? null : <p className="text-sm text-muted">{t.needFacts}</p>}
       </div>
       {help.status === "idle" ? null : (
         <section
@@ -143,18 +140,18 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
           className="flex flex-col gap-4 rounded-2xl bg-surface-muted p-4 outline-none"
         >
           <h3 id={`${id}-help`} className="sr-only">
-            Otto&apos;s summary help
+            {t.help}
           </h3>
-          <OttoNote size="sm" meta={ottoMeta(help)} message={ottoLine(help)} />
+          <OttoNote size="sm" meta={ottoMeta(t, help)} message={ottoLine(t, help)} />
           {working ? <OttoWorking task="summary" size="sm" /> : null}
           {help.status === "ready" ? <ReadyOptions flow={flow} state={help} baseId={id} /> : null}
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="ghost" size="sm" onClick={flow.close}>
-              {help.status === "ready" && help.options.length > 0 ? "Keep mine" : "Close"}
+              {help.status === "ready" && help.options.length > 0 ? t.keep : t.close}
             </Button>
             {help.status === "failed" ? (
               <Button variant="secondary" size="sm" onClick={() => void flow.ask(help.mode)}>
-                Try again
+                {t.tryAgain}
               </Button>
             ) : null}
           </div>

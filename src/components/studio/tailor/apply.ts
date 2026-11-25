@@ -11,7 +11,11 @@ import {
 } from "@/lib/resume/schema";
 import type { TailorCopyMeta } from "@/lib/store/resume-store";
 import type { ScreenerOptions } from "@/lib/tailor/requirements";
-import { pluralize } from "@/lib/utils";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { PluralForms } from "@/i18n/types";
+import { joinList } from "@/lib/lint/i18n";
+import { countText } from "../count";
 
 const MAX_KEYWORDS = 60;
 const MAX_TERM_CHARS = 100;
@@ -251,22 +255,33 @@ export function summarizeChoices(
   };
 }
 
-export function changeLines({ lines, skills, reorderedJobs, summary }: ChangeSummary): string[] {
+type ChangeWords = {
+  lines: PluralForms;
+  skills: PluralForms;
+  reordered: PluralForms;
+  summary: string;
+};
+type ChangeCopy = ChangeWords & { inline: ChangeWords; sentence: string; none: string };
+
+function changeParts(
+  words: ChangeWords,
+  format: Format,
+  { lines, skills, reorderedJobs, summary }: ChangeSummary,
+): string[] {
   return [
-    lines ? `Adds ${pluralize(lines, "line")} you confirmed` : null,
-    skills ? `Adds ${pluralize(skills, "skill")} to your Skills section` : null,
-    reorderedJobs ? `Puts your best lines first in ${pluralize(reorderedJobs, "job")}` : null,
-    summary ? "Uses the new summary" : null,
+    lines ? countText(format, words.lines, lines) : null,
+    skills ? countText(format, words.skills, skills) : null,
+    reorderedJobs ? countText(format, words.reordered, reorderedJobs) : null,
+    summary ? words.summary : null,
   ].filter((line): line is string => line !== null);
 }
 
-export const NO_CHANGES =
-  "No changes picked. The copy keeps your lines as they are, labeled for this job.";
+export function changeLines(t: ChangeCopy, format: Format, changes: ChangeSummary): string[] {
+  return changeParts(t, format, changes);
+}
 
-export function describeChanges(changes: ChangeSummary): string {
-  const parts = changeLines(changes).map((line) => line.charAt(0).toLowerCase() + line.slice(1));
-  if (parts.length === 0) return NO_CHANGES;
-  const sentence =
-    parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : (parts[0] ?? "");
-  return `The copy ${sentence}. Your original stays the same.`;
+export function describeChanges(t: ChangeCopy, format: Format, changes: ChangeSummary): string {
+  const parts = changeParts(t.inline, format, changes);
+  if (parts.length === 0) return t.none;
+  return fmt(t.sentence, { changes: joinList(parts, format.locale) });
 }

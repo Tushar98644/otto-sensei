@@ -37,3 +37,11 @@ export function useMessages<N extends Namespace>(namespace: N): Messages[N] {
 export function useFormat(): Format {
   return formatFor(useLocale());
 }
+
+// For components that pages without this namespace also render: they read the English given here.
+export function useMessagesOr<N extends Namespace>(
+  namespace: N,
+  english: Messages[N],
+): Messages[N] {
+  return use(MessagesContext)?.messages[namespace] ?? english;
+}

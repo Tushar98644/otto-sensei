@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import onboarding from "@/i18n/messages/en/onboarding";
 import type { TourStop } from "./tours";
 
 const root = vi.hoisted(() => ({ render: vi.fn(), unmount: vi.fn() }));
@@ -58,7 +59,12 @@ describe("startTour", () => {
     const { target } = stubPage();
     const { startTour } = await import("./run-tour");
     const onShown = vi.fn();
-    const stopTour = startTour({ stops: [stop(target)], onShown, onEnd: vi.fn() });
+    const stopTour = startTour({
+      labels: onboarding.tip,
+      stops: [stop(target)],
+      onShown,
+      onEnd: vi.fn(),
+    });
 
     expect(stopTour).toBeTypeOf("function");
     expect(root.render).toHaveBeenCalledTimes(1);
@@ -70,7 +76,12 @@ describe("startTour", () => {
   it("scrolls to a target the sticky top bar covers", async () => {
     const { target } = stubPage({ targetTop: 40, topBar: true });
     const { startTour } = await import("./run-tour");
-    const stopTour = startTour({ stops: [stop(target)], onShown: vi.fn(), onEnd: vi.fn() });
+    const stopTour = startTour({
+      labels: onboarding.tip,
+      stops: [stop(target)],
+      onShown: vi.fn(),
+      onEnd: vi.fn(),
+    });
 
     expect(target.scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" });
     stopTour?.();
@@ -80,7 +91,12 @@ describe("startTour", () => {
     const { host, target } = stubPage();
     const { startTour } = await import("./run-tour");
     const onEnd = vi.fn();
-    const stopTour = startTour({ stops: [stop(target)], onShown: vi.fn(), onEnd });
+    const stopTour = startTour({
+      labels: onboarding.tip,
+      stops: [stop(target)],
+      onShown: vi.fn(),
+      onEnd,
+    });
 
     stopTour?.();
     expect(host.remove).toHaveBeenCalledTimes(1);

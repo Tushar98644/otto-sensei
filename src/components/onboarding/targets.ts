@@ -1,6 +1,6 @@
 import { ROUTES } from "@/components/site/routes";
 import { bulletInputId } from "@/components/studio/editor/focus";
-import { STEP_LABELS, type StudioStep } from "@/lib/store/resume-store";
+import type { StudioStep } from "@/lib/store/resume-store";
 
 function isVisible(element: Element): boolean {
   return element.getClientRects().length > 0;
@@ -43,12 +43,12 @@ function readTextSection(): Element | null {
 }
 
 function readTextTab(): Element | null {
-  return byText('main [role="tab"]', (text) => text === "What software reads");
+  return tagged("studio-read-text-tab");
 }
 
 export function fixStepShown(): boolean {
   const field = document.querySelector(`main [id^="${bulletInputId("")}"]`);
-  return field !== null || stepBarTailor() !== null;
+  return field !== null || tagged("studio-tailor") !== null;
 }
 
 export function lineRow(lineIds: readonly string[]): Element | null {
@@ -61,29 +61,19 @@ export function lineRow(lineIds: readonly string[]): Element | null {
 }
 
 export function fixWithOttoButton(row: Element): HTMLButtonElement | null {
-  const buttons = [...row.querySelectorAll("button")];
-  return buttons.find((button) => !button.disabled && textOf(button) === "Fix with Otto") ?? null;
+  return row.querySelector<HTMLButtonElement>('button[data-tour="studio-fix-line"]:not(:disabled)');
 }
 
 function stepperButton(step: StudioStep): Element | null {
-  const label = STEP_LABELS[step];
-  return byText('nav[aria-label="Studio steps"] button', (text) => text.endsWith(label));
+  return firstVisible(document.querySelectorAll(`nav button[data-step="${step}"]`));
 }
 
 export function tailorControl(): Element | null {
-  return tagged("studio-tailor") ?? stepBarTailor() ?? stepperButton("tailor");
-}
-
-function stepBarTailor(): Element | null {
-  return byText("main button", (text) => text === "Next: Tailor to a job");
+  return tagged("studio-tailor") ?? stepperButton("tailor");
 }
 
 export function downloadControl(): Element | null {
-  return (
-    tagged("studio-download") ??
-    byText("main button", (text) => text === "Skip to download") ??
-    stepperButton("download")
-  );
+  return tagged("studio-download") ?? stepperButton("download");
 }
 
 export function quickActions(): Element | null {

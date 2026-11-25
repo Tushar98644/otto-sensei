@@ -4,6 +4,8 @@ import { ChevronDown, Trash } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import { DIMMED_CLASSES, HiddenChip, HideToggle } from "./hidden-chip";
 import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
@@ -67,9 +69,10 @@ export function EntryShell({
   const Heading = headingLevel === 5 ? "h5" : "h4";
   const onRail = rail !== undefined;
   const continues = rail === "continue";
+  const t = useMessages("studioEditor");
 
   function remove() {
-    if (confirm) removeWithUndo(resumeId, title, onRemove);
+    if (confirm) removeWithUndo(resumeId, title, onRemove, t.undo);
     else onRemove();
   }
 
@@ -128,7 +131,7 @@ export function EntryShell({
                 onClick={toggleDetails}
                 className="text-muted hover:text-ink max-sm:-ml-3 max-sm:h-11 sm:mt-1"
               >
-                {detailsOpen ? "Hide details" : "Edit details"}
+                {detailsOpen ? t.entry.hideDetails : t.entry.editDetails}
                 <ChevronDown className={cn("transition-transform", detailsOpen && "rotate-180")} />
               </Button>
             ) : null}
@@ -147,7 +150,7 @@ export function EntryShell({
                   id={removeId}
                   variant="ghost"
                   size="icon"
-                  aria-label={`Remove ${title}`}
+                  aria-label={fmt(t.entry.remove, { title })}
                   onClick={remove}
                   className={ICON_ACTION_CLASSES}
                 >
@@ -164,7 +167,7 @@ export function EntryShell({
                   onMove={onMove}
                   hidden={hidden}
                   onToggleHidden={onToggleHidden}
-                  removeLabel="Remove"
+                  removeLabel={t.entry.removeShort}
                   onRemove={remove}
                 />
               </div>

@@ -1,18 +1,25 @@
 import { OTTO } from "@/components/mascot/lines";
 import { PLANS, type PlanId, type Usage, type UsagePeriod } from "@/config/plans";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
 import type { FixInput } from "@/lib/ai/types";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { isApiError } from "@/lib/api/client";
-import { resetSentence, thisPeriod } from "@/lib/usage-copy";
+import { resetSentenceIn, thisPeriodIn } from "../usage";
+
+export type FixWords = {
+  t: Messages["studioEditor"];
+  usage: Messages["studio"]["usage"];
+  format: Format;
+};
 
 export const FIX_ANSWER_LIMITS = { count: 5, questionChars: 300, answerChars: 500 } as const;
 
 export type FixAnswer = FixInput["answers"][number];
 
 export type FixProblem =
-  | { kind: "error"; message: string }
-  | { kind: "signin" }
-  | { kind: "limit"; budget?: boolean };
+  { kind: "error"; message: string } | { kind: "signin" } | { kind: "limit"; budget?: boolean };
 
 const PLACEHOLDERS = /\[[^[\]\n]+\]/g;
 const PLACEHOLDER = /\[[^[\]\n]+\]/;
@@ -85,6 +92,7 @@ export function fixErrorMessage(error: unknown): string {
 }
 
 export function problemMessage(
+  words: FixWords,
   problem: FixProblem,
   limit: number,
   signedIn = false,
@@ -94,15 +102,18 @@ export function problemMessage(
   switch (problem.kind) {
     case "limit":
       if (problem.budget) return budgetReachedText(period);
-      return plan === "free" ? OTTO.limit.freeUsed("fix", limit) : OTTO.limit.reached("fix", limit, period);
+      return plan === "free"
+        ? OTTO.limit.freeUsed("fix", limit)
+        : OTTO.limit.reached("fix", limit, period);
     case "signin":
-      return signedIn ? OTTO.fix.signedInAgain : OTTO.signIn.reason("fix");
+      return signedIn ? words.t.otto.signedInAgain : OTTO.signIn.reason("fix");
     case "error":
       return problem.message;
   }
 }
 
 export function fixAllowanceText(
+  { t, usage: u, format }: FixWords,
   usage: Usage | null | undefined,
   plan: PlanId | null | undefined,
   period?: UsagePeriod | null,
@@ -112,8 +123,12 @@ export function fixAllowanceText(
   if (usage.limit === 0) return OTTO.limit.none("fix", trial);
   const left = Math.max(0, usage.limit - usage.used);
   if (left === 0) {
-    const more = plan === "free" ? ` ${PLANS.pro.name} has ${PLANS.pro.limits.fix} a month.` : "";
-    return `No fixes left ${thisPeriod(period)}. ${resetSentence(period)}${more}`;
+    const none = fmt(t.allowance.none, {
+      period: thisPeriodIn(u, period),
+      reset: resetSentenceIn(u, format, period),
+    });
+    if (plan !== "free") return none;
+    return `${none} ${fmt(t.allowance.proHas, { plan: PLANS.pro.name, count: PLANS.pro.limits.fix })}`;
   }
-  return `${left} of ${usage.limit} fixes left ${thisPeriod(period)}`;
+  return fmt(t.allowance.left, { left, limit: usage.limit, period: thisPeriodIn(u, period) });
 }

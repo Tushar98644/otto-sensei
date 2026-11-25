@@ -2,6 +2,8 @@
 
 import { Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import { HideToggle } from "./hidden-chip";
 import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
@@ -30,7 +32,8 @@ export function LineTools({
   onRemove,
   className,
 }: LineToolsProps) {
-  const label = `line ${position}`;
+  const t = useMessages("studioEditor").line;
+  const label = fmt(t.named, { position });
   return (
     <div className={cn("flex flex-1 justify-end", className)}>
       <div className="-mr-2 flex items-center">
@@ -45,7 +48,7 @@ export function LineTools({
           id={deleteId}
           variant="ghost"
           size="icon"
-          aria-label={`Delete ${label}`}
+          aria-label={fmt(t.delete, { label })}
           onClick={onRemove}
           className={ICON_ACTION_CLASSES}
         >
@@ -68,17 +71,18 @@ export function LineMenu({
   onRemove,
   className,
 }: LineToolsProps) {
+  const t = useMessages("studioEditor").line;
   return (
     <div className={cn("flex", className)}>
       <RowMenu
-        label={`line ${position}`}
+        label={fmt(t.named, { position })}
         triggerId={deleteId}
         canMoveUp={canMoveUp}
         canMoveDown={canMoveDown}
         onMove={onMove}
         hidden={hidden}
         onToggleHidden={onToggleHidden}
-        removeLabel="Delete line"
+        removeLabel={t.deleteShort}
         onRemove={onRemove}
       />
     </div>

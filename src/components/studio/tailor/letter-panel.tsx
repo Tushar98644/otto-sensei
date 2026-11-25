@@ -6,6 +6,8 @@ import { OttoWorking } from "@/components/mascot/otto-working";
 import { usePageSize } from "@/components/studio/download/use-page-size";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { Textarea } from "@/components/ui/textarea";
 import { copyText } from "@/components/ui/copy-text";
 import { toast } from "@/components/ui/toast";
@@ -44,6 +46,8 @@ export function LetterPanel({
   const busy = writing.busy === "letter";
   const checks = letter ? liveWarnings(letter.warnings, letter.text) : [];
   const failed = writing.error?.task === "letter" ? writing.error.message : null;
+  const t = useMessages("studioTailor").letter;
+  const demoNote = useMessages("studio").demoNote;
 
   async function download(text: string) {
     setRendering(true);
@@ -52,11 +56,7 @@ export function LetterPanel({
       downloadBlob(blob, letterFileName(pdfResume.basics.name, company));
     } catch (error) {
       console.error("Letter PDF render failed", error);
-      toast({
-        title: "Your PDF didn't come out",
-        description: "Try again, or copy the letter instead.",
-        variant: "error",
-      });
+      toast({ title: t.pdfFailed, description: t.pdfFailedNote, variant: "error" });
     } finally {
       setRendering(false);
     }
@@ -66,24 +66,22 @@ export function LetterPanel({
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <h3 id={headingId} className="text-base/6 font-semibold text-ink">
-          Cover letter
+          {t.title}
         </h3>
         {letter ? (
-          <span className="text-sm text-subtle tabular-nums">{wordCount(letter.text)} words</span>
+          <span className="text-sm text-subtle tabular-nums">
+            {fmt(t.words, { count: wordCount(letter.text) })}
+          </span>
         ) : null}
       </div>
-      {letter ? null : (
-        <p className="text-sm text-muted">
-          About 200 words: the role, your closest facts, and why this job. Only from your resume.
-        </p>
-      )}
+      {letter ? null : <p className="text-sm text-muted">{t.about}</p>}
       {failed ? <Alert variant="error">{failed}</Alert> : null}
       {busy ? <OttoWorking task="letter" size="sm" /> : null}
       {letter ? (
         <>
-          {letter.demo ? <DemoNote /> : null}
+          {letter.demo ? <DemoNote text={demoNote} /> : null}
           {checks.length ? (
-            <Alert variant="warn" title="Check before you send it">
+            <Alert variant="warn" title={t.check}>
               <ul className="flex list-disc flex-col gap-1 pl-4">
                 {checks.map((warning) => (
                   <li key={warning}>{warning}</li>
@@ -107,7 +105,7 @@ export function LetterPanel({
               onClick={() => void copyText(letter.text, "letter")}
             >
               <Copy />
-              Copy
+              {t.copy}
             </Button>
             <Button
               size="sm"
@@ -117,18 +115,18 @@ export function LetterPanel({
               onClick={() => void download(letter.text)}
             >
               <Download />
-              Download PDF
+              {t.download}
             </Button>
             <Button size="sm" variant="ghost" loading={busy} onClick={onWrite}>
               <RotateCcw />
-              Write a new one
+              {t.rewrite}
             </Button>
           </div>
         </>
       ) : (
         <Button variant="secondary" loading={busy} onClick={onWrite} className="self-start">
           <FileText />
-          Write a cover letter
+          {t.write}
         </Button>
       )}
     </section>

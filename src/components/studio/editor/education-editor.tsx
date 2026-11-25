@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useMessages } from "@/i18n/client";
 import { newEducation, type Education } from "@/lib/resume/schema";
 import { BulletList } from "./bullet-list";
 import { DateRangeFields } from "./date-range-fields";
@@ -17,6 +18,7 @@ const ADD_ID = addButtonId("education");
 
 export const EducationEditor = memo(function EducationEditor({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => resume.education);
+  const t = useMessages("studioSections").education;
 
   function add() {
     const school = newEducation();
@@ -29,9 +31,9 @@ export const EducationEditor = memo(function EducationEditor({ resumeId }: { res
   return (
     <EntryList
       count={ids.length}
-      empty="No education yet. Add a degree, a bootcamp or a course that matters for the job."
+      empty={t.empty}
       addId={ADD_ID}
-      addLabel="Add a school"
+      addLabel={t.add}
       onAdd={add}
       limit={LIST_LIMITS.education}
     >
@@ -71,11 +73,12 @@ const EducationEntry = memo(function EducationEntry({
     (resume) => resume.education.find((item) => item.id === entryId),
     undefined,
   );
+  const t = useMessages("studioSections").education;
   if (!school) return null;
 
   const headingId = entryFieldId(entryId, "heading");
   const firstFieldId = entryFieldId(entryId, "first");
-  const title = [school.degree, school.school].filter(Boolean).join(", ") || "New school";
+  const title = [school.degree, school.school].filter(Boolean).join(", ") || t.newItem;
   const update = (patch: Partial<Omit<Education, "id" | "bullets" | "hidden">>) =>
     editList(resumeId, "education", (schools) =>
       patchItem(schools, entryId, (current) => ({ ...current, ...patch })),
@@ -98,7 +101,7 @@ const EducationEntry = memo(function EducationEntry({
       onMove={(delta) =>
         editList(resumeId, "education", (schools) => moveItem(schools, entryId, delta))
       }
-      confirm={hasContent(school) ? "Remove this school?" : null}
+      confirm={hasContent(school) ? t.remove : null}
       onRemove={remove}
       hidden={school.hidden === true}
       onToggleHidden={() =>
@@ -112,44 +115,44 @@ const EducationEntry = memo(function EducationEntry({
         firstFieldId,
         content: (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="School">
+            <Field label={t.school}>
               <Input
                 id={firstFieldId}
                 value={school.school}
                 onChange={(event) => update({ school: event.target.value })}
                 maxLength={CHAR_LIMITS.school}
-                placeholder="University of Melbourne"
+                placeholder={t.schoolPlaceholder}
               />
             </Field>
-            <Field label="Degree" optional>
+            <Field label={t.degree} optional>
               <Input
                 value={school.degree}
                 onChange={(event) => update({ degree: event.target.value })}
                 maxLength={CHAR_LIMITS.degree}
-                placeholder="BSc"
+                placeholder={t.degreePlaceholder}
               />
             </Field>
-            <Field label="Field of study" optional>
+            <Field label={t.field} optional>
               <Input
                 value={school.field}
                 onChange={(event) => update({ field: event.target.value })}
                 maxLength={CHAR_LIMITS.field}
-                placeholder="Computer Science"
+                placeholder={t.fieldPlaceholder}
               />
             </Field>
-            <Field label="Location" optional>
+            <Field label={t.location} optional>
               <Input
                 value={school.location}
                 onChange={(event) => update({ location: event.target.value })}
                 maxLength={CHAR_LIMITS.schoolLocation}
-                placeholder="Melbourne, Australia"
+                placeholder={t.locationPlaceholder}
               />
             </Field>
             <DateRangeFields
               className="sm:col-span-2"
               startDate={school.startDate}
               endDate={school.endDate}
-              presentLabel="I study here now"
+              presentLabel={t.present}
               onChange={update}
             />
           </div>
@@ -162,8 +165,8 @@ const EducationEntry = memo(function EducationEntry({
         parentId={entryId}
         ownerHeadingId={headingId}
         bullets={school.bullets}
-        title="Details (optional)"
-        addLabel="Add a detail"
+        title={t.details}
+        addLabel={t.addDetail}
       />
     </EntryShell>
   );

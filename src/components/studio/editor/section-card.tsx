@@ -3,6 +3,8 @@
 import { ChevronDown } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import { DIMMED_CLASSES, HiddenChip } from "./hidden-chip";
 import { removeWithUndo } from "./remove-with-undo";
@@ -44,6 +46,7 @@ export function SectionCard({
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const hidden = options?.hidden === true;
+  const t = useMessages("studioEditor");
 
   function backToView(focus: "toggle" | "menu" | null) {
     flushSync(() => setMode("view"));
@@ -58,8 +61,9 @@ export function SectionCard({
   function askToRemove() {
     const remove = options?.remove;
     if (!remove) return;
-    if (remove.confirm) removeWithUndo(remove.resumeId, `the ${title} section`, remove.run);
-    else remove.run();
+    if (remove.confirm) {
+      removeWithUndo(remove.resumeId, fmt(t.undo.section, { title }), remove.run, t.undo);
+    } else remove.run();
   }
 
   return (

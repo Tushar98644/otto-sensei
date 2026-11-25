@@ -1,4 +1,7 @@
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
 import type { Resume } from "@/lib/resume/schema";
+import { countText } from "@/components/studio/count";
 import type { StudioStep } from "@/lib/store/resume-store";
 import { planStudioTour, type StudioStopId } from "./studio-plan";
 import {
@@ -18,24 +21,7 @@ import type { TourStop } from "./tours";
 
 type Copy = Pick<TourStop, "title" | "body">;
 
-export const STUDIO_COPY: Record<StudioStopId, Copy> = {
-  "read-text": {
-    title: "What hiring software reads",
-    body: "This is your file as hiring software reads it. Anything missing here is missing for recruiters too.",
-  },
-  "fix-with-otto": {
-    title: "Fix a line with Otto",
-    body: "Tags show lines that need work. I ask for the facts, then rewrite. I never invent numbers.",
-  },
-  tailor: {
-    title: "Tailor to a job",
-    body: "Paste a job link. I'll show what it asks for and help add what you really have.",
-  },
-  download: {
-    title: "Download, free",
-    body: "Your PDF is free, always. Then I check it again to show what changed.",
-  },
-};
+export type TourCopy = Messages["onboarding"];
 
 export type DashboardStopId =
   | "setup"
@@ -48,59 +34,28 @@ export type DashboardStopId =
   | "win-rate";
 
 // The count comes from the setup rows the Up next card really shows (3 on Free, more on Pro).
-export function setupStopCopy(steps: number | null): Copy {
-  const lead = "What to do next, most important first.";
-  if (!steps || steps < 1)
-    return { title: "Up next", body: `${lead} Each row goes once it's done.` };
-  const tick = steps === 1 ? "step ticks itself" : "steps tick themselves";
-  return { title: "Up next", body: `${lead} Your ${steps} setup ${tick} off.` };
+export function setupStopCopy(copy: TourCopy, format: Format, steps: number | null): Copy {
+  const { setup } = copy.dashboard;
+  if (!steps || steps < 1) return { title: setup.title, body: setup.none };
+  return { title: setup.title, body: countText(format, setup.steps, steps) };
 }
-
-export const DASHBOARD_COPY: Record<DashboardStopId, Copy> = {
-  setup: setupStopCopy(null),
-  actions: {
-    title: "Start here",
-    body: "Check a file, tailor a resume to one job, or try a new format.",
-  },
-  library: {
-    title: "Your resumes",
-    body: "Every resume and tailored copy lives here. Search by name or company.",
-  },
-  jobs: {
-    title: "Jobs for you",
-    body: "Open jobs from company boards, ordered by how closely each one matches your resume.",
-  },
-  applications: {
-    title: "Applications",
-    body: "Log each job you apply to on a board. Its letter and interview prep stay linked.",
-  },
-  interview: {
-    title: "Interview prep",
-    body: "For each interview: likely questions, stories from your own resume lines, and questions to ask.",
-  },
-  portfolio: {
-    title: "Portfolio",
-    body: "Turn your resume into a portfolio site, hosted for you at your own link.",
-  },
-  "win-rate": {
-    title: "What's working",
-    body: "Log the jobs you apply to. I'll show which resume gets you interviews.",
-  },
-};
 
 export function studioStops({
   step,
   resume,
   hasReport,
   setStep,
+  copy,
 }: {
   step: StudioStep;
   resume: Resume;
   hasReport: boolean;
   setStep: (step: StudioStep) => void;
+  copy: TourCopy;
 }): TourStop[] | null {
   const plan = planStudioTour({ step, resume, hasReport });
   if (!plan) return null;
+  const STUDIO_COPY: Record<StudioStopId, Copy> = copy.studio;
 
   const onFix = {
     screen: "fix",
@@ -150,7 +105,14 @@ export function studioStops({
 
 export function dashboardStops({
   setupSteps = null,
-}: { setupSteps?: number | null } = {}): TourStop[] {
+  copy,
+  format,
+}: {
+  setupSteps?: number | null;
+  copy: TourCopy;
+  format: Format;
+}): TourStop[] {
+  const DASHBOARD_COPY: Record<Exclude<DashboardStopId, "setup">, Copy> = copy.dashboard;
   const section = (id: "jobs" | "applications" | "interview" | "portfolio"): TourStop => ({
     id,
     ...DASHBOARD_COPY[id],
@@ -161,7 +123,7 @@ export function dashboardStops({
   return [
     {
       id: "setup",
-      ...setupStopCopy(setupSteps),
+      ...setupStopCopy(copy, format, setupSteps),
       target: setupList,
       shape: "card",
       screen: "home",

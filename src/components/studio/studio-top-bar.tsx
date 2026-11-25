@@ -7,6 +7,8 @@ import { OttoMark } from "@/components/site/otto-mark";
 import { ROUTES } from "@/components/site/routes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BRAND } from "@/config/brand";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { AccountMenu } from "./account-menu";
 import { HistoryControls } from "./history/history-controls";
@@ -20,6 +22,7 @@ export type StudioTopBarProps = {
 
 export function StudioTopBar({ hydrated, onSignIn }: StudioTopBarProps) {
   const activeId = useStudioStore((s) => s.activeId);
+  const t = useMessages("studio");
   // The proxy redirects "/" only on full loads; a client-side move would show the sales page.
   const { user } = useMe();
   // A guest's way home is rare from here, so the sales page loads on intent, not with the studio.
@@ -29,7 +32,7 @@ export function StudioTopBar({ hydrated, onSignIn }: StudioTopBarProps) {
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4 sm:h-16 sm:gap-4 sm:px-6">
         <HomeLink
           href={user ? ROUTES.dashboard : ROUTES.home}
-          aria-label={`${BRAND.name} home`}
+          aria-label={fmt(t.topBar.home, { brand: BRAND.name })}
           className="flex h-11 shrink-0 items-center gap-2 rounded-lg pr-1"
         >
           <OttoMark className="size-8" />

@@ -4,6 +4,9 @@ import { useState } from "react";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { VoiceTextarea } from "@/components/ui/voice-field";
@@ -24,11 +27,9 @@ export type AddLineFormProps = {
   onCancel: () => void;
 };
 
-function placeholderFor(requirement: TailorRequirement): string {
+function placeholderFor(t: Messages["studioTailor"]["addLine"], requirement: TailorRequirement) {
   const [name] = requirement.terms;
-  return name
-    ? `Set up our staging servers with ${name}`
-    : "Mentored two new hires in their first month";
+  return name ? fmt(t.placeholderWith, { name }) : t.placeholder;
 }
 
 export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: AddLineFormProps) {
@@ -40,19 +41,14 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
   const target = targets.find((item) => item.id === targetId) ?? null;
   const writingLine = writing.busy === "line";
   const failed = writing.error?.task === "line" ? writing.error.message : null;
+  const t = useMessages("studioTailor").addLine;
 
-  if (!target) {
-    return (
-      <p className="text-sm text-muted">
-        Add a job or a project in Fix lines first, then come back to add this line.
-      </p>
-    );
-  }
+  if (!target) return <p className="text-sm text-muted">{t.noTarget}</p>;
 
   async function write() {
     if (!target) return;
     if (!what.trim()) {
-      setProblem("Say where and what you did first. A few words is enough.");
+      setProblem(t.whatFirst);
       return;
     }
     setProblem(null);
@@ -63,20 +59,20 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
 
   function takeMine() {
     if (!what.trim()) {
-      setProblem("Say where and what you did first. A few words is enough.");
+      setProblem(t.whatFirst);
       return;
     }
     setProblem(null);
     setDraft(what.trim());
   }
 
-  const nameNote = draft === null ? null : missingName(requirement, draft);
-  const claimNote = draft === null ? null : verbNote(what, draft);
+  const nameNote = draft === null ? null : missingName(t, requirement, draft);
+  const claimNote = draft === null ? null : verbNote(t, what, draft);
   const blank = draft !== null && hasBlank(draft);
 
   return (
     <div className="flex flex-col gap-4 rounded-xl bg-surface-muted p-4">
-      <Field label="Where did you do it?">
+      <Field label={t.where}>
         <Select value={targetId} onChange={(event) => setTargetId(event.target.value)}>
           {targets.map((item) => (
             <option key={item.id} value={item.id}>
@@ -85,18 +81,14 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
           ))}
         </Select>
       </Field>
-      <Field
-        label="What did you do?"
-        hint="A few words is enough. Otto adds nothing you didn't say."
-        error={problem}
-      >
+      <Field label={t.what} hint={t.whatHint} error={problem}>
         <VoiceTextarea
           autoResize
           maxLength={ANSWER_CHARS}
           value={what}
           onChange={(event) => setWhat(event.target.value)}
           onDictate={setWhat}
-          placeholder={placeholderFor(requirement)}
+          placeholder={placeholderFor(t, requirement)}
           className="bg-surface"
         />
       </Field>
@@ -104,16 +96,16 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => void write()} loading={writingLine}>
-              Write the line
+              {t.write}
             </Button>
             <Button size="sm" variant="ghost" onClick={takeMine} disabled={writingLine}>
-              Use my words
+              {t.useMine}
             </Button>
             <Button size="sm" variant="ghost" onClick={onCancel} disabled={writingLine}>
-              Cancel
+              {t.cancel}
             </Button>
           </div>
-          <p className="text-xs text-subtle">Writing the line uses 1 line fix.</p>
+          <p className="text-xs text-subtle">{t.usesFix}</p>
           {asked && writingLine ? <OttoWorking task="line" size="sm" /> : null}
           {failed ? (
             <Alert variant="error" className="mt-1">
@@ -123,7 +115,7 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
         </div>
       ) : (
         <>
-          <Field label="Your new line" hint={`Goes into the tailored copy, under ${target.label}.`}>
+          <Field label={t.newLine} hint={fmt(t.newLineHint, { place: target.label })}>
             <VoiceTextarea
               autoResize
               maxLength={LINE_CHARS}
@@ -135,9 +127,7 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
           </Field>
           {blank || nameNote || claimNote ? (
             <Alert variant="warn">
-              {[blank ? "Fill in or delete the [brackets] first." : null, nameNote, claimNote]
-                .filter(Boolean)
-                .join(" ")}
+              {[blank ? t.brackets : null, nameNote, claimNote].filter(Boolean).join(" ")}
             </Alert>
           ) : null}
           <div className="flex flex-wrap gap-2">
@@ -146,10 +136,10 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
               disabled={!draft.trim() || blank}
               onClick={() => onAdd({ id: newId(), parentId: target.id, text: draft.trim() })}
             >
-              Add this line
+              {t.add}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
-              Back
+              {t.back}
             </Button>
           </div>
         </>

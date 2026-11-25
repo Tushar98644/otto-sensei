@@ -5,6 +5,9 @@ import { useEffect, useState } from "react";
 import { buttonClasses, Button } from "@/components/ui/button";
 import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
 import { Menu } from "@/components/ui/menu";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { historyKey, type HistoryKey } from "@/lib/store/history-keys";
 import { useHistoryStatus, useStudioStore } from "@/lib/store/resume-store";
 
@@ -16,18 +19,20 @@ const IS_MAC =
   typeof navigator !== "undefined" && /mac|iphone|ipad|ipod/i.test(navigator.userAgent);
 const MOD = IS_MAC ? "⌘" : "Ctrl+";
 
-function describe(action: "Undo" | "Redo", label: string | undefined): string {
-  return label ? `${action}: ${label}` : action;
+type HistoryCopy = Messages["studio"]["history"];
+
+function describe(action: string, label: string | undefined, t: HistoryCopy): string {
+  return label ? fmt(t.labelled, { action, label }) : action;
 }
 
-function stepHistory(id: string, direction: HistoryKey): string | null {
+function stepHistory(id: string, direction: HistoryKey, t: HistoryCopy): string | null {
   const store = useStudioStore.getState();
   const history = store.history[id];
   const next = direction === "undo" ? history?.past.at(-1) : history?.future.at(-1);
   const moved = direction === "undo" ? store.undo(id) : store.redo(id);
   if (!moved) return null;
-  const verb = direction === "undo" ? "Undone" : "Redone";
-  return next?.label ? `${verb}: ${next.label}` : verb;
+  const verb = direction === "undo" ? t.undone : t.redone;
+  return describe(verb, next?.label, t);
 }
 
 export function HistoryControls({ resumeId }: { resumeId: string | null }) {
@@ -35,10 +40,11 @@ export function HistoryControls({ resumeId }: { resumeId: string | null }) {
   const [versionsOpen, setVersionsOpen] = useState(false);
   const versionsWanted = useOpenedOnce(versionsOpen);
   const [announcement, setAnnouncement] = useState("");
+  const t = useMessages("studio").history;
 
   function move(direction: HistoryKey) {
     if (!resumeId) return;
-    const said = stepHistory(resumeId, direction);
+    const said = stepHistory(resumeId, direction, t);
     if (said) setAnnouncement(said);
   }
 
@@ -51,17 +57,17 @@ export function HistoryControls({ resumeId }: { resumeId: string | null }) {
       if (!action) return;
       // Ours even when there's nothing left to undo, so the browser doesn't undo something else.
       event.preventDefault();
-      const said = stepHistory(id, action);
+      const said = stepHistory(id, action, t);
       if (said) setAnnouncement(said);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [resumeId]);
+  }, [resumeId, t]);
 
   if (!resumeId) return null;
 
-  const undoText = describe("Undo", status.undoLabel);
-  const redoText = describe("Redo", status.redoLabel);
+  const undoText = describe(t.undo, status.undoLabel, t);
+  const redoText = describe(t.redo, status.redoLabel, t);
 
   return (
     <div className="flex shrink-0 items-center gap-0.5">
@@ -91,8 +97,8 @@ export function HistoryControls({ resumeId }: { resumeId: string | null }) {
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Versions"
-        title="Versions"
+        aria-label={t.versions}
+        title={t.versions}
         aria-haspopup="dialog"
         onClick={() => setVersionsOpen(true)}
         className="max-sm:hidden"
@@ -101,23 +107,23 @@ export function HistoryControls({ resumeId }: { resumeId: string | null }) {
       </Button>
       <div className="sm:hidden">
         <Menu
-          label="Resume history"
+          label={t.menu}
           align="end"
-          triggerLabel="Redo and versions"
+          triggerLabel={t.menuTrigger}
           triggerClassName={buttonClasses({ variant: "ghost", size: "icon-sm" })}
           trigger={<History aria-hidden />}
           items={[
             {
-              label: "Redo",
+              label: t.redo,
               icon: Redo2,
               ...(status.redoLabel ? { description: status.redoLabel } : {}),
               disabled: !status.canRedo,
               onSelect: () => move("redo"),
             },
             {
-              label: "Versions",
+              label: t.versions,
               icon: History,
-              description: "Save or restore this resume",
+              description: t.versionsHint,
               onSelect: () => setVersionsOpen(true),
             },
           ]}

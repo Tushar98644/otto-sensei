@@ -6,6 +6,8 @@ import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { ResumeThumbnail } from "@/components/dashboard/resume-thumbnail";
 import { Button } from "@/components/ui/button";
 import { ProMark } from "@/components/ui/pro-mark";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import {
   isProTemplate,
   TEMPLATE_INFO,
@@ -37,6 +39,7 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
   const tryPro = useTryProLabel();
   const locked = (id: TemplateId) => pro === false && isProTemplate(id);
   const pageSize = usePageSize();
+  const t = useMessages("studioDownload").format;
   const stopPreparing = useRef(() => {});
 
   function stop() {
@@ -65,7 +68,7 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
 
   return (
     <fieldset className={cn("flex flex-col gap-1.5", className)} aria-describedby={hintId}>
-      <legend className="mb-1.5 text-sm font-medium text-ink">Format</legend>
+      <legend className="mb-1.5 text-sm font-medium text-ink">{t.legend}</legend>
       <div className="grid grid-cols-3 gap-2">
         {TEMPLATE_LIST.map((info) => {
           const checked = current === info.id;
@@ -116,13 +119,15 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
         })}
       </div>
       <p id={hintId} className="text-sm text-muted">
-        {TEMPLATE_INFO[current].bestFor} Every format reads cleanly in hiring software.
+        {TEMPLATE_INFO[current].bestFor} {t.clean}
       </p>
       {locked(current) ? (
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-sm text-ink">
-            {TEMPLATE_INFO[current].name} is a Pro format, so your download comes out in{" "}
-            {TEMPLATE_INFO[DEFAULT_TEMPLATE].name}.
+            {fmt(t.proFormat, {
+              format: TEMPLATE_INFO[current].name,
+              fallback: TEMPLATE_INFO[DEFAULT_TEMPLATE].name,
+            })}
           </p>
           <Button variant="ghost" onClick={() => openUpgradePrompt("formats")}>
             {tryPro}
@@ -132,13 +137,13 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
       {offer ? (
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-sm text-muted">
-            {TEMPLATE_INFO[current].name} puts {offer.moved} higher up.
+            {fmt(t.putsHigher, { format: TEMPLATE_INFO[current].name, sections: offer.moved })}
           </p>
           <Button
             variant="ghost"
             onClick={() => updateResume(resume.id, (r) => ({ ...r, sectionOrder: offer.order }))}
           >
-            Move {offer.count === 1 ? "it" : "them"} up
+            {offer.count === 1 ? t.moveIt : t.moveThem}
           </Button>
         </div>
       ) : null}

@@ -6,6 +6,8 @@ import { useMe } from "@/components/account/use-me";
 import { MarkApplied, useCopyApplication } from "@/components/dashboard/applications/mark-applied";
 import { rememberOpenedJob } from "@/components/dashboard/jobs/use-opened-jobs";
 import { buttonClasses } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { Resume } from "@/lib/resume/schema";
 import { jobLinkFor, type CopyJobLink } from "./job-link";
 
@@ -18,6 +20,8 @@ function OpenJobLink({ resume, job }: { resume: Resume; job: CopyJobLink }) {
   const { user } = useMe();
   const application = useCopyApplication(resume);
   const [opened, setOpened] = useState(false);
+  const t = useMessages("studioDownload").openJob;
+  const studio = useMessages("studio");
   if (application) return null;
 
   function open() {
@@ -44,9 +48,9 @@ function OpenJobLink({ resume, job }: { resume: Resume; job: CopyJobLink }) {
         className: opened ? undefined : "w-full",
       })}
     >
-      {opened ? "Open the job again" : "Open job to apply"}
+      {opened ? t.again : t.open}
       <ArrowUpRight aria-hidden />
-      <span className="sr-only">(opens in a new tab)</span>
+      <span className="sr-only">{studio.hiringNotes.newTab}</span>
     </a>
   );
 
@@ -54,8 +58,7 @@ function OpenJobLink({ resume, job }: { resume: Resume; job: CopyJobLink }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl bg-surface-muted p-4">
       <p className="text-sm/6 text-pretty text-ink">
-        {job.company ? `Applied at ${job.company}?` : "Applied to this job?"} Log it and I&apos;ll
-        remind you to follow up.
+        {job.company ? fmt(t.appliedAt, { company: job.company }) : t.applied} {t.logIt}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <MarkApplied resume={resume} />

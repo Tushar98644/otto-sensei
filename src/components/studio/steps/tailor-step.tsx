@@ -15,7 +15,6 @@ import { useResumeAfterSignIn } from "@/components/account/account-gate";
 import { useProTools } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
 import { EligibilityCard } from "@/components/eligibility/eligibility-card";
-import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
@@ -48,11 +47,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { TrackView } from "@/lib/analytics/track-view";
 import { preloadPdfRenderer } from "@/lib/pdf/render";
 import type { Resume } from "@/lib/resume/schema";
 import { useActiveResume, useStudioStore } from "@/lib/store/resume-store";
-import { thisPeriod } from "@/lib/usage-copy";
+import { screenerLine } from "@/components/studio/tailor/otto";
+import { thisPeriodIn } from "@/components/studio/usage";
 
 const PRELOAD_DELAY_MS = 2_000;
 
@@ -65,24 +68,23 @@ const FreeMatch = dynamic(
   { loading: () => <OttoWorking task="tailor" /> },
 );
 
-const FREE_OTTO = "Here's each skill this post names, and where your resume shows it.";
-const FREE_NOTE =
-  "Free shows which skills the post names and where you show them. Tailoring comes with Pro.";
+type Tailor = Messages["studioTailor"];
 
-function useUsageNote(): string | null {
+function useUsageNote(t: Tailor): string | null {
   const { user, me, loading } = useMe();
+  const usageWords = useMessages("studio").usage;
   if (loading) return null;
-  if (!user) return FREE_NOTE;
+  if (!user) return t.free.usage;
   const usage = me?.usage?.tailor;
   if (!usage) return null;
-  if (usage.limit === 0) return FREE_NOTE;
+  if (usage.limit === 0) return t.free.usage;
   const left = Math.max(0, usage.limit - usage.used);
-  return `${left} of ${usage.limit} tailored versions left ${thisPeriod(me?.period)}.`;
+  return fmt(t.left, { left, limit: usage.limit, period: thisPeriodIn(usageWords, me?.period) });
 }
 
-function jobLabel(title: string, company: string): string {
+function jobLabel(t: Tailor, title: string, company: string): string {
   const parts = [title.trim(), company.trim()].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : "The job post you pasted";
+  return parts.length > 0 ? parts.join(" · ") : t.pastedPost;
 }
 
 const noQueue = () => 0;
@@ -98,7 +100,9 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   const pro = useProTools();
   const { user } = useMe();
   const run = useTailorRun(source);
-  const usageNote = useUsageNote();
+  const t = useMessages("studioTailor");
+  const format = useFormat();
+  const usageNote = useUsageNote(t);
   const last = run.last;
   const result = last?.result ?? null;
   const savedChoices = last?.choices ?? null;
@@ -130,12 +134,14 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   // Once a sign-in shows the plan includes tailoring, the free check makes way for the real one.
   const free = pro === true ? null : freeJob;
 
-  let otto: string = OTTO.tailor.intro;
-  if (run.loading) otto = OTTO.tailor.working;
+  let otto: string = t.otto.intro;
+  if (run.loading) otto = t.otto.working;
   else if (run.error) otto = run.error;
-  else if (run.cancelled) otto = OTTO.tailor.cancelled;
-  else if (free) otto = FREE_OTTO;
-  else if (screener) otto = OTTO.tailor.screener(screener.counts.must, screener.counts.nice);
+  else if (run.cancelled) otto = t.otto.cancelled;
+  else if (free) otto = t.free.otto;
+  else if (screener) {
+    otto = screenerLine(t.otto.screener, format, screener.counts.must, screener.counts.nice);
+  }
 
   const showingResults = !free && Boolean(last && choices && screener);
   const shownJob = free ?? run.last?.job ?? null;
@@ -143,9 +149,10 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   const folded =
     Boolean(free ?? (last && screener)) && !editingPost && !run.loading && !postChanged;
   let jobName = "";
-  if (free) jobName = jobLabel(free.title, free.company);
+  if (free) jobName = jobLabel(t, free.title, free.company);
   else if (last) {
     jobName = jobLabel(
+      t,
       last.job.title || last.result.job.title,
       last.job.company || last.result.job.company,
     );
@@ -183,15 +190,14 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <OttoNote message={otto} />
       {baseTitle ? (
-        <Alert title={`Tailoring a copy of “${baseTitle}”`} className="bg-surface">
-          This resume is already tailored, so I&apos;ll work from the original it came from. Each
-          job gets its own copy.
+        <Alert title={fmt(t.base.title, { title: baseTitle })} className="bg-surface">
+          {t.base.note}
         </Alert>
       ) : null}
       {folded ? (
         <Card className="gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <Eyebrow>Compared with</Eyebrow>
+            <Eyebrow>{t.comparedWith}</Eyebrow>
             <p className="text-base/6 font-semibold text-pretty text-ink">{jobName}</p>
           </div>
           <Button
@@ -201,7 +207,7 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
             className="self-start sm:self-auto"
           >
             <Pencil />
-            Change the job post
+            {t.changePost}
           </Button>
         </Card>
       ) : null}
@@ -223,8 +229,8 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
       {free ? (
         <>
           {postChanged ? (
-            <Alert variant="warn" title="This check is for the post you compared before">
-              Compare again to check the post as it is now.
+            <Alert variant="warn" title={t.stale.freeTitle}>
+              {t.stale.freeNote}
             </Alert>
           ) : null}
           <FreeMatch
@@ -242,7 +248,7 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
             }}
             className="self-start"
           >
-            Start over with another job
+            {t.startOver}
           </Button>
         </>
       ) : last && choices && screener ? (
@@ -258,8 +264,8 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
             once={last.id}
           />
           {postChanged ? (
-            <Alert variant="warn" title="These results are for the post you sent before">
-              Compare again to update them for the post as it is now.
+            <Alert variant="warn" title={t.stale.title}>
+              {t.stale.note}
             </Alert>
           ) : null}
           <Results
@@ -281,7 +287,7 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
             }}
             className="self-start"
           >
-            Start over with another job
+            {t.startOver}
           </Button>
         </>
       ) : null}
@@ -299,6 +305,8 @@ export function TailorStep() {
   const setStep = useStudioStore((s) => s.setStep);
   const pro = useProTools();
   const pageSize = usePageSize();
+  const studio = useMessages("studio");
+  const t = useMessages("studioTailor");
   // A job handed over while the step shows starts a fresh workspace, which reads it like Jobs does.
   const queueVersion = useSyncExternalStore(subscribeQueuedJob, queuedJobVersion, noQueue);
 
@@ -323,15 +331,15 @@ export function TailorStep() {
     return (
       <EmptyState
         illustration={<Otto pose="think" size={120} />}
-        title="Add a resume first"
-        description={OTTO.empty.noResumes}
-        action={<Button onClick={() => setStep("upload")}>Upload a resume</Button>}
+        title={t.empty}
+        description={studio.otto.noResumes}
+        action={<Button onClick={() => setStep("upload")}>{studio.uploadResume}</Button>}
       />
     );
   }
   // Tailoring a copy would stack two jobs' changes, so work from the original while it exists.
   const source = base ?? active;
-  const baseTitle = base ? base.title || "your original resume" : null;
+  const baseTitle = base ? base.title || t.base.fallback : null;
   return (
     <TailorWorkspace key={`${source.id}:${queueVersion}`} source={source} baseTitle={baseTitle} />
   );

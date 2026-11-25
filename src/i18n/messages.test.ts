@@ -17,8 +17,23 @@ const filesIn = (locale: Locale) =>
 
 // Words that read the same in every language, per locale and message path.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
-  es: new Set(["row.quoted", "working.general"]),
-  "pt-BR": new Set(["card.via", "hub.via", "row.quoted", "dialog.status"]),
+  es: new Set([
+    "row.quoted",
+    "working.general",
+    "design.color",
+    "design.densities.normal",
+    "row.no",
+  ]),
+  "pt-BR": new Set([
+    "card.via",
+    "hub.via",
+    "row.quoted",
+    "dialog.status",
+    "design.title",
+    "design.densities.normal",
+    "links.title",
+    "projects.link",
+  ]),
   fr: new Set([
     "meta.portfolio",
     "nav.portfolio",
@@ -30,6 +45,18 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "labels.outreach",
     "reader.question",
     "filters.outreach",
+    "dashboard.portfolio.title",
+    "history.versions",
+    "versions.title",
+    "design.densities.compact",
+    "chips.vague",
+    "certifications.date",
+    "extras.date",
+    "extras.kinds.awards.date.label",
+    "extras.kinds.volunteering.date.label",
+    "extras.kinds.publications.name",
+    "extras.kinds.publications.date.label",
+    "extras.kinds.custom.date.label",
   ]),
   de: new Set([
     "meta.jobs",
@@ -50,6 +77,14 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "hub.remote",
     "move.optional",
     "winRate.interviews",
+    "dashboard.portfolio.title",
+    "links.title",
+    "links.optional",
+    "links.name",
+    "projects.link",
+    "education.details",
+    "extras.details",
+    "extras.kinds.custom.detail.label",
   ]),
 };
 

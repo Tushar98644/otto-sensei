@@ -8,57 +8,6 @@ const TRIAL: UsagePeriod = { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12)
 const MONTH: UsagePeriod = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 12), renews: true };
 
 const SAMPLES: Record<string, unknown[][]> = {
-  "upload.failed": [["That file isn't a PDF or Word document."], ["No text found"], ["  "]],
-  "review.summary": [
-    [{ fail: 2, warn: 1, pass: 8 }],
-    [{ fail: 1, warn: 0, pass: 1 }],
-    [{ fail: 13, warn: 0, pass: 0 }],
-    [{ fail: 0, warn: 3, pass: 9 }],
-    [{ fail: 0, warn: 0, pass: 12 }],
-  ],
-  "review.overall": [
-    [{ fail: 0, warn: 0, pass: 13 }, 3],
-    [{ fail: 0, warn: 2, pass: 11 }, 1],
-    [{ fail: 1, warn: 0, pass: 12 }, 4],
-    [{ fail: 0, warn: 0, pass: 13 }, 0],
-  ],
-  "fix.manyIssues": [[0], [1], [24]],
-  "tailor.screener": [
-    [
-      { proven: 0, total: 0 },
-      { proven: 0, total: 0 },
-    ],
-    [
-      { proven: 0, total: 0 },
-      { proven: 2, total: 5 },
-    ],
-    [
-      { proven: 1, total: 1 },
-      { proven: 0, total: 3 },
-    ],
-    [
-      { proven: 8, total: 8 },
-      { proven: 1, total: 6 },
-    ],
-    [
-      { proven: 0, total: 6 },
-      { proven: 0, total: 2 },
-    ],
-    [
-      { proven: 5, total: 8 },
-      { proven: 3, total: 6 },
-    ],
-    [
-      { proven: 7, total: 8 },
-      { proven: 3, total: 6 },
-    ],
-  ],
-  "download.checked": [
-    [{ before: 0, after: 0 }],
-    [{ before: 1, after: 0 }],
-    [{ before: 12, after: 3 }],
-    [{ before: 2, after: 2 }],
-  ],
   "signIn.reason": [["fix"], ["tailor"], ["letter"]],
   "limit.reached": [
     ["fix"],
@@ -166,54 +115,6 @@ describe("OTTO lines", () => {
     );
   });
 
-  it("names what a recruiter would notice once the file reads cleanly", () => {
-    expect(OTTO.review.overall({ fail: 0, warn: 0, pass: 13 }, 3)).toBe(
-      "Hiring software can read it all. A recruiter would notice 3 things in your words first.",
-    );
-    expect(OTTO.review.overall({ fail: 0, warn: 2, pass: 11 }, 1)).toBe(
-      "Software can read it, with small snags. A recruiter would notice 1 thing in your words first.",
-    );
-    expect(OTTO.review.overall({ fail: 1, warn: 0, pass: 12 }, 4)).toBe(
-      OTTO.review.summary({ fail: 1, warn: 0, pass: 12 }),
-    );
-    expect(OTTO.review.overall({ fail: 0, warn: 0, pass: 13 }, 0)).toBe(OTTO.review.allGood);
-  });
-
-  it("summarizes checks with correct grammar", () => {
-    expect(OTTO.review.summary({ fail: 2, warn: 1, pass: 8 })).toBe(
-      "2 checks need fixing and 1 could be better. 8 already look good.",
-    );
-    expect(OTTO.review.summary({ fail: 1, warn: 0, pass: 1 })).toBe(
-      "1 check needs fixing. 1 already looks good.",
-    );
-    expect(OTTO.review.summary({ fail: 0, warn: 2, pass: 5 })).toBe(
-      "Nothing's broken. 2 small things could be better.",
-    );
-    expect(OTTO.review.summary({ fail: 0, warn: 0, pass: 9 })).toBe(OTTO.review.allGood);
-  });
-
-  it("leads the screener line with must-haves and never overstates the count", () => {
-    expect(OTTO.tailor.screener({ proven: 5, total: 8 }, { proven: 3, total: 6 })).toBe(
-      "Your resume proves 5 of 8 must-haves. Let's look at the other 3.",
-    );
-    expect(OTTO.tailor.screener({ proven: 7, total: 8 }, { proven: 0, total: 0 })).toContain(
-      "the one left",
-    );
-    expect(OTTO.tailor.screener({ proven: 12, total: 8 }, { proven: 0, total: 0 })).toContain(
-      "all 8",
-    );
-    expect(
-      OTTO.tailor.screener({ proven: Number.NaN, total: 4 }, { proven: 0, total: 0 }),
-    ).toContain("the 4 must-haves");
-  });
-
-  it("reports the before and after PDF check", () => {
-    expect(OTTO.download.checked({ before: 4, after: 0 })).toBe(
-      "Before: 4 problems. After: none. Hiring software can read every line.",
-    );
-    expect(OTTO.download.checked({ before: 1, after: 0 })).toMatch(/^Before: 1 problem\./);
-  });
-
   it("uses Pro's limit unless told otherwise, and pitches the trial on a plan without the feature", () => {
     expect(OTTO.limit.reached("tailor")).toContain(
       `this month's ${PLANS.pro.limits.tailor} tailored versions`,
@@ -291,11 +192,6 @@ describe("OTTO lines", () => {
       "Pro tracks 1,000 applications; you have 1,800. Delete 801 to add another, or move to Max for 2,000.",
     );
     expect(OTTO.limit.full("resumes", "pro", 25)).toBe(OTTO.limit.full("resumes", "pro"));
-  });
-
-  it("turns a failure reason into a full sentence", () => {
-    expect(OTTO.upload.failed("No text found")).toBe("Hmm, I couldn't read that. No text found.");
-    expect(OTTO.upload.failed("")).toBe("Hmm, I couldn't read that. Want to try another file?");
   });
 
   it("keeps the error lines in one place, which the root error page reads on its own", () => {

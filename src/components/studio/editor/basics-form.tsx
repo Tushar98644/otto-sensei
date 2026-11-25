@@ -3,9 +3,11 @@
 import { memo, useState } from "react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useMessages } from "@/i18n/client";
 import type { Basics } from "@/lib/resume/schema";
 import { CHAR_LIMITS } from "./limits";
 import { LinksEditor } from "./links-editor";
+import { ResumeLanguage, SHOW_RESUME_LANGUAGE } from "./resume-language";
 import { editResume, useResumeValue } from "./use-editor";
 
 const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15,6 +17,7 @@ type BasicsText = Partial<Omit<Basics, "links">>;
 export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: string }) {
   const basics = useResumeValue(resumeId, (resume) => resume.basics, undefined);
   const [checkEmail, setCheckEmail] = useState(false);
+  const t = useMessages("studioSections").basics;
   if (!basics) return null;
 
   // An email field drops a trailing space, so typing one can change nothing.
@@ -30,31 +33,31 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
 
   const email = basics.email.trim();
   const emailError =
-    checkEmail && email !== "" && !LOOKS_LIKE_EMAIL.test(email)
-      ? "This email looks incomplete. Check it so recruiters can reach you."
-      : undefined;
+    checkEmail && email !== "" && !LOOKS_LIKE_EMAIL.test(email) ? t.emailIncomplete : undefined;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Full name">
+        <Field label={t.name}>
           <Input
             value={basics.name}
             onChange={(event) => update({ name: event.target.value })}
+            data-basics="name"
             maxLength={CHAR_LIMITS.name}
             autoComplete="name"
             placeholder="Alex Morgan"
           />
         </Field>
-        <Field label="Headline" optional>
+        <Field label={t.headline} optional>
           <Input
             value={basics.headline}
             onChange={(event) => update({ headline: event.target.value })}
+            data-basics="headline"
             maxLength={CHAR_LIMITS.headline}
-            placeholder="Product designer"
+            placeholder={t.headlinePlaceholder}
           />
         </Field>
-        <Field label="Email" error={emailError}>
+        <Field label={t.email} error={emailError}>
           <Input
             type="email"
             inputMode="email"
@@ -62,37 +65,36 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
             spellCheck={false}
             value={basics.email}
             onChange={(event) => update({ email: event.target.value })}
+            data-basics="email"
             onBlur={() => setCheckEmail(true)}
             maxLength={CHAR_LIMITS.email}
             placeholder="alex@example.com"
           />
         </Field>
-        <Field label="Phone" optional>
+        <Field label={t.phone} optional>
           <Input
             type="tel"
             inputMode="tel"
             autoComplete="tel"
             value={basics.phone}
             onChange={(event) => update({ phone: event.target.value })}
+            data-basics="phone"
             maxLength={CHAR_LIMITS.phone}
             placeholder="+1 555 0100"
           />
         </Field>
-        <Field
-          label="Location"
-          optional
-          hint="City and country is enough."
-          className="sm:col-span-2"
-        >
+        <Field label={t.location} optional hint={t.locationHint} className="sm:col-span-2">
           <Input
             value={basics.location}
             onChange={(event) => update({ location: event.target.value })}
+            data-basics="location"
             maxLength={CHAR_LIMITS.location}
-            placeholder="Lisbon, Portugal"
+            placeholder={t.locationPlaceholder}
           />
         </Field>
       </div>
       <LinksEditor resumeId={resumeId} links={basics.links} />
+      {SHOW_RESUME_LANGUAGE ? <ResumeLanguage resumeId={resumeId} /> : null}
     </div>
   );
 });

@@ -3,15 +3,28 @@
 import { ArrowDown, Info, TriangleExclamationPoint } from "lucide-react";
 import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { RESULT_ISSUES, type CheckedLine } from "@/lib/lint/entry-checks";
-import { ISSUE_HELP } from "@/lib/lint/explain";
 import { lineEnding, setFullStop } from "@/lib/lint/punctuation";
 import type { LintIssue, LintIssueId } from "@/lib/lint/types";
 import { cn } from "@/lib/utils";
 import { Popover, usePopover } from "../popover";
 import { useLineStepper } from "./entry-lines";
 import { ottoCanFix } from "./fix-queue";
-import { CHIP_LABELS } from "./lint-notes";
+import { useIssueText } from "./lint-notes";
+
+type Help = { why: string; example: { before: string | null; after: string } | null };
+
+// lint's help for an issue (the same words as ISSUE_HELP in English), in the page's language.
+function helpOf(lint: Messages["lint"], id: LintIssueId): Help {
+  const words: { why: string; before?: string; after?: string } = lint.help[id];
+  return {
+    why: words.why,
+    example: words.after ? { before: words.before ?? null, after: words.after } : null,
+  };
+}
 
 const ENTRY_LEVEL: LintIssueId = "no-result";
 
@@ -26,16 +39,17 @@ export type IssueChipProps = {
 };
 
 export function IssueChip({ issues, text, onFix, onSetText }: IssueChipProps) {
+  const t = useMessages("studioEditor");
   const top = issues.find((issue) => issue.id !== ENTRY_LEVEL);
   if (!top) return null;
   const high = top.severity === "high";
   const more = issues.length - 1;
-  const label = CHIP_LABELS[top.id];
+  const label = t.chips[top.id];
   return (
     <Popover
-      label={`About this line: ${label}`}
+      label={fmt(t.help.about, { label })}
       align="auto"
-      triggerLabel={`${label}${more > 0 ? `, ${more} more` : ""}. Why, and how to fix it`}
+      triggerLabel={fmt(more > 0 ? t.help.chipMore : t.help.chip, { label, more })}
       triggerClassName={cn(
         CHIP_CLASSES,
         high ? "bg-warn-soft text-warn-ink" : "bg-surface text-muted ring-1 ring-border",
@@ -60,7 +74,10 @@ export function IssueChip({ issues, text, onFix, onSetText }: IssueChipProps) {
 
 function LineHelp({ issues, text, onFix, onSetText }: IssueChipProps) {
   const { close } = usePopover();
-  const example = issues.map((issue) => ISSUE_HELP[issue.id].example).find(Boolean) ?? null;
+  const t = useMessages("studioEditor");
+  const lint = useMessages("lint");
+  const say = useIssueText();
+  const example = issues.map((issue) => helpOf(lint, issue.id).example).find(Boolean) ?? null;
   const ottoCanHelp = ottoCanFix(issues);
   const stopNeeded = issues.some((issue) => issue.id === "punctuation")
     ? lineEnding(text) !== "stop"
@@ -71,9 +88,9 @@ function LineHelp({ issues, text, onFix, onSetText }: IssueChipProps) {
       <ul className="flex flex-col gap-3">
         {issues.map((issue) => (
           <li key={issue.id} className="flex flex-col gap-1">
-            <p className="text-sm/6 font-medium text-ink">{CHIP_LABELS[issue.id]}</p>
-            <p className="text-sm/6 text-pretty text-ink">{issue.message}</p>
-            <p className="text-sm/6 text-pretty text-muted">{ISSUE_HELP[issue.id].why}</p>
+            <p className="text-sm/6 font-medium text-ink">{t.chips[issue.id]}</p>
+            <p className="text-sm/6 text-pretty text-ink">{say(issue)}</p>
+            <p className="text-sm/6 text-pretty text-muted">{helpOf(lint, issue.id).why}</p>
           </li>
         ))}
       </ul>
@@ -89,7 +106,7 @@ function LineHelp({ issues, text, onFix, onSetText }: IssueChipProps) {
               }}
             >
               <OttoMark tone="line" small className="size-5 text-ink" />
-              Fix with Otto
+              {t.help.fix}
             </Button>
           ) : null}
           {stopNeeded !== null ? (
@@ -101,7 +118,7 @@ function LineHelp({ issues, text, onFix, onSetText }: IssueChipProps) {
                 close();
               }}
             >
-              {stopNeeded ? "Add a full stop" : "Remove the full stop"}
+              {stopNeeded ? t.help.addStop : t.help.removeStop}
             </Button>
           ) : null}
         </div>
@@ -112,17 +129,18 @@ function LineHelp({ issues, text, onFix, onSetText }: IssueChipProps) {
 }
 
 function Example({ before, after }: { before: string | null; after: string }) {
+  const t = useMessages("studioEditor").help;
   return (
     <div className="flex flex-col gap-1 rounded-xl bg-surface-muted px-3 py-2.5 text-sm/6">
       {before ? (
         <p className="text-pretty text-muted">
-          <span className="font-medium text-subtle">Instead of </span>
-          {`“${before}”`}
+          <span className="font-medium text-subtle">{t.insteadOf} </span>
+          {fmt(t.quoted, { text: before })}
         </p>
       ) : null}
       <p className="text-pretty text-ink">
-        <span className="font-medium text-subtle">{before ? "Try " : "For example "}</span>
-        {`“${after}”`}
+        <span className="font-medium text-subtle">{before ? t.try : t.forExample} </span>
+        {fmt(t.quoted, { text: after })}
       </p>
     </div>
   );
@@ -133,12 +151,17 @@ export function ResultNote({ lines }: { lines: readonly CheckedLine[] }) {
     .filter((line) => line.issues.some((issue) => RESULT_ISSUES.includes(issue.id)))
     .map((line) => line.id);
   const step = useLineStepper(ids);
+  const t = useMessages("studioEditor").help;
+  const lint = useMessages("lint");
   if (ids.length === 0) return null;
-  const help = ISSUE_HELP[ENTRY_LEVEL];
+  const help = helpOf(lint, ENTRY_LEVEL);
   const summary =
     lines.length === 1
-      ? "This line doesn't say what changed"
-      : `${ids.length} of ${lines.length} lines ${ids.length === 1 ? "doesn't" : "don't"} say what changed`;
+      ? t.noResultOne
+      : fmt(ids.length === 1 ? t.noResultOneOf : t.noResultSomeOf, {
+          count: ids.length,
+          total: lines.length,
+        });
 
   return (
     <div className="flex flex-col gap-x-2 rounded-xl bg-warn-soft px-3 pt-2 pb-1 text-sm text-warn-ink sm:flex-row sm:items-center sm:py-1 sm:pr-1">
@@ -148,11 +171,11 @@ export function ResultNote({ lines }: { lines: readonly CheckedLine[] }) {
       </p>
       <div className="ml-3 flex items-center sm:ml-0">
         <Popover
-          label="Why results matter"
+          label={t.whyResults}
           align="auto"
-          triggerLabel="Why it matters"
+          triggerLabel={t.whyItMatters}
           triggerClassName="inline-flex h-9 items-center rounded-lg px-3 font-medium text-warn-ink transition hover:bg-ink/6 aria-expanded:bg-ink/6 pointer-coarse:h-11"
-          trigger="Why?"
+          trigger={t.why}
           className="p-3"
         >
           <div className="flex flex-col gap-3">
@@ -168,7 +191,7 @@ export function ResultNote({ lines }: { lines: readonly CheckedLine[] }) {
           onClick={step}
           className="text-warn-ink hover:bg-ink/6 max-sm:h-11"
         >
-          {ids.length > 1 ? "Next line" : "Show line"}
+          {ids.length > 1 ? t.nextLine : t.showLine}
           <ArrowDown />
         </Button>
       </div>

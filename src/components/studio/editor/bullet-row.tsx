@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { LivePill } from "@/components/ui/live-pill";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { setBulletText, type BulletSection } from "@/lib/resume/ops";
 import { newBullet, type Bullet } from "@/lib/resume/schema";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { countText } from "../count";
 import {
   bulletsOf,
   editBullets,
@@ -28,9 +31,9 @@ import { useOpenFix } from "./fix-launcher";
 import { ottoCanFix, wantsOtto } from "./fix-queue";
 import { addLineButtonId, bulletDeleteId, bulletInputId, editThenFocus } from "./focus";
 import { HOLD_FOCUS } from "./focus-hold";
-import { HIDDEN_LABEL, HiddenChip } from "./hidden-chip";
+import { HiddenChip } from "./hidden-chip";
 import { BULLET_LIMITS, CHAR_LIMITS } from "./limits";
-import { LINE_FLASH_LABEL, useLineFlash } from "./line-flash";
+import { useLineFlash } from "./line-flash";
 import { IssueChip } from "./line-help";
 import { LineMenu, LineTools } from "./line-tools";
 import { LineDescription, LineTip, useLineLint } from "./lint-notes";
@@ -74,6 +77,9 @@ export const BulletRow = memo(function BulletRow({
   const flagged = !hidden && lint !== null && wantsOtto(lint);
   const fixable = !hidden && lint !== null && ottoCanFix(lint);
   const layout = useTouchLayout();
+  const editor = useMessages("studioEditor");
+  const t = editor.line;
+  const format = useFormat();
 
   function edit(update: (bullets: Bullet[]) => Bullet[]) {
     editLines(resumeId, section, (resume) => editBullets(resume, { section, parentId }, update));
@@ -100,7 +106,7 @@ export const BulletRow = memo(function BulletRow({
 
   function addLineBelow() {
     if (count >= max) {
-      toast({ title: `This can hold up to ${max} lines.` });
+      toast({ title: fmt(t.max, { max }) });
       return;
     }
     const fresh = newBullet();
@@ -185,8 +191,8 @@ export const BulletRow = memo(function BulletRow({
     );
     if (plan.dropped > 0) {
       toast({
-        title: "Some lines didn't fit",
-        description: `This can hold up to ${max} lines, so ${pluralize(plan.dropped, "line")} ${plan.dropped === 1 ? "was" : "were"} left out.`,
+        title: t.didntFit,
+        description: countText(format, t.leftOut, plan.dropped, { max }),
       });
     }
   }
@@ -202,9 +208,10 @@ export const BulletRow = memo(function BulletRow({
       aria-describedby={`${labelId} ${ownerHeadingId}`}
       onClick={() => openFix(bullet.id)}
       className={cn("max-sm:h-11", !fixInChipRow && "-ml-3")}
+      data-tour="studio-fix-line"
     >
       <OttoMark tone="line" small className="size-5 text-ink" />
-      Fix with Otto
+      {t.fix}
     </Button>
   );
   const tools = {
@@ -222,7 +229,7 @@ export const BulletRow = memo(function BulletRow({
   return (
     <li className="group/line" {...HOLD_FOCUS}>
       <label id={labelId} htmlFor={inputId} className="sr-only">
-        {`Line ${position}`}
+        {fmt(t.label, { position })}
       </label>
       <div
         className={cn(
@@ -247,7 +254,7 @@ export const BulletRow = memo(function BulletRow({
             maxLength={CHAR_LIMITS.bullet}
             aria-labelledby={`${labelId} ${ownerHeadingId}`}
             aria-describedby={lint || hidden ? lintId : undefined}
-            placeholder="What did you do, and what changed because of it?"
+            placeholder={t.placeholder}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
@@ -260,7 +267,7 @@ export const BulletRow = memo(function BulletRow({
         <div className="col-span-2 row-start-2 flex min-h-6 items-center gap-2 max-sm:mb-2.5 max-sm:empty:hidden sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:mt-2 sm:ml-3 sm:w-36 sm:justify-end">
           {flashed ? (
             <span aria-hidden className="flex">
-              <LivePill announce={false}>{LINE_FLASH_LABEL}</LivePill>
+              <LivePill announce={false}>{editor.lineUpdated}</LivePill>
             </span>
           ) : hidden ? (
             <span aria-hidden className="flex">
@@ -282,7 +289,7 @@ export const BulletRow = memo(function BulletRow({
       </div>
       {hidden ? (
         <div id={lintId} className="sr-only">
-          {HIDDEN_LABEL}
+          {editor.hidden.chip}
         </div>
       ) : (
         <LineDescription id={lintId} issues={lint} />

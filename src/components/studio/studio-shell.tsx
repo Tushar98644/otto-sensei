@@ -16,8 +16,8 @@ import { PauseOffscreenLoops } from "@/components/mascot/offscreen-loops";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { StudioTour } from "@/components/onboarding/studio-tour";
 import { takeStepJump } from "@/components/studio/tailor/jump";
+import { useMessages } from "@/i18n/client";
 import {
-  STEP_LABELS,
   useActiveReport,
   useStudioHydrated,
   useStudioStore,
@@ -50,18 +50,17 @@ const isLazyStep = (step: StudioStep): step is LazyStep => Object.hasOwn(LAZY_ST
 
 const PRELOAD_DELAY_MS = 1_500;
 
-const SIGN_IN_REASON = "Back up your resumes and let Otto help with your lines.";
-
 export function StudioShell() {
   const hydrated = useStudioHydrated();
   const gate = useAccountGate();
   const { requireUser } = gate;
+  const t = useMessages("studio");
   useCloudSync();
-  useOttoLoadingScreen(useFirstLoadPending(), "Loading your resumes");
-  useAccountEmailPrefill();
+  useOttoLoadingScreen(useFirstLoadPending(), t.loading.resumes);
+  useAccountEmailPrefill(t.accountEmailAdded);
 
   async function signIn() {
-    if (await requireUser(SIGN_IN_REASON)) void refreshMe();
+    if (await requireUser(t.signInReason)) void refreshMe();
   }
 
   return (
@@ -89,6 +88,7 @@ function StudioSteps() {
   const report = useActiveReport();
   const savedStep = useStudioStore((s) => s.step);
   const setStep = useStudioStore((s) => s.setStep);
+  const steps = useMessages("studio").steps;
   const context: StepContext = { hasResume, hasReport: report !== null, hasTailored };
   const step = resolveStep(savedStep, context);
   const next = adjacentStep(step, 1, context);
@@ -119,7 +119,7 @@ function StudioSteps() {
     <>
       <StudioStepper step={step} context={context} onSelect={setStep} />
       <h1 ref={headingRef} tabIndex={-1} className="sr-only">
-        {STEP_LABELS[visibleStep]}
+        {steps[visibleStep]}
       </h1>
       <div className="mt-6 flex-1 sm:mt-8">
         <ActiveStep step={visibleStep} />

@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { emptyResume } from "@/lib/resume/schema";
+import { inStudio } from "../testing";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/studio" }));
 
@@ -24,7 +25,7 @@ const resume = {
 describe("FreeMatch", () => {
   it("shows the free word check first, then what tailoring on Pro adds", () => {
     const html = renderToStaticMarkup(
-      <FreeMatch source={resume} jobText={"Requirements\n- TypeScript\n- GraphQL"} />,
+      inStudio(<FreeMatch source={resume} jobText={"Requirements\n- TypeScript\n- GraphQL"} />),
     );
     const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
     expect(text).toContain("Found 1 of 2 skills the post names");
@@ -38,7 +39,9 @@ describe("FreeMatch", () => {
 
   it("offers a signed-out visitor, who may already have Pro, a way to sign in", () => {
     const html = renderToStaticMarkup(
-      <FreeMatch source={resume} jobText={"Requirements\n- TypeScript"} onSignIn={() => {}} />,
+      inStudio(
+        <FreeMatch source={resume} jobText={"Requirements\n- TypeScript"} onSignIn={() => {}} />,
+      ),
     );
     expect(html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ")).toContain("Already on Pro? Sign in");
   });

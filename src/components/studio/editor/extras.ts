@@ -1,3 +1,7 @@
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
+import type { PluralForms } from "@/i18n/types";
 import {
   EXTRA_KIND_LABELS,
   MAX_EXTRA_ITEMS,
@@ -8,17 +12,23 @@ import {
   type ExtraSection,
   type Resume,
 } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 import { moveItem, patchItem, removeItem } from "./edits";
 import { CHAR_LIMITS } from "./limits";
 import { cleanSectionTitle } from "./sections";
 
 type FieldCopy = { label: string; placeholder: string };
 
+export type ExtrasCopy = Messages["studioSections"]["extras"];
+
 export type ExtraForm = {
-  noun: string;
   addLabel: string;
   empty: string;
+  newItem: string;
+  count: PluralForms;
+  removeItem: string;
+  removeItemWithLines: PluralForms;
+  removeSection: PluralForms;
   title: FieldCopy;
   subtitle: FieldCopy;
   date: FieldCopy | null;
@@ -26,66 +36,26 @@ export type ExtraForm = {
   lines: string | null;
 };
 
-export const EXTRA_FORMS: Record<ExtraKind, ExtraForm> = {
-  languages: {
-    noun: "language",
-    addLabel: "Add a language",
-    empty: "No languages yet. Add the ones you could work in.",
-    title: { label: "Language", placeholder: "Spanish" },
-    subtitle: { label: "How well", placeholder: "Fluent" },
-    date: null,
-    detail: null,
-    lines: null,
-  },
-  awards: {
-    noun: "award",
-    addLabel: "Add an award",
-    empty: "No awards yet. Prizes, honors and scholarships all count.",
-    title: { label: "Award", placeholder: "Employee of the year" },
-    subtitle: { label: "Given by", placeholder: "Northwind" },
-    date: { label: "Date", placeholder: "2023" },
-    detail: { label: "What it was for", placeholder: "Chosen from 300 staff for the app relaunch" },
-    lines: null,
-  },
-  volunteering: {
-    noun: "role",
-    addLabel: "Add a volunteer role",
-    empty: "No volunteer roles yet.",
-    title: { label: "Role", placeholder: "Volunteer tutor" },
-    subtitle: { label: "Organization", placeholder: "Code Club" },
-    date: { label: "Dates", placeholder: "2021 – now" },
-    detail: null,
-    lines: "What you did",
-  },
-  publications: {
-    noun: "publication",
-    addLabel: "Add a publication",
-    empty: "No publications yet. Articles, papers and talks all count.",
-    title: { label: "Title", placeholder: "Designing calm dashboards" },
-    subtitle: { label: "Published in", placeholder: "UX Collective" },
-    date: { label: "Date", placeholder: "2022" },
-    detail: { label: "Link or note", placeholder: "uxdesign.cc/calm-dashboards" },
-    lines: null,
-  },
-  custom: {
-    noun: "item",
-    addLabel: "Add an item",
-    empty: "Nothing here yet.",
-    title: { label: "Title", placeholder: "Member" },
-    subtitle: { label: "Subtitle", placeholder: "Design Guild" },
-    date: { label: "Date", placeholder: "2020 – now" },
-    detail: { label: "Details", placeholder: "One or two lines about it" },
-    lines: "Lines",
-  },
-};
-
-export const EXTRA_DESCRIPTIONS: Record<ExtraKind, string> = {
-  languages: "Languages you speak, and how well",
-  awards: "Prizes, honors and scholarships",
-  volunteering: "Unpaid roles and community work",
-  publications: "Articles, papers and talks",
-  custom: "Interests, memberships or anything else",
-};
+// Which fields each kind asks for; the words come from the editor's messages.
+export function extraForms(t: ExtrasCopy): Record<ExtraKind, ExtraForm> {
+  const { languages, awards, volunteering, publications, custom } = t.kinds;
+  return {
+    languages: { ...languages, date: null, detail: null, lines: null },
+    awards: { ...awards, subtitle: { ...awards.subtitle, placeholder: "Northwind" }, lines: null },
+    volunteering: {
+      ...volunteering,
+      subtitle: { ...volunteering.subtitle, placeholder: "Code Club" },
+      detail: null,
+    },
+    publications: {
+      ...publications,
+      subtitle: { ...publications.subtitle, placeholder: "UX Collective" },
+      detail: { ...publications.detail, placeholder: "uxdesign.cc/calm-dashboards" },
+      lines: null,
+    },
+    custom,
+  };
+}
 
 export function defaultExtraTitle(kind: ExtraKind): string {
   return kind === "custom" ? "Additional information" : EXTRA_KIND_LABELS[kind];
@@ -159,28 +129,33 @@ export function extraItemHeading(item: ExtraItem, form: ExtraForm): string {
   if (title) return title;
   const detail = item.detail.trim();
   if (detail) return detail.length > 60 ? `${detail.slice(0, 57).trimEnd()}…` : detail;
-  return `New ${form.noun}`;
+  return form.newItem;
 }
 
-export function removeItemQuestion(item: ExtraItem, form: ExtraForm): string | null {
+export function removeItemQuestion(
+  item: ExtraItem,
+  form: ExtraForm,
+  format: Format,
+): string | null {
   if (!hasItemContent(item)) return null;
   const lines = item.bullets.filter((bullet) => bullet.text.trim() !== "").length;
-  return lines > 0
-    ? `Remove this ${form.noun} and its ${pluralize(lines, "line")}?`
-    : `Remove this ${form.noun}?`;
+  return lines > 0 ? countText(format, form.removeItemWithLines, lines) : form.removeItem;
 }
 
-export function removeSectionQuestion(section: ExtraSection): string | null {
+export function removeSectionQuestion(
+  section: ExtraSection,
+  forms: Record<ExtraKind, ExtraForm>,
+  format: Format,
+): string | null {
   const filled = section.items.filter(hasItemContent).length;
   if (filled === 0) return null;
-  const noun = EXTRA_FORMS[section.kind].noun;
-  return `Remove ${section.title.trim() || defaultExtraTitle(section.kind)} and its ${pluralize(filled, noun)}?`;
+  const title = section.title.trim() || defaultExtraTitle(section.kind);
+  return countText(format, forms[section.kind].removeSection, filled, { title });
 }
 
-export function extraCount(section: ExtraSection): string {
-  const { noun } = EXTRA_FORMS[section.kind];
-  if (section.items.length === 0) return "None yet";
+export function extraCount(section: ExtraSection, t: ExtrasCopy, format: Format): string {
+  if (section.items.length === 0) return t.noneYet;
   const hidden = section.items.filter((item) => item.hidden === true).length;
-  const count = pluralize(section.items.length, noun);
-  return hidden > 0 ? `${count} · ${hidden} hidden` : count;
+  const count = countText(format, extraForms(t)[section.kind].count, section.items.length);
+  return hidden > 0 ? fmt(t.withHidden, { count, hidden }) : count;
 }

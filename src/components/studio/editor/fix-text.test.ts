@@ -3,6 +3,7 @@ import { OTTO } from "@/components/mascot/lines";
 import { PLANS } from "@/config/plans";
 import { ApiClientError, isBudgetReached } from "@/lib/api/client";
 import { FixRequestSchema } from "@/lib/api/types";
+import { EN, FIX_WORDS } from "../testing";
 import {
   buildAnswers,
   FIX_ANSWER_LIMITS,
@@ -80,14 +81,14 @@ describe("messages", () => {
   });
 
   it("explains a problem the account gate already handled", () => {
-    expect(problemMessage({ kind: "limit" }, 20)).toBe(OTTO.limit.reached("fix", 20));
-    expect(problemMessage({ kind: "signin" }, 20)).toBe(OTTO.signIn.reason("fix"));
-    expect(problemMessage({ kind: "error", message: "Nope" }, 20)).toBe("Nope");
+    expect(problemMessage(FIX_WORDS, { kind: "limit" }, 20)).toBe(OTTO.limit.reached("fix", 20));
+    expect(problemMessage(FIX_WORDS, { kind: "signin" }, 20)).toBe(OTTO.signIn.reason("fix"));
+    expect(problemMessage(FIX_WORDS, { kind: "error", message: "Nope" }, 20)).toBe("Nope");
   });
 
   it("says it was the AI budget, not the line fixes, when that ran out", () => {
     const period = { kind: "month", resetsAt: Date.UTC(2026, 11, 4, 12) } as const;
-    expect(problemMessage({ kind: "limit", budget: true }, 20, false, period)).toMatch(
+    expect(problemMessage(FIX_WORDS, { kind: "limit", budget: true }, 20, false, period)).toMatch(
       /^You've used this month's AI budget\. It resets on Dec [45]\.$/,
     );
     const error = new ApiClientError("limit_reached", "Budget", 429, "ai_budget");
@@ -96,42 +97,53 @@ describe("messages", () => {
   });
 
   it("stops asking for an account once the user has signed back in", () => {
-    expect(problemMessage({ kind: "signin" }, 20, true)).toBe(OTTO.fix.signedInAgain);
-    expect(problemMessage({ kind: "signin" }, 20, false)).toBe(OTTO.signIn.reason("fix"));
-    expect(problemMessage({ kind: "limit" }, 20, true)).toBe(OTTO.limit.reached("fix", 20));
+    expect(problemMessage(FIX_WORDS, { kind: "signin" }, 20, true)).toBe(
+      EN.studioEditor.otto.signedInAgain,
+    );
+    expect(problemMessage(FIX_WORDS, { kind: "signin" }, 20, false)).toBe(
+      OTTO.signIn.reason("fix"),
+    );
+    expect(problemMessage(FIX_WORDS, { kind: "limit" }, 20, true)).toBe(
+      OTTO.limit.reached("fix", 20),
+    );
   });
 
   it("points a Free user at their limit to Pro, not to the reset alone", () => {
-    expect(problemMessage({ kind: "limit" }, 3, true, null, "free")).toBe(
+    expect(problemMessage(FIX_WORDS, { kind: "limit" }, 3, true, null, "free")).toBe(
       `You've used this month's 3 line fixes. Pro has ${PLANS.pro.limits.fix} a month.`,
     );
-    expect(problemMessage({ kind: "limit" }, 750, true, null, "pro")).toBe(
+    expect(problemMessage(FIX_WORDS, { kind: "limit" }, 750, true, null, "pro")).toBe(
       OTTO.limit.reached("fix", 750),
     );
     const month = { kind: "month", resetsAt: Date.UTC(2026, 11, 1, 12) } as const;
-    expect(fixAllowanceText({ used: 1, limit: 3 }, "free", month)).toBe(
+    expect(fixAllowanceText(FIX_WORDS, { used: 1, limit: 3 }, "free", month)).toBe(
       "2 of 3 fixes left this month",
     );
-    expect(fixAllowanceText({ used: 3, limit: 3 }, "free", month)).toBe(
+    expect(fixAllowanceText(FIX_WORDS, { used: 3, limit: 3 }, "free", month)).toBe(
       `No fixes left this month. They reset on Dec 1. Pro has ${PLANS.pro.limits.fix} a month.`,
     );
   });
 
   it("shows what's left on paid plans and the trial, and what Pro adds without fixes", () => {
-    expect(fixAllowanceText({ used: 0, limit: 0 }, "free")).toBe(
+    expect(fixAllowanceText(FIX_WORDS, { used: 0, limit: 0 }, "free")).toBe(
       "More line fixes come with Pro. Try Pro for 7 days.",
     );
-    expect(fixAllowanceText({ used: 0, limit: 0 }, "free", null, false)).toBe(
+    expect(fixAllowanceText(FIX_WORDS, { used: 0, limit: 0 }, "free", null, false)).toBe(
       "More line fixes come with Pro.",
     );
-    expect(fixAllowanceText({ used: 3, limit: 300 }, "pro")).toBe("297 of 300 fixes left this month");
-    expect(fixAllowanceText({ used: 300, limit: 300 }, "pro")).toBe(
+    expect(fixAllowanceText(FIX_WORDS, { used: 3, limit: 300 }, "pro")).toBe(
+      "297 of 300 fixes left this month",
+    );
+    expect(fixAllowanceText(FIX_WORDS, { used: 300, limit: 300 }, "pro")).toBe(
       "No fixes left this month. They reset when your plan renews.",
     );
-    expect(fixAllowanceText({ used: 3, limit: 50 }, "pro", { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12) })).toBe(
-      "47 of 50 fixes left this trial",
-    );
-    expect(fixAllowanceText(null, "free")).toBeNull();
+    expect(
+      fixAllowanceText(FIX_WORDS, { used: 3, limit: 50 }, "pro", {
+        kind: "trial",
+        resetsAt: Date.UTC(2026, 10, 11, 12),
+      }),
+    ).toBe("47 of 50 fixes left this trial");
+    expect(fixAllowanceText(FIX_WORDS, null, "free")).toBeNull();
   });
 });
 

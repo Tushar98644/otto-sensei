@@ -1,6 +1,7 @@
 "use client";
 
 import { entryFieldId, SUMMARY_INPUT_ID } from "@/components/studio/editor/focus";
+import type { Messages } from "@/i18n/messages";
 import { jumpToLine, showInEditor } from "@/components/studio/tailor/jump";
 import type { ReviewTarget } from "@/lib/lint/review";
 import { useStudioStore } from "@/lib/store/resume-store";
@@ -21,9 +22,9 @@ export function openTarget(resumeId: string, target: ReviewTarget | null): void 
   );
 }
 
-export function targetLabel(target: ReviewTarget | null): string {
-  if (target?.kind === "line") return "Show line";
-  if (target?.kind === "summary") return "Open summary";
-  if (target?.kind === "entry") return "Open job";
-  return "Open editor";
+export function targetLabel(t: Messages["studio"]["targets"], target: ReviewTarget | null): string {
+  if (target?.kind === "line") return t.line;
+  if (target?.kind === "summary") return t.summary;
+  if (target?.kind === "entry") return t.entry;
+  return t.editor;
 }

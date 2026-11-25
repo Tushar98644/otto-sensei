@@ -1,9 +1,11 @@
 "use client";
 
 import { useId } from "react";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { RecruiterReport } from "@/lib/checks/types";
 import type { FileKind } from "@/lib/parse/types";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 
 const KIND_LABELS: Record<FileKind, string> = { pdf: "PDF", docx: "Word" };
 
@@ -15,6 +17,9 @@ export type ReadTextPanelProps = {
 export function ReadTextPanel({ report, hideHeading = false }: ReadTextPanelProps) {
   const headingId = useId();
   const lines = toLines(report.readText);
+  const studio = useMessages("studio");
+  const t = studio.readText;
+  const format = useFormat();
 
   return (
     <section
@@ -27,18 +32,21 @@ export function ReadTextPanel({ report, hideHeading = false }: ReadTextPanelProp
           id={headingId}
           className={hideHeading ? "sr-only" : "font-sans text-base font-semibold text-ink"}
         >
-          What hiring software reads
+          {t.title}
         </h2>
         <p className="text-xs text-muted">
-          {KIND_LABELS[report.kind]} · {pluralize(report.pageCount, "page")} ·{" "}
-          {pluralize(report.wordCount, "word")}
+          {fmt(t.meta, {
+            kind: KIND_LABELS[report.kind],
+            pages: countText(format, studio.counts.pages, report.pageCount),
+            words: countText(format, studio.counts.words, report.wordCount),
+          })}
         </p>
       </div>
       {lines.length > 0 ? (
         <div
           tabIndex={0}
           role="region"
-          aria-label="Text pulled from your file"
+          aria-label={t.region}
           className="max-h-128 overflow-auto bg-surface-muted/60 py-3 font-mono text-xs leading-relaxed text-ink"
         >
           <ol>
@@ -58,14 +66,9 @@ export function ReadTextPanel({ report, hideHeading = false }: ReadTextPanelProp
           </ol>
         </div>
       ) : (
-        <p className="bg-surface-muted/60 px-4 py-10 text-center text-sm text-muted">
-          Nothing at all. To hiring software, this file is a blank page.
-        </p>
+        <p className="bg-surface-muted/60 px-4 py-10 text-center text-sm text-muted">{t.blank}</p>
       )}
-      <p className="border-t border-border px-4 py-3 text-xs text-muted">
-        This is the text most hiring systems pull from your file, in the order they read it. Real
-        systems differ a little.
-      </p>
+      <p className="border-t border-border px-4 py-3 text-xs text-muted">{t.footer}</p>
     </section>
   );
 }

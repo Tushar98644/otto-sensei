@@ -4,6 +4,8 @@ import { Plus, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { newId, type ResumeLink } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { patchItem, pickNeighbor, removeItem } from "./edits";
@@ -16,6 +18,7 @@ const ADD_ID = addButtonId("links");
 
 export function LinksEditor({ resumeId, links }: { resumeId: string; links: ResumeLink[] }) {
   const full = links.length >= LIST_LIMITS.links;
+  const t = useMessages("studioSections").links;
 
   function setLinks(update: (current: ResumeLink[]) => ResumeLink[]) {
     editResume(resumeId, (resume) => ({
@@ -48,16 +51,14 @@ export function LinksEditor({ resumeId, links }: { resumeId: string; links: Resu
   return (
     <fieldset className="flex flex-col gap-3">
       <legend className="text-sm font-medium text-ink">
-        Links <span className="font-normal text-muted">(optional)</span>
+        {t.title} <span className="font-normal text-muted">{t.optional}</span>
       </legend>
-      <p className="-mt-1 text-sm text-muted">
-        LinkedIn, a portfolio, GitHub: whatever shows your work.
-      </p>
+      <p className="-mt-1 text-sm text-muted">{t.hint}</p>
       {links.length > 0 ? (
         <ul role="list" className="flex flex-col gap-4">
           {links.map((link, index) => (
             <li key={link.id} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <Field label="Name" className="sm:w-40">
+              <Field label={t.name} className="sm:w-40">
                 <Input
                   id={entryFieldId(link.id, "first")}
                   value={link.label}
@@ -66,7 +67,7 @@ export function LinksEditor({ resumeId, links }: { resumeId: string; links: Resu
                   placeholder="LinkedIn"
                 />
               </Field>
-              <Field label="Web address" className="sm:flex-1">
+              <Field label={t.url} className="sm:flex-1">
                 <Input
                   type="url"
                   inputMode="url"
@@ -74,6 +75,7 @@ export function LinksEditor({ resumeId, links }: { resumeId: string; links: Resu
                   spellCheck={false}
                   value={link.url}
                   onChange={(event) => patch(link.id, { url: event.target.value })}
+                  data-basics="links"
                   maxLength={CHAR_LIMITS.linkUrl}
                   placeholder="linkedin.com/in/alex-morgan"
                 />
@@ -82,7 +84,7 @@ export function LinksEditor({ resumeId, links }: { resumeId: string; links: Resu
                 id={entryFieldId(link.id, "remove")}
                 variant="ghost"
                 size="icon"
-                aria-label={`Remove link ${link.label.trim() || index + 1}`}
+                aria-label={fmt(t.remove, { name: link.label.trim() || index + 1 })}
                 onClick={() => remove(link.id)}
                 className={cn("self-end sm:self-auto", ICON_ACTION_CLASSES)}
               >
@@ -101,10 +103,10 @@ export function LinksEditor({ resumeId, links }: { resumeId: string; links: Resu
           className="-ml-4 text-muted hover:text-ink"
         >
           <Plus />
-          Add a link
+          {t.add}
         </Button>
         {full ? (
-          <p className="text-sm text-muted">{`That's the most links a resume can hold (${LIST_LIMITS.links}).`}</p>
+          <p className="text-sm text-muted">{fmt(t.full, { max: LIST_LIMITS.links })}</p>
         ) : null}
       </div>
     </fieldset>

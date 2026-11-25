@@ -3,6 +3,8 @@
 import { X } from "lucide-react";
 import { useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { Label } from "@/components/ui/label";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { splitSkillDraft, splitSkills } from "./edits";
 
 const MAX_DRAFT_CHARS = 2_000;
@@ -29,6 +31,7 @@ export function ChipsInput({
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const hintId = `${id}-hint`;
+  const t = useMessages("studioSections").chipsInput;
 
   function commit(text: string) {
     const skills = splitSkills(text);
@@ -83,7 +86,7 @@ export function ChipsInput({
                 <span className="truncate">{item}</span>
                 <button
                   type="button"
-                  aria-label={`Remove ${item}`}
+                  aria-label={fmt(t.remove, { item })}
                   onClick={() => remove(index)}
                   className="relative inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors after:absolute after:-inset-1.5 hover:bg-surface-strong hover:text-ink"
                 >
@@ -103,17 +106,13 @@ export function ChipsInput({
           disabled={full}
           maxLength={MAX_DRAFT_CHARS}
           aria-describedby={hintId}
-          placeholder={
-            full ? undefined : items.length > 0 ? "Add another" : "Type a skill, then press Enter"
-          }
+          placeholder={full ? undefined : items.length > 0 ? t.another : t.first}
           autoComplete="off"
           className="h-9 w-full min-w-0 bg-transparent px-1 text-base text-ink outline-hidden placeholder:text-subtle disabled:cursor-not-allowed sm:text-sm"
         />
       </div>
       <p id={hintId} className="text-sm text-muted">
-        {full
-          ? "This group is full. Start a new group for more."
-          : "Press Enter or type a comma after each one."}
+        {full ? t.full : t.hint}
       </p>
     </div>
   );

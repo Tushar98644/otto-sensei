@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { api } from "@/lib/api/client";
 import { POST_PARAM, POST_RESUME_PARAM, POST_START_PARAM } from "@/lib/extension/links";
 import { useStudioHydrated, useStudioStore } from "@/lib/store/resume-store";
@@ -27,7 +28,12 @@ function whenResume(id: string): Promise<boolean> {
   });
 }
 
-async function openPost(postId: string, resumeId: string | null, start: boolean): Promise<void> {
+async function openPost(
+  postId: string,
+  resumeId: string | null,
+  start: boolean,
+  failedTitle: string,
+): Promise<void> {
   try {
     const [{ post }, { queueJobForTailor }] = await Promise.all([
       api.savedPost(postId),
@@ -58,7 +64,7 @@ async function openPost(postId: string, resumeId: string | null, start: boolean)
     useStudioStore.getState().setStep("tailor");
   } catch (error) {
     toast({
-      title: "Couldn't open that saved job",
+      title: failedTitle,
       description: errorMessage(error),
       variant: "error",
     });
@@ -72,6 +78,7 @@ export function PostParam() {
   const resumeId = params.get(POST_RESUME_PARAM);
   const start = params.get(POST_START_PARAM) === "1";
   const hydrated = useStudioHydrated();
+  const failedTitle = useMessages("studioTailor").savedJobFailed;
 
   useEffect(() => {
     if (!hydrated || !postId) return;
@@ -85,10 +92,10 @@ export function PostParam() {
         "",
         `${url.pathname}${url.search}${url.hash}`,
       );
-      void openPost(postId, resumeId, start);
+      void openPost(postId, resumeId, start, failedTitle);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [hydrated, postId, resumeId, start]);
+  }, [hydrated, postId, resumeId, start, failedTitle]);
 
   return null;
 }

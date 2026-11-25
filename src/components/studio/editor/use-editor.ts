@@ -1,6 +1,7 @@
 "use client";
 
 import { useShallow } from "zustand/react/shallow";
+import { useFormat, useMessages } from "@/i18n/client";
 import type { LintIssue, ResumeLint } from "@/lib/lint/types";
 import type { BulletSection } from "@/lib/resume/ops";
 import {
@@ -139,13 +140,14 @@ export type SectionMeta = {
 const NO_META: SectionMeta = { title: "", count: null, needWork: 0, hidden: false };
 
 export function useSectionMeta(resumeId: string, key: SectionKey): SectionMeta {
+  const words = { t: useMessages("studioSections"), format: useFormat() };
   return useStudioStore(
     useShallow((state) => {
       const resume = pickResume(state, resumeId);
       if (!resume) return NO_META;
       return {
         title: sectionTitleOf(resume, key),
-        count: sectionCount(resume, key),
+        count: sectionCount(resume, key, words),
         needWork: isBulletSection(key) ? sectionNeedsWork(resume, key) : 0,
         hidden: isSectionHidden(resume, key),
       };
@@ -158,6 +160,8 @@ export type ExtraSectionMeta = SectionMeta & { kind: ExtraKind };
 const NO_EXTRA_META: ExtraSectionMeta = { ...NO_META, kind: "custom" };
 
 export function useExtraSectionMeta(resumeId: string, sectionId: string): ExtraSectionMeta {
+  const t = useMessages("studioSections").extras;
+  const format = useFormat();
   return useStudioStore(
     useShallow((state) => {
       const resume = pickResume(state, resumeId);
@@ -166,7 +170,7 @@ export function useExtraSectionMeta(resumeId: string, sectionId: string): ExtraS
       return {
         title: section.title,
         kind: section.kind,
-        count: extraCount(section),
+        count: extraCount(section, t, format),
         needWork: extraNeedsWork(resume, sectionId),
         hidden: section.hidden === true,
       };

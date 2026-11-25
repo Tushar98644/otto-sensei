@@ -2,7 +2,9 @@
 
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { STEP_LABELS, type StudioStep } from "@/lib/store/resume-store";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { StudioStep } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
 import {
   adjacentStep,
@@ -24,30 +26,34 @@ export function StudioStepper({ step, context, onSelect }: StudioStepperProps) {
   const position = steps.indexOf(step) + 1;
   const previous = adjacentStep(step, -1, context);
   const next = adjacentStep(step, 1, context);
+  const t = useMessages("studio");
+  const labels = t.steps;
 
   return (
-    <nav aria-label="Studio steps">
+    <nav aria-label={t.stepper.nav}>
       <div className="flex items-center justify-between gap-3 md:hidden">
         <Button
           variant="secondary"
           size="icon"
           disabled={!previous}
-          aria-label={previous ? `Previous step: ${STEP_LABELS[previous]}` : "Previous step"}
+          aria-label={
+            previous ? fmt(t.stepper.previousTo, { step: labels[previous] }) : t.stepper.previous
+          }
           onClick={() => previous && onSelect(previous)}
         >
           <ChevronLeft />
         </Button>
         <p className="min-w-0 truncate text-center text-sm text-muted">
-          Step {position} of {steps.length}
+          {fmt(t.stepper.position, { position, total: steps.length })}
           <span aria-hidden> · </span>
           <span className="sr-only">: </span>
-          <span className="font-medium text-ink">{STEP_LABELS[step]}</span>
+          <span className="font-medium text-ink">{labels[step]}</span>
         </p>
         <Button
           variant="secondary"
           size="icon"
           disabled={!next}
-          aria-label={next ? `Next step: ${STEP_LABELS[next]}` : "Next step"}
+          aria-label={next ? fmt(t.stepper.nextTo, { step: labels[next] }) : t.stepper.next}
           onClick={() => next && onSelect(next)}
         >
           <ChevronRight />
@@ -59,6 +65,7 @@ export function StudioStepper({ step, context, onSelect }: StudioStepperProps) {
           <li key={item} className="flex flex-1 items-center gap-2 last:flex-none">
             <StepButton
               step={item}
+              label={labels[item]}
               number={index + 1}
               status={stepStatus(item, context)}
               current={item === step}
@@ -77,6 +84,7 @@ export function StudioStepper({ step, context, onSelect }: StudioStepperProps) {
 
 type StepButtonProps = {
   step: StudioStep;
+  label: string;
   number: number;
   status: StepStatus;
   current: boolean;
@@ -84,13 +92,14 @@ type StepButtonProps = {
   onSelect: (step: StudioStep) => void;
 };
 
-function StepButton({ step, number, status, current, done, onSelect }: StepButtonProps) {
+function StepButton({ step, label, number, status, current, done, onSelect }: StepButtonProps) {
   const upcoming = !current && !done;
   return (
     <button
       type="button"
       disabled={status !== "available"}
       aria-current={current ? "step" : undefined}
+      data-step={step}
       onClick={() => onSelect(step)}
       className="group flex shrink-0 items-center gap-2 rounded-lg py-2 pr-3 pl-2 text-left transition-colors hover:bg-ink/5 disabled:pointer-events-none aria-[current=step]:hover:bg-transparent"
     >
@@ -106,7 +115,7 @@ function StepButton({ step, number, status, current, done, onSelect }: StepButto
         {done ? <Check className="size-3.5" /> : number}
       </span>
       <span className={cn("text-sm font-medium", current ? "text-ink" : "text-muted")}>
-        {STEP_LABELS[step]}
+        {label}
       </span>
     </button>
   );

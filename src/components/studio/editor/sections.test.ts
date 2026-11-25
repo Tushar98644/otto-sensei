@@ -9,6 +9,7 @@ import {
   type SectionKey,
 } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
+import { COUNT_WORDS } from "../testing";
 import {
   cleanSectionTitle,
   includeSection,
@@ -79,10 +80,10 @@ describe("sectionCount", () => {
         { ...newSkillGroup("Tools"), items: ["Figma"] },
       ],
     };
-    expect(sectionCount(resume, "experience")).toBe("1 job");
-    expect(sectionCount(resume, "skills")).toBe("3 skills");
-    expect(sectionCount(resume, "projects")).toBe("None yet");
-    expect(sectionCount(resume, "summary")).toBeNull();
+    expect(sectionCount(resume, "experience", COUNT_WORDS)).toBe("1 job");
+    expect(sectionCount(resume, "skills", COUNT_WORDS)).toBe("3 skills");
+    expect(sectionCount(resume, "projects", COUNT_WORDS)).toBe("None yet");
+    expect(sectionCount(resume, "summary", COUNT_WORDS)).toBeNull();
   });
 
   it("knows which sections hold lines", () => {
@@ -103,8 +104,8 @@ describe("sectionCount with hidden items", () => {
         { ...newSkillGroup("Tools"), items: ["Figma"], hidden: true },
       ],
     };
-    expect(sectionCount(resume, "experience")).toBe("2 jobs · 1 hidden");
-    expect(sectionCount(resume, "skills")).toBe("3 skills · 1 hidden");
+    expect(sectionCount(resume, "experience", COUNT_WORDS)).toBe("2 jobs · 1 hidden");
+    expect(sectionCount(resume, "skills", COUNT_WORDS)).toBe("3 skills · 1 hidden");
   });
 });
 

@@ -1,3 +1,4 @@
+import type { Messages } from "@/i18n/messages";
 import { lintSummary } from "@/lib/lint/bullets";
 import type { LintIssue } from "@/lib/lint/types";
 import { extrasOf, sectionTitleOf, type Bullet, type Resume } from "@/lib/resume/schema";
@@ -28,13 +29,17 @@ function section(key: string, label: string, entries: OutlineEntry[] = []): Outl
   return { key, label, needWork: entries.reduce((sum, e) => sum + e.needWork, 0), entries };
 }
 
-export function fixOutline(resume: Resume, byBullet: IssuesById): OutlineSection[] {
+export function fixOutline(
+  resume: Resume,
+  byBullet: IssuesById,
+  t: Messages["studioEditor"]["outline"],
+): OutlineSection[] {
   const entry = (id: string, label: string, bullets: readonly Bullet[]): OutlineEntry => ({
     id,
     label,
     needWork: needingWork(bullets, byBullet),
   });
-  const sections: OutlineSection[] = [section("basics", "Name and contact")];
+  const sections: OutlineSection[] = [section("basics", t.basics)];
   for (const key of sectionDisplayOrder(resume.sectionOrder)) {
     const label = sectionTitleOf(resume, key);
     switch (key) {
@@ -44,7 +49,7 @@ export function fixOutline(resume: Resume, byBullet: IssuesById): OutlineSection
             key,
             label,
             resume.experience.map((job) =>
-              entry(job.id, joined([job.title, job.company], "New job"), job.bullets),
+              entry(job.id, joined([job.title, job.company], t.newJob), job.bullets),
             ),
           ),
         );
@@ -55,7 +60,7 @@ export function fixOutline(resume: Resume, byBullet: IssuesById): OutlineSection
             key,
             label,
             resume.projects.map((project) =>
-              entry(project.id, joined([project.name], "New project"), project.bullets),
+              entry(project.id, joined([project.name], t.newProject), project.bullets),
             ),
           ),
         );
@@ -66,11 +71,7 @@ export function fixOutline(resume: Resume, byBullet: IssuesById): OutlineSection
             key,
             label,
             resume.education.map((school) =>
-              entry(
-                school.id,
-                joined([school.degree, school.school], "New school"),
-                school.bullets,
-              ),
+              entry(school.id, joined([school.degree, school.school], t.newSchool), school.bullets),
             ),
           ),
         );
@@ -89,9 +90,9 @@ export function fixOutline(resume: Resume, byBullet: IssuesById): OutlineSection
     sections.push(
       section(
         extra.id,
-        extra.title.trim() || "Extra section",
+        extra.title.trim() || t.extra,
         extra.items.map((item) =>
-          entry(item.id, joined([item.title, item.subtitle], "New item"), item.bullets),
+          entry(item.id, joined([item.title, item.subtitle], t.newItem), item.bullets),
         ),
       ),
     );

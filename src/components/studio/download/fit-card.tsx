@@ -2,7 +2,6 @@
 
 import { Rows3, Scissors, Undo2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { CHIP_LABELS } from "@/components/studio/editor/lint-notes";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,9 +16,11 @@ import {
 } from "@/lib/pdf/fit";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume } from "@/lib/resume/schema";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { useStudioStore } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
-import { FIT_LABEL } from "./fit-offer";
+import { countText } from "../count";
 import { renderPdfCached } from "./pdf-cache";
 import type { ResumePdf } from "./use-resume-pdf";
 
@@ -34,12 +35,15 @@ type Phase =
   | { kind: "nothing" }
   | { kind: "failed" };
 
-function reasonFor(line: FitLine): string {
+type Chips = Messages["studioEditor"]["chips"];
+type FitCopy = Messages["studioDownload"]["fit"];
+
+function reasonFor(t: FitCopy, chips: Chips, line: FitLine): string {
   if (line.offTarget) {
-    const why = "Nothing the job asks for";
-    return line.issue ? `${why} · ${CHIP_LABELS[line.issue]}` : why;
+    const why = t.offTarget;
+    return line.issue ? `${why} · ${chips[line.issue]}` : why;
   }
-  return line.issue ? CHIP_LABELS[line.issue] : "Later in the list";
+  return line.issue ? chips[line.issue] : t.later;
 }
 
 function ReviewList({
@@ -51,6 +55,8 @@ function ReviewList({
   picked: ReadonlySet<string>;
   onToggle: (id: string) => void;
 }) {
+  const t = useMessages("studioDownload").fit;
+  const chips = useMessages("studioEditor").chips;
   return (
     <ul className="divide-y divide-border border-y border-border">
       {lines.map((line) => (
@@ -65,7 +71,7 @@ function ReviewList({
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="line-clamp-2 text-sm/6 text-pretty text-ink">{line.text}</span>
               <span className="text-xs/5 text-subtle">
-                {line.place} · {reasonFor(line)}
+                {line.place} · {reasonFor(t, chips, line)}
               </span>
             </span>
           </label>
@@ -85,6 +91,8 @@ export type FitCardProps = {
 export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
   const updateResume = useStudioStore((s) => s.updateResume);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const t = useMessages("studioDownload").fit;
+  const format = useFormat();
   const pages = pdf.file && pdf.isCurrent ? pdf.file.pages : null;
   const compact = designOf(resume).density === "compact";
   const fits = pages !== null && pages <= 1;
@@ -111,7 +119,7 @@ export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
 
   function tighten() {
     updateResume(resume.id, (r) => withDesign(r, { density: "compact" }), {
-      label: "Tightened the spacing",
+      label: t.history.tightened,
     });
     setPhase({ kind: "tightened" });
   }
@@ -152,13 +160,13 @@ export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
   function hide() {
     if (phase.kind !== "review" || phase.picked.size === 0) return;
     const ids = [...phase.picked];
-    updateResume(resume.id, (r) => hideLines(r, new Set(ids)), { label: FIT_LABEL });
+    updateResume(resume.id, (r) => hideLines(r, new Set(ids)), { label: t.history.hid });
     setPhase({ kind: "hidden", ids });
   }
 
   function undoTighten() {
     updateResume(resume.id, (r) => withDesign(r, { density: undefined }), {
-      label: "Put the spacing back",
+      label: t.history.spacingBack,
     });
     setPhase({ kind: "idle" });
   }
@@ -166,65 +174,51 @@ export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
   function undoHide() {
     if (phase.kind !== "hidden") return;
     updateResume(resume.id, (r) => showLines(r, new Set(phase.ids)), {
-      label: "Showed hidden lines",
+      label: t.history.showed,
     });
     setPhase({ kind: "idle" });
   }
 
-  const pageLine =
-    pages === null
-      ? "Checking the length."
-      : fits
-        ? "It fits on one page now."
-        : `It runs to ${pages} pages.`;
+  const pageLine = pages === null ? t.checking : fits ? t.fits : fmt(t.runsTo, { pages });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">Fit to one page</CardTitle>
+        <CardTitle as="h2">{t.title}</CardTitle>
         <CardDescription aria-live="polite">{pageLine}</CardDescription>
       </CardHeader>
 
-      {phase.kind === "failed" ? (
-        <Alert variant="error">I couldn&apos;t try that just now. Your resume is unchanged.</Alert>
-      ) : null}
-      {phase.kind === "nothing" ? (
-        <p className="text-sm text-muted">
-          Nothing else is safe to hide: each entry keeps its first line, and lines the job asks for
-          stay. Shorten the summary, or hide a section in Fix lines.
-        </p>
-      ) : null}
+      {phase.kind === "failed" ? <Alert variant="error">{t.failed}</Alert> : null}
+      {phase.kind === "nothing" ? <p className="text-sm text-muted">{t.nothing}</p> : null}
 
       {phase.kind === "review" ? (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted">
             {phase.plan.fits
-              ? `Hiding ${pluralize(phase.plan.count, "line")} fits it on one page. Hidden lines stay in your resume, so you can show them again.`
-              : `Even hiding all ${phase.lines.length} of these leaves more than one page. Pick what to hide, or shorten the summary.`}
+              ? countText(format, t.hidingFits, phase.plan.count)
+              : fmt(t.evenAll, { count: phase.lines.length })}
           </p>
           <ReviewList lines={phase.lines} picked={phase.picked} onToggle={toggle} />
           <div className="flex flex-wrap gap-2">
             <Button onClick={hide} disabled={phase.picked.size === 0}>
               <Scissors />
-              Hide {pluralize(phase.picked.size, "line")}
+              {countText(format, t.hide, phase.picked.size)}
             </Button>
             <Button variant="ghost" onClick={() => setPhase({ kind: "idle" })}>
-              Not now
+              {t.notNow}
             </Button>
           </div>
         </div>
       ) : phase.kind === "hidden" ? (
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm text-muted">
-            {pluralize(phase.ids.length, "line")} hidden. They&apos;re still in your resume.
-          </p>
+          <p className="text-sm text-muted">{countText(format, t.hidden, phase.ids.length)}</p>
           <Button variant="ghost" onClick={undoHide}>
             <Undo2 />
-            Show them again
+            {t.showAgain}
           </Button>
           {!fits && pages !== null ? (
             <Button variant="secondary" onClick={() => void findLines()}>
-              Find more lines
+              {t.findMore}
             </Button>
           ) : null}
         </div>
@@ -232,25 +226,21 @@ export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
         phase.kind === "tightened" ? (
           <Button variant="ghost" onClick={undoTighten} className="w-fit">
             <Undo2 />
-            Undo tighter spacing
+            {t.undoTighten}
           </Button>
         ) : null
       ) : !compact ? (
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-muted">
-            First, tighter spacing: about 10% less room, same text and type size.
-          </p>
+          <p className="text-sm text-muted">{t.tightenFirst}</p>
           <Button variant="secondary" onClick={tighten} disabled={pages === null} className="w-fit">
             <Rows3 />
-            Tighten spacing
+            {t.tighten}
           </Button>
         </div>
       ) : phase.kind === "nothing" ? null : (
         <div className="flex flex-col gap-2">
           <p className="text-sm text-muted">
-            {phase.kind === "tightened"
-              ? "Tighter spacing wasn't quite enough. Otto can pick the weakest lines to hide."
-              : "Otto can pick the weakest lines to hide. You choose before anything changes."}
+            {phase.kind === "tightened" ? t.notEnough : t.canPick}
           </p>
           <Button
             variant="secondary"
@@ -260,7 +250,7 @@ export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
             className="w-fit"
           >
             <Scissors />
-            {phase.kind === "planning" ? "Finding lines" : "Find lines to hide"}
+            {phase.kind === "planning" ? t.finding : t.find}
           </Button>
         </div>
       )}
