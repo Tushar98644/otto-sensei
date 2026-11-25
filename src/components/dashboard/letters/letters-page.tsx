@@ -6,7 +6,6 @@ import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { useMe } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
 import { saveLetterOnCopy } from "@/components/studio/tailor/copy-letter";
 import { writingAllowance } from "@/components/studio/tailor/writing-allowance";
 import { useNow } from "@/components/studio/use-now";
@@ -16,26 +15,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
-import { useMessages } from "@/i18n/client";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api } from "@/lib/api/client";
 import type { Application } from "@/lib/applications/schema";
 import { sameJobUrl } from "@/lib/applications/thread";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
 import type { WritingKind } from "@/lib/writings/schema";
 import { outreachChange, type OutreachFields } from "../jobs/outreach-saved";
 import { NewResumeMenu } from "../new-resume-menu";
 import { letterCards, letterReader } from "../page-code";
 import { offerLabel } from "../plan-slip";
 import { useStudioActions } from "../use-studio-actions";
+import { useTargetWords } from "./use-target-words";
 import { useApplications } from "../applications/use-applications";
 import {
   entryApplication,
   fieldsOfEntry,
   filterEntries,
   jobLine,
-  KIND_NAMES,
   kindCounts,
   kindsTally,
   letterEntries,
@@ -70,7 +69,6 @@ import { writeTargets, type WriteTarget } from "./write-targets";
 
 preload(letterCards);
 
-const count = new Intl.NumberFormat("en-US");
 const PAGE_GROUPS = 20;
 const READY_SHOWN = 4;
 
@@ -92,6 +90,10 @@ function groupApplication(
 
 export function LettersPage() {
   const dashboard = useMessages("dashboard");
+  const t = useMessages("letters");
+  const { page } = t;
+  const format = useFormat();
+  const targetWords = useTargetWords();
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
   const writings = useWritings();
@@ -102,7 +104,7 @@ export function LettersPage() {
   const pro = useProTools();
   const locked = pro === false;
   const { me, user, loading: planLoading } = useMe();
-  const tryPro = me?.billing.trial === false ? "See Pro" : offerLabel(true, dashboard);
+  const tryPro = me?.billing.trial === false ? page.seePro : offerLabel(true, dashboard);
   const savedJobs = useSavedJobs(pro === true);
   const reader = useOpenLetter();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -125,8 +127,8 @@ export function LettersPage() {
   const counts = useMemo(() => kindCounts(entries), [entries]);
   const groups = useMemo(() => letterGroups(filterEntries(entries, filter)), [entries, filter]);
   const targets = useMemo(
-    () => writeTargets(applications.items, savedJobs, resumes),
-    [applications.items, savedJobs, resumes],
+    () => writeTargets(applications.items, savedJobs, resumes, targetWords),
+    [applications.items, savedJobs, resumes, targetWords],
   );
   // Read each render: a post pasted a moment ago makes its job one click from then on.
   const known = targets.map(withRememberedPost);
@@ -245,7 +247,7 @@ export function LettersPage() {
       writings.replace(before);
       saveLetterOnCopy(entry.copyId, entry.text);
       toast({
-        title: "Couldn't save your edit",
+        title: page.cantSave,
         description: errorMessage(error),
         variant: "error",
       });
@@ -284,7 +286,7 @@ export function LettersPage() {
     } catch (error) {
       writings.replace(before);
       toast({
-        title: "Couldn't save your edit",
+        title: page.cantSave,
         description: errorMessage(error),
         variant: "error",
       });
@@ -300,7 +302,7 @@ export function LettersPage() {
     const local = !saved && entry.copyId === null;
     if (local) setUnsaved((list) => list.filter((item) => item.key !== entry.key));
     undoToast({
-      title: `${KIND_NAMES[entry.kind].label} deleted`,
+      title: fmt(page.deleted, { kind: t.labels[entry.kind] }),
       description: jobLine(entry) || undefined,
       onUndo: () => {
         if (saved) writings.restore(saved);
@@ -312,7 +314,7 @@ export function LettersPage() {
             api.deleteWriting(saved.id, { keepalive }).catch((error: unknown) => {
               writings.restore(saved);
               toast({
-                title: "Couldn't delete it",
+                title: page.cantDelete,
                 description: errorMessage(error),
                 variant: "error",
               });
@@ -407,18 +409,18 @@ export function LettersPage() {
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="min-w-0">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-            Letters
+            {page.title}
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-pretty text-muted">
             {listed && entries.length > 0
-              ? `${kindsTally(counts)}, each written for one job.`
-              : "Cover letters, answers to application questions and outreach messages, written only from your resume and the job post."}
+              ? fmt(page.tally, { kinds: kindsTally(counts, t, format) })
+              : page.intro}
           </p>
         </div>
         {pro === true && listed && ownResume && (entries.length > 0 || showReady) ? (
           <Button variant="secondary" onClick={() => compose("letter")}>
             <PenLine aria-hidden />
-            Write
+            {page.write}
           </Button>
         ) : null}
       </header>
@@ -428,14 +430,14 @@ export function LettersPage() {
       ) : writings.status === "error" ? (
         <Alert
           variant="error"
-          title="Your letters didn't load"
+          title={page.didntLoad}
           action={
             <Button variant="secondary" size="sm" onClick={writings.retry}>
-              Try again
+              {page.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {page.checkConnection}
         </Alert>
       ) : !cards ? (
         <LoadingState />
@@ -443,43 +445,39 @@ export function LettersPage() {
         <>
           {locked ? (
             <LettersFolder
-              tab="Written for you"
-              meta="comes with Pro"
-              title="A letter for every job, in one click"
-              detail={entries.length > 0 ? OTTO.letters.lockedKept : OTTO.letters.locked}
+              tab={page.lockedTab}
+              meta={page.lockedMeta}
+              title={page.lockedTitle}
+              detail={entries.length > 0 ? page.lockedKept : page.locked}
             >
               <Button size="lg" onClick={() => setUpgradeOpen(true)}>
                 {tryPro}
               </Button>
             </LettersFolder>
           ) : !ownResume ? (
-            <LettersFolder
-              tab="Start here"
-              title="First, a resume to write from"
-              detail={OTTO.letters.noResume}
-            >
+            <LettersFolder tab={page.startHere} title={page.needResume} detail={page.noResume}>
               <NewResumeMenu actions={actions} />
             </LettersFolder>
           ) : showReady ? (
             <section aria-labelledby="ready-heading" className="flex flex-col gap-4">
               <LettersFolder
-                tab="Ready to write"
+                tab={page.readyTab}
                 tabEnd={
                   <span className="text-xs text-subtle tabular-nums">
-                    {pluralize(ready.length, "job")}
+                    {format.plural(page.jobs, ready.length)}
                   </span>
                 }
-                meta={firstResume ? `from “${resumeTitle(firstResume)}”` : undefined}
+                meta={firstResume ? fmt(page.from, { title: resumeTitle(firstResume) }) : undefined}
                 title={
                   <span id="ready-heading">
                     {ready.length === 1
-                      ? "One job has no letter yet."
-                      : `${count.format(ready.length)} jobs have no letter yet.`}
+                      ? page.oneReady
+                      : fmt(page.manyReady, { count: format.number(ready.length) })}
                   </span>
                 }
                 detail={
                   <>
-                    One click and I write it from your resume and the job post, nothing made up.
+                    {page.oneClick}
                     {allowance ? <span className="mt-1 block text-subtle">{allowance}</span> : null}
                   </>
                 }
@@ -516,15 +514,17 @@ export function LettersPage() {
                   className="self-start"
                   onClick={() => setAllReady(!allReady)}
                 >
-                  {allReady ? "Show fewer" : `Show all ${count.format(ready.length)}`}
+                  {allReady
+                    ? page.showFewer
+                    : fmt(page.showAll, { count: format.number(ready.length) })}
                 </Button>
               ) : null}
             </section>
           ) : entries.length === 0 ? (
-            <LettersFolder tab="Start here" title="Nothing written yet" detail={OTTO.letters.empty}>
+            <LettersFolder tab={page.startHere} title={page.nothingYet} detail={page.empty}>
               <Button size="lg" onClick={() => compose("letter", true)}>
                 <PenLine aria-hidden />
-                Start writing
+                {page.startWriting}
               </Button>
             </LettersFolder>
           ) : null}
@@ -538,7 +538,7 @@ export function LettersPage() {
                   id={writtenId}
                   className="font-sans text-xs/4 font-medium tracking-widest text-subtle uppercase"
                 >
-                  Written so far
+                  {page.writtenSoFar}
                 </h2>
                 {kinds > 1 ? (
                   <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -597,13 +597,17 @@ export function LettersPage() {
                   className="self-start"
                   onClick={() => setShownGroups(shownGroups + PAGE_GROUPS)}
                 >
-                  Show {Math.min(PAGE_GROUPS, groups.length - shownGroups)} more
+                  {fmt(page.showMore, {
+                    count: format.number(Math.min(PAGE_GROUPS, groups.length - shownGroups)),
+                  })}
                 </Button>
               ) : null}
               {writings.total > writings.items.length ? (
                 <p className="px-1 text-sm/6 text-subtle">
-                  Showing your newest {count.format(writings.items.length)} saved of{" "}
-                  {count.format(writings.total)}.
+                  {fmt(page.newest, {
+                    shown: format.number(writings.items.length),
+                    total: format.number(writings.total),
+                  })}
                 </p>
               ) : null}
             </section>
@@ -620,10 +624,11 @@ export function LettersPage() {
 }
 
 function LoadingState() {
+  const { page } = useMessages("letters");
   return (
     <div aria-busy className="flex flex-col gap-4">
       <span className="sr-only" role="status">
-        Loading your letters
+        {page.loading}
       </span>
       <Skeleton aria-hidden className="h-52 rounded-2xl bg-surface" />
       <div className="grid gap-4 lg:grid-cols-2">

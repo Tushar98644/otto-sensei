@@ -1,7 +1,12 @@
 import { api } from "@/lib/api/client";
 import type { Application } from "@/lib/applications/schema";
-import { STATUS_NAMES } from "@/lib/applications/status";
-import { applicationForCopy, applicationForJob, copyForJob, copyJobId } from "@/lib/applications/thread";
+import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
+import {
+  applicationForCopy,
+  applicationForJob,
+  copyForJob,
+  copyJobId,
+} from "@/lib/applications/thread";
 import { savedJobText, savedJobUrl } from "@/lib/insights/saved-job";
 import type { SavedJob } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
@@ -32,9 +37,27 @@ export type WriteTarget = {
   at: number;
 };
 
-function labelOf(company: string, title: string, note: string): string {
-  const name = [company, title].map((part) => part.trim()).filter(Boolean).join(", ");
-  return `${name || "Untitled job"} (${note})`;
+export type TargetWords = {
+  statuses: Record<ApplicationStatus, string>;
+  untitled: string;
+  savedJob: string;
+  tailoredCopy: string;
+};
+
+// The dashboard passes its own words; tests and older callers read these.
+const englishWords: TargetWords = {
+  statuses: STATUS_NAMES,
+  untitled: "Untitled job",
+  savedJob: "saved job",
+  tailoredCopy: "tailored copy",
+};
+
+function labelOf(company: string, title: string, note: string, untitled: string): string {
+  const name = [company, title]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
+  return `${name || untitled} (${note})`;
 }
 
 function postOf(text: string, jobId: string | null, url: string): TargetPost {
@@ -43,7 +66,11 @@ function postOf(text: string, jobId: string | null, url: string): TargetPost {
   return url ? { kind: "link", url } : { kind: "paste" };
 }
 
-function fromApplication(application: Application, resumes: readonly Resume[]): WriteTarget {
+function fromApplication(
+  application: Application,
+  resumes: readonly Resume[],
+  words: TargetWords,
+): WriteTarget {
   const sent = application.resumeId
     ? resumes.find((resume) => resume.id === application.resumeId)
     : undefined;
@@ -52,7 +79,12 @@ function fromApplication(application: Application, resumes: readonly Resume[]): 
   return {
     value: `application:${application.id}`,
     from: "application",
-    label: labelOf(application.company, application.role, STATUS_NAMES[application.status]),
+    label: labelOf(
+      application.company,
+      application.role,
+      words.statuses[application.status],
+      words.untitled,
+    ),
     title: application.role,
     company: application.company,
     url,
@@ -65,11 +97,11 @@ function fromApplication(application: Application, resumes: readonly Resume[]): 
   };
 }
 
-function fromSavedJob(job: SavedJob): WriteTarget {
+function fromSavedJob(job: SavedJob, words: TargetWords): WriteTarget {
   return {
     value: `job:${job.id}`,
     from: "job",
-    label: labelOf(job.company, job.title, "saved job"),
+    label: labelOf(job.company, job.title, words.savedJob, words.untitled),
     title: job.title,
     company: job.company,
     url: job.url,
@@ -82,13 +114,18 @@ function fromSavedJob(job: SavedJob): WriteTarget {
   };
 }
 
-function fromCopy(copy: Resume): WriteTarget {
+function fromCopy(copy: Resume, words: TargetWords): WriteTarget {
   const url = savedJobUrl(copy);
   const jobId = copyJobId(copy);
   return {
     value: `copy:${copy.id}`,
     from: "copy",
-    label: labelOf(copy.tailor?.company ?? "", copy.tailor?.jobTitle ?? "", "tailored copy"),
+    label: labelOf(
+      copy.tailor?.company ?? "",
+      copy.tailor?.jobTitle ?? "",
+      words.tailoredCopy,
+      words.untitled,
+    ),
     title: copy.tailor?.jobTitle ?? "",
     company: copy.tailor?.company ?? "",
     url,
@@ -106,6 +143,7 @@ export function writeTargets(
   applications: readonly Application[],
   savedJobs: readonly SavedJob[],
   resumes: readonly Resume[],
+  words: TargetWords = englishWords,
 ): WriteTarget[] {
   const copies = resumes.filter(
     (resume) =>
@@ -123,9 +161,9 @@ export function writeTargets(
     (application) => application.status !== "rejected" && application.status !== "no_reply",
   );
   return [
-    ...open.map((application) => fromApplication(application, resumes)),
-    ...jobs.map(fromSavedJob),
-    ...copies.map(fromCopy),
+    ...open.map((application) => fromApplication(application, resumes, words)),
+    ...jobs.map((job) => fromSavedJob(job, words)),
+    ...copies.map((copy) => fromCopy(copy, words)),
   ]
     .sort((a, b) => b.at - a.at || a.value.localeCompare(b.value))
     .slice(0, MAX_TARGETS);
@@ -136,11 +174,17 @@ export function firstTarget(targets: readonly WriteTarget[]): WriteTarget | null
   return targets.find((target) => target.from !== "job") ?? null;
 }
 
-export function postLine(post: TargetPost): string {
-  if (post.kind === "saved") return "Otto uses the job post saved with your tailored copy.";
-  if (post.kind === "feed") return "Otto reads the job post from your Jobs tab.";
-  if (post.kind === "link") return "Otto reads the job post from its link.";
-  return "No job post is saved for this one. Paste its link or text below.";
+export type PostLines = Record<TargetPost["kind"], string>;
+
+const englishLines: PostLines = {
+  saved: "Otto uses the job post saved with your tailored copy.",
+  feed: "Otto reads the job post from your Jobs tab.",
+  link: "Otto reads the job post from its link.",
+  paste: "No job post is saved for this one. Paste its link or text below.",
+};
+
+export function postLine(post: TargetPost, lines: PostLines = englishLines): string {
+  return lines[post.kind];
 }
 
 // Throws when the post can't be read; a post too short to write from comes back empty.

@@ -1,14 +1,9 @@
 "use client";
 
+import { useMessages } from "@/i18n/client";
 import type { WritingKind } from "@/lib/writings/schema";
 
 export const WRITE_KINDS: readonly WritingKind[] = ["letter", "answer", "outreach"];
-
-const KIND_LABELS: Record<WritingKind, string> = {
-  letter: "Cover letter",
-  answer: "Answer",
-  outreach: "Outreach message",
-};
 
 export function KindPicker({
   kind,
@@ -19,9 +14,14 @@ export function KindPicker({
   disabled: boolean;
   onChange: (kind: WritingKind) => void;
 }) {
+  const { kinds, picker } = useMessages("letters");
   return (
     <div className="-mx-1 overflow-x-auto px-1">
-      <div role="group" aria-label="What to write" className="flex w-max gap-1 rounded-xl bg-surface-muted p-1">
+      <div
+        role="group"
+        aria-label={picker}
+        className="flex w-max gap-1 rounded-xl bg-surface-muted p-1"
+      >
         {WRITE_KINDS.map((item) => (
           <button
             key={item}
@@ -31,7 +31,7 @@ export function KindPicker({
             onClick={() => onChange(item)}
             className="flex h-9 shrink-0 items-center rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink disabled:opacity-45 aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control aria-pressed:ring-1 aria-pressed:ring-ink/5 pointer-coarse:h-10"
           >
-            {KIND_LABELS[item]}
+            {kinds[item]}
           </button>
         ))}
       </div>

@@ -230,6 +230,9 @@ export default {
     offer: "Angebot kam vor {span}",
   },
   hub: {
+    noDate: "Kein Datum gespeichert",
+    newTab: " (öffnet in einem neuen Tab)",
+    noLink: "Kein Link zur Anzeige gespeichert.",
     back: "Bewerbungen",
     applied: "Beworben am {day}",
     interview: "Interview am {day}",

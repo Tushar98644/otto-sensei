@@ -6,7 +6,6 @@ import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { useMe } from "@/components/account/use-me";
 import { CalendarFeed } from "@/components/calendar/calendar-feed";
-import { OTTO } from "@/components/mascot/lines";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,9 +13,10 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFormat, useMessages } from "@/i18n/client";
 import { useResumeList } from "@/lib/store/resume-store";
 import { dayOffset } from "@/lib/time";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { prepAllowance } from "../applications/prep/prep-start";
 import { useApplications } from "../applications/use-applications";
 import { interviewSections } from "../page-code";
@@ -30,15 +30,11 @@ preload(interviewSections);
 
 type Sections = typeof import("./interview-sections");
 
-const count = new Intl.NumberFormat("en-US");
 const TAB_HEADING = "font-sans text-xs/4 font-medium";
 
-function Tally({ value, noun }: { value: number; noun: [string, string] }) {
-  return (
-    <span className="text-xs text-subtle tabular-nums">
-      {count.format(value)} {value === 1 ? noun[0] : noun[1]}
-    </span>
-  );
+function Tally({ value, forms }: { value: number; forms: { one: string; other: string } }) {
+  const format = useFormat();
+  return <span className="text-xs text-subtle tabular-nums">{format.plural(forms, value)}</span>;
 }
 
 // Empty and locked states share the featured layout, so they feel like the same place.
@@ -73,6 +69,8 @@ function Invitation({
 }
 
 export function InterviewHome() {
+  const { home: t } = useMessages("interview");
+  const format = useFormat();
   const now = useNow();
   const packs = usePrepPacks();
   const applications = useApplications();
@@ -128,18 +126,18 @@ export function InterviewHome() {
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="min-w-0">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-            Interview prep
+            {t.title}
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-pretty text-muted">
             {ready && packs.items.length > 0
-              ? `${pluralize(packs.items.length, "prep pack")}, one per job, built from your own resume lines.`
-              : "For each job you interview for: likely questions, stories from your own resume lines, and questions to ask them."}
+              ? format.plural(t.packsIntro, packs.items.length)
+              : t.intro}
           </p>
         </div>
         {pro === true && ready && !empty ? (
           <Button variant="secondary" onClick={start}>
             <Plus aria-hidden />
-            Prepare for a job
+            {t.prepare}
           </Button>
         ) : null}
       </header>
@@ -147,14 +145,14 @@ export function InterviewHome() {
       {packs.status === "error" ? (
         <Alert
           variant="error"
-          title="Your interview prep didn't load"
+          title={t.didntLoad}
           action={
             <Button variant="secondary" size="sm" onClick={packs.retry}>
-              Try again
+              {t.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {t.checkConnection}
         </Alert>
       ) : !parts || !ready || (empty && planLoading) ? (
         <LoadingState />
@@ -162,15 +160,15 @@ export function InterviewHome() {
         <>
           {locked ? (
             <FolderCard
-              tab={<h2 className={TAB_HEADING}>Interview prep</h2>}
+              tab={<h2 className={TAB_HEADING}>{t.title}</h2>}
               tone="lavender"
               bodyClassName="p-2"
             >
               <Invitation
                 art={parts.CueCardsArt}
-                eyebrow="Comes with Pro"
-                title="Practice every interview before it happens"
-                detail={packs.items.length > 0 ? OTTO.interview.lockedKept : OTTO.interview.locked}
+                eyebrow={t.lockedEyebrow}
+                title={t.lockedTitle}
+                detail={packs.items.length > 0 ? t.lockedKept : t.locked}
               >
                 <Button onClick={() => setUpgradeOpen(true)} className="max-sm:flex-1">
                   {tryPro}
@@ -180,19 +178,19 @@ export function InterviewHome() {
             </FolderCard>
           ) : empty ? (
             <FolderCard
-              tab={<h2 className={TAB_HEADING}>Interview prep</h2>}
+              tab={<h2 className={TAB_HEADING}>{t.title}</h2>}
               tone="lavender"
               bodyClassName="p-2"
             >
               <Invitation
                 art={parts.CueCardsArt}
-                eyebrow="No interviews yet"
-                title="Your next interview, prepped in one click"
-                detail="When an application reaches the interview stage, it waits here with a Prepare key. Or prep for any job now from its link."
+                eyebrow={t.emptyEyebrow}
+                title={t.emptyTitle}
+                detail={t.emptyDetail}
               >
                 <Button onClick={start} className="max-sm:flex-1">
                   <Plus aria-hidden />
-                  Prepare for a job
+                  {t.prepare}
                 </Button>
               </Invitation>
             </FolderCard>
@@ -203,14 +201,12 @@ export function InterviewHome() {
               <FolderCard
                 tab={
                   <h2 id="interviews-heading" className={TAB_HEADING}>
-                    {ahead ? "Next interview" : "At the interview stage"}
+                    {ahead ? t.next : t.atStage}
                   </h2>
                 }
                 tone={locked ? "plain" : "lavender"}
                 tabEnd={
-                  entries.length > 1 ? (
-                    <Tally value={entries.length} noun={["interview", "interviews"]} />
-                  ) : null
+                  entries.length > 1 ? <Tally value={entries.length} forms={t.interviews} /> : null
                 }
                 bodyClassName="p-2"
               >
@@ -229,7 +225,7 @@ export function InterviewHome() {
               </FolderCard>
               {rest.length > 0 ? (
                 <ul
-                  aria-label="More interviews"
+                  aria-label={t.moreInterviews}
                   className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
                 >
                   {rest.map((entry, index) => (
@@ -248,7 +244,7 @@ export function InterviewHome() {
 
           {first ? (
             <FolderCard
-              tab={<h2 className={TAB_HEADING}>In your calendar</h2>}
+              tab={<h2 className={TAB_HEADING}>{t.calendar}</h2>}
               bodyClassName="p-4 sm:p-6"
             >
               <CalendarFeed />
@@ -259,9 +255,9 @@ export function InterviewHome() {
             <section aria-labelledby="packs-heading" className="flex flex-col gap-4">
               <div className="flex items-end justify-between gap-4">
                 <h2 id="packs-heading" className="font-sans text-lg/7 font-medium text-ink">
-                  {first ? "More prep packs" : "Your prep packs"}
+                  {first ? t.morePacks : t.yourPacks}
                 </h2>
-                <Tally value={otherPacks.length} noun={["pack", "packs"]} />
+                <Tally value={otherPacks.length} forms={t.packs} />
               </div>
               <ul
                 className={cn(
@@ -294,10 +290,11 @@ export function InterviewHome() {
 }
 
 function LoadingState() {
+  const { home } = useMessages("interview");
   return (
     <div aria-busy className="flex flex-col">
       <span className="sr-only" role="status">
-        Loading your interview prep
+        {home.loading}
       </span>
       <Skeleton aria-hidden className="h-8 w-40 rounded-t-xl rounded-b-none" />
       <Skeleton aria-hidden className="h-56 rounded-2xl rounded-tl-none bg-surface" />

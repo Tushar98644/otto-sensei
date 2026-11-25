@@ -226,6 +226,9 @@ export default {
     offer: "Offer came {span} ago",
   },
   hub: {
+    noDate: "No date kept",
+    newTab: " (opens in a new tab)",
+    noLink: "No link to the post is saved.",
     back: "Applications",
     applied: "Applied {day}",
     interview: "Interview {day}",

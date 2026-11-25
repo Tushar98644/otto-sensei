@@ -5,16 +5,21 @@ import { useState } from "react";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import type { WritingKind } from "@/lib/writings/schema";
 import type { QuickRun } from "./use-quick-write";
 import { PostBox, QuestionBox } from "./write-boxes";
 
-export const WRITE_ACTIONS: Record<WritingKind, { label: string; icon: LucideIcon }> = {
-  letter: { label: "Write letter", icon: PenLine },
-  answer: { label: "Draft my answer", icon: MessageSquareText },
-  outreach: { label: "Write outreach", icon: Send },
-};
+export function useWriteActions(): Record<WritingKind, { label: string; icon: LucideIcon }> {
+  const { quick } = useMessages("letters");
+  return {
+    letter: { label: quick.writeLetter, icon: PenLine },
+    answer: { label: quick.draftAnswer, icon: MessageSquareText },
+    outreach: { label: quick.writeOutreach, icon: Send },
+  };
+}
 
 export type QuickState = {
   run: QuickRun | null;
@@ -47,6 +52,8 @@ export function QuickActions({
   onOpen: (key: string) => void;
   onDismiss: () => void;
 }) {
+  const t = useMessages("letters").quick;
+  const actions = useWriteActions();
   const [want, setWant] = useState<Want | null>(null);
   const [asking, setAsking] = useState(false);
   const { run, blocked, ask, error } = state;
@@ -74,13 +81,13 @@ export function QuickActions({
       ) : ask !== null && want ? (
         <PostBox
           note={ask}
-          action={WRITE_ACTIONS[want.kind]}
+          action={actions[want.kind]}
           onWrite={(post) => onWrite(want.kind, { question: want.question, post })}
           onCancel={cancel}
         />
       ) : asking ? (
         <QuestionBox
-          action={WRITE_ACTIONS.answer}
+          action={actions.answer}
           onWrite={(question) => write("answer", question)}
           onCancel={cancel}
         />
@@ -101,7 +108,7 @@ export function QuickActions({
               className={primary ? "max-sm:col-span-2" : undefined}
             >
               <PenLine aria-hidden />
-              Write letter
+              {t.writeLetter}
             </Button>
           ) : null}
           {outreachKey ? (
@@ -112,7 +119,7 @@ export function QuickActions({
               onClick={() => onOpen(outreachKey)}
             >
               <Send aria-hidden />
-              Open message
+              {t.openMessage}
             </Button>
           ) : (
             <Button
@@ -123,14 +130,14 @@ export function QuickActions({
               onClick={() => write("outreach")}
             >
               <Send aria-hidden />
-              Outreach
+              {t.outreach}
             </Button>
           )}
           <Button
             variant="ghost"
             size={primary ? "md" : "sm"}
             disabled={blocked}
-            aria-label={`Answer a question for ${name}`}
+            aria-label={fmt(t.answerFor, { name })}
             onClick={() => setAsking(true)}
             className={
               primary
@@ -139,7 +146,7 @@ export function QuickActions({
             }
           >
             <MessageSquareText aria-hidden />
-            Answer
+            {t.answer}
           </Button>
         </div>
       )}

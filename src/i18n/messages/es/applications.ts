@@ -153,7 +153,7 @@ export default {
   board: {
     columns: {
       to_apply: "Por postular",
-      applied: "Postulado",
+      applied: "Postuladas",
       interview: "Entrevistas",
       offer: "Oferta",
       closed: "Cerradas",
@@ -232,6 +232,9 @@ export default {
     offer: "La oferta llegó hace {span}",
   },
   hub: {
+    noDate: "Sin fecha guardada",
+    newTab: " (se abre en una pestaña nueva)",
+    noLink: "No hay ningún enlace a la oferta guardado.",
     back: "Postulaciones",
     applied: "Postulaste el {day}",
     interview: "Entrevista el {day}",

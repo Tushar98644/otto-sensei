@@ -3,8 +3,8 @@
 import { Bookmark, Check, ClipboardPaste, Link2, Sparkles, type LucideIcon } from "lucide-react";
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { CompanyMark } from "@/components/ui/company-mark";
+import { useMessages } from "@/i18n/client";
 import type { Application } from "@/lib/applications/schema";
-import { STATUS_NAMES } from "@/lib/applications/status";
 import { cn } from "@/lib/utils";
 import type { WritingKind } from "@/lib/writings/schema";
 import { InterviewTicket } from "../applications/board/card/interview-ticket";
@@ -55,33 +55,36 @@ function SourceChip({
   target: WriteTarget;
   application: Application | null;
 }) {
+  const { statuses } = useMessages("applications");
+  const { ready } = useMessages("letters");
   if (application) {
     return (
       <span className={cn(CHIP, "bg-surface-muted text-muted")}>
         <StatusIcon status={application.status} className="size-3.5" />
-        {STATUS_NAMES[application.status]}
+        {statuses[application.status]}
       </span>
     );
   }
   return target.from === "job" ? (
-    <Chip icon={Bookmark}>Saved job</Chip>
+    <Chip icon={Bookmark}>{ready.savedJob}</Chip>
   ) : (
-    <Chip icon={Sparkles}>Tailored copy</Chip>
+    <Chip icon={Sparkles}>{ready.tailoredCopy}</Chip>
   );
 }
 
 function PostChip({ target }: { target: WriteTarget }) {
+  const { ready } = useMessages("letters");
   if (target.post.kind === "saved" || target.post.kind === "feed") {
     return (
       <Chip icon={Check} tone="pass">
-        Job post ready
+        {ready.postReady}
       </Chip>
     );
   }
-  if (target.post.kind === "link") return <Chip icon={Link2}>Reads the post from its link</Chip>;
+  if (target.post.kind === "link") return <Chip icon={Link2}>{ready.fromLink}</Chip>;
   return (
     <Chip icon={ClipboardPaste} tone="dashed">
-      Needs the job post
+      {ready.needsPost}
     </Chip>
   );
 }
@@ -111,6 +114,7 @@ export function ReadyCard({
   onOpen,
   onDismiss,
 }: ReadyCardProps) {
+  const untitled = useMessages("letters").ready.untitled;
   const titleId = useId();
   const interviewAt =
     application?.status === "interview" &&
@@ -140,7 +144,7 @@ export function ReadyCard({
               id={titleId}
               className="mt-0.5 text-lg/6 font-semibold tracking-tight text-pretty text-ink"
             >
-              {target.title || "Untitled job"}
+              {target.title || untitled}
             </h3>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               <SourceChip target={target} application={application} />

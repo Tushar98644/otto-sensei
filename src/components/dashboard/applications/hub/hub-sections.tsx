@@ -104,7 +104,7 @@ export function TimelineCard({ steps, now }: { steps: TimelineStep[]; now: numbe
                     {formatDay(format, step.at, now || step.at)}
                   </p>
                 ) : step.state === "done" ? (
-                  <p className="text-xs/5 text-subtle">No date kept</p>
+                  <p className="text-xs/5 text-subtle">{t.hub.noDate}</p>
                 ) : null}
               </div>
             </li>
@@ -227,11 +227,11 @@ export function JobCard({
         >
           {hub.openPost}
           <ArrowUpRight aria-hidden />
-          <span className="sr-only">(opens in a new tab)</span>
+          <span className="sr-only">{hub.newTab}</span>
         </a>
       ) : (
         <div className="flex flex-col items-start gap-2">
-          <p className="text-sm/6 text-muted">No link to the post is saved.</p>
+          <p className="text-sm/6 text-muted">{hub.noLink}</p>
           <Button variant="ghost" size="sm" onClick={onEdit}>
             <PenLine aria-hidden />
             {hub.addLink}

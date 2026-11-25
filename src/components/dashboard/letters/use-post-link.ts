@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent, useRef } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { api } from "@/lib/api/client";
 import { POST_PARAM, POST_RESUME_PARAM, POST_START_PARAM } from "@/lib/extension/links";
 import type { SavedPost } from "@/lib/extension/types";
@@ -26,8 +27,12 @@ function takeLink(): { postId: string; resumeId: string | null; start: boolean }
 
 // /dashboard/letters?post=<id> opens the letter dialog on a job saved from Otto for Chrome.
 export function usePostLink(ready: boolean, onPost: (link: PostLink) => void): void {
+  const { page } = useMessages("letters");
   const taken = useRef(false);
   const open = useEffectEvent(onPost);
+  const failed = useEffectEvent((error: unknown) =>
+    toast({ title: page.cantOpenSaved, description: errorMessage(error), variant: "error" }),
+  );
   useEffect(() => {
     if (!ready || taken.current) return;
     taken.current = true;
@@ -35,12 +40,7 @@ export function usePostLink(ready: boolean, onPost: (link: PostLink) => void): v
     if (!link) return;
     api.savedPost(link.postId).then(
       ({ post }) => open({ post, resumeId: link.resumeId, start: link.start }),
-      (error: unknown) =>
-        toast({
-          title: "Couldn't open that saved job",
-          description: errorMessage(error),
-          variant: "error",
-        }),
+      (error: unknown) => failed(error),
     );
   }, [ready]);
 }

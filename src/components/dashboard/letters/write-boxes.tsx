@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useMessages } from "@/i18n/client";
 import { oneLine } from "@/lib/ai/text";
 import { WRITING_LIMITS } from "@/lib/writings/schema";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ export function PostBox({
   onCancel,
   className,
 }: BoxProps & { note: string; onWrite: (post: string) => void }) {
+  const t = useMessages("letters").boxes;
   const id = useId();
   const errorId = useId();
   const [text, setText] = useState("");
@@ -36,11 +38,7 @@ export function PostBox({
     event.preventDefault();
     const value = text.trim();
     if (!LINK.test(value) && value.length < MIN_TARGET_POST_CHARS) {
-      setError(
-        value
-          ? "That's a bit short. Paste the whole post, or its link."
-          : "Paste the job post or its link first.",
-      );
+      setError(value ? t.short : t.pasteFirst);
       return;
     }
     onWrite(value);
@@ -57,7 +55,7 @@ export function PostBox({
         autoFocus
         value={text}
         spellCheck={false}
-        placeholder="Paste the job post or its link"
+        placeholder={t.placeholder}
         aria-describedby={error ? errorId : undefined}
         invalid={error !== null}
         onChange={(event) => {
@@ -77,7 +75,7 @@ export function PostBox({
           {action.label}
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
+          {t.cancel}
         </Button>
       </div>
     </form>
@@ -90,6 +88,7 @@ export function QuestionBox({
   onCancel,
   className,
 }: BoxProps & { onWrite: (question: string) => void }) {
+  const t = useMessages("letters").boxes;
   const id = useId();
   const errorId = useId();
   const [question, setQuestion] = useState("");
@@ -98,7 +97,7 @@ export function QuestionBox({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (oneLine(question).length < WRITING_LIMITS.question.min) {
-      setError("Paste the question from the application first.");
+      setError(t.questionFirst);
       return;
     }
     onWrite(question.trim());
@@ -107,7 +106,7 @@ export function QuestionBox({
   return (
     <form onSubmit={submit} noValidate className={cn(PANEL, className)}>
       <label htmlFor={id} className="text-sm/6 font-medium text-ink">
-        The question, as the application asks it
+        {t.question}
       </label>
       <Textarea
         id={id}
@@ -115,7 +114,7 @@ export function QuestionBox({
         autoFocus
         value={question}
         maxLength={WRITING_LIMITS.question.max}
-        placeholder="e.g. Why do you want to work here?"
+        placeholder={t.questionPlaceholder}
         aria-describedby={error ? errorId : undefined}
         invalid={error !== null}
         onChange={(event) => {
@@ -134,7 +133,7 @@ export function QuestionBox({
           {action.label}
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
+          {t.cancel}
         </Button>
       </div>
     </form>

@@ -3,6 +3,7 @@
 import { CalendarPlus } from "lucide-react";
 import { Button, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { downloadInterviewCalendar, type CalendarInterview } from "./calendar-file";
 
 export function AddToCalendar({
@@ -16,18 +17,18 @@ export function AddToCalendar({
   size?: ButtonSize;
   className?: string;
 }) {
+  const { calendar: t } = useMessages("interview");
   function add() {
     try {
       downloadInterviewCalendar(interview);
       toast({
-        title: "Calendar file ready",
-        description:
-          "Open it to add the interview day, with a reminder to practice the morning before.",
+        title: t.ready,
+        description: t.readyDetail,
       });
     } catch {
       toast({
-        title: "Couldn't make the calendar file",
-        description: "Try again in a moment.",
+        title: t.failed,
+        description: t.tryLater,
         variant: "error",
       });
     }
@@ -35,7 +36,7 @@ export function AddToCalendar({
   return (
     <Button variant={variant} size={size} onClick={add} className={className}>
       <CalendarPlus aria-hidden />
-      Add to calendar
+      {t.add}
     </Button>
   );
 }

@@ -27,6 +27,9 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "hub.notes",
     "dialog.notes",
     "hub.kinds.outreach",
+    "labels.outreach",
+    "reader.question",
+    "filters.outreach",
   ]),
   de: new Set([
     "meta.jobs",

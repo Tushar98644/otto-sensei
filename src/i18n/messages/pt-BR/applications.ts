@@ -231,6 +231,9 @@ export default {
     offer: "Oferta recebida há {span}",
   },
   hub: {
+    noDate: "Sem data salva",
+    newTab: " (abre em uma nova aba)",
+    noLink: "Nenhum link para a vaga foi salvo.",
     back: "Candidaturas",
     applied: "Candidatura em {day}",
     interview: "Entrevista em {day}",

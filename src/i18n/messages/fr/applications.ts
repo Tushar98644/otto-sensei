@@ -232,6 +232,9 @@ export default {
     offer: "Offre reçue il y a {span}",
   },
   hub: {
+    noDate: "Aucune date enregistrée",
+    newTab: " (s'ouvre dans un nouvel onglet)",
+    noLink: "Aucun lien vers l'offre n'est enregistré.",
     back: "Candidatures",
     applied: "Postulé le {day}",
     interview: "Entretien le {day}",

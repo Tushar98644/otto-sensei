@@ -4,6 +4,7 @@ import { ArrowRight, MessageSquareText, PenLine, Send, type LucideIcon } from "l
 import type { CSSProperties, ReactNode } from "react";
 import { BRAND } from "@/config/brand";
 import { FolderCard } from "@/components/ui/folder-card";
+import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import type { WritingKind } from "@/lib/writings/schema";
 import { LettersArt } from "./letters-art";
@@ -55,30 +56,12 @@ export function LettersFolder({
   );
 }
 
-type Path = { kind: WritingKind; fresh: boolean; icon: LucideIcon; title: string; detail: string };
+type Path = { kind: WritingKind; fresh: boolean; icon: LucideIcon };
 
 const PATHS: readonly Path[] = [
-  {
-    kind: "letter",
-    fresh: true,
-    icon: PenLine,
-    title: "A letter for another job",
-    detail: "Paste its link or the post.",
-  },
-  {
-    kind: "answer",
-    fresh: false,
-    icon: MessageSquareText,
-    title: "Answer an application question",
-    detail: "Paste the question. Pick the job from your list.",
-  },
-  {
-    kind: "outreach",
-    fresh: false,
-    icon: Send,
-    title: "An outreach message",
-    detail: "A short email and a LinkedIn note.",
-  },
+  { kind: "letter", fresh: true, icon: PenLine },
+  { kind: "answer", fresh: false, icon: MessageSquareText },
+  { kind: "outreach", fresh: false, icon: Send },
 ];
 
 const TILE =
@@ -94,18 +77,24 @@ export function OtherPaths({
   disabled: boolean;
   onPick: (kind: WritingKind, fresh: boolean) => void;
 }) {
+  const { paths } = useMessages("letters");
+  const words = {
+    letter: { title: paths.letterTitle, detail: paths.letterDetail },
+    answer: { title: paths.answerTitle, detail: paths.answerDetail },
+    outreach: { title: paths.outreachTitle, detail: paths.outreachDetail },
+  };
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <h2
         id={headingId}
         className="px-1 font-sans text-xs/4 font-medium tracking-widest text-subtle uppercase"
       >
-        Something else
+        {paths.heading}
       </h2>
       <ul className="grid gap-3 md:grid-cols-3">
         {PATHS.map((path, index) => (
           <li
-            key={path.title}
+            key={path.kind}
             className="motion-safe:animate-fade-in"
             style={{ animationDelay: `${120 + index * 60}ms` } as CSSProperties}
           >
@@ -122,8 +111,10 @@ export function OtherPaths({
                 <path.icon className="size-5" />
               </span>
               <span className="flex min-w-0 flex-col gap-0.5 md:col-span-2 md:row-start-2">
-                <span className="text-sm/6 font-medium text-pretty text-ink">{path.title}</span>
-                <span className="text-sm/5 text-pretty text-muted">{path.detail}</span>
+                <span className="text-sm/6 font-medium text-pretty text-ink">
+                  {words[path.kind].title}
+                </span>
+                <span className="text-sm/5 text-pretty text-muted">{words[path.kind].detail}</span>
               </span>
               <span
                 aria-hidden

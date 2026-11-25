@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { Writing } from "@/lib/writings/schema";
+import { EN, FORMAT_EN } from "../messages-testing";
 import type { Application } from "@/lib/applications/schema";
 import {
   defaultResume,
@@ -100,10 +101,19 @@ describe("the letters list", () => {
   });
 
   it("lists outreach messages with their subject and note, never linked to a copy", () => {
-    const outreach = { subject: "Designer at Northwind", note: "Hi [first name], hello.", jobId: null };
+    const outreach = {
+      subject: "Designer at Northwind",
+      note: "Hi [first name], hello.",
+      jobId: null,
+    };
     const entries = letterEntries(
       [
-        writing("w1", { kind: "outreach", text: "Dear Fabrikam team,", outreach, createdAt: 8_000 }),
+        writing("w1", {
+          kind: "outreach",
+          text: "Dear Fabrikam team,",
+          outreach,
+          createdAt: 8_000,
+        }),
         writing("w2", { createdAt: 7_000 }),
         writing("w3", { kind: "outreach", text: "Hi there,", outreach, createdAt: 2_000 }),
       ],
@@ -123,11 +133,13 @@ describe("the letters list", () => {
       "writing:w1",
       "writing:w3",
     ]);
-    expect(kindsTally(counts)).toBe("2 letters and 2 outreach messages");
-    expect(kindsTally({ all: 3, letter: 1, answer: 1, outreach: 1 })).toBe(
+    expect(kindsTally(counts, EN.letters, FORMAT_EN)).toBe("2 letters and 2 outreach messages");
+    expect(kindsTally({ all: 3, letter: 1, answer: 1, outreach: 1 }, EN.letters, FORMAT_EN)).toBe(
       "1 letter, 1 answer and 1 outreach message",
     );
-    expect(kindsTally({ all: 1, letter: 0, answer: 1, outreach: 0 })).toBe("1 answer");
+    expect(kindsTally({ all: 1, letter: 0, answer: 1, outreach: 0 }, EN.letters, FORMAT_EN)).toBe(
+      "1 answer",
+    );
   });
 
   it("shows an edit to a message before the server has it, and leaves a letter's parts alone", () => {
@@ -206,14 +218,22 @@ describe("letter resumes and studio links", () => {
   });
 
   it("opens the copy's download step, else the source resume's tailor step, else nothing", () => {
-    expect(studioTarget({ copyId: "c1", resumeId: "base" }, resumes)).toEqual({ id: "c1", step: "download" });
-    expect(studioTarget({ copyId: null, resumeId: "base" }, resumes)).toEqual({ id: "base", step: "tailor" });
+    expect(studioTarget({ copyId: "c1", resumeId: "base" }, resumes)).toEqual({
+      id: "c1",
+      step: "download",
+    });
+    expect(studioTarget({ copyId: null, resumeId: "base" }, resumes)).toEqual({
+      id: "base",
+      step: "tailor",
+    });
     expect(studioTarget({ copyId: null, resumeId: "deleted" }, resumes)).toBeNull();
   });
 
   it("names the source resume by its title now, else the one it had when written", () => {
     expect(sourceTitle({ resumeId: "base", resumeTitle: "Old name" }, resumes)).toBe("Resume base");
-    expect(sourceTitle({ resumeId: "elsewhere", resumeTitle: " Old name " }, resumes)).toBe("Old name");
+    expect(sourceTitle({ resumeId: "elsewhere", resumeTitle: " Old name " }, resumes)).toBe(
+      "Old name",
+    );
     expect(sourceTitle({ resumeId: null, resumeTitle: "" }, resumes)).toBe("");
   });
 

@@ -4,7 +4,6 @@ import { MessageSquareText, PenLine, Send, Upload, type LucideIcon } from "lucid
 import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useMe } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { WritingStyleHint } from "@/components/settings/writing-style-hint";
@@ -19,6 +18,9 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { VoiceTextarea } from "@/components/ui/voice-field";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import { oneLine } from "@/lib/ai/text";
 import { api } from "@/lib/api/client";
 import type { Application } from "@/lib/applications/schema";
@@ -26,7 +28,9 @@ import type { SavedJob } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { WRITING_LIMITS, type Writing, type WritingKind } from "@/lib/writings/schema";
+import type { LettersMessages } from "../i18n";
 import { useStudioActions } from "../use-studio-actions";
+import { useTargetWords } from "./use-target-words";
 import { defaultResume, type LetterEntry } from "./entries";
 import { KindPicker } from "./kind-picker";
 import { rememberPost, withRememberedPost } from "./post-memory";
@@ -46,32 +50,33 @@ const NO_RESUME = emptyResume(0);
 const NO_APPLICATIONS: Application[] = [];
 const NO_JOBS: SavedJob[] = [];
 
-const COPY: Record<
-  WriteKind,
-  { title: string; note: string; label: string; icon: LucideIcon; unkept: string }
-> = {
-  letter: {
-    title: "Write a cover letter",
-    note: OTTO.letters.write,
-    label: "Write my letter",
-    icon: PenLine,
-    unkept: "Couldn't keep this letter",
-  },
-  answer: {
-    title: "Answer an application question",
-    note: OTTO.letters.answer,
-    label: "Draft my answer",
-    icon: MessageSquareText,
-    unkept: "Couldn't keep this answer",
-  },
-  outreach: {
-    title: "Write an outreach message",
-    note: OTTO.letters.outreach,
-    label: "Write my message",
-    icon: Send,
-    unkept: "Couldn't keep this message",
-  },
-};
+type Copy = { title: string; note: string; label: string; icon: LucideIcon; unkept: string };
+
+function copyFor({ write, quick }: LettersMessages): Record<WriteKind, Copy> {
+  return {
+    letter: {
+      title: write.letterTitle,
+      note: write.letterNote,
+      label: write.letterLabel,
+      icon: PenLine,
+      unkept: quick.unkept.letter,
+    },
+    answer: {
+      title: write.answerTitle,
+      note: write.answerNote,
+      label: write.answerLabel,
+      icon: MessageSquareText,
+      unkept: quick.unkept.answer,
+    },
+    outreach: {
+      title: write.outreachTitle,
+      note: write.outreachNote,
+      label: write.outreachLabel,
+      icon: Send,
+      unkept: quick.unkept.outreach,
+    },
+  };
+}
 
 export type WriteDialogProps = {
   kind: WriteKind;
@@ -95,14 +100,20 @@ export type WriteStart = {
   applicationId: string | null;
 };
 
-function resumeNote(resume: Resume, picked: string | null, target: WriteTarget | null, sent?: string | null) {
+function resumeNote(
+  { write }: LettersMessages,
+  resume: Resume,
+  picked: string | null,
+  target: WriteTarget | null,
+  sent?: string | null,
+) {
   if (resume.id === sent || (target?.resumeNote === "sent" && resume.id === target.resumeId)) {
-    return ", the version you sent.";
+    return write.sent;
   }
   if (target?.resumeNote === "tailored" && resume.id === target.resumeId) {
-    return ", the copy tailored to this job.";
+    return write.tailored;
   }
-  return resume.id === picked ? "." : ", the resume you edited last.";
+  return resume.id === picked ? "." : write.lastEdited;
 }
 
 export function WriteDialog({
@@ -117,6 +128,9 @@ export function WriteDialog({
   fresh = false,
   autoWrite = false,
 }: WriteDialogProps) {
+  const t = useMessages("letters");
+  const words = copyFor(t);
+  const targetWords = useTargetWords();
   const { user, me, loading } = useMe();
   const actions = useStudioActions();
   const [kind, setKind] = useState(firstKind);
@@ -139,15 +153,25 @@ export function WriteDialog({
   }, [open]);
 
   const targets = useMemo(
-    () => (start ? [] : writeTargets(applications, savedJobs, resumes).map(withRememberedPost)),
-    [start, applications, savedJobs, resumes],
+    () =>
+      start
+        ? []
+        : writeTargets(applications, savedJobs, resumes, targetWords).map(withRememberedPost),
+    [start, applications, savedJobs, resumes, targetWords],
   );
   const target =
     picked === ANOTHER_JOB
       ? null
-      : (targets.find((item) => item.value === picked) ?? (picked === null ? firstTarget(targets) : null));
-  const pasting = target !== null && (target.post.kind === "paste" || pasteFor?.value === target.value);
-  const known = target && !pasting ? (target.post.kind === "saved" ? target.post.text : posts[target.value]) : undefined;
+      : (targets.find((item) => item.value === picked) ??
+        (picked === null ? firstTarget(targets) : null));
+  const pasting =
+    target !== null && (target.post.kind === "paste" || pasteFor?.value === target.value);
+  const known =
+    target && !pasting
+      ? target.post.kind === "saved"
+        ? target.post.text
+        : posts[target.value]
+      : undefined;
   const job: TailorDraft =
     target && !pasting
       ? { title: target.title, company: target.company, link: target.url, text: known ?? "" }
@@ -155,10 +179,13 @@ export function WriteDialog({
         ? { ...draft, title: draft.title || target.title, company: draft.company || target.company }
         : draft;
 
-  const targetResume = target?.resumeId ? resumes.find((item) => item.id === target.resumeId) : undefined;
-  const resume = resumes.find((item) => item.id === resumeId) ?? targetResume ?? defaultResume(resumes);
+  const targetResume = target?.resumeId
+    ? resumes.find((item) => item.id === target.resumeId)
+    : undefined;
+  const resume =
+    resumes.find((item) => item.id === resumeId) ?? targetResume ?? defaultResume(resumes);
   const writing = useWriting(resume ?? NO_RESUME, job);
-  const copy = COPY[kind];
+  const copy = words[kind];
   const busy = writing.busy !== null || saving || reading;
   const started = start?.draft ?? EMPTY_DRAFT;
   // Following the style link leaves the page, which would drop what's typed here and a letter still being written.
@@ -186,7 +213,7 @@ export function WriteDialog({
 
   function questionReady(): boolean {
     if (kind !== "answer" || oneLine(question).length >= WRITING_LIMITS.question.min) return true;
-    setQuestionError("Paste the question from the application first.");
+    setQuestionError(t.boxes.questionFirst);
     questionRef.current?.focus();
     return false;
   }
@@ -223,9 +250,15 @@ export function WriteDialog({
     if (!text) {
       setPasteFor({
         value: chosen.value,
-        note: `${failure ?? "That post is too short to write from."} Paste the job post below instead.`,
+        note: fmt(t.write.pasteBelow, { failure: failure ?? t.write.tooShort }),
       });
-      setDraft({ title: chosen.title, company: chosen.company, link: chosen.url, text: "", paste: true });
+      setDraft({
+        title: chosen.title,
+        company: chosen.company,
+        link: chosen.url,
+        text: "",
+        paste: true,
+      });
       return;
     }
     queued.current = chosen.value;
@@ -266,7 +299,7 @@ export function WriteDialog({
       const { writing: saved } = await api.saveWriting(body);
       onWritten({ kind: "saved", writing: saved, show: openRef.current });
     } catch (error) {
-      toast({ title: COPY[body.kind].unkept, description: errorMessage(error), variant: "error" });
+      toast({ title: words[body.kind].unkept, description: errorMessage(error), variant: "error" });
       onWritten({ kind: "unsaved", show: openRef.current, entry: unsavedEntry(body, Date.now()) });
     } finally {
       setSaving(false);
@@ -282,7 +315,9 @@ export function WriteDialog({
         }}
         size="lg"
         title={copy.title}
-        illustration={<OttoNote size="sm" live={false} message={resume ? copy.note : OTTO.letters.noResume} />}
+        illustration={
+          <OttoNote size="sm" live={false} message={resume ? copy.note : t.page.noResume} />
+        }
       >
         {resume ? (
           <div className="flex flex-col gap-6">
@@ -299,26 +334,32 @@ export function WriteDialog({
 
             <div className="flex flex-col gap-2">
               {picking && resumes.length > 1 ? (
-                <Field label="Resume to write from">
+                <Field label={t.write.resume}>
                   <Select value={resume.id} onChange={(event) => setResumeId(event.target.value)}>
                     {resumes.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.tailor ? `${resumeTitle(item)} (tailored)` : resumeTitle(item)}
+                        {item.tailor
+                          ? fmt(t.write.tailoredOption, { title: resumeTitle(item) })
+                          : resumeTitle(item)}
                       </option>
                     ))}
                   </Select>
                 </Field>
               ) : (
                 <p className="text-sm/6 text-muted">
-                  Written from <span className="font-medium text-ink">{resumeTitle(resume)}</span>
-                  {resumeNote(resume, resumeId, target, start?.resumeId)}{" "}
+                  {rich(
+                    t.write.writtenFrom,
+                    { b: (chunk) => <span className="font-medium text-ink">{chunk}</span> },
+                    { title: resumeTitle(resume) },
+                  )}
+                  {resumeNote(t, resume, resumeId, target, start?.resumeId)}{" "}
                   {resumes.length > 1 ? (
                     <button
                       type="button"
                       className="font-medium text-ink underline decoration-border-strong underline-offset-4"
                       onClick={() => setPicking(true)}
                     >
-                      Use another resume
+                      {t.write.another}
                     </button>
                   ) : null}
                 </p>
@@ -331,13 +372,13 @@ export function WriteDialog({
             ) : null}
 
             {kind === "answer" ? (
-              <Field label="The question" hint="Paste it as the application asks it." error={questionError}>
+              <Field label={t.write.question} hint={t.write.questionHint} error={questionError}>
                 <VoiceTextarea
                   ref={questionRef}
                   value={question}
                   rows={3}
                   maxLength={WRITING_LIMITS.question.max}
-                  placeholder="e.g. Why do you want to work here?"
+                  placeholder={t.boxes.questionPlaceholder}
                   onChange={(event) => {
                     setQuestion(event.target.value);
                     setQuestionError(null);
@@ -351,10 +392,17 @@ export function WriteDialog({
             ) : null}
 
             {target && !pasting ? (
-              <WriteRow action={copy} busy={busy} note={allowance} onWrite={() => void writeFor(target)} />
+              <WriteRow
+                action={copy}
+                busy={busy}
+                note={allowance}
+                onWrite={() => void writeFor(target)}
+              />
             ) : (
               <>
-                {target && pasteFor?.value === target.value ? <Alert role="note">{pasteFor.note}</Alert> : null}
+                {target && pasteFor?.value === target.value ? (
+                  <Alert role="note">{pasteFor.note}</Alert>
+                ) : null}
                 <JobForm
                   key={target?.value ?? ANOTHER_JOB}
                   draft={job}
@@ -378,7 +426,7 @@ export function WriteDialog({
         ) : (
           <Button variant="secondary" className="self-start" onClick={actions.upload}>
             <Upload aria-hidden />
-            Upload a resume
+            {t.write.upload}
           </Button>
         )}
       </Dialog>
