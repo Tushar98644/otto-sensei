@@ -19,7 +19,20 @@ const filesIn = (locale: Locale) =>
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
   es: new Set(["design.color", "design.densities.normal", "row.no"]),
   "pt-BR": new Set(["design.title", "design.densities.normal", "links.title", "projects.link"]),
-  fr: new Set(),
+  fr: new Set([
+    "dashboard.portfolio.title",
+    "history.versions",
+    "versions.title",
+    "design.densities.compact",
+    "chips.vague",
+    "certifications.date",
+    "extras.date",
+    "extras.kinds.awards.date.label",
+    "extras.kinds.volunteering.date.label",
+    "extras.kinds.publications.name",
+    "extras.kinds.publications.date.label",
+    "extras.kinds.custom.date.label",
+  ]),
   de: new Set(),
 };
 
