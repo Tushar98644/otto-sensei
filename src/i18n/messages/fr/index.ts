@@ -5,6 +5,8 @@ import api from "./api";
 import app from "./app";
 import applications from "./applications";
 import calendar from "./calendar";
+import careerLog from "./career-log";
+import careerLogLines from "./career-log-lines";
 import common from "./common";
 import dashboard from "./dashboard";
 import email from "./email";
@@ -49,6 +51,8 @@ const fr: Translations = {
   app,
   applications,
   calendar,
+  careerLog,
+  careerLogLines,
   common,
   dashboard,
   email,

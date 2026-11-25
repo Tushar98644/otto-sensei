@@ -8,6 +8,8 @@ import { useSessionUserId } from "@/components/account/session-user";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { checkinPath } from "@/lib/career-log/links";
 import { dayLabel, monthName, shortMonth } from "@/lib/career-log/month";
 import type { LocalDate, Month } from "@/lib/career-log/types";
@@ -22,6 +24,9 @@ export function CheckinHomeCard({ month }: { month: Month }) {
   const [done, setDone] = useState<{ next: LocalDate | null } | null>(null);
   const [pending, setPending] = useState(false);
   const doneRef = useRef<HTMLParagraphElement>(null);
+  const words = useMessages("careerLog");
+  const t = words.home;
+  const format = useFormat();
 
   useEffect(() => {
     if (done) doneRef.current?.focus();
@@ -38,8 +43,10 @@ export function CheckinHomeCard({ month }: { month: Month }) {
         role="status"
         className="rounded-2xl bg-surface px-4 py-4 text-sm/6 text-muted outline-none sm:px-6"
       >
-        <span className="font-medium text-ink">Noted: nothing new in {monthName(month)}.</span>{" "}
-        {done.next ? `Otto will ask again on ${dayLabel(done.next)}.` : "See you next month."}
+        <span className="font-medium text-ink">
+          {fmt(t.noted, { month: monthName(month, format) })}
+        </span>{" "}
+        {done.next ? fmt(words.askAgain, { day: dayLabel(done.next, format) }) : words.seeYou}
       </p>
     );
   }
@@ -52,7 +59,7 @@ export function CheckinHomeCard({ month }: { month: Month }) {
       await saveEntry(userId, month, { nothingNew: true });
       setDone({ next });
     } catch (error) {
-      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+      toast({ title: words.couldntSave, description: errorMessage(error), variant: "error" });
     } finally {
       setPending(false);
     }
@@ -63,26 +70,28 @@ export function CheckinHomeCard({ month }: { month: Month }) {
       aria-labelledby={titleId}
       className="flex flex-col gap-4 rounded-2xl bg-surface p-2 motion-safe:animate-fade-in sm:flex-row sm:items-center sm:gap-6 sm:pr-6"
     >
-      <NotebookArt label={shortMonth(month)} className="h-32 shrink-0 sm:w-60" delay={-2.6} />
+      <NotebookArt
+        label={shortMonth(month, format)}
+        className="h-32 shrink-0 sm:w-60"
+        delay={-2.6}
+      />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5 px-2 sm:px-0">
-        <Eyebrow>Career log · one minute</Eyebrow>
+        <Eyebrow>{t.eyebrow}</Eyebrow>
         <h2
           id={titleId}
           className="font-display text-2xl/8 font-normal tracking-tight text-pretty text-ink"
         >
-          Your {monthName(month)} check-in
+          {fmt(t.title, { month: monthName(month, format) })}
         </h2>
-        <p className="text-sm/6 text-pretty text-muted">
-          What you shipped, any numbers, and anything you learned or led. A few words is plenty.
-        </p>
+        <p className="text-sm/6 text-pretty text-muted">{t.body}</p>
       </div>
       <div className="flex shrink-0 flex-col-reverse gap-2 px-2 pb-2 sm:flex-row sm:p-0">
         <Button variant="ghost" loading={pending} onClick={() => void nothingNew()}>
-          Nothing new
+          {t.nothingNew}
         </Button>
         <Link href={checkinPath(month)} className={buttonClasses()}>
           <PenLine aria-hidden />
-          Write my check-in
+          {t.write}
         </Link>
       </div>
     </section>

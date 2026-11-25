@@ -22,13 +22,14 @@ import {
 } from "@/lib/career-log/resume-lines";
 import type { LogLine } from "@/lib/career-log/types";
 import { useStudioStore } from "@/lib/store/resume-store";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import { cn } from "@/lib/utils";
 
 export type LinesReviewProps = { handoff: LinesHandoff; onClose: () => void };
 
 type Item = { line: LogLine; accepted: boolean; facts: Record<string, string> };
-
-const plural = (n: number) => `${n} ${n === 1 ? "line" : "lines"}`;
 
 // The first new line, brought into view and marked the way a fixed line is.
 function showLine(bulletId: string) {
@@ -48,7 +49,9 @@ function ready(item: Item): boolean {
 // Nothing goes on the resume until the person accepts it; a line with a blank needs its fact first.
 export function LinesReview({ handoff, onClose }: LinesReviewProps) {
   const resume = useStudioStore((state) => state.resumes[handoff.resumeId]);
-  const jobs = resume ? jobChoices(resume) : [];
+  const t = useMessages("careerLogLines");
+  const format = useFormat();
+  const jobs = resume ? jobChoices(resume, t.jobNumber) : [];
   const jobPick = useId();
   const [jobId, setJobId] = useState(handoff.experienceId);
   const job = jobs.find((item) => item.id === jobId) ?? jobs[0] ?? null;
@@ -72,10 +75,10 @@ export function LinesReview({ handoff, onClose }: LinesReviewProps) {
     const store = useStudioStore.getState();
     const { added } = addLines(resume, job.id, texts);
     if (added === 0) {
-      toast({ title: "Those lines are already on this job" });
+      toast({ title: t.alreadyOn });
       return;
     }
-    const label = `Added ${plural(added)} from your career log`;
+    const label = format.plural(t.added, added);
     store.updateResume(resume.id, (current) => addLines(current, job.id, texts).resume, { label });
     const after = useStudioStore.getState().resumes[resume.id];
     const first = after?.experience.find((entry) => entry.id === job.id)?.bullets[0];
@@ -88,8 +91,8 @@ export function LinesReview({ handoff, onClose }: LinesReviewProps) {
         const now = useStudioStore.getState();
         if (now.resumes[resume.id] !== after) {
           toast({
-            title: "You've changed it since",
-            description: "Use Undo at the top of the editor.",
+            title: t.changed,
+            description: t.useUndo,
           });
           return;
         }
@@ -102,17 +105,17 @@ export function LinesReview({ handoff, onClose }: LinesReviewProps) {
     <Dialog
       open
       onOpenChange={(open) => (open ? undefined : close())}
-      title="From your career log"
-      description="Accept the lines that are true. Nothing goes on your resume until you do."
+      title={t.title}
+      description={t.description}
       size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={close}>
-            Not now
+            {t.notNow}
           </Button>
           <Button onClick={add} disabled={!job || accepted.length === 0}>
             <Check aria-hidden />
-            {accepted.length > 0 ? `Add ${plural(accepted.length)}` : "Add lines"}
+            {accepted.length > 0 ? format.plural(t.addCount, accepted.length) : t.addLines}
           </Button>
         </>
       }
@@ -121,13 +124,13 @@ export function LinesReview({ handoff, onClose }: LinesReviewProps) {
         <OttoNote
           live={false}
           size="sm"
-          meta={`${plural(items.length)} from your notes`}
-          message="Every line comes from what you wrote. Where a number would help and you didn't give one, I left a blank for you."
+          meta={format.plural(t.fromNotes, items.length)}
+          message={t.note}
         />
         {jobs.length > 1 ? (
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
             <label htmlFor={jobPick} className="text-sm font-medium text-ink">
-              Add them to
+              {t.addTo}
             </label>
             <Select
               id={jobPick}
@@ -144,10 +147,14 @@ export function LinesReview({ handoff, onClose }: LinesReviewProps) {
           </div>
         ) : job ? (
           <p className="text-sm/6 text-muted">
-            Adding to <span className="font-medium text-ink">{job.label}</span>
+            {rich(
+              t.addingTo,
+              { b: (chunk) => <span className="font-medium text-ink">{chunk}</span> },
+              { job: job.label },
+            )}
           </p>
         ) : (
-          <p className="text-sm/6 text-muted">Add the job to this resume first, then try again.</p>
+          <p className="text-sm/6 text-muted">{t.noJob}</p>
         )}
         <ul className="flex flex-col gap-3">
           {items.map((item) => (
@@ -181,6 +188,8 @@ function LineRow({
   onFact: (blank: string, value: string) => void;
 }) {
   const id = useId();
+  const t = useMessages("careerLogLines");
+  const format = useFormat();
   const blanks = blanksIn(item.line.text);
   const canAccept = ready(item);
   const on = item.accepted && canAccept;
@@ -196,7 +205,10 @@ function LineRow({
       </p>
       {item.line.quote && item.line.quote.toLowerCase() !== item.line.text.toLowerCase() ? (
         <p className="text-sm/6 text-pretty text-muted">
-          From your {monthsLabel(item.line.months)} notes: “{item.line.quote}”
+          {fmt(t.fromMonths, {
+            months: monthsLabel(item.line.months, format),
+            quote: item.line.quote,
+          })}
         </p>
       ) : null}
       {blanks.length > 0 ? (
@@ -204,13 +216,13 @@ function LineRow({
           {blanks.map((blank, index) => (
             <div key={blank} className="flex flex-col gap-1">
               <label htmlFor={`${id}-${index}`} className="text-sm font-medium text-ink">
-                Otto needs a fact: {blankName(blank)}
+                {fmt(t.needsFact, { blank: blankName(blank) })}
               </label>
               <Input
                 id={`${id}-${index}`}
                 value={item.facts[blank] ?? ""}
                 maxLength={60}
-                placeholder="Only if you know it"
+                placeholder={t.onlyIfKnown}
                 onChange={(event) => onFact(blank, event.target.value)}
               />
             </div>
@@ -227,12 +239,12 @@ function LineRow({
           className={cn(on && "text-pass-ink")}
         >
           <Check aria-hidden className={cn(on && "text-pass")} />
-          {on ? "Accepted" : "Accept"}
+          {on ? t.accepted : t.accept}
         </Button>
-        {on ? <span className="text-sm text-subtle">Press again to leave it out.</span> : null}
+        {on ? <span className="text-sm text-subtle">{t.pressAgain}</span> : null}
         {!canAccept ? (
           <span className="text-sm text-subtle">
-            Fill in the blank to accept it, or leave it out.
+            {t.fillBlank}
           </span>
         ) : null}
       </div>

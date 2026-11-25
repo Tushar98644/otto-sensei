@@ -70,7 +70,8 @@ export function CheckinArt({
   on,
   className,
   delay = -3.1,
-}: StageProps & { date: LocalDate; on: boolean }) {
+  offLabel,
+}: StageProps & { date: LocalDate; on: boolean; offLabel: string }) {
   return (
     <div
       aria-hidden
@@ -85,7 +86,7 @@ export function CheckinArt({
           />
           {on ? null : (
             <span className="absolute -right-2 -bottom-2 rounded-full bg-ink px-2 py-0.5 text-[0.625rem]/4 font-medium tracking-wider text-white uppercase">
-              Off
+              {offLabel}
             </span>
           )}
         </div>

@@ -314,6 +314,7 @@ export default {
     email: "Check-in email",
     emailHint:
       "One short email on the day, never more than one a month. The bell and Home ask either way.",
+    keep: "Thinking of cancelling? <link>Keep your career log free</link>: it stays on every plan, monthly check-ins included.",
     open: "Open your career log",
     loadFailed: "Couldn't load your career log settings",
     on: "On",

@@ -222,6 +222,9 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   de: new Set([
+    "lines.dialog.job",
+    "lines.dialog.jobNumber",
+    "jobNumber",
     "reader.styleParts.lengths.standard",
     "sendItems.places.links",
     "reasons.outsidePlaces.other",

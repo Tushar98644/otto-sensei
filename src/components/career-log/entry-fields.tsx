@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { VoiceTextarea } from "@/components/ui/voice-field";
-import { PROMPTS } from "@/lib/career-log/entry";
+import { useMessages } from "@/i18n/client";
 import { CAREER_LOG_LIMITS, ENTRY_FIELDS, type EntryField } from "@/lib/career-log/types";
 import { cn } from "@/lib/utils";
 import type { Draft } from "./use-entry-draft";
@@ -24,10 +24,11 @@ export function EntryFields({
   className,
 }: EntryFieldsProps) {
   const id = useId();
+  const prompts = useMessages("careerLog").prompts;
   return (
     <div className={cn("flex flex-col gap-6", className)}>
       {ENTRY_FIELDS.map((field, index) => {
-        const prompt = PROMPTS[field];
+        const prompt = prompts[field];
         const fieldId = `${id}-${field}`;
         return (
           <div key={field} className="flex flex-col gap-2">

@@ -12,6 +12,7 @@ export const DASHBOARD_NAMESPACES = [
   "share",
   "shareLinks",
   "onboarding",
+  "careerLog",
 ] as const satisfies readonly Namespace[];
 
 // Read by one page's parts only, so the page sends them in its own MessagesFor and every other page stays lighter.

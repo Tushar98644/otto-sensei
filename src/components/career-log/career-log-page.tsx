@@ -11,6 +11,8 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { careerLogText } from "@/lib/career-log/export";
@@ -59,19 +61,21 @@ export function CareerLogPage() {
   const timeZone = data?.settings.timeZone ?? browserTimeZone() ?? "UTC";
   const today = now === 0 ? null : localDate(timeZone, now);
   const entries = useMemo(() => data?.entries ?? [], [data]);
+  const t = useMessages("careerLog");
+  const format = useFormat();
 
   function remove(month: Month) {
     if (!userId) return;
     const entry = hideEntry(userId, month);
     if (!entry) return;
     undoToast({
-      title: `${monthLabel(month)} deleted`,
+      title: fmt(t.page.deleted, { month: monthLabel(month, format) }),
       onUndo: () => restoreEntry(userId, entry),
       onCommit: () => {
         deleteEntry(userId, month).catch((error: unknown) => {
           restoreEntry(userId, entry);
           toast({
-            title: "Couldn't delete it",
+            title: t.page.deleteFailed,
             description: errorMessage(error),
             variant: "error",
           });
@@ -85,12 +89,9 @@ export function CareerLogPage() {
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="min-w-0">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-            Career log
+            {t.title}
           </h1>
-          <p className="mt-2 max-w-prose text-base/7 text-pretty text-muted">
-            A one-minute note each month on what you shipped. Free on every plan, so your next
-            resume writes itself.
-          </p>
+          <p className="mt-2 max-w-prose text-base/7 text-pretty text-muted">{t.page.intro}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
           {entries.length > 0 && today ? (
@@ -100,7 +101,7 @@ export function CareerLogPage() {
               className="max-sm:flex-1"
             >
               <Download aria-hidden />
-              Download
+              {t.page.download}
             </Button>
           ) : null}
           <Link
@@ -108,7 +109,7 @@ export function CareerLogPage() {
             className={buttonClasses({ className: "max-sm:flex-1" })}
           >
             <PenLine aria-hidden />
-            Write this month
+            {t.page.writeThisMonth}
           </Link>
         </div>
       </header>
@@ -116,14 +117,14 @@ export function CareerLogPage() {
       {query.isError && !data ? (
         <Alert
           variant="error"
-          title="Your career log didn't load"
+          title={t.page.loadFailed}
           action={
             <Button variant="secondary" size="sm" onClick={() => void query.refetch()}>
-              Try again
+              {t.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {t.checkConnection}
         </Alert>
       ) : data && userId && today ? (
         <>
@@ -138,10 +139,10 @@ export function CareerLogPage() {
           </div>
 
           <FolderCard
-            tab="Your months"
+            tab={t.page.yourMonths}
             tabEnd={
               <span className="text-xs text-subtle tabular-nums">
-                {entries.length} {entries.length === 1 ? "month" : "months"}
+                {format.plural(t.months, entries.length)}
               </span>
             }
             bodyClassName="px-4 py-2 sm:px-6"
@@ -167,14 +168,12 @@ export function CareerLogPage() {
             </ul>
             {entries.length === 0 && !adding ? (
               <div className="flex flex-col items-start gap-3 py-6">
-                <p className="max-w-prose text-sm/6 text-pretty text-muted">
-                  Nothing here yet. Write about this month, or add an earlier one you remember.
-                </p>
+                <p className="max-w-prose text-sm/6 text-pretty text-muted">{t.page.empty}</p>
                 <Link
                   href={checkinPath(coveredMonth(today))}
                   className={buttonClasses({ variant: "secondary", size: "sm" })}
                 >
-                  Write this month&apos;s note
+                  {t.page.writeNote}
                 </Link>
               </div>
             ) : null}
@@ -201,12 +200,14 @@ function AddMonth({
     addMonths(thisMonth, -index),
   ).filter((month) => !taken.includes(month));
   const [month, setMonth] = useState<Month>("");
+  const t = useMessages("careerLog").page;
+  const format = useFormat();
   const chosen = open.includes(month) ? month : (open[0] ?? "");
   if (open.length === 0) return null;
   return (
     <div className="flex flex-col gap-2 border-b border-border py-4 sm:flex-row sm:items-center sm:justify-between">
       <label htmlFor={id} className="text-sm/6 text-muted">
-        Add a month you remember
+        {t.addLabel}
       </label>
       <div className="flex gap-2">
         <Select
@@ -217,13 +218,13 @@ function AddMonth({
         >
           {open.map((option) => (
             <option key={option} value={option}>
-              {monthLabel(option)}
+              {monthLabel(option, format)}
             </option>
           ))}
         </Select>
         <Button variant="secondary" onClick={() => chosen && onAdd(chosen)}>
           <Plus aria-hidden />
-          Add
+          {t.add}
         </Button>
       </div>
     </div>
@@ -231,10 +232,11 @@ function AddMonth({
 }
 
 function LogSkeleton() {
+  const t = useMessages("careerLog").page;
   return (
     <div aria-busy className="flex flex-col gap-6">
       <span className="sr-only" role="status">
-        Loading your career log
+        {t.loading}
       </span>
       <div aria-hidden className="grid gap-6 lg:grid-cols-2">
         <Skeleton className="h-64 rounded-2xl bg-surface" />

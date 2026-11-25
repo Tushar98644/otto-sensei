@@ -116,7 +116,8 @@ describe("file check words", () => {
   });
 
   it("keeps English for a check saved without its copy", () => {
-    const { copy: _copy, ...old } = CHECKS[0]!;
+    const old: RecruiterCheck = { ...CHECKS[0]! };
+    delete old.copy;
     expect(localizeCheck(old, es, "es")).toEqual(old);
   });
 });

@@ -3,7 +3,8 @@
 import { Check, PenLine, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { PROMPTS } from "@/lib/career-log/entry";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { monthLabel } from "@/lib/career-log/month";
 import { ENTRY_FIELDS, type CareerLogEntry, type Month } from "@/lib/career-log/types";
 import { EntryFields } from "./entry-fields";
@@ -21,6 +22,9 @@ type EntryCardProps = {
 
 export function EntryCard({ userId, month, entry, editing, onDone, onDelete }: EntryCardProps) {
   const [open, setOpen] = useState(editing);
+  const t = useMessages("careerLog").entry;
+  const format = useFormat();
+  const label = monthLabel(month, format);
   if (editing && !open) setOpen(true);
   const close = () => {
     setOpen(false);
@@ -28,23 +32,23 @@ export function EntryCard({ userId, month, entry, editing, onDone, onDelete }: E
   };
   return (
     <article
-      aria-label={monthLabel(month)}
+      aria-label={label}
       className="grid gap-x-8 gap-y-3 py-5 sm:grid-cols-[10rem_minmax(0,1fr)]"
     >
       <div className="flex items-start justify-between gap-3 sm:flex-col sm:justify-start">
         <h3 className="font-display text-2xl/8 font-normal tracking-tight text-ink">
-          {monthLabel(month)}
+          {label}
         </h3>
         {!open ? (
           <div className="flex gap-1 sm:-ml-2.5">
             <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
               <PenLine aria-hidden />
-              Edit
+              {t.edit}
             </Button>
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label={`Delete ${monthLabel(month)}`}
+              aria-label={fmt(t.delete, { month: label })}
               onClick={onDelete}
             >
               <Trash2 aria-hidden />
@@ -62,15 +66,16 @@ export function EntryCard({ userId, month, entry, editing, onDone, onDelete }: E
 }
 
 function EntryText({ entry }: { entry: CareerLogEntry }) {
+  const t = useMessages("careerLog");
   if (entry.nothingNew) {
-    return <p className="text-sm/6 text-subtle">Nothing new this month.</p>;
+    return <p className="text-sm/6 text-subtle">{t.nothingNewMonth}</p>;
   }
   return (
     <dl className="flex flex-col gap-3">
       {ENTRY_FIELDS.filter((field) => entry[field].trim()).map((field) => (
         <div key={field} className="flex flex-col gap-0.5">
           <dt className="text-xs/5 font-medium tracking-wide text-subtle">
-            {PROMPTS[field].label}
+            {t.prompts[field].label}
           </dt>
           <dd className="text-base/7 text-pretty whitespace-pre-line text-ink">
             {entry[field].trim()}
@@ -93,6 +98,7 @@ function EntryEditor({
   onClose: () => void;
 }) {
   const draft = useEntryDraft(userId, month, entry);
+  const t = useMessages("careerLog").entry;
   return (
     <div className="flex flex-col gap-5">
       <EntryFields draft={draft.draft} onChange={draft.change} onBlur={() => void draft.flush()} />
@@ -104,7 +110,7 @@ function EntryEditor({
           className="max-sm:w-full"
         >
           <Check aria-hidden />
-          Done
+          {t.done}
         </Button>
       </div>
     </div>

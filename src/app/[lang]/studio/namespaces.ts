@@ -15,6 +15,7 @@ export const STUDIO_NAMESPACES = [
   "lint",
   "fileChecks",
   "matchCheck",
+  "careerLogLines",
   "share",
   "shareLinks",
   "formats",

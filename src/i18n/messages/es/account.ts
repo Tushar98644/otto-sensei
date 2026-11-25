@@ -334,6 +334,7 @@ export default {
     email: "Correo de repaso",
     emailHint:
       "Un correo corto ese día, nunca más de uno al mes. La campanita e Inicio te preguntan de todos modos.",
+    keep: "¿Pensando en cancelar? <link>Tu diario de carrera sigue gratis</link>: se queda en todos los planes, con los repasos mensuales incluidos.",
     open: "Abrir tu diario de carrera",
     loadFailed: "No se pudo cargar la configuración de tu diario de carrera",
     on: "Activado",
