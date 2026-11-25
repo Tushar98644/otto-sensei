@@ -74,7 +74,7 @@ export const LookingForChoiceSchema = z.object({
 const roundPoint = (value: number) => Math.round(value * 100) / 100;
 
 // Within `km` of a city (a GeoNames id) or of the person's own rounded point.
-export const NearSchema = z
+const NearSchema = z
   .object({
     city: z.number().int().positive().max(2_147_483_647).nullable().default(null),
     lat: z.number().min(-90).max(90).transform(roundPoint).nullable().default(null),

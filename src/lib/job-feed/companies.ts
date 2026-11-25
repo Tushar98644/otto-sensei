@@ -9,7 +9,7 @@ import type { CompanySnapshot, JobSourceId } from "./types";
 import { companyKey } from "./visa";
 
 // A company counts as hiring now when it posted a job this recently.
-export const HIRING_DAYS = 14;
+const HIRING_DAYS = 14;
 const HYBRID = /\bhybrid\b/i;
 const CHUNK = 500;
 
@@ -24,7 +24,7 @@ export type CompanyMember = {
   newest: number;
 };
 
-export type CompanyRow = typeof companies.$inferInsert & {
+type CompanyRow = typeof companies.$inferInsert & {
   city: number;
   remote: number;
   hybrid: number;
@@ -156,7 +156,7 @@ export async function writeCompanies(db: Db, rows: readonly CompanyRow[]): Promi
   return changed.length + gone.length;
 }
 
-export type CompanyFacts = {
+type CompanyFacts = {
   name: string;
   city: number;
   roles: number;

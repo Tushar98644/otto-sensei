@@ -20,7 +20,7 @@ export type FilterMemory = {
   nearKm: NearKm;
 };
 
-export const DEFAULT_NEAR_KM: NearKm = 25;
+const DEFAULT_NEAR_KM: NearKm = 25;
 
 export const NO_MEMORY: FilterMemory = {
   q: "",

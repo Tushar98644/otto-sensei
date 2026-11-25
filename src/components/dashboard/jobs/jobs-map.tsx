@@ -27,7 +27,7 @@ const SURFACE = "#ffffff";
 const LISTED = 12;
 const MAP_STALE_MS = 5 * 60_000;
 
-export type JobsMapProps = {
+type JobsMapProps = {
   userId: string;
   body: Omit<JobMatchesRequestBody, "view" | "page"> | null;
   onCompany: (name: string) => void;

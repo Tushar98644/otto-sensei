@@ -22,7 +22,7 @@ import type {
 } from "./types";
 import { companyKey } from "./visa";
 
-export type MapRequest = {
+type MapRequest = {
   profile: MatchProfile;
   filters: JobFilters;
   lookingFor: LookingFor | null;
@@ -79,7 +79,7 @@ export async function mapCompanies(
   return { pins: [...pins.values()], openings: pool.openings, placed };
 }
 
-export const COMPANY_JOBS_SHOWN = 50;
+const COMPANY_JOBS_SHOWN = 50;
 
 // A company's open jobs, newest first, and what Otto knows of it; null when it has none open.
 export async function companyJobs(

@@ -789,8 +789,8 @@ async function searchMatches(
 }
 
 // The map reads a list's first openings this far down.
-export const MAP_POOL = 5_000;
-export type PooledCompany = { board: number; company: string; city: number; roles: number };
+const MAP_POOL = 5_000;
+type PooledCompany = { board: number; company: string; city: number; roles: number };
 
 // How many of a list's openings each company has in each city (0: none named).
 export async function poolCompanies(

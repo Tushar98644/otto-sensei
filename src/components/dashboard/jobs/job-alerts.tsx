@@ -19,7 +19,7 @@ import { cityLabel } from "./view";
 const MOST = 5;
 const NAME_CHARS = 80;
 
-export type JobAlertsProps = {
+type JobAlertsProps = {
   userId: string;
   filters: JobFilters;
   memory: FilterMemory;

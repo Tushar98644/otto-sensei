@@ -20,7 +20,7 @@ const TYPING_PAUSE_MS = 200;
 
 type Results = { query: string; cities: CityOption[] } | { query: string; error: true };
 
-export type NearFilterProps = {
+type NearFilterProps = {
   city: CityOption | null;
   km: NearKm;
   point: Point | null;

@@ -50,17 +50,17 @@ export const NewJobAlertSchema = z.object({
   resumeId: z.string().min(1).max(64).nullable().default(null),
 });
 
-export const JobAlertSchema = NewJobAlertSchema.extend({
+const JobAlertSchema = NewJobAlertSchema.extend({
   id: z.uuid(),
   createdAt: z.number().int().nonnegative(),
   checkedAt: z.number().int().nonnegative().nullable(),
   notedAt: z.number().int().nonnegative().nullable(),
 });
 
-export type JobAlert = z.output<typeof JobAlertSchema>;
+type JobAlert = z.output<typeof JobAlertSchema>;
 export type { JobAlertsResponse } from "./alert-types";
 
-export function parseAlerts(raw: unknown): JobAlert[] {
+function parseAlerts(raw: unknown): JobAlert[] {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((item) => {
     const parsed = JobAlertSchema.safeParse(item);
