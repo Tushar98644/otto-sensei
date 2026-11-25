@@ -170,6 +170,13 @@ export default {
     stylePlain: "O Otto escreve num estilo simples e natural.",
     changeStyle: "Mudar estilo",
     setStyle: "Definir seu estilo",
+    styleParts: {
+      tones: { natural: "Natural", warm: "Caloroso", direct: "Direto", formal: "Formal" },
+      lengths: { standard: "Padrão", shorter: "Mais curto" },
+      spellings: { us: "Inglês americano", uk: "Inglês britânico" },
+      notes: "suas notas",
+      join: " · ",
+    },
     saving: "Salvando…",
     saved: "Salvo",
     failed: "Ainda não foi salvo",

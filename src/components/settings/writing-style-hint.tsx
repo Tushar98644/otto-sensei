@@ -23,7 +23,7 @@ export function WritingStyleHint({ linked = true }: { linked?: boolean }) {
           {rich(
             t.styleCustom,
             { b: (chunk) => <span className="font-medium text-ink">{chunk}</span> },
-            { style: styleSummary(style) },
+            { style: styleSummary(style, t.styleParts) },
           )}
         </span>
       ) : (

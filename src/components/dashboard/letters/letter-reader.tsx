@@ -37,6 +37,7 @@ import { StatusIcon } from "../applications/status-menu";
 import { outreachChange, type OutreachField, type OutreachFields } from "../jobs/outreach-saved";
 import { OutreachSend } from "../jobs/outreach-send";
 import { fieldsOfEntry, KIND_NAMES, type LetterEntry } from "./entries";
+import { languageOf } from "@/lib/i18n/detect";
 import { longDay, Paper, PaperBody, PaperHead, PaperLine } from "./letter-paper";
 import { asEmail, emailSubject } from "./ready";
 import { useWriteActions } from "./quick-actions";
@@ -394,7 +395,7 @@ export function LetterReader({
                   <PaperHead
                     name={name}
                     contact={contactLine(resume)}
-                    day={longDay(entry.createdAt)}
+                    day={longDay(entry.createdAt, languageOf(body))}
                   />
                 ) : entry.question ? (
                   <div className="flex flex-col gap-2 border-l-2 border-otter/40 pl-4">

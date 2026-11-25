@@ -161,6 +161,14 @@ export default {
     stylePlain: "Otto writes in a plain, natural style.",
     changeStyle: "Change style",
     setStyle: "Set your style",
+    // The style summary in the line above (styleSummary).
+    styleParts: {
+      tones: { natural: "Natural", warm: "Warm", direct: "Direct", formal: "Formal" },
+      lengths: { standard: "Standard", shorter: "Shorter" },
+      spellings: { us: "US English", uk: "UK English" },
+      notes: "your notes",
+      join: " · ",
+    },
     saving: "Saving…",
     saved: "Saved",
     failed: "Not saved yet",

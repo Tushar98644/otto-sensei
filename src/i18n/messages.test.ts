@@ -40,6 +40,8 @@ const filesIn = (locale: Locale) =>
 // Words that read the same in English and this language, by path within their namespace.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
   es: new Set([
+    "reader.styleParts.tones.natural",
+    "reader.styleParts.tones.formal",
     "row.quoted",
     "working.general",
     "design.color",
@@ -81,6 +83,8 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   "pt-BR": new Set([
+    "reader.styleParts.tones.natural",
+    "reader.styleParts.tones.formal",
     "sendItems.places.links",
     "card.via",
     "hub.via",
@@ -133,6 +137,9 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   fr: new Set([
+    "reader.styleParts.tones.direct",
+    "reader.styleParts.lengths.standard",
+    "result.places.certifications",
     "reasons.places.certifications",
     "versions.suggested",
     "meta.portfolio",
@@ -215,6 +222,7 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "pick.pulls",
   ]),
   de: new Set([
+    "reader.styleParts.lengths.standard",
     "sendItems.places.links",
     "reasons.outsidePlaces.other",
     "versions.suggested",
