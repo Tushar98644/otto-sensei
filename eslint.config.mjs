@@ -11,6 +11,16 @@ const restrictedImports = builtinRules.get("no-restricted-imports");
 const CLIENT_PATHS =
   /\/src\/(components|lib\/(store|sync|queries))\/|\/src\/(lib\/api\/client|instrumentation-client)\.ts$/;
 
+const COPY_PROPS = new Set(["aria-label", "title", "placeholder", "alt"]);
+// CSS and scripts inside JSX are code, not words.
+const CODE_ELEMENTS = new Set(["style", "script"]);
+const LOCALE_METHODS = new Set([
+  "toLocaleString",
+  "toLocaleDateString",
+  "toLocaleTimeString",
+  "localeCompare",
+]);
+
 const otto = {
   meta: { name: "otto", version: "1.0.0" },
   rules: {
@@ -21,6 +31,80 @@ const otto = {
           CLIENT_PATHS.test(context.filename) ||
           context.sourceCode.ast.body.some((node) => node.directive === "use client");
         return client ? restrictedImports.create(context) : {};
+      },
+    },
+    // Words people read come from src/i18n/messages (or a prop), so every language can have them.
+    "no-literal-copy": {
+      meta: {
+        type: "problem",
+        schema: [
+          {
+            type: "object",
+            properties: { allow: { type: "array", items: { type: "string" } } },
+            additionalProperties: false,
+          },
+        ],
+      },
+      create(context) {
+        const allow = new Set(context.options[0]?.allow ?? []);
+        const report = (node, text) => {
+          const words = text.replace(/\s+/g, " ").trim();
+          // One letter alone is a key or a mark ("Z" in ⌘Z), not copy.
+          if ((words.match(/\p{L}/gu) ?? []).length < 2 || allow.has(words)) return;
+          context.report({
+            node,
+            message: `"${words.slice(0, 60)}" is written into the markup: read it from the messages (src/i18n) or take it as a prop.`,
+          });
+        };
+        const literalText = (node) => {
+          if (node?.type === "Literal" && typeof node.value === "string") return node.value;
+          if (node?.type === "TemplateLiteral")
+            return node.quasis.map((q) => q.value.cooked).join(" ");
+          return null;
+        };
+        return {
+          JSXText(node) {
+            if (CODE_ELEMENTS.has(node.parent.openingElement?.name?.name)) return;
+            report(node, node.value);
+          },
+          JSXAttribute(node) {
+            if (!COPY_PROPS.has(node.name.name)) return;
+            const value =
+              node.value?.type === "JSXExpressionContainer" ? node.value.expression : node.value;
+            const text = literalText(value);
+            if (text !== null) report(node, text);
+          },
+          "JSXElement > JSXExpressionContainer, JSXFragment > JSXExpressionContainer"(node) {
+            if (CODE_ELEMENTS.has(node.parent.openingElement?.name?.name)) return;
+            const text = literalText(node.expression);
+            if (text !== null) report(node, text);
+          },
+        };
+      },
+    },
+    // English number and date formats only where English is meant; everywhere else, format.* or formatFor(locale).
+    "no-en-us-intl": {
+      meta: { type: "problem", schema: [] },
+      create(context) {
+        const intl = (callee) =>
+          callee?.type === "MemberExpression" && callee.object?.name === "Intl";
+        const localeMethod = (callee) =>
+          callee?.type === "MemberExpression" && LOCALE_METHODS.has(callee.property?.name);
+        return {
+          Literal(node) {
+            if (node.value !== "en-US") return;
+            const call = node.parent;
+            if (call?.type !== "NewExpression" && call?.type !== "CallExpression") return;
+            if (!call.arguments.includes(node)) return;
+            if (intl(call.callee) || localeMethod(call.callee)) {
+              context.report({
+                node,
+                message:
+                  'A literal "en-US" pins this to English: use format.* from useFormat()/getFormat(), or formatFor(locale).',
+              });
+            }
+          },
+        };
       },
     },
   },
@@ -53,6 +137,93 @@ const SERVER_ONLY = [
   },
 ];
 
+const COPY_ALLOW = [
+  // Names and marks that read the same in every language.
+  "Otto",
+  "Pro",
+  "Max",
+  "PDF",
+  "Word",
+  "GitHub",
+  "LinkedIn",
+  "Google",
+  "Esc",
+  "Enter",
+  // Example values in placeholders and sample cards: names, products and links stay as written.
+  "https://",
+  "Alex Morgan",
+  "alex@example.com",
+  "Google Data Analytics Certificate",
+  "Northwind",
+  "Contoso",
+  "linkedin.com/in/alex-morgan",
+  "github.com/alex/budget",
+  "React, Node.js, PostgreSQL",
+  "ledgerly.com",
+  "manchester.ac.uk",
+  "1.4M",
+  "V5",
+  "Designing Data-Intensive Applications",
+  "Martin Kleppmann",
+  "Maya Okafor",
+];
+
+// Files whose words aren't read from the messages here, each group with its reason.
+const COPY_ELSEWHERE = [
+  // The guides stay English until P5 (docs/i18n.md), and another phase owns them.
+  "src/app/[[]lang]/(marketing)/ats/**",
+  "src/app/[[]lang]/(marketing)/compare/**",
+  "src/app/[[]lang]/(marketing)/resume-examples/**",
+  "src/app/[[]lang]/(marketing)/resume-templates/**",
+  // Job feed pieces, translated with P6 (jobs).
+  "src/components/dashboard/jobs/looking-for-card.tsx",
+  "src/components/dashboard/jobs/occupation-search.tsx",
+  "src/components/dashboard/applications/mark-applied.tsx",
+  // Rendered to an image (Open Graph); no reader's language at that point.
+  "src/app/opengraph-image.tsx",
+  // Not rendered anywhere today; translate before using them again.
+  "src/components/account/pro-perks.tsx",
+  "src/components/account/plan-picker.tsx",
+  // Still English: the leftover sweep didn't reach these yet (docs/i18n.md, Known gaps).
+  "src/components/career-log/**",
+  "src/components/recap/**",
+  "src/components/eligibility/**",
+  "src/components/portfolio/templates/**",
+];
+
+// Where English formats are meant: English sources and defaults, machine text (time zones, analytics, AI input), and areas other phases own.
+const EN_US_ALLOWED = [
+  "src/i18n/config.ts",
+  "src/lib/billing/prices.ts",
+  "src/config/topup.ts",
+  "src/lib/usage-copy.ts",
+  "src/lib/ai-budget-copy.ts",
+  "src/lib/applications/stats.ts",
+  "src/lib/insights/skill-gaps.ts",
+  "src/components/mascot/lines.ts",
+  "src/components/dashboard/applications/view.ts",
+  "src/lib/analytics/**",
+  "src/lib/calendar/zones.ts",
+  "src/lib/eligibility/profile.ts",
+  "src/lib/eligibility/time.ts",
+  "src/lib/portfolio/places.ts",
+  "src/lib/setup/guess.ts",
+  "src/lib/github/facts.ts",
+  "src/lib/interviews/autopilot.ts",
+  "src/app/api/**",
+  "src/lib/notifications/**",
+  "src/lib/job-feed/**",
+  "src/lib/inbound/**",
+  "src/lib/seo-pages/**",
+  // Still English: the leftover sweep didn't reach these yet (docs/i18n.md, Known gaps).
+  "src/components/account/pro-perks.tsx",
+  "src/components/dashboard/letters/letter-paper.tsx",
+  "src/components/portfolio/templates/**",
+  "src/components/recap/**",
+  "src/lib/recap/**",
+  "src/lib/career-log/**",
+];
+
 const UNFILTERED = ":not(MemberExpression[property.name=/^(where|from)$/]) >";
 const DB = "/^(db|tx)$/";
 
@@ -83,6 +254,19 @@ export default defineConfig([
         },
       ],
     },
+  },
+  // docs/i18n.md guardrails: no copy written into the markup, and no English-only Intl formats.
+  {
+    files: ["src/**/*.tsx"],
+    ignores: ["**/*.test.tsx", ...COPY_ELSEWHERE],
+    plugins: { otto },
+    rules: { "otto/no-literal-copy": ["error", { allow: COPY_ALLOW }] },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", ...EN_US_ALLOWED],
+    plugins: { otto },
+    rules: { "otto/no-en-us-intl": "error" },
   },
   {
     files: ["src/lib/observability/sentry-browser.ts"],

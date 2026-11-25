@@ -112,3 +112,44 @@ describe("database writes", () => {
     expect(await rulesHit("src/lib/a.ts", DB_WRITE(chain))).toEqual([]);
   });
 });
+
+describe("copy in the markup", () => {
+  it.each([
+    ["JSX text", "export const A = () => <p>Save changes</p>;\n"],
+    ["an aria-label", 'export const A = () => <button aria-label="Close dialog" />;\n'],
+    ["a placeholder", "export const A = () => <input placeholder={`Search jobs`} />;\n"],
+    ["a string child", 'export const A = () => <p>{"Try again"}</p>;\n'],
+  ])("refuses %s", async (_what, code) => {
+    expect(await rulesHit("src/components/a.tsx", code)).toEqual(["otto/no-literal-copy"]);
+  });
+
+  it.each([
+    ["words from messages", "export const A = ({ t }: { t: string }) => <p>{t}</p>;\n"],
+    ["a brand name", "export const A = () => <span>Pro</span>;\n"],
+    ["a single key", "export const A = () => <kbd>K</kbd>;\n"],
+    ["CSS", "export const A = () => <style>{`:root{--a:1}`}</style>;\n"],
+    ["an example value", 'export const A = () => <input placeholder="https://" />;\n'],
+  ])("allows %s", async (_what, code) => {
+    expect(await rulesHit("src/components/a.tsx", code)).toEqual([]);
+  });
+
+  it("leaves the guides to their own phase", async () => {
+    const file = "src/app/[lang]/(marketing)/compare/a.tsx";
+    expect(await rulesHit(file, "export const A = () => <p>Save changes</p>;\n")).toEqual([]);
+  });
+});
+
+describe("English-only Intl formats", () => {
+  it.each([
+    'export const day = new Intl.DateTimeFormat("en-US", { month: "short" });\n',
+    'export const count = (n: number) => n.toLocaleString("en-US");\n',
+  ])("refuses a literal en-US: %s", async (code) => {
+    expect(await rulesHit("src/components/a.ts", code)).toEqual(["otto/no-en-us-intl"]);
+  });
+
+  it("allows it where English is meant, and outside Intl", async () => {
+    const usd = 'export const usd = new Intl.NumberFormat("en-US");\n';
+    expect(await rulesHit("src/lib/billing/prices.ts", usd)).toEqual([]);
+    expect(await rulesHit("src/components/a.ts", 'export const tag = "en-US";\n')).toEqual([]);
+  });
+});
