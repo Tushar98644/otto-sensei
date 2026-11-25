@@ -8,6 +8,7 @@ import { linkedInProfileText } from "@/lib/linkedin/profile-pdf";
 import { log } from "@/lib/log";
 import { creditField } from "@/lib/usage-credit";
 import type { Extraction } from "@/lib/parse";
+import { withDetectedLang } from "@/lib/resume/lang";
 import { withLinkTargets } from "@/lib/resume/link-targets";
 import { emptyResume } from "@/lib/resume/schema";
 import { weakReadSigns, type ReadLayout, type WeakReadSign } from "@/lib/resume/read-quality";
@@ -84,7 +85,7 @@ export async function POST(req: Request): Promise<Response> {
     });
     if (read.useAI) trackStructureCall(structuring, structured.usedAI);
     const response: Omit<ImportResponse, "ok"> = {
-      resume: withLinkTargets(structured.resume, extraction.links ?? []),
+      resume: withDetectedLang(withLinkTargets(structured.resume, extraction.links ?? [])),
       report,
       usedAI: structured.usedAI,
       basicReader: read.limited,

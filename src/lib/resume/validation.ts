@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CONTENT_LANGS } from "@/lib/i18n/languages";
 import {
   COVER_LETTER_CHARS,
   DEFAULT_TEMPLATE,
@@ -182,6 +183,8 @@ export const ResumeSchema = z.object({
     .optional()
     .catch((ctx) => knownSectionKeys(ctx.value)),
   design: ResumeDesignSchema.optional().catch(undefined),
+  // The language the resume is written in; absent means detect it from the text.
+  lang: z.enum(CONTENT_LANGS).optional().catch(undefined),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
