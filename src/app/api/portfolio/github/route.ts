@@ -8,6 +8,7 @@ import { refreshGitHub } from "@/lib/portfolio/content-records";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
 import { NO_PORTFOLIO, SIGN_IN } from "../limits";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 // Without a token GitHub allows this server 60 calls an hour in all, and a refresh costs three.
 const REFRESHES_PER_HOUR = 6;
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -40,4 +41,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("portfolio.github_refresh_failed", error);
     return fail("server_error", "Couldn't reach GitHub. Please try again in a minute.", 502);
   }
-}
+});

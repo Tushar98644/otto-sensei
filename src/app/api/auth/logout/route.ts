@@ -3,11 +3,12 @@ import type { EmptyOk } from "@/lib/api/types";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { clearSession } from "@/lib/auth/session";
 import { log } from "@/lib/log";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
 // JSON-only: another site's auto-submitted form could still sign people out via Set-Cookie.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) return crossSite;
   try {
@@ -18,4 +19,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("auth.logout_failed", error);
     return fail("server_error", "Couldn't sign you out. Please try again.", 500);
   }
-}
+});

@@ -9,6 +9,7 @@ import type { JobPostResponse } from "@/lib/job-feed/types";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { HOUR_MS, MINUTE_MS } from "@/lib/time";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,7 +89,7 @@ async function readPost(id: string, userId: string): Promise<Post | null> {
   return { job, text: description, posting: null };
 }
 
-export async function GET(
+export const GET = withApiLocale(async function GET(
   _req: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
@@ -113,4 +114,4 @@ export async function GET(
     log.error("jobs.read_failed", error);
     return fail("server_error", "Couldn't open that job. Please try again.", 500, NO_STORE);
   }
-}
+});

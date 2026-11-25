@@ -5,11 +5,12 @@ import { billingHistory } from "@/lib/billing/history";
 import type { BillingHistoryResponse } from "@/lib/billing/history-types";
 import { log } from "@/lib/log";
 import { limitReads } from "../read-limit";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", "Sign in to see your billing.", 401, NO_STORE);
@@ -29,4 +30,4 @@ export async function GET(): Promise<Response> {
     log.error("billing.history_failed", error);
     return fail("server_error", "Couldn't load your payments. Please try again.", 500, NO_STORE);
   }
-}
+});

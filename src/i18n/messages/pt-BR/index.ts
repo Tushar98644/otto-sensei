@@ -1,4 +1,5 @@
 import type { Translations } from "..";
+import api from "./api";
 import app from "./app";
 import applications from "./applications";
 import dashboard from "./dashboard";
@@ -11,6 +12,7 @@ import prep from "./prep";
 
 // Brazilian Portuguese (você): list each namespace here as its file lands.
 const ptBR: Translations = {
+  api,
   app,
   applications,
   dashboard,

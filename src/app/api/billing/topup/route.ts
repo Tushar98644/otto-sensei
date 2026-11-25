@@ -8,13 +8,14 @@ import { getCurrentAccount } from "@/lib/auth/session";
 import { createTopupUrl } from "@/lib/billing";
 import { readJson } from "@/lib/http";
 import { billingFailure, limitBillingLinks } from "../shared";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
 const BAD_AMOUNT = `Pick a whole-dollar amount from $${TOPUP_LIMITS.minUsd} to $${TOPUP_LIMITS.maxUsd}.`;
 
 // The amount is read once, here; after this only our record of the checkout and Dodo's payment count.
-export async function POST(req: Request) {
+export const POST = withApiLocale(async function POST(req: Request) {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -38,4 +39,4 @@ export async function POST(req: Request) {
   } catch (error) {
     return billingFailure(error, "checkout");
   }
-}
+});

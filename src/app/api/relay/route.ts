@@ -3,6 +3,7 @@ import { burstAllowed } from "@/lib/burst-limit";
 import { clientIp, readBody } from "@/lib/http";
 import { sentryDsn, sentryEnabled } from "@/lib/observability/config";
 import { envelopeTarget } from "@/lib/observability/tunnel";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ function empty(status: number, headers?: HeadersInit): Response {
 }
 
 // The browser SDK's tunnel: error reports reach Sentry through our own address.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   if (!sentryEnabled("browser")) return empty(404);
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
@@ -47,4 +48,4 @@ export async function POST(req: Request): Promise<Response> {
   } catch {
     return empty(502);
   }
-}
+});

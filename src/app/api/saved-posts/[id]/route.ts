@@ -5,6 +5,7 @@ import { deleteSavedPost, getSavedPost } from "@/lib/extension/posts";
 import type { SavedPostResponse } from "@/lib/extension/types";
 import { PostIdSchema } from "@/lib/extension/validation";
 import { log } from "@/lib/log";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,10 @@ async function postId(context: Context): Promise<string | null> {
 }
 
 // The saved copy of a post, for Tailor and Letter opened from the extension.
-export async function GET(_req: Request, context: Context): Promise<Response> {
+export const GET = withApiLocale(async function GET(
+  _req: Request,
+  context: Context,
+): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -33,9 +37,12 @@ export async function GET(_req: Request, context: Context): Promise<Response> {
     log.error("saved_posts.read_failed", error);
     return fail("server_error", "Couldn't open that saved job. Please try again.", 500, NO_STORE);
   }
-}
+});
 
-export async function DELETE(req: Request, context: Context): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(
+  req: Request,
+  context: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -48,4 +55,4 @@ export async function DELETE(req: Request, context: Context): Promise<Response> 
     log.error("saved_posts.delete_failed", error);
     return fail("server_error", "Couldn't remove that job. Please try again.", 500, NO_STORE);
   }
-}
+});

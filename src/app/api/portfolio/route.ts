@@ -20,6 +20,7 @@ import { CreatePortfolioSchema, UpdatePortfolioSchema } from "@/lib/portfolio/va
 import { shareSnapshot } from "@/lib/share/snapshot";
 import { pageBlocked, pageChanged } from "../public-pages";
 import { NEEDS_PLAN, NO_PORTFOLIO, SIGN_IN, writeLimited } from "./limits";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,7 +53,7 @@ function answer(result: SaveResult | Blocked, createdStatus = 200): Response {
   }
 }
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -62,9 +63,9 @@ export async function GET(): Promise<Response> {
     log.error("portfolio.load_failed", error);
     return fail("server_error", "Couldn't load your portfolio. Please try again.", 500, NO_STORE);
   }
-}
+});
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -94,9 +95,9 @@ export async function POST(req: Request): Promise<Response> {
     log.error("portfolio.create_failed", error);
     return fail("server_error", "Couldn't make your portfolio. Please try again.", 500);
   }
-}
+});
 
-export async function PATCH(req: Request): Promise<Response> {
+export const PATCH = withApiLocale(async function PATCH(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -129,9 +130,9 @@ export async function PATCH(req: Request): Promise<Response> {
     log.error("portfolio.update_failed", error);
     return fail("server_error", "Couldn't save that change. Please try again.", 500);
   }
-}
+});
 
-export async function DELETE(req: Request): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -145,4 +146,4 @@ export async function DELETE(req: Request): Promise<Response> {
     log.error("portfolio.delete_failed", error);
     return fail("server_error", "Couldn't delete your portfolio. Please try again.", 500);
   }
-}
+});

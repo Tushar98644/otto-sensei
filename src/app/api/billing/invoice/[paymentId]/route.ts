@@ -5,6 +5,7 @@ import { BillingError } from "@/lib/billing";
 import { invoiceFor } from "@/lib/billing/history";
 import { log } from "@/lib/log";
 import { limitReads } from "../../read-limit";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,10 @@ type Context = { params: Promise<{ paymentId: string }> };
 const NOT_FOUND = "We couldn't find that invoice.";
 
 // Another account's payment gets the same 404 as a missing one, so ids can't be probed.
-export async function GET(req: Request, { params }: Context): Promise<Response> {
+export const GET = withApiLocale(async function GET(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -45,4 +49,4 @@ export async function GET(req: Request, { params }: Context): Promise<Response> 
     log.error("billing.invoice_failed", error);
     return fail("server_error", "Couldn't get that invoice. Please try again.", 500, NO_STORE);
   }
-}
+});

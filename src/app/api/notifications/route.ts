@@ -9,13 +9,14 @@ import {
   type NotificationsResponse,
 } from "@/lib/notifications/types";
 import { MarkNotificationsReadSchema } from "@/lib/notifications/validation";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const SIGN_IN = "Sign in to see your notifications.";
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -23,11 +24,16 @@ export async function GET(): Promise<Response> {
     return ok(list, { headers: NO_STORE });
   } catch (error) {
     log.error("notifications.list_failed", error);
-    return fail("server_error", "Couldn't load your notifications. Please try again.", 500, NO_STORE);
+    return fail(
+      "server_error",
+      "Couldn't load your notifications. Please try again.",
+      500,
+      NO_STORE,
+    );
   }
-}
+});
 
-export async function PATCH(req: Request): Promise<Response> {
+export const PATCH = withApiLocale(async function PATCH(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -50,4 +56,4 @@ export async function PATCH(req: Request): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});

@@ -8,6 +8,7 @@ import { InterviewOutcomeSchema, type InterviewOutcomeResponse } from "@/lib/int
 import { log } from "@/lib/log";
 import { SIGN_IN } from "../../messages";
 import { answerInterview } from "../../records";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,10 @@ type Context = { params: Promise<{ id: string }> };
 
 const GONE = "That interview isn't waiting for an answer any more.";
 
-export async function POST(req: Request, { params }: Context): Promise<Response> {
+export const POST = withApiLocale(async function POST(
+  req: Request,
+  { params }: Context,
+): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -36,4 +40,4 @@ export async function POST(req: Request, { params }: Context): Promise<Response>
     log.error("interview.outcome_failed", error);
     return fail("server_error", "Couldn't save that. Please try again.", 500, NO_STORE);
   }
-}
+});

@@ -16,6 +16,7 @@ import {
   unsubscribePage,
 } from "@/lib/notifications/unsubscribe-page";
 import { isUserId } from "@/lib/users";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,7 +55,7 @@ function page(status: number, title: string, message: string, action: string | n
 }
 
 // RFC 8058 one-click comes from mail servers with no cookies: the signed link is the only proof.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const fromPage = url.searchParams.get("page") === "1";
   const link = readLink(url);
@@ -76,7 +77,7 @@ export async function POST(req: Request): Promise<Response> {
       ? page(500, copy.name, message, null)
       : fail("server_error", message, 500, NO_STORE);
   }
-}
+});
 
 // Link checkers open every link in an email, so GET changes nothing.
 export function GET(req: Request): Response {

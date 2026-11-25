@@ -4,6 +4,7 @@ import { log } from "@/lib/log";
 import { readRecap } from "@/lib/recap/records";
 import type { RecapResponse } from "@/lib/recap/types";
 import { RecapWeekSchema } from "@/lib/recap/validation";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,10 @@ type Context = { params: Promise<{ week: string }> };
 
 const NOT_FOUND = "That week isn't here any more.";
 
-export async function GET(_req: Request, { params }: Context): Promise<Response> {
+export const GET = withApiLocale(async function GET(
+  _req: Request,
+  { params }: Context,
+): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", "Sign in to see your week with Otto.", 401, NO_STORE);
@@ -25,4 +29,4 @@ export async function GET(_req: Request, { params }: Context): Promise<Response>
     log.error("recap.read_failed", error);
     return fail("server_error", "Couldn't load that week. Please try again.", 500, NO_STORE);
   }
-}
+});

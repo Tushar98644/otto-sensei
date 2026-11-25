@@ -14,6 +14,7 @@ import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitLong } from "@/lib/rate-limit";
 import { DAY_MS } from "@/lib/time";
 import { proToolRequired } from "../pro-tools";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ async function state(user: SessionUser, status = 200): Promise<Response> {
   return ok(response, { status, headers: NO_STORE });
 }
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -37,9 +38,9 @@ export async function GET(): Promise<Response> {
     log.error("email_tracking.read_failed", error);
     return fail("server_error", "Couldn't load email tracking. Please try again.", 500, NO_STORE);
   }
-}
+});
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -83,9 +84,9 @@ export async function POST(req: Request): Promise<Response> {
     log.error("email_tracking.start_failed", error);
     return fail("server_error", "Couldn't set up your address. Please try again.", 500);
   }
-}
+});
 
-export async function DELETE(req: Request): Promise<Response> {
+export const DELETE = withApiLocale(async function DELETE(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
@@ -98,4 +99,4 @@ export async function DELETE(req: Request): Promise<Response> {
     log.error("email_tracking.stop_failed", error);
     return fail("server_error", "Couldn't turn it off. Please try again.", 500);
   }
-}
+});

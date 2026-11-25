@@ -11,13 +11,14 @@ import {
 } from "@/lib/notifications/records";
 import { type ReminderSettingsResponse } from "@/lib/notifications/types";
 import { ReminderSettingsSchema } from "@/lib/notifications/validation";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const SIGN_IN = "Sign in to change your reminders.";
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -37,9 +38,9 @@ export async function GET(): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});
 
-export async function PUT(req: Request): Promise<Response> {
+export const PUT = withApiLocale(async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -74,4 +75,4 @@ export async function PUT(req: Request): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});

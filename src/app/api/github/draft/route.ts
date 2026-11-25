@@ -10,18 +10,20 @@ import { creditField } from "@/lib/usage-credit";
 import { requirePlanFeature, takeAccountUnit, upgradeRequired } from "../../metered-free";
 import { gitHubFailure } from "../limits";
 import { ownGitHubLogin } from "../ownership";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const GITHUB_BUDGET_MS = 15_000;
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
   if (rejected) return rejected;
   try {
     const body = await readJson(req, GitHubDraftRequestSchema);
-    if (!body.ok) return fail("bad_request", "Pick up to 4 repos and 6 pull requests, then try again.", 400);
+    if (!body.ok)
+      return fail("bad_request", "Pick up to 4 repos and 6 pull requests, then try again.", 400);
 
     const account = await getCurrentAccount();
     const startedAt = Date.now();
@@ -49,7 +51,11 @@ export async function POST(req: Request): Promise<Response> {
         durationMs: Date.now() - startedAt,
       });
       if (result.entries.length === 0) {
-        return fail("not_found", "Those repos and pull requests aren't on GitHub anymore. Look the name up again.", 404);
+        return fail(
+          "not_found",
+          "Those repos and pull requests aren't on GitHub anymore. Look the name up again.",
+          404,
+        );
       }
       const response: Omit<GitHubDraftResponse, "ok"> = result;
       return ok({ ...response, ...creditField(result.usedAI ? unit.credit : null) });
@@ -63,4 +69,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("github.draft_error", error);
     return fail("server_error", "Otto couldn't draft those projects. Please try again.", 500);
   }
-}
+});

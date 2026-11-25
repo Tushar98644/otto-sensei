@@ -8,6 +8,7 @@ import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ const SIGN_IN = "Sign in to change the app's language.";
 const CHANGES_PER_HOUR = 30;
 
 // Saves the app's language and sets the cookie src/proxy.ts reads; not offered in the app until it is translated.
-export async function PUT(req: Request): Promise<Response> {
+export const PUT = withApiLocale(async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -45,4 +46,4 @@ export async function PUT(req: Request): Promise<Response> {
     log.error("language.save_failed", error);
     return fail("server_error", "Couldn't change the language. Please try again.", 500, NO_STORE);
   }
-}
+});

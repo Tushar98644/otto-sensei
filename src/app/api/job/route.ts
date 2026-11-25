@@ -5,6 +5,7 @@ import { readJson } from "@/lib/http";
 import { JobReadError, jobReadMessage, parseJobLink, readJob, type JobTarget } from "@/lib/jobs";
 import { log } from "@/lib/log";
 import { limitJobReads } from "./limits";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 // A read can chain three requests of up to 8 seconds each, inside a 20 second budget.
@@ -18,7 +19,7 @@ function readFailure(error: JobReadError): Response {
 }
 
 // Logs carry the host and outcome only: paths and queries can identify a person's application.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) {
     log.warn("job.cross_site");
@@ -68,4 +69,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("job.failed", error, { host: target?.url.hostname });
     return fail("server_error", "Something went wrong reading that link. Please try again.", 500);
   }
-}
+});

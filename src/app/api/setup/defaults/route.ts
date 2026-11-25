@@ -6,6 +6,7 @@ import { log } from "@/lib/log";
 import { saveSetupDefaults } from "@/lib/setup/records";
 import { type SetupDefaultsResponse } from "@/lib/setup/types";
 import { SetupDefaultsSchema } from "@/lib/setup/validation";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 const SIGN_IN = "Sign in to keep your setup.";
 
 // Any plan: it only fills blank settings once, and Free's job matches never read work rights.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -35,4 +36,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("setup.defaults_failed", error);
     return fail("server_error", "Couldn't save that. Please try again.", 500, NO_STORE);
   }
-}
+});

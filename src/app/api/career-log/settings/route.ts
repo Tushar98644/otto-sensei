@@ -8,11 +8,12 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { emailConfigured } from "@/lib/notifications/email";
 import { SIGN_IN, writeLimited } from "../shared";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function PUT(req: Request): Promise<Response> {
+export const PUT = withApiLocale(async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -39,4 +40,4 @@ export async function PUT(req: Request): Promise<Response> {
     log.error("career_log.settings_save_failed", error);
     return fail("server_error", "Couldn't save that. Please try again.", 500, NO_STORE);
   }
-}
+});

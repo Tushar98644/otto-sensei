@@ -5,8 +5,8 @@ export default {
   usage: {
     thisPeriod: { month: "diesen Monat", trial: "in diesem Test" },
     perPeriod: { month: "pro Monat", trial: "während des Tests" },
-    renews: "wenn sich dein Tarif verlängert",
-    onDayRenews: "am {day}, wenn sich dein Tarif verlängert",
+    renews: "bei der Verlängerung deines Tarifs",
+    onDayRenews: "am {day} bei der Verlängerung deines Tarifs",
     onDay: "am {day}",
     trialStarts: "Dein volles Kontingent beginnt am {day}.",
     reset: "Sie werden {when} zurückgesetzt.",

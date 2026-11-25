@@ -8,13 +8,14 @@ import { WRITING_LIMITS, type WritingResponse, type WritingsResponse } from "@/l
 import { CreateWritingSchema } from "@/lib/writings/validation";
 import { requirePlanFeature } from "../metered-free";
 import { INVALID, SIGN_IN, writeLimited } from "./shared";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const count = new Intl.NumberFormat("en-US");
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -29,9 +30,9 @@ export async function GET(): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -62,4 +63,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("writings.create_failed", error);
     return fail("server_error", "Couldn't save that. Please try again.", 500);
   }
-}
+});

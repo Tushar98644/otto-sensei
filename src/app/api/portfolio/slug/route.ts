@@ -5,6 +5,7 @@ import { checkSlug } from "@/lib/portfolio/records";
 import { PORTFOLIO_LIMITS, type PortfolioSlugResponse } from "@/lib/portfolio/types";
 import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 import { SIGN_IN } from "../limits";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 const MAX_INPUT = 80;
 
 // Signed in only, so nobody can walk the list of taken names.
-export async function GET(req: Request): Promise<Response> {
+export const GET = withApiLocale(async function GET(req: Request): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -37,4 +38,4 @@ export async function GET(req: Request): Promise<Response> {
     log.error("portfolio.slug_check_failed", error);
     return fail("server_error", "Couldn't check that address. Please try again.", 500, NO_STORE);
   }
-}
+});

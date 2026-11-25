@@ -4,6 +4,7 @@ import { logLines } from "@/lib/career-log/lines";
 import { entriesBetween } from "@/lib/career-log/records";
 import type { LogLinesResult } from "@/lib/career-log/types";
 import { LogLinesSchema } from "@/lib/career-log/validation";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -16,7 +17,7 @@ const COPY: MeteredCopy = {
 };
 
 // Pro: one press is one Build with Otto draft. A range with no notes in it costs nothing.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   return runMetered(req, {
     feature: "draft",
     schema: LogLinesSchema,
@@ -28,4 +29,4 @@ export async function POST(req: Request): Promise<Response> {
     run: async (input, user) =>
       logLines(input, await entriesBetween(user.id, input.from, input.to)),
   });
-}
+});

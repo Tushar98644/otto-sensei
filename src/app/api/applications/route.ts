@@ -17,11 +17,12 @@ import { planFullText } from "@/lib/plan-limits-copy";
 import { proToolRequired } from "../pro-tools";
 import { INVALID, SIGN_IN } from "./messages";
 import { createApplication, listApplications, parseCursor, setStatusMany } from "./records";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request): Promise<Response> {
+export const GET = withApiLocale(async function GET(req: Request): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -41,9 +42,9 @@ export async function GET(req: Request): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -76,9 +77,9 @@ export async function POST(req: Request): Promise<Response> {
     log.error("applications.create_failed", error);
     return fail("server_error", "Couldn't save that application. Please try again.", 500);
   }
-}
+});
 
-export async function PATCH(req: Request): Promise<Response> {
+export const PATCH = withApiLocale(async function PATCH(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -97,4 +98,4 @@ export async function PATCH(req: Request): Promise<Response> {
     log.error("applications.bulk_update_failed", error);
     return fail("server_error", "Couldn't update those applications. Please try again.", 500);
   }
-}
+});

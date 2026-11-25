@@ -8,13 +8,14 @@ import { type LookingForResponse } from "@/lib/job-feed/types";
 import { noteTitles, titleVectorKey } from "@/lib/job-feed/title-vectors";
 import { LookingForChoiceSchema } from "@/lib/job-feed/validation";
 import { log } from "@/lib/log";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const SIGN_IN = "Sign in to keep what you're looking for.";
 
-export async function PUT(req: Request): Promise<Response> {
+export const PUT = withApiLocale(async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -40,4 +41,4 @@ export async function PUT(req: Request): Promise<Response> {
     log.error("jobs.looking_for_failed", error);
     return fail("server_error", "Couldn't save that. Please try again.", 500, NO_STORE);
   }
-}
+});

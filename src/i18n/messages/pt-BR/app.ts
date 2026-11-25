@@ -11,7 +11,7 @@ export default {
     trialStarts: "Seu limite completo começa em {day}.",
     reset: "Eles reiniciam {when}.",
     pool: "{count} {feature}",
-    usedAll: "Você já usou todos os {pool} {period}. {reset}",
+    usedAll: "Você já usou o limite de {pool} {period}. {reset}",
     usesOne: "Usa 1 dos seus {pool} {period}. Restam {left}.",
   },
   features: {

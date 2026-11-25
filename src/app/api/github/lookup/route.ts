@@ -8,15 +8,17 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { gitHubFailure, limitGitHub } from "../limits";
 import { ownGitHubLogin } from "../ownership";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 const GITHUB_BUDGET_MS = 15_000;
-const INVALID = "That isn't a GitHub username. Use the name in your profile link, like github.com/octocat.";
+const INVALID =
+  "That isn't a GitHub username. Use the name in your profile link, like github.com/octocat.";
 
 // Logs carry counts only: a username can name a person.
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
   if (rejected) return rejected;
   try {
@@ -53,4 +55,4 @@ export async function POST(req: Request): Promise<Response> {
     log.error("github.lookup_error", error);
     return fail("server_error", "Something went wrong reading GitHub. Please try again.", 500);
   }
-}
+});

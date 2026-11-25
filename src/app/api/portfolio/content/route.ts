@@ -15,13 +15,14 @@ import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
 import { pageBlocked, pageChanged } from "../../public-pages";
 import { NEEDS_PLAN, NO_PORTFOLIO, SIGN_IN } from "../limits";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const SAVES_PER_HOUR = 900;
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const account = await getCurrentAccount();
     if (!account) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -47,9 +48,9 @@ export async function GET(): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});
 
-export async function PUT(req: Request): Promise<Response> {
+export const PUT = withApiLocale(async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -110,4 +111,4 @@ export async function PUT(req: Request): Promise<Response> {
     log.error("portfolio.content_save_failed", error);
     return fail("server_error", "Couldn't save that change. Please try again.", 500);
   }
-}
+});

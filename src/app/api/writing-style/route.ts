@@ -6,6 +6,7 @@ import { log } from "@/lib/log";
 import { readWritingStyle, saveWritingStyle } from "@/lib/writing-style/records";
 import { STYLE_LIMITS, type WritingStyleResponse } from "@/lib/writing-style/schema";
 import { WritingStyleSchema } from "@/lib/writing-style/validation";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 const SIGN_IN = "Sign in to change your writing style.";
 const INVALID = `Otto couldn't save that. Keep the sign-off to ${STYLE_LIMITS.signOff} characters and your notes to ${STYLE_LIMITS.notes}.`;
 
-export async function GET(): Promise<Response> {
+export const GET = withApiLocale(async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
@@ -28,9 +29,9 @@ export async function GET(): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});
 
-export async function PUT(req: Request): Promise<Response> {
+export const PUT = withApiLocale(async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -57,4 +58,4 @@ export async function PUT(req: Request): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});

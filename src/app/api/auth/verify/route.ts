@@ -6,6 +6,7 @@ import { clientIp, readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ const VERIFY_PER_IP_PER_HOUR = 30;
 const VERIFY_PER_EMAIL_PER_HOUR = 10;
 // Responses that set session cookies must never be stored by a shared cache.
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const notJson = rejectNonJson(req);
   if (notJson) return notJson;
   const body = await readJson(req, VerifyCodeSchema);
@@ -23,7 +24,11 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const [byIp, byEmail] = await Promise.all([
       rateLimit(`verify:ip:${clientIp(req)}`, VERIFY_PER_IP_PER_HOUR, HOUR_MS),
-      rateLimit(`verify:email:${normalizeEmail(body.data.email)}`, VERIFY_PER_EMAIL_PER_HOUR, HOUR_MS),
+      rateLimit(
+        `verify:email:${normalizeEmail(body.data.email)}`,
+        VERIFY_PER_EMAIL_PER_HOUR,
+        HOUR_MS,
+      ),
     ]);
     if (!byIp.allowed || !byEmail.allowed) {
       const retryAfterMs = Math.max(byIp.retryAfterMs, byEmail.retryAfterMs);
@@ -42,11 +47,16 @@ export async function POST(req: Request): Promise<Response> {
       log.info("auth.code_rejected", { reason: error.code });
       if (error.code === "not_configured") return fail("auth_unavailable", error.message, 503);
       if (error.code === "rate_limited") {
-        return fail("rate_limited", error.message, 429, retryAfterHeader(error.retryAfterMs ?? 60_000));
+        return fail(
+          "rate_limited",
+          error.message,
+          429,
+          retryAfterHeader(error.retryAfterMs ?? 60_000),
+        );
       }
       return fail("bad_request", error.message, 400);
     }
     log.error("auth.verify_failed", error);
     return fail("server_error", "Something went wrong. Please try again.", 500);
   }
-}
+});

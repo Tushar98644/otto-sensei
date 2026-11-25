@@ -3,6 +3,7 @@ import { fixBullet } from "@/lib/ai/fix";
 import { FixRequestSchema } from "@/lib/api/types";
 import { passSubject } from "@/lib/usage-passes";
 import { runMetered, type MeteredCopy } from "./metered";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,7 +15,7 @@ const COPY: MeteredCopy = {
   tooLong: `That line is too long for Otto. Keep it under ${TEXT_LIMITS.bulletChars} characters.`,
 };
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   return runMetered(req, {
     feature: "fix",
     schema: FixRequestSchema,
@@ -27,4 +28,4 @@ export async function POST(req: Request): Promise<Response> {
       opensPass: (result) => result.questions.length > 0,
     },
   });
-}
+});

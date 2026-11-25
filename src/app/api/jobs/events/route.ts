@@ -8,6 +8,7 @@ import { logAction, logImpressions } from "@/lib/job-feed/events";
 import { ImpressionBatchSchema, MatchActionSchema } from "@/lib/job-feed/validation";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
+import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ const tooMany = (retryAfterMs: number) =>
     ...retryAfterHeader(retryAfterMs),
   });
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
@@ -57,4 +58,4 @@ export async function POST(req: Request): Promise<Response> {
       NO_STORE,
     );
   }
-}
+});
