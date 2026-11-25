@@ -11,6 +11,7 @@ import type { ApiErrorCode, TranscribeResponse } from "@/lib/api/types";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { aiEnabled } from "@/lib/env";
+import { isContentLang, type ContentLang } from "@/lib/i18n/languages";
 import { readBody } from "@/lib/http";
 import { log } from "@/lib/log";
 import { giveBackRateLimit, rateLimit, retryAfterHeader, waitLong } from "@/lib/rate-limit";
@@ -46,7 +47,7 @@ const FREE_GIVE_BACKS: ReadonlySet<AIErrorCode> = new Set<AIErrorCode>([
 ]);
 const CAPPED_GIVE_BACKS_PER_DAY = 3;
 
-type Clip = { bytes: Uint8Array; format: AudioFormat; seconds: number };
+type Clip = { bytes: Uint8Array; format: AudioFormat; seconds: number; language?: ContentLang };
 
 export async function POST(req: Request): Promise<Response> {
   try {
@@ -69,7 +70,9 @@ export async function POST(req: Request): Promise<Response> {
     const startedAt = Date.now();
     let transcript: Transcript;
     try {
-      transcript = await transcribeAudio(clip.bytes, clip.format);
+      transcript = clip.language
+        ? await transcribeAudio(clip.bytes, clip.format, { language: clip.language })
+        : await transcribeAudio(clip.bytes, clip.format);
     } catch (error) {
       if (!(error instanceof AIError)) throw error;
       const givenBack = await giveClipBack(user.id, error.code, countedAt);
@@ -168,7 +171,12 @@ async function readClip(req: Request): Promise<Clip | Response> {
   if (seconds > TRANSCRIBE_LIMITS.maxSeconds) return fail("too_large", TOO_LONG, 413);
   const format = audioFormat(file.type, file.name);
   if (!format) return fail("unsupported_type", UNREADABLE, 415);
-  return { bytes: new Uint8Array(await file.arrayBuffer()), format, seconds };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  // An optional hint the page sends when it knows what language the person speaks.
+  const language = form.get("language");
+  return isContentLang(language)
+    ? { bytes, format, seconds, language }
+    : { bytes, format, seconds };
 }
 
 function tooLarge(): Response {

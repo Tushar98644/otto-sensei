@@ -24,7 +24,7 @@ export async function POST(req: Request): Promise<Response> {
     feature: "fix",
     schema: SummaryRequestSchema,
     copy: COPY,
-    run: writeSummary,
+    run: (input, user, { ui }) => writeSummary(input, { ui }),
     nothingToDo: nothingToSummarize,
   });
 }

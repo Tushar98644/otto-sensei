@@ -27,12 +27,12 @@ export async function POST(req: Request): Promise<Response> {
     feature: "letter",
     schema: OutreachRequestSchema,
     copy: COPY,
-    run: async ({ resume, job, followUp, thankYou }, user) =>
+    run: async ({ resume, job, followUp, thankYou }, user, { ui }) =>
       writeOutreach(
         resume,
         { jobText: job.text, jobTitle: job.title, company: job.company },
         await readWritingStyle(user.id),
-        { followUpDays: followUp?.days ?? null, thankYou: thankYou ?? null },
+        { followUpDays: followUp?.days ?? null, thankYou: thankYou ?? null, ui },
       ),
   });
 }

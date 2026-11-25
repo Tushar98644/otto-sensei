@@ -73,7 +73,11 @@ const DATA_TAGS = [
   "plan",
 ] as const;
 export type DataTag = (typeof DATA_TAGS)[number];
-const DATA_TAG_PATTERN = new RegExp(`<\\s*/?\\s*(?:${DATA_TAGS.join("|")})\\b[^>]*>`, "gi");
+// <languages> is ours too: data can't set the languages Otto writes in.
+const DATA_TAG_PATTERN = new RegExp(
+  `<\\s*/?\\s*(?:${[...DATA_TAGS, "languages"].join("|")})\\b[^>]*>`,
+  "gi",
+);
 
 // Our own tags are stripped so a resume or post can't close one early and inject instructions.
 export function tag(name: DataTag, body: string): string {

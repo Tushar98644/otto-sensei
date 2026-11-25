@@ -4,6 +4,7 @@ import { trackAICall } from "@/lib/analytics/ai";
 import type { DraftRequest } from "@/lib/api/types";
 import { aiEnabled } from "@/lib/env";
 import { log } from "@/lib/log";
+import { withDetectedLang } from "@/lib/resume/lang";
 import { emptyResume, newBullet, newId, newSkillGroup, type Resume } from "@/lib/resume/schema";
 import { runStructured, type AITask } from "./client";
 import { createRedactor, type Redactor } from "./redact";
@@ -152,7 +153,7 @@ function userMessage(input: DraftRequest, redactor: Redactor): string {
 
 export async function draftResume(input: DraftRequest, now = Date.now()): Promise<DraftOutcome> {
   const resume = baseResume(input, now);
-  if (!aiEnabled()) return { resume, usedAI: false };
+  if (!aiEnabled()) return { resume: withDetectedLang(resume), usedAI: false };
   const call = { userId: null, task: "draft", aiTask: TASK, startedAt: Date.now() };
   try {
     const redactor = createRedactor();
@@ -166,10 +167,10 @@ export async function draftResume(input: DraftRequest, now = Date.now()): Promis
     });
     const drafted = applyOutput(input, redactor.restoreDeep(output), resume);
     trackAICall(call);
-    return { resume: drafted, usedAI: true };
+    return { resume: withDetectedLang(drafted), usedAI: true };
   } catch (error) {
     trackAICall(call, error);
     log.warn("draft.ai_failed", { jobs: input.jobs.length }, error);
-    return { resume, usedAI: false };
+    return { resume: withDetectedLang(resume), usedAI: false };
   }
 }

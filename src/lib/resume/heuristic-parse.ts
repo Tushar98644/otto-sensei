@@ -1,5 +1,6 @@
 import { TEXT_LIMITS } from "@/config/plans";
 import { ResumeSchema } from "@/lib/resume/validation";
+import { withDetectedLang } from "./lang";
 import { parseBasics } from "./heuristic-parse/basics";
 import { addEducation } from "./heuristic-parse/education";
 import { parseExperience } from "./heuristic-parse/experience";
@@ -24,7 +25,7 @@ export function heuristicParse(text: string, now = Date.now()): Resume {
   const input = typeof text === "string" ? text.slice(0, TEXT_LIMITS.resumeChars) : "";
   try {
     const parsed = ResumeSchema.safeParse(parse(input, now));
-    if (parsed.success) return parsed.data;
+    if (parsed.success) return withDetectedLang(parsed.data);
   } catch {
     // Fall through: a parser bug must never break an import.
   }
@@ -42,7 +43,7 @@ function parse(text: string, now: number): Resume {
 
   // References list other people's phone numbers, so they're never searched for contact details.
   const contactText = blocks
-    .filter((block) => !/refer/i.test(block.heading))
+    .filter((block) => !/r[eé]f[eé]r/i.test(block.heading))
     .flatMap((block) => block.lines)
     .join("\n");
   const { basics, leftovers } = parseBasics(preamble, contactText);

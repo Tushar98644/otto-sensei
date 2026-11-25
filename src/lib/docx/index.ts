@@ -1,9 +1,12 @@
 import JSZip from "jszip";
 import { themeFor } from "@/components/pdf/themes";
 import { BRAND } from "@/config/brand";
+import { languageOf } from "@/lib/i18n/detect";
+import type { ContentLang } from "@/lib/i18n/languages";
 import { letterDate, letterParagraphs } from "@/lib/pdf/letter";
 import { buildPdfModel } from "@/lib/pdf/model";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
+import { documentTitles } from "@/lib/resume/labels";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { bodyXml, header, sectionPropsXml } from "./body";
 import { docxLook, type DocxLook } from "./look";
@@ -102,9 +105,10 @@ type Package = {
   links: Links;
   meta: { title: string; author: string; subject: string };
   now: number;
+  lang?: ContentLang;
 };
 
-async function pack({ body, look, links, meta, now }: Package): Promise<Uint8Array> {
+async function pack({ body, look, links, meta, now, lang }: Package): Promise<Uint8Array> {
   const document = [
     XML_HEAD,
     `<w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}"><w:body>`,
@@ -130,7 +134,7 @@ async function pack({ body, look, links, meta, now }: Package): Promise<Uint8Arr
   zip.file("docProps/app.xml", APP);
   zip.file("word/document.xml", document);
   zip.file("word/_rels/document.xml.rels", documentRels);
-  zip.file("word/styles.xml", stylesXml(look));
+  zip.file("word/styles.xml", stylesXml(look, lang));
   zip.file("word/numbering.xml", numberingXml(look));
   zip.file("word/settings.xml", SETTINGS);
   zip.file("word/fontTable.xml", fontTableXml(look));
@@ -147,7 +151,14 @@ export async function buildResumeDocx(
   const model = buildPdfModel(resume, { charset: "unicode" });
   const look = docxLook(themeFor(resume, template), pageSize);
   const links = hyperlinks();
-  return pack({ body: bodyXml(model, look, links), look, links, meta: model.meta, now });
+  return pack({
+    body: bodyXml(model, look, links),
+    look,
+    links,
+    meta: model.meta,
+    now,
+    lang: model.lang,
+  });
 }
 
 const LETTER_DATE = { before: 18, after: 14 };
@@ -168,13 +179,15 @@ export async function buildLetterDocx(
       before: index > 0 ? LETTER_GAP : undefined,
     }),
   );
+  const lang = languageOf(letter, model.lang);
   const body = [
     ...header(model, look, links),
-    paragraph(run(letterDate(now, pageSize)), LETTER_DATE),
+    paragraph(run(letterDate(now, pageSize, lang)), LETTER_DATE),
     ...paragraphs,
   ].join("");
-  const title = model.name ? `${model.name} - Cover letter` : "Cover letter";
-  return pack({ body, look, links, meta: { ...model.meta, title }, now });
+  const word = documentTitles(lang).letter;
+  const title = model.name ? `${model.name} - ${word}` : word;
+  return pack({ body, look, links, meta: { ...model.meta, title }, now, lang });
 }
 
 export async function buildLetterDocxBlob(

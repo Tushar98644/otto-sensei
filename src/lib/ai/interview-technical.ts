@@ -8,6 +8,8 @@ import {
 import { PREP_LIMITS, type TechnicalQuestion } from "@/lib/insights/prep";
 import { BLUEPRINTS, LEVEL_GUIDE, scaleFor, topicsFor } from "./interview-blueprints";
 import { guardPersonFacts, type Sources } from "./interview-guards";
+import { languagesTag, type Languages } from "./languages";
+import { languageRule } from "./prompts";
 import { clip, clipWords, oneLine, tag } from "./text";
 
 export const TECHNICAL_MAX_TOKENS = 10_000;
@@ -38,7 +40,7 @@ Ground rules:
   - General technical knowledge: what a strong answer covers. Here you are the expert interviewer. Name the concepts, techniques, tools and trade-offs a strong candidate brings up, such as cache keys and TTLs, write-through vs cache-aside, idempotency keys, HNSW indexes, prompt caching or the KV cache. Write it as guidance about the topic, never as something the person did, and never with "your" or "you used".
 - The person's name, emails, phone numbers and links are replaced by placeholders such as [NAME], [EMAIL_1] or [LINK_1]. Copy one exactly as written if you need it, and never guess what it stands for.
 - Be specific and technical. Never generic advice such as "Communicate clearly" or "Give examples".
-- Use plain, modern English and short sentences. No emojis.
+${languageRule("write question, assume and probes in the post language, the way an interviewer says them out loud in that language, and topic, covers and pitfalls in the ui language.", "Use plain, modern English and short sentences")}
 
 Return questions: 8 to 12 questions, in the order the round runs:
 1. "deep-dive": 3 or 4 project deep-dives, each built on one line in <experience> that shows real work this role needs. Open with what the line says, in its own words and tools, then ask the hard question an interviewer asks about it, such as "You built the payouts pipeline on Postgres and SQS. How did you make the retries safe to repeat?". In the question, name only tools and facts the resume states; put alternatives in the probes. lineId is that line's id. Use each line once. If no line fits, write fewer deep-dives and more concept questions.
@@ -80,14 +82,18 @@ export function technicalMessage(parts: {
   lines: readonly Line[];
   post: string;
   resolved: ResolvedFocus;
+  languages?: Languages;
 }): string {
   return [
+    parts.languages ? languagesTag(parts.languages) : "",
     tag("resume", parts.resumeText),
     tag("experience", JSON.stringify(parts.lines)),
     tag("job_post", parts.post),
     tag("plan", technicalPlan(parts.resolved)),
     "Write the technical round.",
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function unwrap(text: string): string {

@@ -5,6 +5,7 @@ import dashboard from "./dashboard";
 import emails from "./emails";
 import home from "./home";
 import jobs from "./jobs";
+import lint from "./lint";
 import login from "./login";
 import portfolio from "./portfolio";
 import pricing from "./pricing";
@@ -22,6 +23,7 @@ const en = {
   emails,
   home,
   jobs,
+  lint,
   login,
   portfolio,
   pricing,

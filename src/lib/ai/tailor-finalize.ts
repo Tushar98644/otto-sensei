@@ -7,7 +7,7 @@ import {
   withVerifiedQuotes,
   type RawRequirement,
 } from "@/lib/tailor/requirements";
-import { hasInventedNumbers } from "./guards";
+import { hasInventedNumbers, type NumberLangs } from "./guards";
 import { cleanList, clip, clipWords, hasPlaceholder, oneLine } from "./text";
 import type {
   TailorInput,
@@ -107,13 +107,18 @@ function validOrders(
   return valid;
 }
 
-function checkedSummary(summary: string, resumeText: string): string {
+function checkedSummary(summary: string, resumeText: string, langs?: NumberLangs): string {
   const text = clipWords(oneLine(summary), SUMMARY_CHARS);
-  if (!text || hasPlaceholder(text) || hasInventedNumbers(text, [resumeText])) return "";
+  if (!text || hasPlaceholder(text) || hasInventedNumbers(text, [resumeText], langs)) return "";
   return text;
 }
 
-export function finalizeTailor(raw: RawTailor, resume: Resume, input: TailorInput): TailorResult {
+export function finalizeTailor(
+  raw: RawTailor,
+  resume: Resume,
+  input: TailorInput,
+  langs?: NumberLangs,
+): TailorResult {
   const resumeText = resumeToText(resume);
   const requirements = withVerifiedQuotes(resume, normalizeRequirements(raw.requirements));
   const keywords = matchKeywords(rankKeywords(requirementTerms(requirements)), resume, resumeText);
@@ -127,9 +132,9 @@ export function finalizeTailor(raw: RawTailor, resume: Resume, input: TailorInpu
     keywords,
     askUser: askAbout(keywords),
     bulletOrder: validOrders(raw.bulletOrder, resume, mustProofBulletIds(resume, requirements)),
-    summary: checkedSummary(raw.summary, resumeText),
+    summary: checkedSummary(raw.summary, resumeText, langs),
     notes: cleanList(
-      raw.notes.filter((note) => !hasInventedNumbers(note, sources)),
+      raw.notes.filter((note) => !hasInventedNumbers(note, sources, langs)),
       MAX_NOTES,
       NOTE_CHARS,
     ),

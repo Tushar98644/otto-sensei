@@ -10,6 +10,7 @@ import {
   type Bullet,
   type Resume,
 } from "@/lib/resume/schema";
+import { withDetectedLang } from "@/lib/resume/lang";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { csvRecords, type CsvRecord } from "./csv";
 import { extraItem, extraSection } from "./extras";
@@ -209,7 +210,7 @@ export function linkedInToResume(csvs: LinkedInCsvs, now = Date.now()): LinkedIn
   ].filter((section) => section !== null);
 
   return {
-    resume: ResumeSchema.parse(resume),
+    resume: withDetectedLang(ResumeSchema.parse(resume)),
     counts: {
       jobs: resume.experience.length,
       schools: resume.education.length,

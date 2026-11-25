@@ -1,8 +1,9 @@
-import { hasInventedNumbers, maskInventedNumbers, NUMBER_PLACEHOLDER } from "./guards";
+import { hasInventedNumbers, maskInventedNumbers, NUMBER_PLACEHOLDER, type NumberLangs } from "./guards";
 import { oneLine, placeholdersIn } from "./text";
+import { FOREIGN_BLANK_WORDS, FOREIGN_CLICHES, FOREIGN_UNBACKED, foreignOf, type Phrase } from "./writing-guards-lang";
 
 const WORD = /[\p{L}\p{N}]+(?:['’]\p{L}+)?/gu;
-const SENTENCE_BREAK = /(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[\p{Lu}\p{N}])/u;
+const SENTENCE_BREAK = /(?<=[.!?]["”’»)]?)\s+(?=["“‘(¿¡«„]?\s?[\p{Lu}\p{N}])/u;
 const PLACEHOLDER = /\[([^\]\n]*)\]/g;
 const BLANK_WORDS = /^(?:your|the|a|an|insert|add|x|n|number|amount|name|company|date|role|city)\b/i;
 
@@ -118,20 +119,30 @@ function lowerWords(text: string): string[] {
   return text.toLowerCase().match(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*/gu) ?? [];
 }
 
-export function unwrapKnown(text: string, sources: readonly string[]): string {
+const ENGLISH: NumberLangs = ["en"];
+
+const isBlank = (value: string, langs: NumberLangs) =>
+  BLANK_WORDS.test(value) || foreignOf(langs).some((lang) => FOREIGN_BLANK_WORDS[lang].test(value));
+
+export function unwrapKnown(text: string, sources: readonly string[], langs: NumberLangs = ENGLISH): string {
   const haystack = sources.join("\n").toLowerCase();
   return text.replace(PLACEHOLDER, (match: string, inner: string) => {
     const value = oneLine(inner);
-    if (!value || BLANK_WORDS.test(value)) return match;
-    if (/\d/.test(value)) return hasInventedNumbers(value, sources) ? match : value;
+    if (!value || isBlank(value, langs)) return match;
+    if (/\d/.test(value)) return hasInventedNumbers(value, sources, langs) ? match : value;
     return value.length >= 3 && haystack.includes(value.toLowerCase()) ? value : match;
   });
 }
 
-const CLICHE_SCANS = CLICHES.map(({ label, pattern }) => ({
-  label,
-  scan: new RegExp(pattern.source, `${pattern.flags}g`),
-}));
+const scansOf = (phrases: readonly Phrase[]) =>
+  phrases.map(({ label, pattern }) => ({ label, scan: new RegExp(pattern.source, `${pattern.flags}g`) }));
+const CLICHE_SCANS = scansOf(CLICHES);
+const FOREIGN_CLICHE_SCANS = {
+  es: scansOf(FOREIGN_CLICHES.es),
+  pt: scansOf(FOREIGN_CLICHES.pt),
+  fr: scansOf(FOREIGN_CLICHES.fr),
+  de: scansOf(FOREIGN_CLICHES.de),
+};
 const NEXT_WORD = /^[\s-]+([\p{L}\p{N}]+)/u;
 
 function spaced(text: string): string {
@@ -145,17 +156,28 @@ function ownTerm(text: string, hit: RegExpExecArray, sources: () => string): boo
   return sources().includes(spaced(`${hit[0]} ${next}`));
 }
 
-export function clichesIn(text: string, sources: readonly string[] = []): string[] {
+// English stock phrases are checked in every language, as a model can slip into them.
+export function clichesIn(
+  text: string,
+  sources: readonly string[] = [],
+  langs: NumberLangs = ENGLISH,
+): string[] {
   let joined: string | undefined;
   const haystack = () => (joined ??= spaced(sources.join("\n")));
-  return CLICHE_SCANS.filter(({ scan }) =>
+  const scans = [...CLICHE_SCANS, ...foreignOf(langs).flatMap((lang) => FOREIGN_CLICHE_SCANS[lang])];
+  return scans.filter(({ scan }) =>
     Array.from(text.matchAll(scan)).some((hit) => !ownTerm(text, hit, haystack)),
   ).map(({ label }) => label);
 }
 
-export function unbackedIn(text: string, sources: readonly string[] = []): string[] {
+export function unbackedIn(
+  text: string,
+  sources: readonly string[] = [],
+  langs: NumberLangs = ENGLISH,
+): string[] {
   const claims = sentencesOf(text).filter((sentence) => !/\[[^\]\n]*\]/.test(sentence));
-  return UNBACKED.filter(
+  const phrases = [...UNBACKED, ...foreignOf(langs).flatMap((lang) => FOREIGN_UNBACKED[lang])];
+  return phrases.filter(
     ({ pattern }) =>
       claims.some((sentence) => pattern.test(sentence)) &&
       !sources.some((source) => pattern.test(source)),
@@ -166,13 +188,14 @@ export function dropClichedSentences(
   paragraphs: readonly string[],
   minWords: number,
   sources: readonly string[] = [],
+  langs: NumberLangs = ENGLISH,
 ): { paragraphs: string[]; dropped: number } {
   let dropped = 0;
   const kept = paragraphs
     .map((paragraph) =>
       sentencesOf(paragraph)
         .filter((sentence) => {
-          const cliched = clichesIn(sentence, sources).length > 0;
+          const cliched = clichesIn(sentence, sources, langs).length > 0;
           if (cliched) dropped += 1;
           return !cliched;
         })
@@ -273,18 +296,19 @@ export function checkProse(
   paragraphs: readonly string[],
   sources: readonly string[],
   resumeLines: readonly string[],
+  langs: NumberLangs = ENGLISH,
 ): ProseCheck {
   const cleaned = paragraphs.map(oneLine).filter((paragraph) => /[\p{L}\p{N}]/u.test(paragraph));
-  const unwrapped = cleaned.map((paragraph) => unwrapKnown(paragraph, sources));
-  const masked = unwrapped.map((paragraph) => maskInventedNumbers(paragraph, sources));
+  const unwrapped = cleaned.map((paragraph) => unwrapKnown(paragraph, sources, langs));
+  const masked = unwrapped.map((paragraph) => maskInventedNumbers(paragraph, sources, langs));
   const before = unwrapped.join(" ").split(NUMBER_PLACEHOLDER).length;
   const text = masked.join("\n\n");
   return {
     paragraphs: masked,
     words: wordCount(text),
-    cliches: clichesIn(text, sources),
+    cliches: clichesIn(text, sources, langs),
     upgrades: upgradedVerbs(text, resumeLines),
-    unbacked: unbackedIn(text, sources),
+    unbacked: unbackedIn(text, sources, langs),
     maskedNumbers: text.split(NUMBER_PLACEHOLDER).length - before,
     placeholders: placeholdersIn(text),
   };

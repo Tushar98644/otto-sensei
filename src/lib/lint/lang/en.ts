@@ -1,3 +1,5 @@
+import { indexPhrases, vagueOf, wordSet, type LintLanguage } from "./types";
+
 const STOCK_PHRASES = [
   "above and beyond",
   "attention to detail",
@@ -103,7 +105,7 @@ const WEAK_STARTS = [
   "worked with",
 ];
 
-export const RESULT_WORDS = wordSet(`
+const RESULT_WORDS = wordSet(`
   accelerated accelerating achieved avoided boosted boosting cheaper converted cut cutting
   decreased decreasing doubled drove driving earned eliminated eliminating enabled enabling
   exceeded expanded expanding faster fewer generated generating grew growing halved higher
@@ -112,7 +114,7 @@ export const RESULT_WORDS = wordSet(`
   resulted resulting retained saved saving secured shortened shrank slashed sped surpassed
   tripled won winning
 `);
-export const RESULT_PHRASES = indexPhrases([
+const RESULT_PHRASES = indexPhrases([
   "adopted by",
   "brought in",
   "leading to",
@@ -121,11 +123,11 @@ export const RESULT_PHRASES = indexPhrases([
   "used by",
   "used in",
 ]);
-export const RESULT_OPENERS = wordSet(`
+const RESULT_OPENERS = wordSet(`
   boosted cut decreased doubled drove generated grew halved improved increased lifted lowered
   raised reduced saved tripled
 `);
-export const METHOD_WORDS = wordSet("after through using via with");
+const METHOD_WORDS = wordSet("after through using via with");
 
 const TENSE_VERBS = `
   administer analyse analyze answer assess assist automate build:built close coach collaborate
@@ -137,7 +139,6 @@ const TENSE_VERBS = `
   run:ran schedule sell:sold serve ship:shipped streamline supervise teach:taught track train
   troubleshoot tutor write:wrote work
 `;
-export const PAST_OF = indexTenses(TENSE_VERBS);
 
 const VAGUE_COUNTS = [
   "a bunch of",
@@ -156,27 +157,20 @@ const VAGUE_COUNTS = [
 const VAGUE_LISTS = ["and so forth", "and so on", "et cetera", "etc"];
 const VAGUE_THINGS = ["stuff", "things"];
 
-function wordSet(list: string): ReadonlySet<string> {
-  return new Set(list.trim().split(/\s+/));
-}
-
-export const FIRST_PERSON = wordSet("i me my myself our ours ourselves we");
-export const TEAM_PRONOUNS = wordSet("our ours ourselves we");
-
-export const NUMBER_WORDS = wordSet(`
+const NUMBER_WORDS = wordSet(`
   billion billions double doubled dozen dozens eight eighteen eighty eleven fifteen fifty
   five forty four fourteen half halved hundred hundreds million millions nine nineteen ninety
   one percent quadrupled seven seventeen seventy six sixteen sixty ten thirteen thirty
   thousand thousands three triple tripled twelve twenty twice two zero
 `);
 
-export const PASSIVE_AUXILIARIES = wordSet("been being was were");
-export const IRREGULAR_PARTICIPLES = wordSet(`
+const PASSIVE_AUXILIARIES = wordSet("been being was were");
+const IRREGULAR_PARTICIPLES = wordSet(`
   begun bought broken brought built caught done drawn driven found given grown held hidden
   kept led made paid rebuilt rewritten run seen sent shown sold spent taken taught thrown
   told undertaken written
 `);
-export const NOT_PASSIVE = wordSet(`
+const NOT_PASSIVE = wordSet(`
   accepted admitted adopted appointed awarded based certified cited commended committed
   concerned credited dedicated elected entrusted excited experienced featured focused granted
   hired honored honoured interested invited involved located motivated named nominated
@@ -184,34 +178,13 @@ export const NOT_PASSIVE = wordSet(`
   shortlisted skilled sponsored supposed talented tired trusted voted
 `);
 
-export const ROMAN_NUMERAL_CONTEXT = wordSet(`
+const ROMAN_NUMERAL_CONTEXT = wordSet(`
   act article book category chapter class division gen generation grade level mark module
   part phase round schedule season section series stage step tier title type unit vol volume
   war
 `);
 
-export type VagueKind = "count" | "list" | "thing";
-
-export const STOCK_INDEX = indexPhrases(STOCK_PHRASES);
-export const WEAK_START_INDEX = indexPhrases(WEAK_STARTS);
-export const DUTY_INDEX = indexPhrases(DUTY_STARTS);
-export const VAGUE_INDEX = indexPhrases([...VAGUE_COUNTS, ...VAGUE_LISTS, ...VAGUE_THINGS]);
-export const VAGUE_KIND = new Map<string, VagueKind>([
-  ...VAGUE_COUNTS.map((phrase) => [phrase, "count"] as const),
-  ...VAGUE_LISTS.map((phrase) => [phrase, "list"] as const),
-  ...VAGUE_THINGS.map((phrase) => [phrase, "thing"] as const),
-]);
-
-function indexPhrases(phrases: readonly string[]): ReadonlyMap<string, readonly string[][]> {
-  const index = new Map<string, string[][]>();
-  for (const phrase of phrases) {
-    const words = phrase.split(" ");
-    const first = words[0] ?? "";
-    index.set(first, [...(index.get(first) ?? []), words]);
-  }
-  for (const list of index.values()) list.sort((a, b) => b.length - a.length);
-  return index;
-}
+const ABBREVIATIONS = wordSet("al approx co corp dept etc inc jr ltd pty sr vs");
 
 function indexTenses(list: string): ReadonlyMap<string, string> {
   const map = new Map<string, string>();
@@ -235,3 +208,33 @@ function indexTenses(list: string): ReadonlyMap<string, string> {
   }
   return map;
 }
+
+export const en: LintLanguage = {
+  lang: "en",
+  openerSkips: wordSet("i we"),
+  elisions: false,
+  abbreviations: ABBREVIATIONS,
+  stock: indexPhrases(STOCK_PHRASES),
+  duty: indexPhrases(DUTY_STARTS),
+  weakStart: indexPhrases(WEAK_STARTS),
+  firstPerson: {
+    words: wordSet("i me my myself our ours ourselves we"),
+    team: wordSet("our ours ourselves we"),
+  },
+  result: { words: RESULT_WORDS, phrases: RESULT_PHRASES, suffixes: [], openers: RESULT_OPENERS },
+  method: {
+    words: METHOD_WORDS,
+    phrases: new Map(),
+    gerund: /^.{2,}ing$/u,
+    lead: { word: "by", next: (word) => !/^\p{N}/u.test(word) },
+  },
+  numberWords: NUMBER_WORDS,
+  vague: vagueOf({ count: VAGUE_COUNTS, list: VAGUE_LISTS, thing: VAGUE_THINGS }, ["etc"]),
+  tense: { pastOf: indexTenses(TENSE_VERBS) },
+  passive: {
+    auxiliaries: PASSIVE_AUXILIARIES,
+    irregular: IRREGULAR_PARTICIPLES,
+    notPassive: NOT_PASSIVE,
+  },
+  romanNumeralContext: ROMAN_NUMERAL_CONTEXT,
+};

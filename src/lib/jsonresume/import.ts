@@ -12,6 +12,7 @@ import {
   type Resume,
   type SkillGroup,
 } from "@/lib/resume/schema";
+import { withDetectedLang } from "@/lib/resume/lang";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { fromIsoDate } from "./dates";
 
@@ -224,5 +225,5 @@ function fromJsonResume(data: JsonResumeInput, now: number): Resume {
     date: line(fromIsoDate(c.date), 50),
   }));
   resume.extras = extras(data);
-  return ResumeSchema.parse(resume);
+  return withDetectedLang(ResumeSchema.parse(resume));
 }

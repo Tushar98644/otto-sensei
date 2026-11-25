@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type { Feature, UsageSnapshot } from "@/config/plans";
+import type { Locale } from "@/i18n/config";
 import { checkAiBudget, spendAiTokens } from "@/lib/ai-budget";
 import { AIError, type AIErrorCode } from "@/lib/ai/types";
 import { trackMeteredCall } from "@/lib/analytics/ai";
@@ -10,6 +11,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { aiEnabled } from "@/lib/env";
 import { readJson } from "@/lib/http";
+import { uiLocaleOf } from "@/lib/i18n/request";
 import { log } from "@/lib/log";
 import {
   claimRun,
@@ -42,11 +44,14 @@ export type FollowUp<I, R> = {
   opensPass: (result: R) => boolean;
 };
 
+// What a run knows about the request beyond its body: the language the app is shown in, left out for English.
+export type RunContext = { ui?: Locale };
+
 export type MeteredRoute<S extends z.ZodType, R> = {
   feature: Feature;
   schema: S;
   copy: MeteredCopy;
-  run: (input: z.output<S>, user: SessionUser) => Promise<R>;
+  run: (input: z.output<S>, user: SessionUser, context: RunContext) => Promise<R>;
   // The answer for input with nothing to work on, given without a call or a unit.
   nothingToDo?: (input: z.output<S>, user: SessionUser) => R | null | Promise<R | null>;
   // Calls that ride on the unit an earlier call on the same subject took, like answers to Otto's questions.
@@ -170,7 +175,9 @@ export async function runMetered<S extends z.ZodType, R>(
         startedAt: Date.now(),
       };
       try {
-        const result = await spendAiTokens(user, now, () => route.run(body.data, user));
+        const ui = uiLocaleOf(req);
+        const context: RunContext = ui === "en" ? {} : { ui };
+        const result = await spendAiTokens(user, now, () => route.run(body.data, user, context));
         trackMeteredCall(call);
         const demo = !aiEnabled();
         if (runKey)
