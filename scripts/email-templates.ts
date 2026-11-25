@@ -1,15 +1,8 @@
-export {};
+// Reads, and with --apply writes, the sign-in code email: one template, a block per language (src/lib/auth/code-email.ts).
+import { CODE_EMAIL } from "../src/lib/auth/code-email";
 
-const SITE = "https://www.ottosensei.com";
-
-const SUBJECT = "Your Otto Sensei code: {{ .Token }}";
-const BODY = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px">
-<img src="${SITE}/email/otto-head.png" width="48" height="48" alt="Otto" style="display:block;margin:0 0 16px;border:0">
-<p style="margin:0 0 8px">Your Otto Sensei code is</p>
-<p style="margin:0 0 16px;font-size:32px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>
-<p style="margin:0 0 16px">It expires in 10 minutes.</p>
-<p style="margin:0;color:#475850;font-size:14px">If you didn't ask for this, you can ignore this email.</p>
-</div>`;
+const SUBJECT = CODE_EMAIL.subject;
+const BODY = CODE_EMAIL.body;
 
 const WANTED = {
   mailer_subjects_confirmation: SUBJECT,
@@ -26,7 +19,9 @@ const ref =
   process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/^https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
 
 if (!token || !ref) {
-  console.error("Set SUPABASE_ACCESS_TOKEN (and SUPABASE_PROJECT_REF if NEXT_PUBLIC_SUPABASE_URL isn't set).");
+  console.error(
+    "Set SUPABASE_ACCESS_TOKEN (and SUPABASE_PROJECT_REF if NEXT_PUBLIC_SUPABASE_URL isn't set).",
+  );
   process.exit(1);
 }
 
@@ -43,10 +38,13 @@ async function call(init?: RequestInit): Promise<Record<string, unknown>> {
 }
 
 function show(config: Record<string, unknown>) {
-  const hook = Object.entries(config).filter(([key, value]) => key.startsWith("hook_send_email") && value);
+  const hook = Object.entries(config).filter(
+    ([key, value]) => key.startsWith("hook_send_email") && value,
+  );
   for (const key of Object.keys(WANTED) as (keyof typeof WANTED)[]) {
     const value = config[key];
-    const text = typeof value === "string" ? value.replace(/\s+/g, " ").slice(0, 90) : String(value);
+    const text =
+      typeof value === "string" ? value.replace(/\s+/g, " ").slice(0, 90) : String(value);
     const ok = value === WANTED[key] ? "ok " : "OFF";
     console.log(`${ok} ${key}: ${text === "" ? "(empty: Supabase's default)" : text}`);
   }

@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+import { DEFAULT_LOCALE, isEnabledLocale, type Locale } from "@/i18n/config";
+import { cookieLocale, LOCALE_COOKIE } from "@/i18n/routing";
 import { fail, ok } from "@/lib/api/respond";
 import { RequestCodeSchema, type RequestCodeResponse } from "@/lib/api/types";
 import { AuthError, requestLoginCode } from "@/lib/auth/codes";
@@ -9,6 +12,12 @@ import { withApiLocale } from "@/lib/api/localize";
 
 export const runtime = "nodejs";
 
+// The page's language when it sends one, else the app's; only a live one, and only a new account keeps it.
+async function codeLocale(asked: string | undefined): Promise<Locale> {
+  if (isEnabledLocale(asked)) return asked;
+  return cookieLocale((await cookies()).get(LOCALE_COOKIE)?.value) ?? DEFAULT_LOCALE;
+}
+
 // Same answer whether or not the address has an account, so sign-ups can't be probed.
 export const POST = withApiLocale(async function POST(req: Request): Promise<Response> {
   const notJson = rejectNonJson(req);
@@ -17,7 +26,8 @@ export const POST = withApiLocale(async function POST(req: Request): Promise<Res
   if (!body.ok) return fail("bad_request", "Enter a valid email address.", 400);
 
   try {
-    const { devCode } = await requestLoginCode(body.data.email, clientIp(req));
+    const locale = await codeLocale(body.data.locale);
+    const { devCode } = await requestLoginCode(body.data.email, clientIp(req), Date.now(), locale);
     const response: Omit<RequestCodeResponse, "ok"> = devCode ? { devCode } : {};
     return ok(response);
   } catch (error) {

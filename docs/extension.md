@@ -18,6 +18,10 @@ bun run extension:icons        # redraws extension/store/icons from src/app/icon
 
 The build is Bun's own bundler: three IIFE bundles (`background.js`, `content.js`, `bridge.js`), with the app's pure modules from `extension/src/lib` bundled in. Next never compiles `extension/` (the root `tsconfig.json` excludes it and `.vercelignore` leaves it out of deploys).
 
+## Languages
+
+The extension speaks the browser's language when Otto has it: English, Spanish, Portuguese–Brazil, French and German, everything else English. Its words live in `extension/_locales/<en|es|pt_BR|fr|de>/messages.json` (the build copies the folder) and come through `chrome.i18n`; the manifest's name, description and toolbar title are `__MSG_…__` with `default_locale: "en"`. Code calls `t(key, ...values)` from `extension/src/i18n.ts`, typed by the English file. Chrome has no plurals, so a counted message has `…One` and `…Other` keys and `pluralKey(count, one, other)` picks with the words' own language (the `lang` message). Without `chrome.i18n` (tests), `t` reads the English file the way Chrome does. `extension/src/i18n.test.ts` keeps every locale's keys and placeholders equal to English, the store's length limits, and no markup in any message (they go straight into the badge's HTML); `extension/src/ui/english-golden.test.ts` keeps the English badge byte-identical. Still English: eligibility notes and the place names inside them (from `src/lib/eligibility`), error messages the API sends, and the dev build's name.
+
 ## Load it unpacked
 
 1. Run the app on port 3314: `OTTO_PGLITE_DIR=<a scratch copy> node_modules/.bin/next dev -p 3314`.

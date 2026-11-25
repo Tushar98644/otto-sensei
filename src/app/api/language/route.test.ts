@@ -1,10 +1,11 @@
+import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { saveLanguage } from "@/lib/account/language";
-import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { deleteUserData } from "@/lib/users";
 import { PUT } from "./route";
 
@@ -87,6 +88,21 @@ describe("/api/language", () => {
     const limited = await put({ locale: "en" });
     expect(limited.status).toBe(429);
     expect(await codeOf(limited)).toBe("rate_limited");
+  });
+
+  it("tells Supabase, so the sign-in code email speaks it too", async () => {
+    const user = await signInAs();
+    await put({ locale: "en" });
+    expect(fakeAuth.metadataOf(user.id)).toEqual({ otto_locale: "en" });
+  });
+
+  it("still saves the language when Supabase can't take it", async () => {
+    const user = await signInAs();
+    fakeAuth.failNext("updateUserById", new AuthRetryableFetchError("offline", 0));
+    const res = await put({ locale: "en" });
+    expect(res.status).toBe(200);
+    expect(await storedLocale(user.id)).toBe("en");
+    expect(fakeAuth.metadataOf(user.id)).toBeUndefined();
   });
 
   it("goes with the account, and refuses to write for a deleted one", async () => {

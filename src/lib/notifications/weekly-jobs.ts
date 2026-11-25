@@ -4,6 +4,9 @@ import { FREE_JOB_MATCHES, hasProTools, type PlanId } from "@/config/plans";
 import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { applications, resumes, users, userSettings } from "@/db/schema";
+import type { Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
+import { formatFor } from "@/i18n/intl";
 import { normalizeJobUrl } from "@/lib/applications/schema";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
 import { readWorkProfile } from "@/lib/eligibility/records";
@@ -19,6 +22,7 @@ import type { Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
 import { clip, NAME_CHARS } from "./follow-up";
+import { emailLocale, emailMessages } from "./locale";
 import { insertNotification } from "./records";
 import { NOTIFICATION_LIMITS } from "./types";
 
@@ -38,7 +42,7 @@ export const WEEKLY_JOBS = {
   maxChecksPerRun: 900,
 } as const;
 
-type Due = { userId: string; plan: PlanId; notedAt: number | null };
+type Due = { userId: string; plan: PlanId; notedAt: number | null; locale: Locale };
 
 type Found = { fresh: number; names: string[]; free: boolean };
 
@@ -142,31 +146,33 @@ async function newMatchesFor(
   ]);
   const listed = shown.filter((job) => fresh.has(job.id) && !applied(job));
   if (listed.length === 0) return { kind: "nothing_new" };
-  const names = listed.slice(0, WEEKLY_JOBS.named).map((job) => jobName(job));
+  const names = listed.slice(0, WEEKLY_JOBS.named).map((job) => jobName(job, due.locale));
   return { kind: "found", found: { fresh: listed.length, names, free } };
 }
 
-function jobName(job: Pick<MatchedJob, "title" | "company">): string {
+function jobName(job: Pick<MatchedJob, "title" | "company">, locale: Locale): string {
   const title = clip(job.title, NAME_CHARS);
   const company = clip(job.company, NAME_CHARS);
-  return company ? `${title} at ${company}` : title;
+  return company ? fmt(emailMessages(locale).jobs.job, { title, company }) : title;
 }
 
-export function matchesNotice(found: Found): { title: string; body: string } {
+export function matchesNotice(found: Found, locale: Locale): { title: string; body: string } {
+  const t = emailMessages(locale).jobs;
+  const format = formatFor(locale);
   const { fresh, names, free } = found;
   const more = fresh - names.length;
+  const [first, second] = names;
   const listed =
-    names.length === 0
+    first === undefined
       ? ""
       : more > 0
-        ? `${names.join(", ")} and ${more} more.`
-        : names.length === 2
-          ? `${names[0]} and ${names[1]}.`
-          : `${names[0]}.`;
-  const tail = free ? " On Free, Jobs shows your closest few." : "";
+        ? fmt(t.andMore, { names: names.join(", "), count: format.number(more) })
+        : second === undefined
+          ? fmt(t.single, { name: first })
+          : fmt(t.pair, { first, second });
   return {
-    title: `${fresh} new ${fresh === 1 ? "match" : "matches"} this week`,
-    body: clip(`${listed}${tail}`.trim(), NOTIFICATION_LIMITS.body),
+    title: format.plural(t.title, fresh),
+    body: clip([listed, free ? t.free : ""].filter(Boolean).join(" "), NOTIFICATION_LIMITS.body),
   };
 }
 
@@ -191,7 +197,7 @@ async function markChecked(userId: string, now: number): Promise<void> {
 }
 
 // Stamped under the account's lock, and only while still due, so overlapping runs ring once.
-async function claim(userId: string, found: Found, now: number): Promise<boolean> {
+async function claim(userId: string, found: Found, locale: Locale, now: number): Promise<boolean> {
   const db = await getDb();
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return false;
@@ -210,7 +216,7 @@ async function claim(userId: string, found: Found, now: number): Promise<boolean
       });
     await insertNotification(
       tx,
-      { userId, kind: "job_matches", ...matchesNotice(found), link: ROUTES.dashboardJobs },
+      { userId, kind: "job_matches", ...matchesNotice(found, locale), link: ROUTES.dashboardJobs },
       now,
     );
     return true;
@@ -232,6 +238,7 @@ export async function runWeeklyMatches({ now, deadline }: CronContext): Promise<
         userId: users.id,
         plan: users.plan,
         notedAt: userSettings.jobsNotedAt,
+        locale: userSettings.locale,
       })
       .from(users)
       .leftJoin(userSettings, eq(userSettings.userId, users.id))
@@ -239,7 +246,8 @@ export async function runWeeklyMatches({ now, deadline }: CronContext): Promise<
         and(hasResume, dueFor(now), skipped.length > 0 ? notInArray(users.id, skipped) : undefined),
       )
       .orderBy(sql`coalesce(${userSettings.jobsCheckedAt}, 0)`, asc(users.id))
-      .limit(WEEKLY_JOBS.usersPerBatch);
+      .limit(WEEKLY_JOBS.usersPerBatch)
+      .then((found) => found.map((row) => ({ ...row, locale: emailLocale(row.locale) })));
     if (rows.length === 0) {
       complete = true;
       break;
@@ -255,7 +263,7 @@ export async function runWeeklyMatches({ now, deadline }: CronContext): Promise<
           stats[check.kind === "no_resume" ? "noResume" : "nothingNew"] += 1;
           continue;
         }
-        if (await claim(due.userId, check.found, now)) stats.users += 1;
+        if (await claim(due.userId, check.found, due.locale, now)) stats.users += 1;
         else skipped.push(due.userId);
       } catch (error) {
         log.error("cron.job_matches.user_failed", error);

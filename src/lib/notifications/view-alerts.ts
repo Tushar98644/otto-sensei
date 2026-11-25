@@ -4,9 +4,14 @@ import { ROUTES } from "@/components/site/routes";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { portfolios, resumes, shares } from "@/db/schema";
+import type { Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
+import { formatFor } from "@/i18n/intl";
+import { savedLocale } from "@/lib/account/language";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
 import { log } from "@/lib/log";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
+import { emailMessages } from "./locale";
 import { insertNotification } from "./records";
 
 // Bell alerts when someone opens a share link or the portfolio, in the bell only: counts and when, never who.
@@ -22,27 +27,34 @@ export const VIEW_ALERTS = {
   maxPortfolioBatches: 20,
 } as const;
 
-const count = new Intl.NumberFormat("en-US");
-const SINCE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-
-const views = (n: number) => `${count.format(n)} ${n === 1 ? "view" : "views"}`;
-
 export type ViewNotice = { title: string; body: string; link: string };
 
-export function shareViewNotice(name: string, total: number): ViewNotice {
-  const which = name.trim() ? `Your link for “${name.trim()}”` : "Your resume link";
+function viewCount(total: number, locale: Locale): string {
+  return formatFor(locale).plural(emailMessages(locale).views.count, total);
+}
+
+export function shareViewNotice(name: string, total: number, locale: Locale): ViewNotice {
+  const t = emailMessages(locale).views;
+  const link = name.trim() ? fmt(t.namedLink, { name: name.trim() }) : t.resumeLink;
   return {
-    title: "Someone opened your resume link",
-    body: `${which} has ${views(total)} so far.`,
+    title: t.shareTitle,
+    body: fmt(t.shareBody, { link, views: viewCount(total, locale) }),
     link: ROUTES.dashboardResumes,
   };
 }
 
-export function portfolioViewsNotice(gained: number, since: number, now: number): ViewNotice {
-  const period = now - since <= VIEW_ALERTS.weekMs ? "this week" : `since ${SINCE.format(since)}`;
+export function portfolioViewsNotice(
+  gained: number,
+  since: number,
+  now: number,
+  locale: Locale,
+): ViewNotice {
+  const t = emailMessages(locale).views;
+  const day = formatFor(locale).date(since, { month: "short", day: "numeric", timeZone: "UTC" });
+  const period = now - since <= VIEW_ALERTS.weekMs ? t.thisWeek : fmt(t.since, { day });
   return {
-    title: `Your portfolio got ${views(gained)} ${period}`,
-    body: "Counted without you, link previews or search engines.",
+    title: fmt(t.portfolioTitle, { views: viewCount(gained, locale), period }),
+    body: t.portfolioBody,
     link: PORTFOLIO_ROUTE,
   };
 }
@@ -79,7 +91,7 @@ export async function noteShareView(
       )
       .returning({ views: shares.views, name: linkName });
     if (!share) return false;
-    const notice = shareViewNotice(share.name, share.views);
+    const notice = shareViewNotice(share.name, share.views, await savedLocale(tx, ownerId));
     await insertNotification(tx, { userId: ownerId, kind: "share_viewed", ...notice }, now);
     return true;
   });
@@ -122,7 +134,8 @@ async function notePortfolio(due: PortfolioDue, now: number): Promise<boolean> {
       .returning({ id: portfolios.id });
     const gained = due.views - due.noted;
     if (!moved || gained <= 0) return false;
-    const notice = portfolioViewsNotice(gained, due.since, now);
+    const locale = await savedLocale(tx, due.userId);
+    const notice = portfolioViewsNotice(gained, due.since, now, locale);
     await insertNotification(tx, { userId: due.userId, kind: "portfolio_views", ...notice }, now);
     return true;
   });

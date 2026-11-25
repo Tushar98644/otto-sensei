@@ -4,6 +4,7 @@ import { accountSectionHref } from "@/components/setup/links";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { users, userSettings } from "@/db/schema";
+import type { Locale } from "@/i18n/config";
 import { emailLink } from "@/lib/analytics/landing";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
 import { appUrl } from "@/lib/env";
@@ -11,6 +12,7 @@ import { log } from "@/lib/log";
 import { optionalEmailRoom } from "@/lib/notifications/budget";
 import { EMAIL_BATCH_MAX, type EmailMessage, type EmailSender } from "@/lib/notifications/email";
 import { OTTO_HEAD_EMAIL_PATH } from "@/lib/notifications/follow-up";
+import { emailLocale, localizedPath } from "@/lib/notifications/locale";
 import { insertNotification } from "@/lib/notifications/records";
 import { unsubscribeUrl } from "@/lib/notifications/unsubscribe";
 import { DAY_MS } from "@/lib/time";
@@ -38,6 +40,7 @@ type DueRow = {
   nextCheckinOn: LocalDate | null;
   pausedUntil: LocalDate | null;
   lastCheckinMonth: Month | null;
+  locale: string | null;
 };
 
 // Only while the row still says what was read, so two runs at once ask once.
@@ -72,7 +75,7 @@ async function settle(
       {
         userId: row.userId,
         kind: "career_checkin",
-        ...checkinNotice(decision.month),
+        ...checkinNotice(decision.month, emailLocale(row.locale)),
         link: checkinPath(decision.month),
       },
       now,
@@ -98,6 +101,7 @@ async function ringBells({ now, deadline }: CronContext) {
         nextCheckinOn: userSettings.careerNextOn,
         pausedUntil: userSettings.careerPausedUntil,
         lastCheckinMonth: userSettings.careerLastMonth,
+        locale: userSettings.locale,
       })
       .from(userSettings)
       .where(
@@ -140,6 +144,7 @@ type Claimed = {
   userId: string;
   email: string;
   month: Month;
+  locale: Locale;
   before: { month: Month | null; at: number | null };
 };
 
@@ -166,10 +171,12 @@ async function claimEmail(
             : eq(userSettings.careerEmailedMonth, before.month),
         ),
       )
-      .returning({ userId: userSettings.userId });
-    if (stamped.length === 0) return null;
+      .returning({ userId: userSettings.userId, locale: userSettings.locale });
+    const [settings] = stamped;
+    if (!settings) return null;
     const [owner] = await tx.select({ email: users.email }).from(users).where(eq(users.id, userId));
-    return owner ? { userId, email: owner.email, month, before } : null;
+    const locale = emailLocale(settings.locale);
+    return owner ? { userId, email: owner.email, month, locale, before } : null;
   });
 }
 
@@ -186,15 +193,17 @@ async function release(batch: readonly Claimed[], now: number): Promise<void> {
 function emailFor(item: Claimed): EmailMessage {
   const base = appUrl();
   const at = (path: string) => new URL(path, base).toString();
+  const page = (path: string) => at(localizedPath(item.locale, path));
   return checkinEmail({
     to: item.email,
     month: item.month,
-    url: emailLink(at(checkinPath(item.month)), "career_checkin", "checkin"),
+    url: emailLink(page(checkinPath(item.month)), "career_checkin", "checkin"),
     links: {
       ottoHeadUrl: at(OTTO_HEAD_EMAIL_PATH),
-      settingsUrl: emailLink(at(accountSectionHref("careerLog")), "career_checkin", "settings"),
+      settingsUrl: emailLink(page(accountSectionHref("careerLog")), "career_checkin", "settings"),
       unsubscribeUrl: unsubscribeUrl(item.userId, "career"),
     },
+    locale: item.locale,
   });
 }
 

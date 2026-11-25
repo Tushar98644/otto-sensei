@@ -1,4 +1,5 @@
 import { DEV_BUILD } from "../config";
+import { t } from "../i18n";
 import { ottoHead } from "../ui/otto";
 
 // "Draft with Otto" beside each question written in words: one shadow layer over the page, never inside the form's own markup.
@@ -96,7 +97,7 @@ export function mountDraftButtons(onDraft: (key: string) => void): DraftButtons 
       root.innerHTML = spots
         .map(
           (spot) =>
-            `<button type="button" data-key="${spot.key.replace(/"/g, "&quot;")}"${spot.busy ? ' aria-busy="true"' : ""}>${ottoHead(18)}${spot.busy ? "Drafting…" : "Draft with Otto"}</button>`,
+            `<button type="button" data-key="${spot.key.replace(/"/g, "&quot;")}"${spot.busy ? ' aria-busy="true"' : ""}>${ottoHead(18)}${spot.busy ? t("draftingShort") : t("draftWithOtto")}</button>`,
         )
         .join("");
       place();

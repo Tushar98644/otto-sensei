@@ -254,12 +254,22 @@ describe("runWeeklyMatches", () => {
   });
 
   it("names two jobs and counts the rest", () => {
-    expect(matchesNotice({ fresh: 2, names: ["A at X", "B at Y"], free: false })).toEqual({
+    expect(matchesNotice({ fresh: 2, names: ["A at X", "B at Y"], free: false }, "en")).toEqual({
       title: "2 new matches this week",
       body: "A at X and B at Y.",
     });
-    expect(matchesNotice({ fresh: 9, names: ["A at X", "B at Y"], free: false }).body).toBe(
+    expect(matchesNotice({ fresh: 9, names: ["A at X", "B at Y"], free: false }, "en").body).toBe(
       "A at X, B at Y and 7 more.",
+    );
+  });
+
+  it("counts in the account's language", () => {
+    expect(matchesNotice({ fresh: 9, names: ["A en X", "B en Y"], free: true }, "es")).toEqual({
+      title: "9 coincidencias nuevas esta semana",
+      body: "A en X, B en Y y 7 más. En Free, Empleos muestra tus coincidencias más cercanas.",
+    });
+    expect(matchesNotice({ fresh: 1, names: ["A"], free: false }, "fr").title).toBe(
+      "1 nouvelle correspondance cette semaine",
     );
   });
 });

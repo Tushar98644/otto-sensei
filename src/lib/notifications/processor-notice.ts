@@ -5,11 +5,15 @@ import { BRAND } from "@/config/brand";
 import type { Db } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { users, userSettings } from "@/db/schema";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
+import { formatFor } from "@/i18n/intl";
 import { log } from "@/lib/log";
 import { DAY_MS } from "@/lib/time";
 import { optionalEmailRoom } from "./budget";
 import { EMAIL_BATCH_MAX, type EmailMessage, type EmailSender } from "./email";
 import { escapeHtml, FONT, FOREST, INK, MUTED, OTTO_HEAD_EMAIL_PATH, RULE } from "./follow-up";
+import { emailLocale, emailMessages, localizedPath, signOff as signOffIn } from "./locale";
 import type { NoticeEmailKind } from "./types";
 
 // The terms and privacy policy promise signed-in users an email before a change like this takes effect: a service notice, not marketing.
@@ -110,12 +114,13 @@ export type ProcessorNoticeLinks = {
   ottoHeadUrl: string;
 };
 
-export function processorNoticeLinks(baseUrl: string): ProcessorNoticeLinks {
+export function processorNoticeLinks(baseUrl: string, locale: Locale): ProcessorNoticeLinks {
   const at = (path: string) => new URL(path, baseUrl).toString();
+  const page = (path: string) => at(localizedPath(locale, path));
   return {
-    terms: at(ROUTES.terms),
-    privacy: at(ROUTES.privacy),
-    refunds: at(ROUTES.refunds),
+    terms: page(ROUTES.terms),
+    privacy: page(ROUTES.privacy),
+    refunds: page(ROUTES.refunds),
     ottoHeadUrl: at(OTTO_HEAD_EMAIL_PATH),
   };
 }
@@ -132,40 +137,49 @@ export function publicBaseUrl(baseUrl: string): boolean {
   }
 }
 
-export function noticeDay(startsOn: number, withYear = true): string {
-  return new Intl.DateTimeFormat("en-US", {
+export function noticeDay(startsOn: number, withYear = true, locale: Locale = DEFAULT_LOCALE) {
+  return formatFor(locale).date(startsOn, {
     month: "long",
     day: "numeric",
     ...(withYear ? { year: "numeric" as const } : {}),
     timeZone: "UTC",
-  }).format(startsOn);
+  });
 }
 
-export type ProcessorNoticeInput = { to: string; startsOn: number; links: ProcessorNoticeLinks };
+export type ProcessorNoticeInput = {
+  to: string;
+  startsOn: number;
+  links: ProcessorNoticeLinks;
+  locale: Locale;
+};
 
 export function processorNoticeEmail(input: ProcessorNoticeInput): EmailMessage {
-  const { links } = input;
-  const subject = `Dodo Payments takes live payments for ${BRAND.name} from ${noticeDay(input.startsOn, false)}`;
+  const { links, locale } = input;
+  const words = emailMessages(locale);
+  const t = words.processorNotice;
+  const brand = BRAND.name;
+  const subject = fmt(t.subject, { brand, day: noticeDay(input.startsOn, false, locale) });
   const paragraphs = [
-    `A short notice about payments: Dodo Payments now handles checkout for ${BRAND.name} in place of Paddle, and takes live payments from ${noticeDay(input.startsOn)}.`,
-    "Dodo Payments is our online reseller and merchant of record. It takes the payment when you buy a plan, and handles receipts, sales tax or VAT, refunds and billing support.",
-    "When you start a checkout, we send Dodo Payments your account email, our random id for your account and the plan you pick, the same details Paddle used to get. Dodo Payments handles your payment details under its own privacy policy.",
-    `There's nothing you need to do. Everything you've made in ${BRAND.name} stays as it is, and our prices don't change.`,
+    fmt(t.intro, { brand, day: noticeDay(input.startsOn, true, locale) }),
+    t.reseller,
+    t.data,
+    fmt(t.nothing, { brand }),
   ];
-  const updated = "We've updated our terms, privacy policy and refund page to match:";
+  const updated = t.updated;
   const pages = [
-    { label: "Terms", url: links.terms },
-    { label: "Privacy policy", url: links.privacy },
-    { label: "Refunds", url: links.refunds },
+    { label: t.terms, url: links.terms },
+    { label: t.privacy, url: links.privacy },
+    { label: t.refunds, url: links.refunds },
   ];
-  const questions = `Questions? Email ${BRAND.supportEmail}.`;
-  const signOff = `${BRAND.mascotName}, from ${BRAND.name}`;
-  const footer = `You're getting this because you have a ${BRAND.name} account. It's a one-time notice about a change to our terms and privacy policy, so it comes even if other emails are off.`;
+  const questions = fmt(t.questions, { email: BRAND.supportEmail });
+  const [askBefore = "", askAfter = ""] = t.questions.split("{email}");
+  const signOff = signOffIn(locale);
+  const footer = fmt(t.footer, { brand });
 
   const text = [
     ...paragraphs.flatMap((line) => [line, ""]),
     updated,
-    ...pages.map((page) => `${page.label}: ${page.url}`),
+    ...pages.map((page) => fmt(words.linkLine, { label: page.label, url: page.url })),
     "",
     questions,
     "",
@@ -186,7 +200,7 @@ ${paragraph(updated, 8)}
 <ul style="margin:0 0 16px;padding-left:20px">
 ${pages.map((page) => `<li>${link(page.label, page.url)}</li>`).join("\n")}
 </ul>
-<p style="margin:0 0 24px">Questions? Email ${link(BRAND.supportEmail, `mailto:${BRAND.supportEmail}`)}.</p>
+<p style="margin:0 0 24px">${escapeHtml(askBefore)}${link(BRAND.supportEmail, `mailto:${BRAND.supportEmail}`)}${escapeHtml(askAfter)}</p>
 ${paragraph(signOff, 24)}
 <p style="margin:0;padding-top:16px;border-top:1px solid ${RULE};color:${MUTED};font-size:13px">${escapeHtml(footer)}</p>
 </div>`;
@@ -224,15 +238,16 @@ export async function processorNoticeCounts(
   };
 }
 
-type Claimed = { userId: string; email: string };
+type Claimed = { userId: string; email: string; locale: Locale };
 
 async function claim(db: Db, userId: string, now: number): Promise<Claimed | null> {
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return null;
     // Read again under the lock: the account may be gone, or an overlapping run may have taken it.
     const [row] = await tx
-      .select({ email: users.email })
+      .select({ email: users.email, locale: userSettings.locale })
       .from(users)
+      .leftJoin(userSettings, eq(userSettings.userId, users.id))
       .where(and(eq(users.id, userId), due))
       .limit(1);
     if (!row) return null;
@@ -249,7 +264,9 @@ async function claim(db: Db, userId: string, now: number): Promise<Claimed | nul
         setWhere: sql`not coalesce(${userSettings.notices} ? ${NOTICE_KEY}, false)`,
       })
       .returning({ userId: userSettings.userId });
-    return logged.length === 0 ? null : { userId, email: row.email };
+    return logged.length === 0
+      ? null
+      : { userId, email: row.email, locale: emailLocale(row.locale) };
   });
 }
 
@@ -287,7 +304,8 @@ export type NoticeRunInput = {
   limit: number | null;
   now: number;
   sender: EmailSender;
-  links: ProcessorNoticeLinks;
+  // The public site the links open; each reader's links follow their language.
+  baseUrl: string;
 };
 
 // refused: Resend took nothing and those accounts were released; failed: a batch failed outright and stays logged, as it may have gone out.
@@ -337,7 +355,12 @@ export async function sendProcessorNotice(db: Db, input: NoticeRunInput): Promis
 
     if (batch.length > 0) {
       const messages = batch.map((item) =>
-        processorNoticeEmail({ to: item.email, startsOn: input.startsOn, links: input.links }),
+        processorNoticeEmail({
+          to: item.email,
+          startsOn: input.startsOn,
+          links: processorNoticeLinks(input.baseUrl, item.locale),
+          locale: item.locale,
+        }),
       );
       try {
         const result = await input.sender.sendBatch(messages, batchKey(batch));

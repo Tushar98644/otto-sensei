@@ -1,0 +1,748 @@
+{
+  "lang": {
+    "message": "en",
+    "description": "The language these messages are in, for plurals and names."
+  },
+  "extName": {
+    "message": "Otto for Chrome",
+    "description": "The extension's name in the Chrome Web Store and the toolbar."
+  },
+  "extDescription": {
+    "message": "See how your resume matches a job post, and whether you can take the job, right on the page where you read it.",
+    "description": "At most 132 characters."
+  },
+  "actionTitle": {
+    "message": "Otto: check this job",
+    "description": "Tooltip on the toolbar button."
+  },
+  "showLess": {
+    "message": "Show less"
+  },
+  "tuckAway": {
+    "message": "Tuck Otto away"
+  },
+  "savedOpenBoard": {
+    "message": "Saved. Open your board"
+  },
+  "saved": {
+    "message": "Saved"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "tailor": {
+    "message": "Tailor",
+    "description": "Button: tailor the resume to this job."
+  },
+  "letter": {
+    "message": "Letter",
+    "description": "Button: write a cover letter for this job."
+  },
+  "missing": {
+    "message": "Missing: $TERMS$",
+    "description": "terms is a list of skill names.",
+    "placeholders": {
+      "terms": {
+        "content": "$1"
+      }
+    }
+  },
+  "missingMore": {
+    "message": "Missing: $TERMS$ and $COUNT$ more",
+    "placeholders": {
+      "terms": {
+        "content": "$1"
+      },
+      "count": {
+        "content": "$2"
+      }
+    }
+  },
+  "allSkillsFound": {
+    "message": "Every skill the post names is in your resume."
+  },
+  "skillsOfOne": {
+    "message": "of $TOTAL$ skill found",
+    "description": "Follows a big number: 1 [of 1 skill found].",
+    "placeholders": {
+      "total": {
+        "content": "$1"
+      }
+    }
+  },
+  "skillsOfOther": {
+    "message": "of $TOTAL$ skills found",
+    "description": "Follows a big number: 4 [of 9 skills found].",
+    "placeholders": {
+      "total": {
+        "content": "$1"
+      }
+    }
+  },
+  "skillsFoundOne": {
+    "message": "$FOUND$ of $TOTAL$ skill found",
+    "placeholders": {
+      "found": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "skillsFoundOther": {
+    "message": "$FOUND$ of $TOTAL$ skills found",
+    "placeholders": {
+      "found": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "noSkills": {
+    "message": "No skills Otto knows in this post"
+  },
+  "mustHave": {
+    "message": "must-have"
+  },
+  "niceToHave": {
+    "message": "nice to have"
+  },
+  "statusShown": {
+    "message": "In a line",
+    "description": "The skill shows in a line of the resume."
+  },
+  "statusListed": {
+    "message": "Listed, not shown",
+    "description": "The skill is in the skills list but no line shows it."
+  },
+  "statusMissing": {
+    "message": "Not found"
+  },
+  "quote": {
+    "message": "$PLACE$: “$TEXT$”",
+    "description": "Where in the resume a skill shows, and the line.",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      },
+      "text": {
+        "content": "$2"
+      }
+    }
+  },
+  "verdictOk": {
+    "message": "OK"
+  },
+  "verdictCheck": {
+    "message": "Check"
+  },
+  "verdictBlocked": {
+    "message": "Likely blocked"
+  },
+  "ruleLocation": {
+    "message": "Where you live"
+  },
+  "ruleAuthorization": {
+    "message": "Right to work"
+  },
+  "ruleSponsorship": {
+    "message": "Visa sponsorship"
+  },
+  "ruleTimeZone": {
+    "message": "Time zone"
+  },
+  "ruleWorkType": {
+    "message": "Job type"
+  },
+  "checkedAgainst": {
+    "message": "Checked against",
+    "description": "Label over the resume picker."
+  },
+  "checkedAgainstResume": {
+    "message": "checked against $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1"
+      }
+    }
+  },
+  "skillsHeading": {
+    "message": "Skills the post names"
+  },
+  "canYouTakeIt": {
+    "message": "Can you take it"
+  },
+  "openOtto": {
+    "message": "Open Otto"
+  },
+  "disconnect": {
+    "message": "Disconnect"
+  },
+  "seeEverything": {
+    "message": "See every skill and rule"
+  },
+  "savedLine": {
+    "message": "In To apply on your board.",
+    "description": "To apply is a column of the applications board."
+  },
+  "openIt": {
+    "message": "Open it"
+  },
+  "savedAnswersRegion": {
+    "message": "Otto for Chrome: your saved answers"
+  },
+  "savedAnswersMeta": {
+    "message": "your saved answers"
+  },
+  "miniLabel": {
+    "message": "Otto: $LINE$",
+    "placeholders": {
+      "line": {
+        "content": "$1"
+      }
+    }
+  },
+  "connectMessage": {
+    "message": "Connect me to your account and I'll check every job post against your resume, right here."
+  },
+  "connectButton": {
+    "message": "Connect Otto"
+  },
+  "readingResume": {
+    "message": "Reading your resume…"
+  },
+  "needResume": {
+    "message": "I need a resume to compare with. Add one in Otto, then come back to this post."
+  },
+  "addResume": {
+    "message": "Add a resume"
+  },
+  "cantFindPost": {
+    "message": "I can't find the job post on this page. Select its text, then press Use selection."
+  },
+  "useSelection": {
+    "message": "Use selection"
+  },
+  "notNow": {
+    "message": "Not now"
+  },
+  "selectMore": {
+    "message": "Select a few lines of the post, at least its requirements, then press Use selection."
+  },
+  "groupNorthAmerica": {
+    "message": "North America"
+  },
+  "groupLatam": {
+    "message": "Latin America"
+  },
+  "groupEurope": {
+    "message": "Europe"
+  },
+  "groupEu": {
+    "message": "EU"
+  },
+  "groupEmea": {
+    "message": "EMEA"
+  },
+  "groupApac": {
+    "message": "APAC"
+  },
+  "groupAnz": {
+    "message": "Australia and New Zealand"
+  },
+  "groupAmericas": {
+    "message": "the Americas"
+  },
+  "groupWorldwide": {
+    "message": "worldwide"
+  },
+  "placeAnywhere": {
+    "message": "anywhere"
+  },
+  "placeNorthAmerica": {
+    "message": "North America"
+  },
+  "placeLatam": {
+    "message": "Latin America"
+  },
+  "placeEurope": {
+    "message": "Europe"
+  },
+  "placeEu": {
+    "message": "EU"
+  },
+  "placeEmea": {
+    "message": "Europe, Middle East and Africa"
+  },
+  "placeApac": {
+    "message": "Asia-Pacific"
+  },
+  "placeAnz": {
+    "message": "Australia and New Zealand"
+  },
+  "authUs": {
+    "message": "Needs US work authorization"
+  },
+  "authUk": {
+    "message": "Needs UK work authorization"
+  },
+  "authEu": {
+    "message": "Needs EU work authorization"
+  },
+  "authCa": {
+    "message": "Needs Canada work authorization"
+  },
+  "visaUs": {
+    "message": "No visa sponsorship for the US"
+  },
+  "visaUk": {
+    "message": "No visa sponsorship for the UK"
+  },
+  "visaEu": {
+    "message": "No visa sponsorship for the EU"
+  },
+  "visaCa": {
+    "message": "No visa sponsorship for Canada"
+  },
+  "onlyFor": {
+    "message": "Only for people in $PLACE$",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "onSite": {
+    "message": "On-site in $PLACE$",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "openTo": {
+    "message": "Open to $PLACE$",
+    "description": "place is where the person looks for jobs.",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "openToDetails": {
+    "message": "Open to $PLACE$ ($DETAILS$)",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      },
+      "details": {
+        "content": "$2"
+      }
+    }
+  },
+  "remoteWord": {
+    "message": "remote"
+  },
+  "postedFor": {
+    "message": "Posted for $WHERE$",
+    "placeholders": {
+      "where": {
+        "content": "$1"
+      }
+    }
+  },
+  "postedForNot": {
+    "message": "Posted for $WHERE$, not $PLACE$",
+    "placeholders": {
+      "where": {
+        "content": "$1"
+      },
+      "place": {
+        "content": "$2"
+      }
+    }
+  },
+  "remotePlace": {
+    "message": "$PLACE$ (remote)",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "noRules": {
+    "message": "No place or work rules in the post"
+  },
+  "perYear": {
+    "message": "a year"
+  },
+  "perMonth": {
+    "message": "a month"
+  },
+  "perHour": {
+    "message": "an hour"
+  },
+  "rightsEu": {
+    "message": "the EU"
+  },
+  "rightsUs": {
+    "message": "the US"
+  },
+  "rightsGb": {
+    "message": "the UK"
+  },
+  "choose": {
+    "message": "Choose"
+  },
+  "yes": {
+    "message": "Yes"
+  },
+  "no": {
+    "message": "No"
+  },
+  "payHint": {
+    "message": "Like 18 LPA",
+    "description": "LPA: lakhs per year, an Indian pay unit."
+  },
+  "payAmount": {
+    "message": "$LABEL$: amount",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      }
+    }
+  },
+  "payCurrency": {
+    "message": "$LABEL$: currency",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      }
+    }
+  },
+  "payPer": {
+    "message": "$LABEL$: per",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      }
+    }
+  },
+  "yourAnswer": {
+    "message": "Your answer"
+  },
+  "asksRegion": {
+    "message": "Answers Otto needs"
+  },
+  "asksOne": {
+    "message": "Otto needs one answer"
+  },
+  "asksOther": {
+    "message": "Otto needs $COUNT$ answers",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "saveAndFill": {
+    "message": "Save and fill"
+  },
+  "savedToAccount": {
+    "message": "Saved to your account, so the next form doesn't ask."
+  },
+  "drafting": {
+    "message": "Otto is drafting from your resume and this post…"
+  },
+  "draftAria": {
+    "message": "Otto's draft"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "close": {
+    "message": "Close"
+  },
+  "useDraft": {
+    "message": "Put it in the form"
+  },
+  "discard": {
+    "message": "Discard"
+  },
+  "draftWithOtto": {
+    "message": "Draft with Otto"
+  },
+  "draftingShort": {
+    "message": "Drafting…"
+  },
+  "draftNote": {
+    "message": "Edit it here first. Nothing goes in until you press the button."
+  },
+  "fieldsOne": {
+    "message": "$COUNT$ field",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "fieldsOther": {
+    "message": "$COUNT$ fields",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "filled": {
+    "message": "Filled $FIELDS$.",
+    "placeholders": {
+      "fields": {
+        "content": "$1"
+      }
+    }
+  },
+  "filledAttached": {
+    "message": "Filled $FIELDS$ and attached $FILE$.",
+    "placeholders": {
+      "fields": {
+        "content": "$1"
+      },
+      "file": {
+        "content": "$2"
+      }
+    }
+  },
+  "fromTailored": {
+    "message": "Your copy tailored for this job."
+  },
+  "fromResume": {
+    "message": "From $TITLE$.",
+    "placeholders": {
+      "title": {
+        "content": "$1"
+      }
+    }
+  },
+  "protectedOne": {
+    "message": "Left for you: $COUNT$ self-identification or consent question. Otto never answers those.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "protectedOther": {
+    "message": "Left for you: $COUNT$ self-identification or consent questions. Otto never answers those.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "fillYourself": {
+    "message": "Fill these yourself: $NAMES$.",
+    "placeholders": {
+      "names": {
+        "content": "$1"
+      }
+    }
+  },
+  "fillYourselfMore": {
+    "message": "Fill these yourself: $NAMES$ and $COUNT$ more.",
+    "placeholders": {
+      "names": {
+        "content": "$1"
+      },
+      "count": {
+        "content": "$2"
+      }
+    }
+  },
+  "draftsOne": {
+    "message": "$COUNT$ question to write: press Draft with Otto beside it.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "draftsOther": {
+    "message": "$COUNT$ questions to write: press Draft with Otto beside each.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "checkSubmit": {
+    "message": "Check every answer, then press Submit yourself. Otto never sends a form."
+  },
+  "fillWithOtto": {
+    "message": "Fill with Otto"
+  },
+  "fillIntro": {
+    "message": "Otto fills this form from your resume and saved answers. You check it and press Submit."
+  },
+  "fillFailed": {
+    "message": "Otto couldn't fill this form."
+  },
+  "fillFailedReload": {
+    "message": "Otto couldn't fill this form. Reload the page and try again."
+  },
+  "tryAgain": {
+    "message": "Try again"
+  },
+  "yourSavedAnswers": {
+    "message": "Your saved answers"
+  },
+  "fillAgain": {
+    "message": "Fill again"
+  },
+  "canWorkIn": {
+    "message": "Can work in $PLACE$",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "canWorkAsk": {
+    "message": "Can work?"
+  },
+  "canWork": {
+    "message": "Can work"
+  },
+  "cantYet": {
+    "message": "Can't yet"
+  },
+  "visaIn": {
+    "message": "Needs a visa sponsored in $PLACE$",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "visaAsk": {
+    "message": "Visa?"
+  },
+  "noVisa": {
+    "message": "No visa needed"
+  },
+  "needsVisa": {
+    "message": "Needs a visa"
+  },
+  "readingAnswers": {
+    "message": "Reading your answers…"
+  },
+  "answersFailed": {
+    "message": "Otto couldn't read your answers."
+  },
+  "answersIntro": {
+    "message": "Otto puts these into forms that ask. They're saved to your account, so every browser has them."
+  },
+  "noticePeriod": {
+    "message": "Notice period"
+  },
+  "noticeHint": {
+    "message": "Like 30 days, or Immediately"
+  },
+  "currentPay": {
+    "message": "Current pay"
+  },
+  "expectedPay": {
+    "message": "Expected pay"
+  },
+  "whereYouCanWork": {
+    "message": "Where you can work"
+  },
+  "relocate": {
+    "message": "Willing to relocate"
+  },
+  "startDate": {
+    "message": "Earliest start date"
+  },
+  "startHint": {
+    "message": "Like 1 March 2027, or 30 days after an offer"
+  },
+  "heardFrom": {
+    "message": "How you heard about the job"
+  },
+  "heardHint": {
+    "message": "Company website"
+  },
+  "forgetHint": {
+    "message": "Leave empty to forget it"
+  },
+  "otherQuestions": {
+    "message": "Other questions you answered"
+  },
+  "saveAnswers": {
+    "message": "Save answers"
+  },
+  "back": {
+    "message": "Back"
+  },
+  "removedFromApplications": {
+    "message": "Removed from Applications."
+  },
+  "addedToApplications": {
+    "message": "Added to Applications"
+  },
+  "roleAtCompany": {
+    "message": "$ROLE$ at $COMPANY$",
+    "placeholders": {
+      "role": {
+        "content": "$1"
+      },
+      "company": {
+        "content": "$2"
+      }
+    }
+  },
+  "appliedToday": {
+    "message": "$WHAT$, applied today.",
+    "placeholders": {
+      "what": {
+        "content": "$1"
+      }
+    }
+  },
+  "undo": {
+    "message": "Undo"
+  },
+  "open": {
+    "message": "Open"
+  },
+  "offline": {
+    "message": "Otto can't reach his server. Check your connection and try again."
+  },
+  "signedOut": {
+    "message": "Otto isn't connected to your account any more. Connect him again."
+  },
+  "somethingWrong": {
+    "message": "Something went wrong. Try again in a moment."
+  },
+  "pdfFailed": {
+    "message": "Otto couldn't make your resume's PDF. Try again in a moment."
+  },
+  "connectFromPage": {
+    "message": "Connect from Otto's own connect page."
+  },
+  "accountUnreadable": {
+    "message": "Otto couldn't read your account. Try again."
+  },
+  "noFilledForm": {
+    "message": "Otto has no filled form waiting in this tab."
+  },
+  "noPost": {
+    "message": "Otto needs this job's post to draft an answer. Open the job's own page once, then come back to the form."
+  },
+  "undoFailed": {
+    "message": "Otto couldn't undo that."
+  }
+}

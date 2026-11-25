@@ -334,7 +334,7 @@ describe("/api/notifications/unsubscribe", () => {
   it("sends a plain visit to the Account page's switch without changing anything", async () => {
     const maya = await createUser("maya@example.com");
     await setEmailReminders(maya.id, true);
-    const res = openUnsubscribe(
+    const res = await openUnsubscribe(
       new Request(
         `http://localhost/api/notifications/unsubscribe?u=${maya.id}&t=${unsubscribeToken(maya.id)}`,
       ),
@@ -382,7 +382,7 @@ describe("/api/notifications/unsubscribe", () => {
     const link = unsubscribeUrl(maya.id, "jobs")!;
     expect(new URL(link).searchParams.get("l")).toBe("jobs");
 
-    const visit = openUnsubscribe(new Request(link));
+    const visit = await openUnsubscribe(new Request(link));
     expect(visit.status).toBe(200);
     expect(visit.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(visit.headers.get("cache-control")).toBe("no-store");
@@ -397,12 +397,39 @@ describe("/api/notifications/unsubscribe", () => {
     expect(await pressed.text()).toContain("You won&#39;t get the weekly jobs email any more.");
     expect((await emailChoicesOf(maya.id)).jobEmails).toBe(false);
 
-    const forged = openUnsubscribe(
+    const forged = await openUnsubscribe(
       new Request(
         `http://localhost/api/notifications/unsubscribe?u=${maya.id}&t=${"A".repeat(43)}&l=tips`,
       ),
     );
     expect(forged.status).toBe(400);
     expect(await forged.text()).toContain("That link isn&#39;t valid any more.");
+  });
+
+  it("asks and answers in the account's language once the link proves the account", async () => {
+    const maya = await createUser("maya@example.com");
+    await setEmailChoices(maya.id, { jobEmails: true });
+    await (
+      await getDb()
+    )
+      .update(userSettings)
+      .set({ locale: "es" })
+      .where(eq(userSettings.userId, maya.id));
+
+    const visit = await openUnsubscribe(new Request(unsubscribeUrl(maya.id, "jobs")!));
+    const html = await visit.text();
+    expect(html).toContain('<html lang="es">');
+    expect(html).toContain("Detener el correo semanal");
+    expect(html).toContain('href="https://otto.test/dashboard/account#reminders"');
+    const action = /action="([^"]+)"/.exec(html)?.[1]?.replaceAll("&amp;", "&");
+    const pressed = await unsubscribe(new Request(`http://localhost${action}`, { method: "POST" }));
+    expect(await pressed.text()).toContain("Ya no recibirás el correo semanal de empleos.");
+
+    const forged = await openUnsubscribe(
+      new Request(
+        `http://localhost/api/notifications/unsubscribe?u=${maya.id}&t=${"A".repeat(43)}&l=jobs`,
+      ),
+    );
+    expect(await forged.text()).toContain('<html lang="en">');
   });
 });

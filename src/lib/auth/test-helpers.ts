@@ -73,6 +73,7 @@ type FakeMethod =
   | "exchangeCodeForSession"
   | "signOut"
   | "deleteUser"
+  | "updateUserById"
   | "linkIdentity"
   | "getUserIdentities"
   | "unlinkIdentity";
@@ -91,9 +92,10 @@ const state = {
   codes: new Map<string, string>(),
   oauthCodes: new Map<string, OAuthGrant>(),
   failures: new Map<FakeMethod, AuthError>(),
-  sent: [] as { email: string; code: string; shouldCreateUser: boolean | undefined }[],
+  sent: [] as { email: string; code: string; shouldCreateUser: boolean | undefined; data?: object }[],
   oauthStarts: [] as SignInWithOAuthCredentials[],
   linkStarts: [] as SignInWithOAuthCredentials[],
+  metadata: new Map<string, Record<string, unknown>>(),
 };
 
 function identity(user: AuthUser, provider: string, data: Record<string, unknown>): UserIdentity {
@@ -284,7 +286,7 @@ const serverAuth: FakeServerAuth = {
     const email = credentials.email;
     const code = String(100_000 + state.sent.length).padStart(6, "0");
     state.codes.set(email, code);
-    state.sent.push({ email, code, shouldCreateUser: credentials.options?.shouldCreateUser });
+    state.sent.push({ email, code, shouldCreateUser: credentials.options?.shouldCreateUser, data: credentials.options?.data });
     return { data: { user: null, session: null }, error: null };
   },
 
@@ -379,6 +381,17 @@ const adminAuth = {
     await execSql("delete from auth.users where id = $1", [id]);
     return { data: { user: userObject(user) }, error: null };
   },
+
+  // Supabase merges user_metadata key by key, as here.
+  async updateUserById(
+    id: string,
+    attributes: { user_metadata?: Record<string, unknown> },
+  ): Promise<{ data: { user: null }; error: AuthError | null }> {
+    const failure = takeFailure("updateUserById");
+    if (failure) return { data: { user: null }, error: failure };
+    state.metadata.set(id, { ...state.metadata.get(id), ...attributes.user_metadata });
+    return { data: { user: null }, error: null };
+  },
 };
 
 export const supabaseServerMock = {
@@ -403,6 +416,11 @@ export const fakeAuth = {
     state.sent.length = 0;
     state.oauthStarts.length = 0;
     state.linkStarts.length = 0;
+    state.metadata.clear();
+  },
+  // What updateUserById wrote to an account's user_metadata.
+  metadataOf(userId: string): Readonly<Record<string, unknown>> | undefined {
+    return state.metadata.get(userId);
   },
   setConfigured(configured: boolean, { admin = configured }: { admin?: boolean } = {}): void {
     state.configured = configured;
@@ -415,7 +433,7 @@ export const fakeAuth = {
   get server(): FakeServerAuth {
     return serverAuth;
   },
-  get sent(): readonly { email: string; code: string; shouldCreateUser: boolean | undefined }[] {
+  get sent(): readonly { email: string; code: string; shouldCreateUser: boolean | undefined; data?: object }[] {
     return state.sent;
   },
   get oauthStarts(): readonly SignInWithOAuthCredentials[] {

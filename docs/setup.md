@@ -246,6 +246,11 @@ the app has no page for email links. `{{ .SiteURL }}` is the Site URL from step 
 (`public/email/otto-head.png`, a PNG because email apps don't show SVG) loads from the live app.
 Already pasted the older template? Paste this one again to add his head.
 
+**Other languages.** Instead of pasting, `SUPABASE_ACCESS_TOKEN=<a personal access token> bun
+scripts/email-templates.ts --apply` writes both templates with a block per language (Spanish,
+Portuguese, French, German; English for everyone else), picked by the account's `otto_locale` (see
+`docs/i18n.md`). Without `--apply` it only shows what is saved.
+
 ---
 
 ## 7. Where sign-in may send people back

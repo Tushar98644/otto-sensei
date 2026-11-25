@@ -5,6 +5,7 @@ import { applications, userSettings } from "@/db/schema";
 import { log } from "@/lib/log";
 import { followUpNotices } from "@/lib/notifications/follow-up";
 import { interviewSoonNotice } from "@/lib/notifications/interview-soon";
+import { emailLocale } from "@/lib/notifications/locale";
 import { insertNotification } from "@/lib/notifications/records";
 import { HOUR_MS } from "@/lib/time";
 import type { CronContext, CronOutcome } from "./run";
@@ -53,7 +54,7 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return null;
     const [profile] = await tx
-      .select({ timeZone: userSettings.timeZone })
+      .select({ timeZone: userSettings.timeZone, locale: userSettings.locale })
       .from(userSettings)
       .where(eq(userSettings.userId, userId))
       .limit(1);
@@ -92,12 +93,13 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
       .sort((a, b) => a.interviewAt - b.interviewAt);
     if (due.length === 0 && interviews.length === 0) return null;
     const timeZone = profile?.timeZone || null;
+    const locale = emailLocale(profile?.locale);
     const notices = [
       ...interviews.map((item) => ({
         kind: "interview_soon" as const,
-        ...interviewSoonNotice(item, now, timeZone),
+        ...interviewSoonNotice(item, now, timeZone, locale),
       })),
-      ...followUpNotices(due, now).map((notice) => ({
+      ...followUpNotices(due, now, locale).map((notice) => ({
         kind: "application_follow_up" as const,
         ...notice,
       })),

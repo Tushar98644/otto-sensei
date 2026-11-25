@@ -21,6 +21,10 @@ Every document about the project lives in this folder. The repo root keeps only 
 | [i18n.md](i18n.md) | Serving Otto in Spanish, Portuguese, French and German: decisions, phases, guardrails |
 | [extension.md](extension.md) | Otto for Chrome: build, store upload, scripts, security |
 | [extension-store-listing.md](extension-store-listing.md) | Chrome Web Store listing text (draft) |
+| [extension-store-listing.es.md](extension-store-listing.es.md) | The store listing in Spanish (draft) |
+| [extension-store-listing.pt-BR.md](extension-store-listing.pt-BR.md) | The store listing in Portuguese–Brazil (draft) |
+| [extension-store-listing.fr.md](extension-store-listing.fr.md) | The store listing in French (draft) |
+| [extension-store-listing.de.md](extension-store-listing.de.md) | The store listing in German (draft) |
 | [extension-store-privacy.md](extension-store-privacy.md) | Chrome Web Store privacy tab (draft) |
 | [inbound-email.md](inbound-email.md) | The Cloudflare Email Worker that tracks applications from forwarded email |
 | [google-calendar.md](google-calendar.md) | Plan for writing interviews into Google Calendar (not built yet) |

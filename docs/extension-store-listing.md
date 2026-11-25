@@ -4,7 +4,7 @@
 
 **Summary** (132 characters at most): See how your resume matches a job post, and whether you can take the job, right on the page where you read it.
 
-**Category:** Productivity › Workflow & Planning. **Language:** English.
+**Category:** Productivity › Workflow & Planning. **Language:** English. Translated listings: [Spanish](extension-store-listing.es.md), [Portuguese–Brazil](extension-store-listing.pt-BR.md), [French](extension-store-listing.fr.md), [German](extension-store-listing.de.md); the name and summary in each come from `extension/_locales`.
 
 **Homepage:** https://www.ottosensei.com · **Support:** https://www.ottosensei.com (support email in the footer) · **Privacy policy:** https://www.ottosensei.com/privacy
 

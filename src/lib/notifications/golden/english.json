@@ -1,0 +1,274 @@
+{
+  "trialEmails": [
+    {
+      "to": "maya@example.com",
+      "subject": "Your Pro trial ends on November 21",
+      "text": "A quick heads-up: your Pro trial ends on Saturday, November 21 at 14:00 UTC.\n\nAfter that, Pro costs $15/month (in US dollars, plus any sales tax or VAT where you live) until you cancel. If you'd like to keep Pro, there's nothing to do.\n\nIf you don't want to continue, you can cancel anytime before then from your account page, and you won't be charged anything more.\nYour account: https://otto.test/account?a=1&b=2\n\nOtto, from Otto Sensei\n\n--\nYou're getting this because your Pro trial is about to end. It's a billing notice, so it comes even if reminder emails are off.",
+      "html": "<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"Otto\" style=\"display:block;margin:0 0 16px;border:0\">\n<p style=\"margin:0 0 16px\">A quick heads-up: your Pro trial ends on Saturday, November 21 at 14:00 UTC.</p>\n<p style=\"margin:0 0 16px\">After that, Pro costs $15/month (in US dollars, plus any sales tax or VAT where you live) until you cancel. If you&#39;d like to keep Pro, there&#39;s nothing to do.</p>\n<p style=\"margin:0 0 20px\">If you don&#39;t want to continue, you can cancel anytime before then from your account page, and you won&#39;t be charged anything more.</p>\n<p style=\"margin:0 0 24px\"><a href=\"https://otto.test/account?a=1&amp;b=2\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px\">Go to your account</a></p>\n<p style=\"margin:0 0 24px\">Otto, from Otto Sensei</p>\n<p style=\"margin:0;padding-top:16px;border-top:1px solid #dbe4de;color:#475850;font-size:13px\">You&#39;re getting this because your Pro trial is about to end. It&#39;s a billing notice, so it comes even if reminder emails are off.</p>\n</div>",
+      "tags": [
+        {
+          "name": "kind",
+          "value": "trial_ending"
+        }
+      ]
+    },
+    {
+      "to": "maya@example.com",
+      "subject": "Your Max trial ends on November 22",
+      "text": "A quick heads-up: your Max trial ends on Sunday, November 22 at 01:00 GMT+11.\n\nAfter that, Max costs $278/year (in US dollars, plus any sales tax or VAT where you live) until you cancel. If you'd like to keep Max, there's nothing to do.\n\nIf you don't want to continue, you can cancel anytime before then from your account page, and you won't be charged anything more.\nYour account: https://otto.test/account?a=1&b=2\n\nOtto, from Otto Sensei\n\n--\nYou're getting this because your Max trial is about to end. It's a billing notice, so it comes even if reminder emails are off.",
+      "html": "<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"Otto\" style=\"display:block;margin:0 0 16px;border:0\">\n<p style=\"margin:0 0 16px\">A quick heads-up: your Max trial ends on Sunday, November 22 at 01:00 GMT+11.</p>\n<p style=\"margin:0 0 16px\">After that, Max costs $278/year (in US dollars, plus any sales tax or VAT where you live) until you cancel. If you&#39;d like to keep Max, there&#39;s nothing to do.</p>\n<p style=\"margin:0 0 20px\">If you don&#39;t want to continue, you can cancel anytime before then from your account page, and you won&#39;t be charged anything more.</p>\n<p style=\"margin:0 0 24px\"><a href=\"https://otto.test/account?a=1&amp;b=2\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px\">Go to your account</a></p>\n<p style=\"margin:0 0 24px\">Otto, from Otto Sensei</p>\n<p style=\"margin:0;padding-top:16px;border-top:1px solid #dbe4de;color:#475850;font-size:13px\">You&#39;re getting this because your Max trial is about to end. It&#39;s a billing notice, so it comes even if reminder emails are off.</p>\n</div>",
+      "tags": [
+        {
+          "name": "kind",
+          "value": "trial_ending"
+        }
+      ]
+    }
+  ],
+  "trialNotices": [
+    {
+      "title": "Your Pro trial ends on November 21",
+      "body": "It ends on Saturday, November 21 at 14:00 UTC. After that, Pro costs $144/year. You can cancel anytime before then from your account page.",
+      "link": "/dashboard/account"
+    },
+    {
+      "title": "Your Max trial ends on November 21",
+      "body": "It ends on Saturday, November 21 at 06:00 PST. After that, Max costs $29/month. You can cancel anytime before then from your account page.",
+      "link": "/dashboard/account"
+    }
+  ],
+  "checkinEmails": [
+    {
+      "to": "maya@example.com",
+      "subject": "Your one-minute November check-in",
+      "text": "One minute for November? Three quick questions, by voice or text. Skip any you like.\n\n- What did you ship or improve? A feature, a fix, a process, a deal.\n- Any numbers? Users, %, money, time saved. Rough is fine.\n- Anything you learned or led? A skill, a tool, a person you helped.\n\nNothing new this month? That's one tap on the page.\n\nYour notes stay free on every plan. When you look for your next job, Pro turns them into resume lines that quote your own facts.\n\nWrite my check-in: https://otto.test/c?a=1&b=2\n\nOtto, from Otto Sensei\n\n--\nYou get this because you turned on the career log check-in. Once a month. Unsubscribe in one click: https://otto.test/api/notifications/unsubscribe?u=1&t=2&l=career\nEmail settings: https://otto.test/dashboard/account#reminders\nOtto Sensei, 1 Main St, Springfield",
+      "html": "<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"Otto\" style=\"display:block;margin:0 0 16px;border:0\">\n<p style=\"margin:0 0 16px\">One minute for November? Three quick questions, by voice or text. Skip any you like.</p>\n<ul style=\"margin:0 0 16px;padding-left:20px\"><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">What did you ship or improve?</span><br><span style=\"color:#475850;font-size:14px\">A feature, a fix, a process, a deal.</span></li><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">Any numbers?</span><br><span style=\"color:#475850;font-size:14px\">Users, %, money, time saved. Rough is fine.</span></li><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">Anything you learned or led?</span><br><span style=\"color:#475850;font-size:14px\">A skill, a tool, a person you helped.</span></li></ul>\n<p style=\"margin:0 0 16px\">Nothing new this month? That&#39;s one tap on the page.</p>\n<p style=\"margin:0 0 16px\">Your notes stay free on every plan. When you look for your next job, Pro turns them into resume lines that quote your own facts.</p>\n<p style=\"margin:4px 0 24px\"><a href=\"https://otto.test/c?a=1&amp;b=2\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px\">Write my check-in</a></p>\n<p style=\"margin:0 0 24px\">Otto, from Otto Sensei</p>\n<p style=\"margin:0;padding-top:16px;border-top:1px solid #dbe4de;color:#475850;font-size:13px\">You get this because you turned on the career log check-in. Once a month. <a href=\"https://otto.test/api/notifications/unsubscribe?u=1&amp;t=2&amp;l=career\" style=\"color:#475850\">Unsubscribe</a> · <a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Email settings</a></p>\n<p style=\"margin:8px 0 0;color:#475850;font-size:13px\">Otto Sensei, 1 Main St, Springfield</p>\n</div>",
+      "headers": {
+        "List-Unsubscribe": "<https://otto.test/api/notifications/unsubscribe?u=1&t=2&l=career>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+      },
+      "tags": [
+        {
+          "name": "kind",
+          "value": "career_checkin"
+        }
+      ]
+    },
+    {
+      "to": "maya@example.com",
+      "subject": "Your one-minute January check-in",
+      "text": "One minute for January? Three quick questions, by voice or text. Skip any you like.\n\n- What did you ship or improve? A feature, a fix, a process, a deal.\n- Any numbers? Users, %, money, time saved. Rough is fine.\n- Anything you learned or led? A skill, a tool, a person you helped.\n\nNothing new this month? That's one tap on the page.\n\nYour notes stay free on every plan. When you look for your next job, Pro turns them into resume lines that quote your own facts.\n\nWrite my check-in: https://otto.test/c\n\nOtto, from Otto Sensei\n\n--\nYou get this because you turned on the career log check-in. Once a month. Unsubscribe in one click: https://otto.test/dashboard/account#reminders\nEmail settings: https://otto.test/dashboard/account#reminders\nOtto Sensei, 1 Main St, Springfield",
+      "html": "<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"Otto\" style=\"display:block;margin:0 0 16px;border:0\">\n<p style=\"margin:0 0 16px\">One minute for January? Three quick questions, by voice or text. Skip any you like.</p>\n<ul style=\"margin:0 0 16px;padding-left:20px\"><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">What did you ship or improve?</span><br><span style=\"color:#475850;font-size:14px\">A feature, a fix, a process, a deal.</span></li><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">Any numbers?</span><br><span style=\"color:#475850;font-size:14px\">Users, %, money, time saved. Rough is fine.</span></li><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">Anything you learned or led?</span><br><span style=\"color:#475850;font-size:14px\">A skill, a tool, a person you helped.</span></li></ul>\n<p style=\"margin:0 0 16px\">Nothing new this month? That&#39;s one tap on the page.</p>\n<p style=\"margin:0 0 16px\">Your notes stay free on every plan. When you look for your next job, Pro turns them into resume lines that quote your own facts.</p>\n<p style=\"margin:4px 0 24px\"><a href=\"https://otto.test/c\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px\">Write my check-in</a></p>\n<p style=\"margin:0 0 24px\">Otto, from Otto Sensei</p>\n<p style=\"margin:0;padding-top:16px;border-top:1px solid #dbe4de;color:#475850;font-size:13px\">You get this because you turned on the career log check-in. Once a month. <a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Unsubscribe</a> · <a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Email settings</a></p>\n<p style=\"margin:8px 0 0;color:#475850;font-size:13px\">Otto Sensei, 1 Main St, Springfield</p>\n</div>",
+      "headers": {},
+      "tags": [
+        {
+          "name": "kind",
+          "value": "career_checkin"
+        }
+      ]
+    }
+  ],
+  "checkinNotices": [
+    {
+      "title": "Your November check-in",
+      "body": "One minute: what you shipped, any numbers, and anything you learned or led."
+    },
+    {
+      "title": "Your May check-in",
+      "body": "One minute: what you shipped, any numbers, and anything you learned or led."
+    }
+  ],
+  "processorNotice": {
+    "to": "maya@example.com",
+    "subject": "Dodo Payments takes live payments for Otto Sensei from December 1",
+    "text": "A short notice about payments: Dodo Payments now handles checkout for Otto Sensei in place of Paddle, and takes live payments from December 1, 2026.\n\nDodo Payments is our online reseller and merchant of record. It takes the payment when you buy a plan, and handles receipts, sales tax or VAT, refunds and billing support.\n\nWhen you start a checkout, we send Dodo Payments your account email, our random id for your account and the plan you pick, the same details Paddle used to get. Dodo Payments handles your payment details under its own privacy policy.\n\nThere's nothing you need to do. Everything you've made in Otto Sensei stays as it is, and our prices don't change.\n\nWe've updated our terms, privacy policy and refund page to match:\nTerms: https://otto.test/terms\nPrivacy policy: https://otto.test/privacy\nRefunds: https://otto.test/refunds\n\nQuestions? Email hello@ottosensei.com.\n\nOtto, from Otto Sensei\n\n--\nYou're getting this because you have a Otto Sensei account. It's a one-time notice about a change to our terms and privacy policy, so it comes even if other emails are off.",
+    "html": "<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"Otto\" style=\"display:block;margin:0 0 16px;border:0\">\n<p style=\"margin:0 0 16px\">A short notice about payments: Dodo Payments now handles checkout for Otto Sensei in place of Paddle, and takes live payments from December 1, 2026.</p>\n<p style=\"margin:0 0 16px\">Dodo Payments is our online reseller and merchant of record. It takes the payment when you buy a plan, and handles receipts, sales tax or VAT, refunds and billing support.</p>\n<p style=\"margin:0 0 16px\">When you start a checkout, we send Dodo Payments your account email, our random id for your account and the plan you pick, the same details Paddle used to get. Dodo Payments handles your payment details under its own privacy policy.</p>\n<p style=\"margin:0 0 16px\">There&#39;s nothing you need to do. Everything you&#39;ve made in Otto Sensei stays as it is, and our prices don&#39;t change.</p>\n<p style=\"margin:0 0 8px\">We&#39;ve updated our terms, privacy policy and refund page to match:</p>\n<ul style=\"margin:0 0 16px;padding-left:20px\">\n<li><a href=\"https://otto.test/terms\" style=\"color:#0e3b2e\">Terms</a></li>\n<li><a href=\"https://otto.test/privacy\" style=\"color:#0e3b2e\">Privacy policy</a></li>\n<li><a href=\"https://otto.test/refunds\" style=\"color:#0e3b2e\">Refunds</a></li>\n</ul>\n<p style=\"margin:0 0 24px\">Questions? Email <a href=\"mailto:hello@ottosensei.com\" style=\"color:#0e3b2e\">hello@ottosensei.com</a>.</p>\n<p style=\"margin:0 0 24px\">Otto, from Otto Sensei</p>\n<p style=\"margin:0;padding-top:16px;border-top:1px solid #dbe4de;color:#475850;font-size:13px\">You&#39;re getting this because you have a Otto Sensei account. It&#39;s a one-time notice about a change to our terms and privacy policy, so it comes even if other emails are off.</p>\n</div>",
+    "tags": [
+      {
+        "name": "kind",
+        "value": "processor_notice"
+      }
+    ]
+  },
+  "unsubscribePages": [
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>Follow-up reminder emails · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">Follow-up reminder emails</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Turn off follow-up reminder emails? Your reminders stay in the bell on your dashboard.</p>\n<form method=\"post\" action=\"/api/notifications/unsubscribe?u=1&amp;t=2&amp;l=jobs&amp;page=1\"><button type=\"submit\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Turn off reminder emails</button></form>\n<p style=\"margin:24px 0 0;color:#475850;font-size:14px\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>Follow-up reminder emails · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">Follow-up reminder emails</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Done. You won&#39;t get follow-up reminder emails any more. The bell on your dashboard keeps them.</p>\n<p style=\"margin:0\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>The weekly jobs email · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">The weekly jobs email</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Stop the weekly email about new jobs that match your resume? The Jobs tab still shows them.</p>\n<form method=\"post\" action=\"/api/notifications/unsubscribe?u=1&amp;t=2&amp;l=jobs&amp;page=1\"><button type=\"submit\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Stop the weekly email</button></form>\n<p style=\"margin:24px 0 0;color:#475850;font-size:14px\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>The weekly jobs email · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">The weekly jobs email</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Done. You won&#39;t get the weekly jobs email any more. New matches show in the bell on your dashboard.</p>\n<p style=\"margin:0\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>Tips and reminders · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">Tips and reminders</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Stop tips and reminder emails, like the note when Free&#39;s line fixes come back? Billing notices about a trial still come.</p>\n<form method=\"post\" action=\"/api/notifications/unsubscribe?u=1&amp;t=2&amp;l=jobs&amp;page=1\"><button type=\"submit\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Stop tips and reminders</button></form>\n<p style=\"margin:24px 0 0;color:#475850;font-size:14px\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>Tips and reminders · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">Tips and reminders</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Done. You won&#39;t get tips and reminder emails any more.</p>\n<p style=\"margin:0\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>Views emails · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">Views emails</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Stop the emails about people opening your resume links and portfolio? The bell on your dashboard still shows them.</p>\n<form method=\"post\" action=\"/api/notifications/unsubscribe?u=1&amp;t=2&amp;l=jobs&amp;page=1\"><button type=\"submit\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Stop views emails</button></form>\n<p style=\"margin:24px 0 0;color:#475850;font-size:14px\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>Views emails · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">Views emails</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Done. You won&#39;t get views emails any more. The bell on your dashboard keeps them.</p>\n<p style=\"margin:0\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>Career log check-in emails · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">Career log check-in emails</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Stop the monthly career log email? Your log stays, free, and the bell on your dashboard still asks once a month.</p>\n<form method=\"post\" action=\"/api/notifications/unsubscribe?u=1&amp;t=2&amp;l=jobs&amp;page=1\"><button type=\"submit\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Stop check-in emails</button></form>\n<p style=\"margin:24px 0 0;color:#475850;font-size:14px\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>Career log check-in emails · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">Career log check-in emails</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">Done. You won&#39;t get career log emails any more. Your log stays, and you can turn the email back on in your account settings.</p>\n<p style=\"margin:0\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Email settings</a></p>\n</main>\n</body>\n</html>",
+    "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n<title>Unsubscribe · Otto Sensei</title>\n</head>\n<body style=\"margin:0;background:#ffffff;color:#12241d\">\n<main style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;max-width:480px;margin:0 auto;padding:64px 16px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"\" style=\"display:block;margin:0 0 16px;border:0\">\n<h1 style=\"font-size:24px;line-height:1.25;margin:0 0 12px\">Unsubscribe</h1>\n<p role=\"status\" style=\"margin:0 0 24px\">That link isn&#39;t valid any more. Otto no longer sends these emails; your reminders are in the bell on your dashboard.</p>\n<p style=\"margin:0\"><a href=\"https://otto.test/dashboard/account#reminders\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:0;cursor:pointer;text-decoration:none\">Email settings</a></p>\n</main>\n</body>\n</html>"
+  ],
+  "followUps": [
+    [
+      {
+        "title": "Time to follow up with Stripe?",
+        "body": "It's been 7 days since you applied to Stripe. A short follow-up can help.",
+        "link": "/dashboard/applications/a1",
+        "applicationId": "a1"
+      }
+    ],
+    [
+      {
+        "title": "Time to follow up with Linear?",
+        "body": "It's been 1 day since your interview with Linear. A short note keeps you in mind.",
+        "link": "/dashboard/applications/a2",
+        "applicationId": "a2"
+      }
+    ],
+    [
+      {
+        "title": "Time to follow up?",
+        "body": "It's been 3 days since you applied to that company. A short follow-up can help.",
+        "link": "/dashboard/applications/a3",
+        "applicationId": "a3"
+      }
+    ],
+    [
+      {
+        "title": "Time to follow up?",
+        "body": "It's been 12 days since your interview. A short note keeps you in mind.",
+        "link": "/dashboard/applications/a4",
+        "applicationId": "a4"
+      }
+    ],
+    [
+      {
+        "title": "Time to follow up with Figma?",
+        "body": "It's been 9 days since you applied to Figma. A short follow-up can help.",
+        "link": "/dashboard/applications/a6",
+        "applicationId": "a6"
+      },
+      {
+        "title": "Time to follow up with Stripe?",
+        "body": "It's been 7 days since you applied to Stripe. A short follow-up can help.",
+        "link": "/dashboard/applications/a5",
+        "applicationId": "a5"
+      }
+    ],
+    [
+      {
+        "title": "4 applications are ready for a follow-up",
+        "body": "Vercel, Linear and 2 more are ready for a follow-up. A short note can help.",
+        "link": "/dashboard/applications",
+        "applicationId": null
+      }
+    ],
+    [
+      {
+        "title": "4 applications are ready for a follow-up",
+        "body": "Stripe and 3 more are ready for a follow-up. A short note can help.",
+        "link": "/dashboard/applications",
+        "applicationId": null
+      }
+    ],
+    [
+      {
+        "title": "4 applications are ready for a follow-up",
+        "body": "4 applications are ready for a follow-up. A short note can help.",
+        "link": "/dashboard/applications",
+        "applicationId": null
+      }
+    ]
+  ],
+  "interviews": [
+    {
+      "title": "Your interview with Stripe is today",
+      "body": "For the Backend Engineer role. Go over the likely questions in your prep before you go.",
+      "link": "/dashboard/applications/i1/prep?start=1",
+      "applicationId": "i1"
+    },
+    {
+      "title": "Your interview is tomorrow",
+      "body": "Go over the likely questions in your prep before you go.",
+      "link": "/dashboard/applications/i2/prep?start=1",
+      "applicationId": "i2"
+    },
+    {
+      "title": "Your interview with Figma is on Sunday",
+      "body": "Go over the likely questions in your prep before you go.",
+      "link": "/dashboard/applications/i3/prep?start=1",
+      "applicationId": "i3"
+    }
+  ],
+  "views": [
+    {
+      "title": "Someone opened your resume link",
+      "body": "Your link for “Maya Chen, Stripe” has 3 views so far.",
+      "link": "/dashboard/resumes"
+    },
+    {
+      "title": "Someone opened your resume link",
+      "body": "Your resume link has 1 view so far.",
+      "link": "/dashboard/resumes"
+    },
+    {
+      "title": "Someone opened your resume link",
+      "body": "Your resume link has 1,204 views so far.",
+      "link": "/dashboard/resumes"
+    },
+    {
+      "title": "Your portfolio got 12 views this week",
+      "body": "Counted without you, link previews or search engines.",
+      "link": "/dashboard/portfolio"
+    },
+    {
+      "title": "Your portfolio got 1 view since Nov 2",
+      "body": "Counted without you, link previews or search engines.",
+      "link": "/dashboard/portfolio"
+    }
+  ],
+  "jobs": [
+    {
+      "title": "1 new match this week",
+      "body": "Designer at Figma."
+    },
+    {
+      "title": "2 new matches this week",
+      "body": "A at X and B at Y."
+    },
+    {
+      "title": "9 new matches this week",
+      "body": "A at X, B at Y and 7 more. On Free, Jobs shows your closest few."
+    },
+    {
+      "title": "3 new matches this week",
+      "body": "On Free, Jobs shows your closest few."
+    }
+  ],
+  "checkinWithoutAddress": [
+    {
+      "to": "maya@example.com",
+      "subject": "Your one-minute November check-in",
+      "text": "One minute for November? Three quick questions, by voice or text. Skip any you like.\n\n- What did you ship or improve? A feature, a fix, a process, a deal.\n- Any numbers? Users, %, money, time saved. Rough is fine.\n- Anything you learned or led? A skill, a tool, a person you helped.\n\nNothing new this month? That's one tap on the page.\n\nYour notes stay free on every plan. When you look for your next job, Pro turns them into resume lines that quote your own facts.\n\nWrite my check-in: https://otto.test/c?a=1&b=2\n\nOtto, from Otto Sensei\n\n--\nYou get this because you turned on the career log check-in. Once a month. Unsubscribe in one click: https://otto.test/api/notifications/unsubscribe?u=1&t=2&l=career\nEmail settings: https://otto.test/dashboard/account#reminders",
+      "html": "<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"Otto\" style=\"display:block;margin:0 0 16px;border:0\">\n<p style=\"margin:0 0 16px\">One minute for November? Three quick questions, by voice or text. Skip any you like.</p>\n<ul style=\"margin:0 0 16px;padding-left:20px\"><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">What did you ship or improve?</span><br><span style=\"color:#475850;font-size:14px\">A feature, a fix, a process, a deal.</span></li><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">Any numbers?</span><br><span style=\"color:#475850;font-size:14px\">Users, %, money, time saved. Rough is fine.</span></li><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">Anything you learned or led?</span><br><span style=\"color:#475850;font-size:14px\">A skill, a tool, a person you helped.</span></li></ul>\n<p style=\"margin:0 0 16px\">Nothing new this month? That&#39;s one tap on the page.</p>\n<p style=\"margin:0 0 16px\">Your notes stay free on every plan. When you look for your next job, Pro turns them into resume lines that quote your own facts.</p>\n<p style=\"margin:4px 0 24px\"><a href=\"https://otto.test/c?a=1&amp;b=2\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px\">Write my check-in</a></p>\n<p style=\"margin:0 0 24px\">Otto, from Otto Sensei</p>\n<p style=\"margin:0;padding-top:16px;border-top:1px solid #dbe4de;color:#475850;font-size:13px\">You get this because you turned on the career log check-in. Once a month. <a href=\"https://otto.test/api/notifications/unsubscribe?u=1&amp;t=2&amp;l=career\" style=\"color:#475850\">Unsubscribe</a> · <a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Email settings</a></p>\n\n</div>",
+      "headers": {
+        "List-Unsubscribe": "<https://otto.test/api/notifications/unsubscribe?u=1&t=2&l=career>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+      },
+      "tags": [
+        {
+          "name": "kind",
+          "value": "career_checkin"
+        }
+      ]
+    },
+    {
+      "to": "maya@example.com",
+      "subject": "Your one-minute January check-in",
+      "text": "One minute for January? Three quick questions, by voice or text. Skip any you like.\n\n- What did you ship or improve? A feature, a fix, a process, a deal.\n- Any numbers? Users, %, money, time saved. Rough is fine.\n- Anything you learned or led? A skill, a tool, a person you helped.\n\nNothing new this month? That's one tap on the page.\n\nYour notes stay free on every plan. When you look for your next job, Pro turns them into resume lines that quote your own facts.\n\nWrite my check-in: https://otto.test/c\n\nOtto, from Otto Sensei\n\n--\nYou get this because you turned on the career log check-in. Once a month. Unsubscribe in one click: https://otto.test/dashboard/account#reminders\nEmail settings: https://otto.test/dashboard/account#reminders",
+      "html": "<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px\">\n<img src=\"https://otto.test/email/otto-head.png\" width=\"48\" height=\"48\" alt=\"Otto\" style=\"display:block;margin:0 0 16px;border:0\">\n<p style=\"margin:0 0 16px\">One minute for January? Three quick questions, by voice or text. Skip any you like.</p>\n<ul style=\"margin:0 0 16px;padding-left:20px\"><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">What did you ship or improve?</span><br><span style=\"color:#475850;font-size:14px\">A feature, a fix, a process, a deal.</span></li><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">Any numbers?</span><br><span style=\"color:#475850;font-size:14px\">Users, %, money, time saved. Rough is fine.</span></li><li style=\"margin:0 0 10px\"><span style=\"color:#12241d;font-weight:600\">Anything you learned or led?</span><br><span style=\"color:#475850;font-size:14px\">A skill, a tool, a person you helped.</span></li></ul>\n<p style=\"margin:0 0 16px\">Nothing new this month? That&#39;s one tap on the page.</p>\n<p style=\"margin:0 0 16px\">Your notes stay free on every plan. When you look for your next job, Pro turns them into resume lines that quote your own facts.</p>\n<p style=\"margin:4px 0 24px\"><a href=\"https://otto.test/c\" style=\"display:inline-block;background:#0e3b2e;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px\">Write my check-in</a></p>\n<p style=\"margin:0 0 24px\">Otto, from Otto Sensei</p>\n<p style=\"margin:0;padding-top:16px;border-top:1px solid #dbe4de;color:#475850;font-size:13px\">You get this because you turned on the career log check-in. Once a month. <a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Unsubscribe</a> · <a href=\"https://otto.test/dashboard/account#reminders\" style=\"color:#475850\">Email settings</a></p>\n\n</div>",
+      "headers": {},
+      "tags": [
+        {
+          "name": "kind",
+          "value": "career_checkin"
+        }
+      ]
+    }
+  ]
+}

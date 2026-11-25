@@ -7,6 +7,7 @@ import applications from "./applications";
 import common from "./common";
 import dashboard from "./dashboard";
 import email from "./email";
+import emails from "./emails";
 import home from "./home";
 import interview from "./interview";
 import jobForm from "./job-form";
@@ -41,6 +42,7 @@ const de: Translations = {
   common,
   dashboard,
   email,
+  emails,
   home,
   interview,
   jobForm,

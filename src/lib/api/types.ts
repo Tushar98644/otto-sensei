@@ -197,7 +197,11 @@ export type JobPosting = {
 };
 export type JobResponse = { ok: true; posting: JobPosting };
 
-export const RequestCodeSchema = z.object({ email: z.email().max(254) });
+// locale: the sign-in page's language, for a new account's code email; anything unknown is ignored.
+export const RequestCodeSchema = z.object({
+  email: z.email().max(254),
+  locale: z.string().max(16).optional().catch(undefined),
+});
 export type RequestCodeResponse = { ok: true; devCode?: string };
 
 export const GoogleSignInSchema = z.object({ next: z.string().max(512).optional() });

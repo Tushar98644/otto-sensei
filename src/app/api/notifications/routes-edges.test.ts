@@ -14,7 +14,7 @@ import type {
   ReminderSettingsResponse,
 } from "@/lib/notifications/types";
 import { unsubscribeToken, unsubscribeUrl } from "@/lib/notifications/unsubscribe";
-import { INVALID_LINK } from "@/lib/notifications/unsubscribe-page";
+import { unsubscribeCopy } from "@/lib/notifications/unsubscribe-page";
 import { deleteUserData } from "@/lib/users";
 import { GET, PATCH } from "./route";
 import { GET as getSettings, PUT as putSettings } from "./settings/route";
@@ -411,7 +411,7 @@ describe("/api/notifications/unsubscribe", () => {
   it("shows the invalid-link page for a list's link with no account in it", async () => {
     const maya = await createUser("maya@example.com");
     await setEmailChoices(maya.id, { jobEmails: true });
-    const res = openUnsubscribe(
+    const res = await openUnsubscribe(
       new Request(
         `http://localhost/api/notifications/unsubscribe?t=${unsubscribeToken(maya.id, "jobs")}&l=jobs`,
       ),
@@ -429,14 +429,14 @@ describe("/api/notifications/unsubscribe", () => {
     await setEmailReminders(maya.id, true);
     const res = await pressed(`u=${maya.id}&t=${"A".repeat(43)}&l=reminders`);
     expectPage(res, 400);
-    expect(await res.text()).toContain(INVALID_LINK.replace("'", "&#39;"));
+    expect(await res.text()).toContain(unsubscribeCopy("en").invalid.replace("'", "&#39;"));
     expect(await readEmailReminders(maya.id)).toBe(true);
   });
 
   it("asks before turning off reminder emails from a link that names the list, then turns them off", async () => {
     const maya = await createUser("maya@example.com");
     await setEmailReminders(maya.id, true);
-    const res = openUnsubscribe(
+    const res = await openUnsubscribe(
       new Request(
         `http://localhost/api/notifications/unsubscribe?u=${maya.id}&t=${unsubscribeToken(maya.id)}&l=reminders`,
       ),

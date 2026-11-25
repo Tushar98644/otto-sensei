@@ -1,8 +1,10 @@
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { getDb } from "@/db/client";
+import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { userSettings } from "@/db/schema";
 import { LOCALES, type Locale } from "@/i18n/config";
+import { emailLocale } from "@/lib/notifications/locale";
 
 export const LanguageChangeSchema = z.object({ locale: z.enum(LOCALES) }).strict();
 
@@ -22,4 +24,14 @@ export async function saveLanguage(
       .onConflictDoUpdate({ target: userSettings.userId, set });
     return true;
   });
+}
+
+// The language emails and bell notes are written in: never chosen, or gone, reads as English.
+export async function savedLocale(db: Db | Tx, userId: string): Promise<Locale> {
+  const [row] = await db
+    .select({ locale: userSettings.locale })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
+    .limit(1);
+  return emailLocale(row?.locale);
 }
