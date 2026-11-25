@@ -1,3 +1,4 @@
+import { englishTitle } from "./occupations/translate";
 import type { RoleFamily, Seniority } from "./types";
 
 // The role is the title's first part with a named kind ("Software Engineer, Compliance" is engineering).
@@ -74,7 +75,13 @@ function lastNamed(text: string, rules: Rules): RoleFamily | null {
   return best?.family ?? null;
 }
 
+// A title in another language is read in its English words first ("Gerente de Ventas").
 export function roleFamily(title: string): RoleFamily | null {
+  const english = englishTitle(title);
+  return (english === title ? null : familyOf(english)) ?? familyOf(title);
+}
+
+function familyOf(title: string): RoleFamily | null {
   const text = title.toLowerCase();
   const asides = [...text.matchAll(BRACKETED)].map((match) => match[1]!);
   const parts = [...text.replace(BRACKETED, " ").split(TITLE_PARTS), ...asides]
@@ -367,7 +374,7 @@ const JUNIOR =
 const INTERN = /\b(?:intern|internship|co-?op|working student|placement student)\b/;
 
 export function seniorityOf(title: string): Seniority {
-  const text = title
+  const text = englishTitle(title)
     .toLowerCase()
     .replace(/\s*[(),]\s*/g, " ")
     .trim();
@@ -397,11 +404,28 @@ export function seniorityForYears(years: number): Seniority {
 const YEARS =
   /\b(?:at least|minimum(?: of)?|min\.?)?\s*(\d{1,2})\s*(?:\+|plus)?\s*(?:(?:-|–|to)\s*\d{1,2}\s*)?(?:\+\s*)?(?:years?|yrs?)\b(?:\s+of)?(?:\s+[\w/&+.-]+){0,5}?\s+(?:experience|exp\b)/gi;
 
+// "5+ años de experiencia", "3 anos de experiência", "5 ans d'expérience", "mindestens 5 Jahre Berufserfahrung",
+// and the other way round: "experiencia mínima de 3 años", "Erfahrung von mindestens 3 Jahren".
+const YEAR_WORDS = String.raw`(?:años|anos|ans|années|annees|jahren?)`;
+const EXPERIENCE_WORDS = String.raw`(?:experiencias?|experiência|experiencia|expériences?|\p{L}*erfahrung(?:en)?)`;
+const AT_LEAST = String.raw`(?:al menos|como m[ií]nimo|m[ií]nimo(?: de)?|m[aá]s de|pelo menos|no m[ií]nimo|mais de|au moins|minimum(?: de)?|plus de|mindestens|mind\.|über|mehr als)`;
+const YEARS_COUNT = String.raw`(\d{1,2})\s*\+?\s*(?:(?:-|–|a|à|bis|ou|o|e|y)\s*\d{1,2}\s*)?\+?`;
+const YEARS_THEN_EXPERIENCE = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])(?:${AT_LEAST}\s+)?${YEARS_COUNT}\s*${YEAR_WORDS}(?!\p{L})(?:\s+(?:o|ou|oder)\s+(?:m[aá]s|mais|plus|mehr))?(?:(?:\s+|\s*['’]\s*)[\p{L}\p{N}/&+.-]+){0,6}?(?:\s+|\s*['’]\s*)${EXPERIENCE_WORDS}(?!\p{L})`,
+  "giu",
+);
+const EXPERIENCE_THEN_YEARS = new RegExp(
+  String.raw`(?<!\p{L})${EXPERIENCE_WORDS}(?:\s+\p{L}+){0,3}?\s*(?:[(:]\s*)?(?:(?:de|von|du|d['’])\s*)?(?:${AT_LEAST}\s+)?${YEARS_COUNT}\s*${YEAR_WORDS}(?!\p{L})`,
+  "giu",
+);
+
 export function minYearsOf(text: string): number | null {
   let min: number | null = null;
-  for (const match of text.matchAll(YEARS)) {
-    const years = Number(match[1]);
-    if (years >= 1 && years <= 20 && (min === null || years < min)) min = years;
+  for (const pattern of [YEARS, YEARS_THEN_EXPERIENCE, EXPERIENCE_THEN_YEARS]) {
+    for (const match of text.matchAll(pattern)) {
+      const years = Number(match[1]);
+      if (years >= 1 && years <= 20 && (min === null || years < min)) min = years;
+    }
   }
   return min;
 }
