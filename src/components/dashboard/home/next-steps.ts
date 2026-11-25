@@ -1,3 +1,4 @@
+import type { Format } from "@/i18n/intl";
 import { followUpState } from "@/lib/applications/follow-up";
 import type { Application } from "@/lib/applications/schema";
 import { lintResume } from "@/lib/lint/bullets";
@@ -5,6 +6,7 @@ import { firstWeakLine } from "@/lib/lint/weak-lines";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import type { SetupItem, WeakLineState, WeakLineTarget } from "@/lib/setup/checklist";
+import type { DashboardMessages } from "../i18n";
 
 export const UP_NEXT_ROWS = 4;
 export const INTERVIEW_DAYS = 7;
@@ -130,16 +132,17 @@ export function fixTarget(
   return null;
 }
 
-const weekday = new Intl.DateTimeFormat("en-US", {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-});
+const WEEKDAY = { weekday: "short", month: "short", day: "numeric" } as const;
 
-export function interviewDay(at: number, now: number): string {
+export function interviewDay(
+  at: number,
+  now: number,
+  { steps }: DashboardMessages,
+  format: Format,
+): string {
   const today = startOfDay(now);
   const day = startOfDay(at);
-  if (day === today) return "Today";
-  if (day === dayAfter(today, 1)) return "Tomorrow";
-  return weekday.format(at);
+  if (day === today) return steps.today;
+  if (day === dayAfter(today, 1)) return steps.tomorrow;
+  return format.date(at, WEEKDAY);
 }

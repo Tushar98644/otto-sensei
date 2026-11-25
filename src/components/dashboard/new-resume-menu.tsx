@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { buttonClasses, type ButtonSize } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
+import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import type { StudioActions } from "./use-studio-actions";
 
@@ -34,10 +35,11 @@ export function NewResumeMenu({
   trigger,
   triggerClassName,
 }: NewResumeMenuProps) {
+  const { newResume: t } = useMessages("dashboard");
   const draftsNeedPro = useProTools() === false;
   return (
     <Menu
-      label="New resume"
+      label={t.label}
       align={align}
       triggerClassName={
         triggerClassName ?? buttonClasses({ size, className: cn("pr-3", className) })
@@ -46,7 +48,7 @@ export function NewResumeMenu({
         trigger ?? (
           <>
             <Plus aria-hidden />
-            <span className="flex-1 text-left">New resume</span>
+            <span className="flex-1 text-left">{t.label}</span>
             <ChevronDown aria-hidden className="text-white/70" />
           </>
         )
@@ -54,40 +56,40 @@ export function NewResumeMenu({
       className="w-80"
       items={[
         {
-          label: "Upload a file",
-          description: "PDF or Word. See what hiring software reads.",
+          label: t.uploadLabel,
+          description: t.uploadDetail,
           icon: FileUp,
           onSelect: actions.upload,
         },
         {
-          label: "Build with Otto",
-          description: "No resume yet? Answer a few questions for a first draft.",
+          label: t.guidedLabel,
+          description: t.guidedDetail,
           icon: WandSparkles,
           pro: draftsNeedPro,
           onSelect: actions.guided,
         },
         {
-          label: "Import from LinkedIn",
-          description: "The ZIP from LinkedIn's data export. Stays on your device.",
+          label: t.linkedinLabel,
+          description: t.linkedinDetail,
           icon: FileArchive,
           onSelect: actions.linkedin,
         },
         {
-          label: "Import a JSON Resume",
-          description: "A resume.json from jsonresume.org or another tool.",
+          label: t.jsonLabel,
+          description: t.jsonDetail,
           icon: FileBraces,
           onSelect: actions.jsonResume,
         },
         "separator",
         {
-          label: "Start from scratch",
-          description: "A blank page with the usual sections.",
+          label: t.scratchLabel,
+          description: t.scratchDetail,
           icon: FilePlus2,
           onSelect: actions.scratch,
         },
         {
-          label: "Try a sample",
-          description: "A filled-in resume to see how Otto works.",
+          label: t.sampleLabel,
+          description: t.sampleDetail,
           icon: FileText,
           onSelect: actions.sample,
         },

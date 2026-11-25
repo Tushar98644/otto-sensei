@@ -5,12 +5,12 @@ import { useRef } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Menu } from "@/components/ui/menu";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import {
-  FILTER_LABELS,
   LIBRARY_FILTERS,
   LIBRARY_SORTS,
-  SORT_LABELS,
   toolbarParts,
   type LibraryFilter,
   type LibrarySort,
@@ -26,8 +26,6 @@ export type LibraryToolbarProps = {
   counts: Record<LibraryFilter, number>;
 };
 
-const count = new Intl.NumberFormat("en-US");
-
 export function LibraryToolbar({
   query,
   onQueryChange,
@@ -37,6 +35,8 @@ export function LibraryToolbar({
   onSortChange,
   counts,
 }: LibraryToolbarProps) {
+  const { library } = useMessages("dashboard");
+  const format = useFormat();
   const parts = toolbarParts(counts, { query, filter, sort });
   if (!parts.filters && !parts.search) return null;
   return (
@@ -45,7 +45,7 @@ export function LibraryToolbar({
         <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <div
             role="group"
-            aria-label="Show"
+            aria-label={library.show}
             className="flex w-max gap-1 rounded-xl bg-surface-strong p-1 shadow-[inset_0_1px_2px_rgb(18_36_29/0.06)]"
           >
             {LIBRARY_FILTERS.map((item) => {
@@ -59,9 +59,9 @@ export function LibraryToolbar({
                   onClick={() => onFilterChange(item)}
                   className="group/seg flex h-9 shrink-0 items-center gap-2 rounded-lg pr-2 pl-3 text-sm font-medium text-muted -outline-offset-2 transition-[color,background-color,box-shadow] duration-200 hover:bg-surface/50 hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control aria-pressed:ring-1 aria-pressed:ring-ink/5 pointer-coarse:h-10"
                 >
-                  {FILTER_LABELS[item]}
+                  {library.filters[item]}
                   <span className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs/4 text-muted tabular-nums transition-colors group-aria-pressed/seg:bg-surface-muted group-aria-pressed/seg:text-ink">
-                    {count.format(counts[item])}
+                    {format.number(counts[item])}
                   </span>
                 </button>
               );
@@ -74,19 +74,19 @@ export function LibraryToolbar({
         <div className="flex gap-2">
           <SearchField value={query} onChange={onQueryChange} />
           <Menu
-            label="Sort resumes"
+            label={library.sortLabel}
             align="end"
-            triggerLabel={`Sort by ${SORT_LABELS[sort].toLowerCase()}. Change order`}
+            triggerLabel={fmt(library.sortBy, { sort: library.sorts[sort].toLowerCase() })}
             triggerClassName={buttonClasses({ variant: "secondary", className: "px-3.5" })}
             trigger={
               <>
                 <ArrowDownUp aria-hidden className="text-muted" />
-                <span className="max-sm:sr-only">{SORT_LABELS[sort]}</span>
+                <span className="max-sm:sr-only">{library.sorts[sort]}</span>
                 <ChevronDown aria-hidden className="text-muted" />
               </>
             }
             items={LIBRARY_SORTS.map((item) => ({
-              label: SORT_LABELS[item],
+              label: library.sorts[item],
               checked: item === sort,
               onSelect: () => onSortChange(item),
             }))}
@@ -98,6 +98,7 @@ export function LibraryToolbar({
 }
 
 function SearchField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { library } = useMessages("dashboard");
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <div className="relative min-w-0 flex-1 xl:w-72 xl:flex-none">
@@ -116,8 +117,8 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
             onChange("");
           }
         }}
-        placeholder="Search by name or company"
-        aria-label="Search resumes"
+        placeholder={library.searchPlaceholder}
+        aria-label={library.searchLabel}
         autoComplete="off"
         spellCheck={false}
         className={cn("pl-10 [&::-webkit-search-cancel-button]:appearance-none", value && "pr-11")}
@@ -125,7 +126,7 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
       {value ? (
         <button
           type="button"
-          aria-label="Clear search"
+          aria-label={library.clearSearch}
           onClick={() => {
             onChange("");
             inputRef.current?.focus();

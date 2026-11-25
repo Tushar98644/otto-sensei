@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Application } from "@/lib/applications/schema";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { EN, FORMAT_EN } from "../messages-testing";
 import type { SetupItem } from "@/lib/setup/checklist";
 import {
   fixTarget,
@@ -122,7 +123,9 @@ describe("nextSteps", () => {
     );
     expect(kinds(open)).toEqual(["fix"]);
     const waiting = nextSteps(
-      facts({ setup: { items: items(["resume", true], ["weak_line", false]), weakLine: "no_lines" } }),
+      facts({
+        setup: { items: items(["resume", true], ["weak_line", false]), weakLine: "no_lines" },
+      }),
     );
     expect(kinds(waiting)).toEqual(["setup:weak_line"]);
   });
@@ -145,9 +148,13 @@ describe("nextSteps", () => {
 
   it("counts the follow-up Otto sets after an interview", () => {
     const steps = nextSteps(
-      facts({ applications: [app("interviewed", { status: "interview", followUpAt: NOW - 1_000 })] }),
+      facts({
+        applications: [app("interviewed", { status: "interview", followUpAt: NOW - 1_000 })],
+      }),
     );
-    expect(steps[0]?.kind === "follow_up" && steps[0].due.map((item) => item.id)).toEqual(["interviewed"]);
+    expect(steps[0]?.kind === "follow_up" && steps[0].due.map((item) => item.id)).toEqual([
+      "interviewed",
+    ]);
   });
 
   it("shows matches only when some are strong and some are new today", () => {
@@ -158,7 +165,11 @@ describe("nextSteps", () => {
 
   it("has nothing to say when everything is done", () => {
     expect(
-      nextSteps(facts({ setup: { items: items(["resume", true], ["looking_for", true]), weakLine: "done" } })),
+      nextSteps(
+        facts({
+          setup: { items: items(["resume", true], ["looking_for", true]), weakLine: "done" },
+        }),
+      ),
     ).toEqual([]);
   });
 });
@@ -186,9 +197,9 @@ describe("interviewsSoon", () => {
 
 describe("interviewDay", () => {
   it("says today and tomorrow, then the weekday and date", () => {
-    expect(interviewDay(noon(21), NOW)).toBe("Today");
-    expect(interviewDay(noon(22), NOW)).toBe("Tomorrow");
-    expect(interviewDay(noon(26), NOW)).toBe("Thu, Nov 26");
+    expect(interviewDay(noon(21), NOW, EN.dashboard, FORMAT_EN)).toBe("Today");
+    expect(interviewDay(noon(22), NOW, EN.dashboard, FORMAT_EN)).toBe("Tomorrow");
+    expect(interviewDay(noon(26), NOW, EN.dashboard, FORMAT_EN)).toBe("Thu, Nov 26");
   });
 });
 
@@ -206,7 +217,13 @@ describe("fixTarget", () => {
   it("otherwise picks the first original with a warning, before tailored copies", () => {
     const copy = resume("copy", [WARNING], {
       source: "tailored",
-      tailor: { baseResumeId: "a", jobTitle: "Engineer", company: "Northwind", keywords: [], createdAt: 0 },
+      tailor: {
+        baseResumeId: "a",
+        jobTitle: "Engineer",
+        company: "Northwind",
+        keywords: [],
+        createdAt: 0,
+      },
     });
     const clean = resume("a", [STRONG]);
     const weak = resume("b", [STRONG, WARNING]);

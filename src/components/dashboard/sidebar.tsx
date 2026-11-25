@@ -29,12 +29,15 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { BRAND } from "@/config/brand";
 import { nextPlan, PLANS } from "@/config/plans";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { SessionUser } from "@/lib/auth/types";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { signOutAndRelease } from "@/lib/sync/use-cloud-sync";
 import { cn } from "@/lib/utils";
 import { openCommandPalette, useCommandPaletteShortcut } from "./command-palette-store";
 import { useHoverIntent, useSettled } from "./hover-intent";
+import type { DashboardMessages } from "./i18n";
 import { NewResumeMenu } from "./new-resume-menu";
 import { LinkPending } from "./link-pending";
 import { APP_NAV, APP_NAV_FOOTER, isCurrent, showsProMark, type AppNavItem } from "./nav";
@@ -43,8 +46,6 @@ import { preloadPageCode } from "./page-code";
 import { prefetchPageData } from "./prefetch";
 import { SidebarPlan } from "./sidebar-plan";
 import type { StudioActions } from "./use-studio-actions";
-
-const count = new Intl.NumberFormat("en-US");
 
 type Upgrade = { label: string; open: () => void };
 
@@ -57,6 +58,7 @@ export function Sidebar({
   me: Me | null;
   actions: StudioActions;
 }) {
+  const t = useMessages("dashboard");
   const pathname = usePathname();
   const resumeCount = useStudioStore((s) => s.order.length);
   const proTools = useProTools();
@@ -68,8 +70,8 @@ export function Sidebar({
       ? {
           label:
             user.plan === "free"
-              ? offerLabel(me?.billing.trial === true)
-              : `Upgrade to ${PLANS[next].name}`,
+              ? offerLabel(me?.billing.trial === true, t)
+              : fmt(t.shell.upgradeTo, { plan: PLANS[next].name }),
           open: () => setUpgradeOpen(true),
         }
       : null;
@@ -79,7 +81,7 @@ export function Sidebar({
       <div className="flex items-center justify-between gap-2">
         <Link
           href={ROUTES.dashboard}
-          aria-label={`${BRAND.name} home`}
+          aria-label={fmt(t.shell.brandHome, { brand: BRAND.name })}
           className="flex h-10 items-center gap-2 rounded-lg px-2"
         >
           <OttoMark className="size-7" />
@@ -92,7 +94,7 @@ export function Sidebar({
 
       <NewResumeMenu actions={actions} className="mt-5 w-full" />
 
-      <nav aria-label="Dashboard" className="mt-6 flex flex-col gap-0.5">
+      <nav aria-label={t.shell.nav} className="mt-6 flex flex-col gap-0.5">
         {APP_NAV.map((item) => (
           <SidebarLink
             key={item.href}
@@ -107,7 +109,7 @@ export function Sidebar({
 
       <div className="mt-auto flex flex-col gap-3 pt-6">
         <div className="flex flex-col gap-0.5">
-          <nav aria-label="More pages" className="flex flex-col gap-0.5">
+          <nav aria-label={t.shell.morePages} className="flex flex-col gap-0.5">
             {APP_NAV_FOOTER.map((item) => (
               <SidebarLink
                 key={item.href}
@@ -123,7 +125,7 @@ export function Sidebar({
           <FeedbackButton className="font-normal" />
         </div>
         <SidebarPlan user={user} me={me} onUpgrade={() => setUpgradeOpen(true)} />
-        <AccountRow user={user} upgrade={upgrade} />
+        <AccountRow user={user} upgrade={upgrade} t={t} />
       </div>
       {nextOnSale ? <LazyUpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} /> : null}
     </aside>
@@ -145,6 +147,8 @@ function SidebarLink({
   count: number | null;
   quiet?: boolean;
 }) {
+  const { nav } = useMessages("dashboard");
+  const format = useFormat();
   const current = isCurrent(item, pathname);
   // Each page comes in full once this one has settled, so a click needs no server trip; data waits for intent.
   const settled = useSettled();
@@ -170,12 +174,12 @@ function SidebarLink({
       )}
     >
       <item.icon className={cn("size-4", current ? "text-ink" : "text-muted")} aria-hidden />
-      <span className="flex-1">{item.label}</span>
+      <span className="flex-1">{nav[item.key]}</span>
       <LinkPending />
       {total !== null ? (
         <span className="text-xs text-muted tabular-nums">
           <span className="sr-only">(</span>
-          {count.format(total)}
+          {format.number(total)}
           <span className="sr-only">)</span>
         </span>
       ) : null}
@@ -184,13 +188,21 @@ function SidebarLink({
   );
 }
 
-function planLine(user: SessionUser): string {
-  if (user.plan === "free") return "Free plan";
+function planLine(user: SessionUser, t: DashboardMessages): string {
+  if (user.plan === "free") return t.shell.freePlan;
   const name = PLANS[user.plan].name;
-  return user.trialEndsAt ? `${name} trial` : name;
+  return user.trialEndsAt ? fmt(t.shell.trialPlan, { plan: name }) : name;
 }
 
-function AccountRow({ user, upgrade }: { user: SessionUser; upgrade: Upgrade | null }) {
+function AccountRow({
+  user,
+  upgrade,
+  t,
+}: {
+  user: SessionUser;
+  upgrade: Upgrade | null;
+  t: DashboardMessages;
+}) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const shortcut = useCommandPaletteShortcut();
@@ -200,19 +212,19 @@ function AccountRow({ user, upgrade }: { user: SessionUser; upgrade: Upgrade | n
     // Also clears the account's backed-up resumes from this browser, for shared computers.
     const signedOut = await signOutAndRelease(user.id).catch((error: unknown) => {
       setSigningOut(false);
-      toast({ title: "Couldn't sign you out", description: errorMessage(error), variant: "error" });
+      toast({ title: t.shell.signOutFailed, description: errorMessage(error), variant: "error" });
       return null;
     });
     if (!signedOut) return;
     patchMe({ user: null, usage: null, period: null });
-    toast({ title: "You're signed out.", description: signedOutNote(signedOut.kept) });
+    toast({ title: t.shell.signedOut, description: signedOutNote(signedOut.kept) });
     void refreshMe();
   }
 
   return (
     <Menu
-      label="Account"
-      triggerLabel={`Account menu for ${user.email}`}
+      label={t.shell.accountMenu}
+      triggerLabel={fmt(t.shell.accountMenuFor, { email: user.email })}
       triggerClassName="flex h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:bg-ink/5 aria-expanded:bg-ink/5"
       className="w-64"
       trigger={
@@ -225,7 +237,7 @@ function AccountRow({ user, upgrade }: { user: SessionUser; upgrade: Upgrade | n
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm/5 font-medium text-ink">{user.email}</span>
-            <span className="block truncate text-xs/4 text-subtle">{planLine(user)}</span>
+            <span className="block truncate text-xs/4 text-subtle">{planLine(user, t)}</span>
           </span>
           {signingOut ? (
             <Spinner className="text-muted" />
@@ -242,34 +254,34 @@ function AccountRow({ user, upgrade }: { user: SessionUser; upgrade: Upgrade | n
             ]
           : []),
         {
-          label: "Search",
+          label: t.shell.search,
           icon: Search,
           shortcut: shortcut || undefined,
           onSelect: openCommandPalette,
         },
         {
-          label: "Account",
+          label: t.shell.account,
           icon: UserRound,
           onSelect: () => router.push(ROUTES.dashboardAccount),
         },
         {
-          label: "Work rights & preferences",
+          label: t.shell.workRights,
           icon: SlidersHorizontal,
           onSelect: () => router.push(accountSectionHref("work")),
         },
         {
-          label: "Plans and pricing",
+          label: t.shell.pricing,
           icon: CreditCard,
           onSelect: () => router.push(ROUTES.pricing),
         },
         {
-          label: `Help: ${BRAND.supportEmail}`,
+          label: fmt(t.shell.help, { email: BRAND.supportEmail }),
           icon: LifeBuoy,
           onSelect: () => window.location.assign(`mailto:${BRAND.supportEmail}`),
         },
         "separator",
         {
-          label: signingOut ? "Signing out…" : "Sign out",
+          label: signingOut ? t.shell.signingOut : t.shell.signOut,
           icon: LogOut,
           disabled: signingOut,
           onSelect: () => void signOut(),

@@ -11,10 +11,12 @@ import {
 import { accountSectionHref } from "@/components/setup/links";
 import { ROUTES } from "@/components/site/routes";
 import { openLineOnArrival } from "@/components/studio/tailor/jump";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import { applicationHref } from "@/lib/applications/thread";
 import type { Application } from "@/lib/applications/schema";
-import { pluralize } from "@/lib/utils";
-import { formatDay, prepHref } from "../../applications/view";
+import { prepHref } from "../../applications/view";
+import { formatDay, type DashboardMessages } from "../../i18n";
 import type { StudioActions } from "../../use-studio-actions";
 import { interviewDay, type NextStep, type SetupStepId } from "../next-steps";
 import type { UpNext } from "../use-up-next";
@@ -40,46 +42,54 @@ function prepareHref(application: Pick<Application, "id" | "hasPrep">): string {
   return application.hasPrep ? prepHref(application.id) : `${prepHref(application.id)}?start=1`;
 }
 
-const SETUP: Record<
-  SetupStepId,
-  { title: string; detail: string; icon: LucideIcon; cta: string; href?: string }
-> = {
-  work: {
-    title: "Where you can work",
-    detail: "Your country and visa needs, so Jobs can flag posts that can't hire you.",
-    icon: Globe,
-    cta: "Set it up",
-    href: accountSectionHref("work"),
-  },
-  looking_for: {
-    title: "What you're looking for",
-    detail: "Role, level and place. Jobs puts the closest matches first.",
-    icon: Compass,
-    cta: "Set it up",
-    href: accountSectionHref("lookingFor"),
-  },
-  // Only while the resume has no lines yet: an open weak line is the fix row instead.
-  weak_line: {
-    title: "Fix your first weak line",
-    detail: "Add your jobs and what you did in them, then Otto marks the weak lines.",
-    icon: PenLine,
-    cta: "Start",
-  },
-};
+type Steps = DashboardMessages["steps"];
 
-const count = new Intl.NumberFormat("en-US");
+function setupStep(
+  id: SetupStepId,
+  steps: Steps,
+): { title: string; detail: string; icon: LucideIcon; cta: string; href?: string } {
+  switch (id) {
+    case "work":
+      return {
+        title: steps.workTitle,
+        detail: steps.workDetail,
+        icon: Globe,
+        cta: steps.setUp,
+        href: accountSectionHref("work"),
+      };
+    case "looking_for":
+      return {
+        title: steps.lookingTitle,
+        detail: steps.lookingDetail,
+        icon: Compass,
+        cta: steps.setUp,
+        href: accountSectionHref("lookingFor"),
+      };
+    // Only while the resume has no lines yet: an open weak line is the fix row instead.
+    case "weak_line":
+      return { title: steps.weakTitle, detail: steps.weakDetail, icon: PenLine, cta: steps.start };
+  }
+}
 
-const joinNames = (names: readonly string[]) =>
-  names.length <= 2
-    ? names.join(" and ")
-    : `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
+function joinNames(names: readonly string[], steps: Steps, format: Format): string {
+  const [first = "", second = ""] = names;
+  if (names.length <= 1) return first;
+  if (names.length === 2) return fmt(steps.twoNames, { first, second });
+  return fmt(steps.moreNames, {
+    names: names.slice(0, 2).join(", "),
+    count: format.number(names.length - 2),
+  });
+}
 
 export function stepView(
   step: Exclude<NextStep, { kind: "upload" }>,
   state: UpNext,
   actions: StudioActions,
   now: number,
+  t: DashboardMessages,
+  format: Format,
 ): StepView {
+  const { steps } = t;
   switch (step.kind) {
     case "interview": {
       const { application, prepped } = step;
@@ -89,12 +99,14 @@ export function stepView(
         scene: "interview",
         icon: CalendarClock,
         tone: "forest",
-        eyebrow: "Interview",
-        title: `${prepped ? "Practice" : "Prepare"} for your ${application.company} interview`,
+        eyebrow: steps.interview,
+        title: fmt(prepped ? steps.practiceFor : steps.prepareFor, {
+          company: application.company,
+        }),
         detail: application.role,
-        badge: at === undefined ? undefined : interviewDay(at, now),
+        badge: at === undefined ? undefined : interviewDay(at, now, t, format),
         at,
-        cta: prepped ? "Practice" : "Start prep",
+        cta: prepped ? steps.practice : steps.startPrep,
         href: prepareHref(application),
       };
     }
@@ -105,30 +117,34 @@ export function stepView(
         scene: "follow_up",
         icon: BellRing,
         tone: "amber",
-        eyebrow: "Follow-up",
-        badge: "Due",
+        eyebrow: steps.followUp,
+        badge: steps.due,
       } as const;
       if (step.due.length === 1 && first) {
         return {
           ...base,
-          title: `Follow up with ${first.company}`,
+          title: fmt(steps.followUpWith, { company: first.company }),
           detail: [
             first.role,
             first.status === "interview" && first.interviewAt !== null
-              ? `interviewed ${formatDay(first.interviewAt, now)}`
-              : `applied ${formatDay(first.appliedAt, now)}`,
+              ? fmt(steps.interviewed, { day: formatDay(format, first.interviewAt, now) })
+              : fmt(steps.applied, { day: formatDay(format, first.appliedAt, now) }),
           ]
             .filter(Boolean)
             .join(" · "),
-          cta: "Open the application",
+          cta: steps.openApplication,
           href: applicationHref(first.id),
         };
       }
       return {
         ...base,
-        title: `Follow up on ${pluralize(step.due.length, "application")}`,
-        detail: joinNames([...new Set(step.due.map((application) => application.company))]),
-        cta: "Open Applications",
+        title: format.plural(steps.followUpOn, step.due.length),
+        detail: joinNames(
+          [...new Set(step.due.map((application) => application.company))],
+          steps,
+          format,
+        ),
+        cta: steps.openApplications,
         href: ROUTES.dashboardApplications,
       };
     }
@@ -138,10 +154,10 @@ export function stepView(
         scene: "fix",
         icon: PenLine,
         tone: "sepia",
-        eyebrow: "Your resume",
-        title: `Fix ${pluralize(step.lines, "line")} in ${step.title}`,
-        detail: "The editor opens on the first one.",
-        cta: "Fix the first line",
+        eyebrow: steps.yourResume,
+        title: format.plural(steps.fixLines, step.lines, { title: step.title }),
+        detail: steps.fixDetail,
+        cta: steps.fixFirst,
         onSelect: () => {
           if (step.remember) state.remember({ resumeId: step.resumeId, bulletId: step.bulletId });
           openLineOnArrival(step.bulletId);
@@ -154,13 +170,13 @@ export function stepView(
         scene: "tailor",
         icon: BriefcaseBusiness,
         tone: "forest",
-        eyebrow: "Tailoring",
-        title: step.company ? `Continue tailoring for ${step.company}` : "Continue tailoring",
-        detail: step.ran
-          ? "Otto's suggestions are waiting for you."
-          : "The job post you pasted is still there.",
-        badge: step.ran ? "Ready" : undefined,
-        cta: "Continue",
+        eyebrow: steps.tailoring,
+        title: step.company
+          ? fmt(steps.continueFor, { company: step.company })
+          : steps.continueTailoring,
+        detail: step.ran ? steps.suggestionsWaiting : steps.postStillThere,
+        badge: step.ran ? steps.ready : undefined,
+        cta: steps.continue,
         onSelect: () => actions.open(step.resumeId, "tailor"),
       };
     case "matches":
@@ -169,21 +185,21 @@ export function stepView(
         scene: "matches",
         icon: Search,
         tone: "green",
-        eyebrow: "Jobs",
-        title: `See ${pluralize(step.strong, "strong match", "strong matches")} in Jobs`,
-        detail: "Open jobs that fit your resume.",
-        badge: `${count.format(step.newToday)} new today`,
-        cta: "See matches",
+        eyebrow: steps.jobs,
+        title: format.plural(steps.seeMatches, step.strong),
+        detail: steps.matchesDetail,
+        badge: fmt(steps.newToday, { count: format.number(step.newToday) }),
+        cta: steps.seeMatchesCta,
         href: ROUTES.dashboardJobs,
       };
     case "setup": {
-      const { title, detail, icon, cta, href } = SETUP[step.id];
+      const { title, detail, icon, cta, href } = setupStep(step.id, steps);
       const base = {
         key: `setup-${step.id}`,
         scene: "setup",
         icon,
         tone: step.id === "weak_line" ? "sepia" : "mist",
-        eyebrow: "Setup",
+        eyebrow: steps.setup,
         title,
         detail,
         cta,

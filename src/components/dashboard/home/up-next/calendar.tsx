@@ -1,16 +1,25 @@
+import { useFormat } from "@/i18n/client";
+import type { Format } from "@/i18n/intl";
 import { cn } from "@/lib/utils";
 
-const MONTH = new Intl.DateTimeFormat("en-US", { month: "short" });
-const WEEKDAY = new Intl.DateTimeFormat("en-US", { weekday: "long" });
+const MONTH = { month: "short" } as const;
+const WEEKDAY = { weekday: "long" } as const;
 
-export function calendarDay(at: number): { month: string; day: number; weekday: string } {
+export function calendarDay(
+  at: number,
+  format: Format,
+): { month: string; day: number; weekday: string } {
   const date = new Date(at);
-  return { month: MONTH.format(date), day: date.getDate(), weekday: WEEKDAY.format(date) };
+  return {
+    month: format.date(date, MONTH),
+    day: date.getDate(),
+    weekday: format.date(date, WEEKDAY),
+  };
 }
 
 // A desk calendar page: forest header, two binder rings, the day in the display serif.
 export function CalendarPage({ at, className }: { at: number; className?: string }) {
-  const { month, day, weekday } = calendarDay(at);
+  const { month, day, weekday } = calendarDay(at, useFormat());
   return (
     <div className={cn("relative w-24", className)}>
       <div className="overflow-hidden rounded-lg bg-surface text-center shadow-page">
@@ -32,7 +41,7 @@ export function CalendarPage({ at, className }: { at: number; className?: string
 
 // The same page at icon size, for a dated step that isn't the lead.
 export function CalendarChip({ at, className }: { at: number; className?: string }) {
-  const { month, day } = calendarDay(at);
+  const { month, day } = calendarDay(at, useFormat());
   return (
     <span
       aria-hidden

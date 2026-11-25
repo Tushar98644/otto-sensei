@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
+import { useMessages } from "@/i18n/client";
 import { api } from "@/lib/api/client";
 import type { Application } from "@/lib/applications/schema";
 import { sameJobUrl } from "@/lib/applications/thread";
@@ -90,6 +91,7 @@ function groupApplication(
 }
 
 export function LettersPage() {
+  const dashboard = useMessages("dashboard");
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
   const writings = useWritings();
@@ -100,7 +102,7 @@ export function LettersPage() {
   const pro = useProTools();
   const locked = pro === false;
   const { me, user, loading: planLoading } = useMe();
-  const tryPro = me?.billing.trial === false ? "See Pro" : offerLabel(true);
+  const tryPro = me?.billing.trial === false ? "See Pro" : offerLabel(true, dashboard);
   const savedJobs = useSavedJobs(pro === true);
   const reader = useOpenLetter();
   const [upgradeOpen, setUpgradeOpen] = useState(false);

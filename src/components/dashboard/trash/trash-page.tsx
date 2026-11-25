@@ -6,13 +6,14 @@ import { useMemo, useState } from "react";
 import { roomForCopyOf } from "@/components/account/pro-tools";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
-import { formatRelativeTime } from "@/components/studio/relative-time";
 import { tailoredLabel } from "@/components/studio/resume-label";
 import { useNow } from "@/components/studio/use-now";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { resumeTitle } from "@/lib/resume/ops";
 import { daysLeft, freshTrash, TRASH_DAYS } from "@/lib/store/history";
 import {
@@ -21,9 +22,11 @@ import {
   useTrash,
   type TrashedResume,
 } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
+import { relativeTime } from "../i18n";
 
 export function TrashPage() {
+  const { trash: t } = useMessages("dashboard");
+  const format = useFormat();
   const hydrated = useStudioHydrated();
   const trash = useTrash();
   const now = useNow();
@@ -36,19 +39,19 @@ export function TrashPage() {
     const id = useStudioStore.getState().restoreFromTrash(entry.resume.id);
     const copy = id ? useStudioStore.getState().resumes[id] : undefined;
     if (!copy) return;
-    toast({ title: "Resume restored", description: resumeTitle(copy), variant: "success" });
+    toast({ title: t.restored, description: resumeTitle(copy), variant: "success" });
   }
 
   function confirmForget() {
     if (!forgetting) return;
     useStudioStore.getState().deleteFromTrash(forgetting.resume.id);
-    toast({ title: "Deleted for good", description: resumeTitle(forgetting.resume) });
+    toast({ title: t.deletedForGood, description: resumeTitle(forgetting.resume) });
     setForgetting(null);
   }
 
   function confirmEmpty() {
     useStudioStore.getState().emptyTrash();
-    toast({ title: "Recently deleted is empty" });
+    toast({ title: t.emptied });
     setEmptying(false);
   }
 
@@ -61,20 +64,18 @@ export function TrashPage() {
             className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm text-muted hover:text-ink"
           >
             <ArrowLeft className="size-4" aria-hidden />
-            Resumes
+            {t.back}
           </Link>
           <h1 className="mt-2 font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-            Recently deleted
+            {t.title}
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-muted">
-            Deleted resumes stay in this browser for {TRASH_DAYS} days, or until you sign out.
-            They&apos;re removed from your account backup. Restoring one brings it back as a new
-            copy.
+            {fmt(t.intro, { days: format.number(TRASH_DAYS) })}
           </p>
         </div>
         {hydrated && entries.length > 0 ? (
           <Button variant="secondary" onClick={() => setEmptying(true)}>
-            Empty trash
+            {t.empty}
           </Button>
         ) : null}
       </header>
@@ -82,17 +83,17 @@ export function TrashPage() {
       {!hydrated ? (
         <div aria-busy className="flex flex-col gap-3 rounded-2xl bg-surface p-4 sm:p-6">
           <span className="sr-only" role="status">
-            Loading deleted resumes
+            {t.loading}
           </span>
           <Skeleton className="h-5 w-1/2" />
           <Skeleton className="h-4 w-1/3" />
         </div>
       ) : entries.length === 0 ? (
         <div className="rounded-2xl bg-surface p-6 sm:p-8">
-          <OttoNote live={false} message="No deleted resumes right now." />
+          <OttoNote live={false} message={t.none} />
         </div>
       ) : (
-        <section aria-label="Deleted resumes" className="rounded-2xl bg-surface px-4 sm:px-6">
+        <section aria-label={t.list} className="rounded-2xl bg-surface px-4 sm:px-6">
           <ul className="divide-y divide-border">
             {entries.map((entry) => (
               <TrashRow
@@ -113,19 +114,17 @@ export function TrashPage() {
           if (!open) setForgetting(null);
         }}
         size="sm"
-        title="Delete forever?"
+        title={t.forgetTitle}
         description={
-          forgetting
-            ? `“${resumeTitle(forgetting.resume)}” and its saved versions will be gone for good. This can't be undone.`
-            : undefined
+          forgetting ? fmt(t.forgetBody, { title: resumeTitle(forgetting.resume) }) : undefined
         }
         footer={
           <>
             <Button variant="ghost" onClick={() => setForgetting(null)} data-autofocus>
-              Keep it
+              {t.keepIt}
             </Button>
             <Button variant="danger" onClick={confirmForget}>
-              Delete forever
+              {t.deleteForever}
             </Button>
           </>
         }
@@ -135,15 +134,15 @@ export function TrashPage() {
         open={emptying}
         onOpenChange={setEmptying}
         size="sm"
-        title="Empty Recently deleted?"
-        description={`${pluralize(entries.length, "resume")} will be gone for good. This can't be undone.`}
+        title={t.emptyTitle}
+        description={format.plural(t.emptyBody, entries.length)}
         footer={
           <>
             <Button variant="ghost" onClick={() => setEmptying(false)} data-autofocus>
-              Keep them
+              {t.keepThem}
             </Button>
             <Button variant="danger" onClick={confirmEmpty}>
-              Empty trash
+              {t.empty}
             </Button>
           </>
         }
@@ -163,12 +162,14 @@ function TrashRow({
   onRestore: () => void;
   onForget: () => void;
 }) {
+  const { trash: t, card } = useMessages("dashboard");
+  const format = useFormat();
   const title = resumeTitle(entry.resume);
   const left = daysLeft(entry, now);
   const meta = [
     tailoredLabel(entry.resume),
-    `Deleted ${formatRelativeTime(entry.deletedAt, now)}`,
-    `${pluralize(left, "day")} left`,
+    fmt(t.deleted, { time: relativeTime(format, card.justNow, entry.deletedAt, now) }),
+    format.plural(t.daysLeft, left),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -180,17 +181,22 @@ function TrashRow({
         <p className="text-sm/5 text-subtle">{meta}</p>
       </div>
       <div className="flex gap-2">
-        <Button variant="secondary" size="sm" onClick={onRestore} aria-label={`Restore ${title}`}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onRestore}
+          aria-label={fmt(t.restoreLabel, { title })}
+        >
           <RotateCcw aria-hidden />
-          Restore
+          {t.restore}
         </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={onForget}
-          aria-label={`Delete forever: ${title}`}
+          aria-label={fmt(t.forgetLabel, { title })}
         >
-          Delete forever
+          {t.deleteForever}
         </Button>
       </div>
     </li>

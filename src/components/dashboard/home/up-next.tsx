@@ -4,6 +4,7 @@ import { TodayBrief } from "@/components/dashboard/interview/today-brief";
 import { useNow } from "@/components/studio/use-now";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFormat, useMessages } from "@/i18n/client";
 import { dayOffset } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { StudioActions } from "../use-studio-actions";
@@ -29,8 +30,9 @@ export function leadBrief(state: UpNextState, now: number): string | null {
 
 // Holds the lead card's place until the steps are known, drawn like the week card's skeleton.
 export function UpNextSkeleton() {
+  const { home } = useMessages("dashboard");
   return (
-    <FolderCard tab="Up next" tone="lavender" bodyClassName="p-2" aria-hidden>
+    <FolderCard tab={home.upNext} tone="lavender" bodyClassName="p-2" aria-hidden>
       <div className="grid gap-2 sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] md:grid-cols-[max(15rem,calc((100%-1.5rem)/3-1rem))_minmax(0,1fr)]">
         <div className="h-40 rounded-xl bg-surface-muted sm:h-full sm:min-h-44" />
         <div className="flex flex-col gap-4 px-2 pt-2 pb-3 sm:justify-center sm:px-4 sm:py-5 lg:px-6">
@@ -55,13 +57,15 @@ export function UpNext({
   actions: StudioActions;
   hasSample: boolean;
 }) {
+  const t = useMessages("dashboard");
+  const format = useFormat();
   const now = useNow();
   if (!state || state.steps.length === 0) return null;
   const { setup } = state;
   const [first, ...rest] = state.steps;
   const others = rest
     .filter((step) => !isUpload(step))
-    .map((step) => stepView(step, state, actions, now));
+    .map((step) => stepView(step, state, actions, now, t, format));
   const progress = setup ? setup.progress : undefined;
   const brief = leadBrief(state, now);
 
@@ -72,11 +76,11 @@ export function UpNext({
       data-setup-steps={setup ? setup.progress.total : undefined}
     >
       <h2 id="up-next-heading" className="sr-only">
-        Up next
+        {t.home.upNext}
       </h2>
       <div className="flex flex-col gap-4">
         <FolderCard
-          tab="Up next"
+          tab={t.home.upNext}
           tone="lavender"
           tabEnd={
             setup ? (
@@ -95,7 +99,7 @@ export function UpNext({
             </div>
           ) : first ? (
             <>
-              <LeadStep view={stepView(first, state, actions, now)} setup={progress} />
+              <LeadStep view={stepView(first, state, actions, now, t, format)} setup={progress} />
               {brief ? (
                 <TodayBrief
                   applicationId={brief}
@@ -106,7 +110,7 @@ export function UpNext({
           ) : null}
         </FolderCard>
         {others.length > 0 ? (
-          <ul aria-label="More to do" className={cn("grid gap-4", COLUMNS[others.length])}>
+          <ul aria-label={t.home.moreToDo} className={cn("grid gap-4", COLUMNS[others.length])}>
             {others.map((view, index) => (
               <li key={view.key} className="motion-safe:animate-fade-in" style={stagger(index + 1)}>
                 <StepTile view={view} card={others.length > 1} />

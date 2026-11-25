@@ -6,15 +6,20 @@ import { mePayload } from "@/app/api/me/payload";
 import { AppShell } from "@/components/dashboard/app-shell";
 import { ROUTES } from "@/components/site/routes";
 import { SiteFonts } from "@/components/site/site-fonts";
+import { getMessages, MessagesFor } from "@/i18n/server";
 import { getCurrentAccount } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { REQUEST_PATH_HEADER, requestedPathWithin } from "@/lib/request-path";
+import { DASHBOARD_NAMESPACES } from "./namespaces";
 import { dashboardSeeds } from "./seeds";
 
-export const metadata: Metadata = {
-  title: { template: "%s · Dashboard", default: "Dashboard" },
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = await getMessages("dashboard");
+  return {
+    title: { template: meta.titleTemplate, default: meta.title },
+    robots: { index: false, follow: false },
+  };
+}
 
 export const viewport: Viewport = { themeColor: "#eef3ef" };
 
@@ -37,9 +42,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     return null;
   });
   return (
-    <AppShell initialUser={user} initialMe={me} seeds={seeds}>
-      <SiteFonts />
-      {children}
-    </AppShell>
+    <MessagesFor namespaces={DASHBOARD_NAMESPACES}>
+      <AppShell initialUser={user} initialMe={me} seeds={seeds}>
+        <SiteFonts />
+        {children}
+      </AppShell>
+    </MessagesFor>
   );
 }

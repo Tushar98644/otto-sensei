@@ -12,8 +12,10 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { ProMark } from "@/components/ui/pro-mark";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { useResumeList, useStudioStore } from "@/lib/store/resume-store";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   groupCommands,
   moveActive,
@@ -32,12 +34,13 @@ export type CommandPaletteProps = {
 };
 
 export function CommandPalette({ open, onOpenChange, actions }: CommandPaletteProps) {
+  const { palette } = useMessages("dashboard");
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Search"
-      description="Go to a page or a resume, or paste a job link to tailor to it."
+      title={palette.title}
+      description={palette.description}
       className="gap-3"
     >
       <PaletteBody actions={actions} onClose={() => onOpenChange(false)} />
@@ -46,6 +49,9 @@ export function CommandPalette({ open, onOpenChange, actions }: CommandPalettePr
 }
 
 function PaletteBody({ actions, onClose }: { actions: StudioActions; onClose: () => void }) {
+  const t = useMessages("dashboard");
+  const format = useFormat();
+  const { palette } = t;
   const router = useRouter();
   const resumes = useResumeList();
   const activeId = useStudioStore((s) => s.activeId);
@@ -74,8 +80,14 @@ function PaletteBody({ actions, onClose }: { actions: StudioActions; onClose: ()
   );
 
   const commands = useMemo(
-    () => paletteCommands({ query, resumes, activeId, proTools, tailorLocked, now }, handlers),
-    [query, resumes, activeId, proTools, tailorLocked, now, handlers],
+    () =>
+      paletteCommands(
+        { query, resumes, activeId, proTools, tailorLocked, now },
+        handlers,
+        t,
+        format,
+      ),
+    [query, resumes, activeId, proTools, tailorLocked, now, handlers, t, format],
   );
   const groups = useMemo(() => groupCommands(commands), [commands]);
   const positions = useMemo(
@@ -131,8 +143,8 @@ function PaletteBody({ actions, onClose }: { actions: StudioActions; onClose: ()
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={activeOption}
-          aria-label="Search pages and resumes, or paste a job link"
-          placeholder="Search, or paste a job link"
+          aria-label={palette.input}
+          placeholder={palette.placeholder}
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
@@ -146,13 +158,13 @@ function PaletteBody({ actions, onClose }: { actions: StudioActions; onClose: ()
       <div
         id={listId}
         role="listbox"
-        aria-label="Results"
+        aria-label={palette.results}
         className="-mx-2 h-80 max-h-[45dvh] overflow-y-auto overscroll-contain px-2"
       >
         {groups.map(({ group, commands: items }) => (
-          <div key={group} role="group" aria-label={group} className="pb-2">
+          <div key={group} role="group" aria-label={palette.groups[group]} className="pb-2">
             <Eyebrow aria-hidden className="px-2.5 pt-2 pb-1">
-              {group}
+              {palette.groups[group]}
             </Eyebrow>
             {items.map((command) => {
               const at = positions.get(command.id) ?? -1;
@@ -189,21 +201,24 @@ function PaletteBody({ actions, onClose }: { actions: StudioActions; onClose: ()
         ))}
         {commands.length === 0 ? (
           <p className="px-2.5 py-6 text-sm/6 text-pretty text-muted">
-            Nothing matches “{typed}”. Try a page, a resume&apos;s name or a job link.
+            {fmt(palette.noMatch, { query: typed })}
           </p>
         ) : null}
       </div>
       <p role="status" className="sr-only">
-        {typed ? pluralize(commands.length, "result") : ""}
+        {typed ? format.plural(palette.resultCount, commands.length) : ""}
       </p>
-      <p aria-hidden className="hidden items-center gap-1.5 text-xs/5 text-subtle pointer-fine:flex">
+      <p
+        aria-hidden
+        className="hidden items-center gap-1.5 text-xs/5 text-subtle pointer-fine:flex"
+      >
         <Kbd>↑</Kbd>
         <Kbd>↓</Kbd>
-        to move
+        {palette.toMove}
         <Kbd className="ml-2">Enter</Kbd>
-        to open
+        {palette.toOpen}
         <Kbd className="ml-2">Esc</Kbd>
-        to close
+        {palette.toClose}
       </p>
     </div>
   );

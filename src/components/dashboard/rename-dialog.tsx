@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { TITLE_MAX, cleanTitle, resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
@@ -16,6 +18,7 @@ export type RenameDialogProps = {
 };
 
 export function RenameDialog({ resume, onClose, onRename, isTaken }: RenameDialogProps) {
+  const { rename } = useMessages("dashboard");
   return (
     <Dialog
       open={resume !== null}
@@ -23,8 +26,8 @@ export function RenameDialog({ resume, onClose, onRename, isTaken }: RenameDialo
         if (!open) onClose();
       }}
       size="sm"
-      title="Rename resume"
-      description="Only you see this name. The PDF keeps your own name at the top."
+      title={rename.title}
+      description={rename.description}
     >
       {resume ? (
         <RenameForm
@@ -45,6 +48,7 @@ function RenameForm({
   onRename,
   isTaken,
 }: { resume: Resume } & Omit<RenameDialogProps, "resume">) {
+  const { rename } = useMessages("dashboard");
   const [draft, setDraft] = useState(resumeTitle(resume));
   const [error, setError] = useState<string | null>(null);
 
@@ -52,11 +56,11 @@ function RenameForm({
     event.preventDefault();
     const next = cleanTitle(draft);
     if (!next) {
-      setError("Give it a name, like “Design roles 2026”.");
+      setError(rename.empty);
       return;
     }
     if (isTaken(next)) {
-      setError(`You already have a resume called “${next}”. Pick another name.`);
+      setError(fmt(rename.taken, { name: next }));
       return;
     }
     onRename(resume, next);
@@ -64,7 +68,7 @@ function RenameForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
-      <Field label="Name" error={error}>
+      <Field label={rename.name} error={error}>
         <Input
           value={draft}
           maxLength={TITLE_MAX}
@@ -80,9 +84,9 @@ function RenameForm({
       </Field>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button variant="ghost" onClick={onClose}>
-          Cancel
+          {rename.cancel}
         </Button>
-        <Button type="submit">Save name</Button>
+        <Button type="submit">{rename.save}</Button>
       </div>
     </form>
   );

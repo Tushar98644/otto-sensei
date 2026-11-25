@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
 import { CheckinPage } from "@/components/career-log/checkin-page";
 import { MONTH_PARAM } from "@/lib/career-log/links";
 import { isMonth } from "@/lib/career-log/month";
+import { pageTitle } from "../../page-title";
 
-export const metadata: Metadata = { title: "Check-in" };
+export const generateMetadata = () => pageTitle("checkIn");
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 

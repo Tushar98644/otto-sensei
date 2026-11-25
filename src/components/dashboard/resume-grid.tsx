@@ -6,6 +6,7 @@ import { useNow } from "@/components/studio/use-now";
 import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
 import { toast } from "@/components/ui/toast";
 import { trashWithUndo } from "@/components/ui/trash-with-undo";
+import { useMessages } from "@/i18n/client";
 import { isTitleTaken, resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
@@ -40,6 +41,7 @@ export function ResumeGrid({
   start,
   className,
 }: ResumeGridProps) {
+  const { library } = useMessages("dashboard");
   const now = useNow();
   const renameResume = useStudioStore((s) => s.renameResume);
   const duplicateResume = useStudioStore((s) => s.duplicateResume);
@@ -52,7 +54,8 @@ export function ResumeGrid({
     if (!(await roomForCopyOf(resume))) return;
     const id = duplicateResume(resume.id);
     const copy = id ? useStudioStore.getState().resumes[id] : undefined;
-    if (copy) toast({ title: "Copy made", description: resumeTitle(copy), variant: "success" });
+    if (copy)
+      toast({ title: library.copyMade, description: resumeTitle(copy), variant: "success" });
   }
 
   return (

@@ -9,7 +9,6 @@ import {
   unlockFeature,
   usePlan,
 } from "@/components/account/pro-tools";
-import { OTTO } from "@/components/mascot/lines";
 import { ROUTES } from "@/components/site/routes";
 import { requestGuidedDraft } from "@/components/studio/upload/guided-start";
 import { openSample } from "@/components/studio/upload/sample-start";
@@ -19,6 +18,7 @@ import {
   type LocalImportKind,
 } from "@/components/studio/upload/local-import-kinds";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { track } from "@/lib/analytics/client";
 import { useStudioStore, type StudioStep } from "@/lib/store/resume-store";
 import { emptyResume } from "@/lib/resume/schema";
@@ -45,6 +45,7 @@ function chooseFile(accept: string, onFile: (file: File) => void): void {
 }
 
 export function useStudioActions() {
+  const { errors } = useMessages("dashboard");
   const router = useRouter();
   const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
@@ -86,14 +87,14 @@ export function useStudioActions() {
             go("fix");
           } catch (error) {
             toast({
-              title: "Couldn't import that file",
-              description: error instanceof LocalImportError ? error.message : OTTO.errors.generic,
+              title: errors.cantImport,
+              description: error instanceof LocalImportError ? error.message : errors.generic,
               variant: "error",
             });
           }
         })();
       }),
-    [addResume, go],
+    [addResume, go, errors],
   );
 
   return useMemo(

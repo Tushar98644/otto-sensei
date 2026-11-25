@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { createSampleResume } from "@/lib/resume/sample";
+import { inEnglish } from "../messages-testing";
 import type { StudioActions } from "../use-studio-actions";
 import { ActionCards } from "./action-cards";
 
@@ -18,7 +19,13 @@ vi.mock("next/link", () => ({
 function cards(tailorLocked: boolean): string {
   plan.tailorLocked = tailorLocked;
   return renderToStaticMarkup(
-    <ActionCards actions={{} as StudioActions} latest={null} pageResume={createSampleResume(0)} />,
+    inEnglish(
+      <ActionCards
+        actions={{} as StudioActions}
+        latest={null}
+        pageResume={createSampleResume(0)}
+      />,
+    ),
   );
 }
 

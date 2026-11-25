@@ -19,8 +19,17 @@ const filesIn = (locale: Locale) =>
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
   es: new Set(),
   "pt-BR": new Set(),
-  fr: new Set(),
-  de: new Set(),
+  fr: new Set(["meta.portfolio", "nav.portfolio"]),
+  de: new Set([
+    "meta.jobs",
+    "meta.portfolio",
+    "nav.jobs",
+    "nav.portfolio",
+    "rename.name",
+    "steps.interview",
+    "steps.jobs",
+    "library.sorts.name",
+  ]),
 };
 
 describe("English messages", () => {

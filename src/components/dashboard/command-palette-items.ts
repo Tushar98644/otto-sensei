@@ -1,19 +1,12 @@
-import {
-  FilePlus2,
-  FileText,
-  FileUp,
-  Target,
-  UserRound,
-  type LucideIcon,
-} from "lucide-react";
-import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
+import { FilePlus2, FileText, FileUp, Target, UserRound, type LucideIcon } from "lucide-react";
 import { ROUTES } from "@/components/site/routes";
-import { formatRelativeTime } from "@/components/studio/relative-time";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
+import { relativeTime, type DashboardMessages } from "./i18n";
 import { matchesQuery, recentResumes } from "./library";
 import { APP_NAV, APP_NAV_FOOTER, showsProMark, type AppNavItem } from "./nav";
-import { TRASH_ROUTE } from "./trash/trash-route";
 
 type PaletteGroup = "Actions" | "Pages" | "Resumes";
 
@@ -50,21 +43,12 @@ const RECENT = 5;
 const MATCHES = 8;
 const MAX_LINK_CHARS = 2048;
 
-// Other words people use for each page, so "tracker" or "cover letter" still finds it.
-const PAGE_WORDS: Record<string, string> = {
-  [ROUTES.dashboard]: "dashboard start overview",
-  [ROUTES.dashboardResumes]: "library documents cv",
-  [ROUTES.dashboardJobs]: "search openings matches roles",
-  [ROUTES.dashboardApplications]: "tracker board applied pipeline",
-  [ROUTES.dashboardLetters]: "cover letters messages outreach answers",
-  [ROUTES.dashboardInterview]: "questions interviews practice",
-  [PORTFOLIO_ROUTE]: "website site personal page",
-  [ROUTES.dashboardFormats]: "templates looks design layout",
-  [TRASH_ROUTE]: "trash bin deleted restore",
-  [ROUTES.dashboardAccount]: "settings plan billing profile preferences work rights",
+const ACCOUNT_PAGE: AppNavItem = {
+  href: ROUTES.dashboardAccount,
+  label: "Account",
+  key: "account",
+  icon: UserRound,
 };
-
-const ACCOUNT_PAGE: AppNavItem = { href: ROUTES.dashboardAccount, label: "Account", icon: UserRound };
 
 function fold(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -110,12 +94,13 @@ function tailorCommand(
   input: PaletteInput,
   handlers: PaletteHandlers,
   jobLink: string | null,
+  { palette }: DashboardMessages,
 ): PaletteCommand | null {
   const target = tailorTarget(input.resumes, input.activeId);
   const base = {
     id: jobLink ? "tailor-link" : "tailor",
     group: "Actions",
-    label: jobLink ? "Tailor to this job" : "Tailor to a job",
+    label: jobLink ? palette.tailorThis : palette.tailorAny,
     icon: Target,
     pro: input.tailorLocked,
   } as const;
@@ -123,31 +108,37 @@ function tailorCommand(
     return { ...base, detail: jobLink ? hostOf(jobLink) : undefined, run: handlers.lockedTailor };
   }
   if (!target) {
-    return jobLink ? { ...base, detail: "Add your resume first", run: handlers.upload } : null;
+    return jobLink ? { ...base, detail: palette.addResumeFirst, run: handlers.upload } : null;
   }
   return {
     ...base,
     detail: jobLink
-      ? `${hostOf(jobLink)} · with “${resumeTitle(target)}”`
-      : "Or paste a job link here",
+      ? fmt(palette.withResume, { host: hostOf(jobLink), title: resumeTitle(target) })
+      : palette.orPaste,
     run: () => handlers.tailor(target.id, jobLink),
   };
 }
 
-export function paletteCommands(input: PaletteInput, handlers: PaletteHandlers): PaletteCommand[] {
+export function paletteCommands(
+  input: PaletteInput,
+  handlers: PaletteHandlers,
+  t: DashboardMessages,
+  format: Format,
+): PaletteCommand[] {
+  const { palette, nav } = t;
   const jobLink = parseJobLink(input.query);
   if (jobLink) {
-    const command = tailorCommand(input, handlers, jobLink);
+    const command = tailorCommand(input, handlers, jobLink, t);
     return command ? [command] : [];
   }
   const query = input.query.trim();
 
   const pages = [...APP_NAV, ...APP_NAV_FOOTER, ACCOUNT_PAGE]
-    .filter((item) => !query || matches(query, item.label, PAGE_WORDS[item.href] ?? ""))
+    .filter((item) => !query || matches(query, nav[item.key], palette.pageWords[item.key]))
     .map<PaletteCommand>((item) => ({
       id: `page:${item.href}`,
       group: "Pages",
-      label: item.label,
+      label: nav[item.key],
       icon: item.icon,
       pro: showsProMark(item, input.proTools),
       run: () => handlers.go(item.href),
@@ -163,48 +154,50 @@ export function paletteCommands(input: PaletteInput, handlers: PaletteHandlers):
     id: `resume:${resume.id}`,
     group: "Resumes",
     label: resumeTitle(resume),
-    detail: `Edited ${formatRelativeTime(resume.updatedAt, input.now)}`,
+    detail: fmt(palette.edited, {
+      time: relativeTime(format, t.card.justNow, resume.updatedAt, input.now),
+    }),
     icon: FileText,
     pro: false,
     run: () => handlers.openResume(resume.id),
   }));
 
-  const tailor = tailorCommand(input, handlers, null);
+  const tailor = tailorCommand(input, handlers, null, t);
   const actions: { command: PaletteCommand; words: string }[] = [
-    ...(tailor ? [{ command: tailor, words: "job link match" }] : []),
+    ...(tailor ? [{ command: tailor, words: palette.tailorWords }] : []),
     {
       command: {
         id: "upload",
         group: "Actions",
-        label: "Upload a resume",
-        detail: "PDF or Word",
+        label: palette.upload,
+        detail: palette.uploadDetail,
         icon: FileUp,
         pro: false,
         run: handlers.upload,
       },
-      words: "new resume import file pdf word docx",
+      words: palette.uploadWords,
     },
     {
       command: {
         id: "scratch",
         group: "Actions",
-        label: "Start from scratch",
+        label: palette.scratch,
         icon: FilePlus2,
         pro: false,
         run: handlers.scratch,
       },
-      words: "new resume blank empty",
+      words: palette.scratchWords,
     },
     {
       command: {
         id: "sample",
         group: "Actions",
-        label: "Try a sample",
+        label: palette.sample,
         icon: FileText,
         pro: false,
         run: handlers.sample,
       },
-      words: "new resume example demo",
+      words: palette.sampleWords,
     },
   ];
 
@@ -212,9 +205,7 @@ export function paletteCommands(input: PaletteInput, handlers: PaletteHandlers):
     .filter(({ command, words }) => !query || matches(query, command.label, words))
     .map(({ command }) => command);
   // Before anything is typed the next steps lead; once it is, the pages people jump to do.
-  return query
-    ? [...pages, ...resumes, ...shownActions]
-    : [...shownActions, ...resumes, ...pages];
+  return query ? [...pages, ...resumes, ...shownActions] : [...shownActions, ...resumes, ...pages];
 }
 
 export function groupCommands(

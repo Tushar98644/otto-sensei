@@ -12,6 +12,8 @@ import { ROUTES } from "@/components/site/routes";
 import { AccountMenu } from "@/components/studio/account-menu";
 import { Menu } from "@/components/ui/menu";
 import { BRAND } from "@/config/brand";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { SessionUser } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
 import { useHoverIntent, useSettled } from "./hover-intent";
@@ -27,6 +29,7 @@ const CURRENT = "bg-surface text-ink shadow-control";
 const IDLE = "text-muted hover:text-ink aria-expanded:text-ink";
 
 export function MobileBar({ user }: { user: SessionUser }) {
+  const { shell, nav } = useMessages("dashboard");
   const pathname = usePathname();
   const router = useRouter();
   const proTools = useProTools();
@@ -37,7 +40,7 @@ export function MobileBar({ user }: { user: SessionUser }) {
       <div className="flex h-14 items-center justify-between gap-2 px-4 sm:px-8">
         <Link
           href={ROUTES.dashboard}
-          aria-label={`${BRAND.name} home`}
+          aria-label={fmt(shell.brandHome, { brand: BRAND.name })}
           className="flex h-11 items-center gap-2 rounded-lg pr-1"
         >
           <OttoMark className="size-7" />
@@ -50,26 +53,28 @@ export function MobileBar({ user }: { user: SessionUser }) {
           <AccountMenu onSignIn={() => router.push(loginHref(pathname))} />
         </div>
       </div>
-      <nav aria-label="Dashboard" className="px-4 pb-3 sm:px-8">
+      <nav aria-label={shell.nav} className="px-4 pb-3 sm:px-8">
         <div className="flex gap-1 rounded-xl bg-surface-strong p-1">
           {PHONE_TABS.map((item) => (
             <PhoneTab key={item.href} item={item} user={user} current={isCurrent(item, pathname)} />
           ))}
           <Menu
-            label="More sections"
+            label={shell.moreSections}
             align="end"
             triggerLabel={
-              moreCurrent ? `More sections, now on ${moreCurrent.label}` : "More sections"
+              moreCurrent
+                ? fmt(shell.moreSectionsOn, { page: nav[moreCurrent.key] })
+                : shell.moreSections
             }
             triggerClassName={cn(SEGMENT, moreCurrent ? CURRENT : IDLE)}
             trigger={
               <>
                 <Ellipsis className="hidden size-4 shrink-0 sm:block" aria-hidden />
-                <span className="truncate">More</span>
+                <span className="truncate">{shell.more}</span>
               </>
             }
             items={PHONE_MORE.map((item) => ({
-              label: item.label,
+              label: nav[item.key],
               icon: item.icon,
               checked: isCurrent(item, pathname),
               pro: showsProMark(item, proTools),
@@ -91,6 +96,7 @@ function PhoneTab({
   user: SessionUser;
   current: boolean;
 }) {
+  const { nav } = useMessages("dashboard");
   const settled = useSettled();
   const [intent, setIntent] = useState(false);
   const intentHandlers = useHoverIntent(() => {
@@ -109,7 +115,7 @@ function PhoneTab({
     >
       <LinkPending variant="bar" />
       <item.icon className="hidden size-4 shrink-0 sm:block" aria-hidden />
-      <span className="truncate">{item.label}</span>
+      <span className="truncate">{nav[item.key]}</span>
     </Link>
   );
 }
