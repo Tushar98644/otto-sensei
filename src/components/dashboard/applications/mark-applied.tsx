@@ -23,7 +23,7 @@ import { addApplication, commitDelete, hideApplication, useApplications } from "
 import { formatDay } from "./view";
 
 const applicationDialog = lazyComponent(() =>
-  import("./application-dialog").then((m) => m.ApplicationDialog),
+  import("./application-dialog-anywhere").then((m) => m.ApplicationDialogAnywhere),
 );
 
 let cheering: string | null = null;

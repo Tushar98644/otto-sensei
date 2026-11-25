@@ -39,8 +39,6 @@ const nextConfig: NextConfig = {
   experimental: {
     staleTimes: { dynamic: 30 },
     globalNotFound: true,
-    // Small shared chunks stay shared: at the 50 KB default each root (404, crash page) merged its own copies.
-    turbopackChunking: { minChunkSize: 15_000 },
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
