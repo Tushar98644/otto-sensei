@@ -7,6 +7,7 @@ import { acceptedPlaces, placeFit, placeLabel } from "@/lib/job-feed/looking-for
 import type { PlaceChoice } from "@/lib/job-feed/types";
 import type { MatchCheck, MatchRow } from "@/lib/match-check/check";
 import { matchCheckFromText } from "@/lib/match-check/from-text";
+import { pluralKey, t, wordsLang, type MessageKey } from "./i18n";
 import type { JobPost } from "./page/post";
 
 export type SkillsSummary = {
@@ -50,30 +51,67 @@ export function skillsSummary(check: MatchCheck): SkillsSummary {
 }
 
 export function skillsLine({ found, total }: Pick<SkillsSummary, "found" | "total">): string {
-  if (total === 0) return "No skills Otto knows in this post";
-  return `${found} of ${total} ${total === 1 ? "skill" : "skills"} found`;
+  if (total === 0) return t("noSkills");
+  return t(pluralKey(total, "skillsFoundOne", "skillsFoundOther"), found, total);
 }
 
 export function missingLine(missing: readonly string[]): string | null {
   if (missing.length === 0) return null;
   const shown = missing.slice(0, MISSING_SHOWN).join(", ");
   const more = missing.length - MISSING_SHOWN;
-  return `Missing: ${shown}${more > 0 ? ` and ${more} more` : ""}`;
+  return more > 0 ? t("missingMore", shown, more) : t("missing", shown);
 }
 
-const GROUP_SHORT: Record<string, string> = {
-  "g:north_america": "North America",
-  "g:latam": "Latin America",
-  "g:europe": "Europe",
-  "g:eu": "EU",
-  "g:emea": "EMEA",
-  "g:apac": "APAC",
-  "g:anz": "Australia and New Zealand",
-  "g:americas": "the Americas",
-  "*": "worldwide",
+const GROUP_SHORT: Record<string, MessageKey> = {
+  "g:north_america": "groupNorthAmerica",
+  "g:latam": "groupLatam",
+  "g:europe": "groupEurope",
+  "g:eu": "groupEu",
+  "g:emea": "groupEmea",
+  "g:apac": "groupApac",
+  "g:anz": "groupAnz",
+  "g:americas": "groupAmericas",
+  "*": "groupWorldwide",
 };
 
-const SHORT_REGION: Record<string, string> = { us: "US", uk: "UK", eu: "EU", ca: "Canada" };
+const NEEDS_RIGHTS: Record<string, MessageKey> = {
+  us: "authUs",
+  uk: "authUk",
+  eu: "authEu",
+  ca: "authCa",
+};
+
+const NO_SPONSORSHIP: Record<string, MessageKey> = {
+  us: "visaUs",
+  uk: "visaUk",
+  eu: "visaEu",
+  ca: "visaCa",
+};
+
+const PLACE_GROUPS: Record<string, MessageKey> = {
+  north_america: "placeNorthAmerica",
+  latam: "placeLatam",
+  europe: "placeEurope",
+  eu: "placeEu",
+  emea: "placeEmea",
+  apac: "placeApac",
+  anz: "placeAnz",
+};
+
+// Where the person looks for jobs, in the extension's words; English keeps the app's own labels.
+export function placeName(choice: PlaceChoice): string {
+  const lang = wordsLang();
+  if (lang === "en") return placeLabel(choice);
+  if (choice === "anywhere") return t("placeAnywhere");
+  const group = choice.startsWith("g:") ? PLACE_GROUPS[choice.slice(2)] : undefined;
+  if (group) return t(group);
+  try {
+    const name = new Intl.DisplayNames([lang], { type: "region" }).of(choice.slice(2));
+    return name ?? placeLabel(choice);
+  } catch {
+    return placeLabel(choice);
+  }
+}
 
 const REMOTE = /\b(?:remote|work from home|wfh|anywhere|distributed|telecommute)\b/i;
 const NOT_REMOTE = /\b(?:on-?site|in[- ]office|work from office|hybrid)\b/i;
@@ -85,16 +123,16 @@ function firstSentence(note: string): string {
 // The blocked finding, in the few words a badge has room for.
 export function blockedText(finding: EligibilityFinding): string {
   const region = WORK_REGIONS.find((code) => finding.note.includes(REGION_NAMES[code]));
-  if (finding.rule === "authorization" && region)
-    return `Needs ${SHORT_REGION[region]} work authorization`;
-  if (finding.rule === "sponsorship" && region)
-    return `No visa sponsorship for the ${SHORT_REGION[region]}`.replace("the Canada", "Canada");
+  const needs = region ? NEEDS_RIGHTS[region] : undefined;
+  if (finding.rule === "authorization" && needs) return t(needs);
+  const noVisa = region ? NO_SPONSORSHIP[region] : undefined;
+  if (finding.rule === "sponsorship" && noVisa) return t(noVisa);
   if (finding.rule === "location") {
     const sentence = firstSentence(finding.note);
     const forPeople = /^This is for people in (.+)$/.exec(sentence);
-    if (forPeople) return `Only for people in ${forPeople[1]}`;
+    if (forPeople) return t("onlyFor", forPeople[1] ?? "");
     const onSite = /^The job is in (.+), and it isn't remote$/.exec(sentence);
-    if (onSite) return `On-site in ${onSite[1]}`;
+    if (onSite) return t("onSite", onSite[1] ?? "");
     return sentence;
   }
   return firstSentence(finding.note);
@@ -108,9 +146,8 @@ function placeDetails(
 ): string {
   const remote =
     REMOTE.test(location) || (!NOT_REMOTE.test(location) && REMOTE.test(text.slice(0, 4000)));
-  const area =
-    matched && matched !== `c:${choice.slice(2)}` ? (GROUP_SHORT[matched] ?? null) : null;
-  return [remote ? "remote" : null, area].filter(Boolean).join(", ");
+  const area = matched && matched !== `c:${choice.slice(2)}` ? GROUP_SHORT[matched] : undefined;
+  return [remote ? t("remoteWord") : null, area ? t(area) : null].filter(Boolean).join(", ");
 }
 
 export function eligibilityLine(
@@ -132,16 +169,17 @@ export function eligibilityLine(
   if (fit === "match" && lookingFor.place !== "anywhere") {
     const matched = tokens.find((token) => accepted?.includes(token)) ?? null;
     const details = placeDetails(post.location, post.text, matched, lookingFor.place);
+    const place = placeName(lookingFor.place);
     return {
       tone: "ok",
-      text: `Open to ${placeLabel(lookingFor.place)}${details ? ` (${details})` : ""}`,
+      text: details ? t("openToDetails", place, details) : t("openTo", place),
       findings,
     };
   }
   if (fit === "miss") {
     return {
       tone: "check",
-      text: `Posted for ${postedFor(post.location)}, not ${placeLabel(lookingFor.place)}`,
+      text: t("postedForNot", postedFor(post.location), placeName(lookingFor.place)),
       findings,
     };
   }
@@ -149,16 +187,14 @@ export function eligibilityLine(
   if (check) return { tone: "check", text: firstSentence(check.note), findings };
   const where = findings.find((finding) => finding.rule === "location" && finding.verdict === "ok");
   if (where) return { tone: "ok", text: firstSentence(where.note), findings };
-  const text = post.location
-    ? `Posted for ${postedFor(post.location)}`
-    : "No place or work rules in the post";
+  const text = post.location ? t("postedFor", postedFor(post.location)) : t("noRules");
   return { tone: "none", text, findings };
 }
 
 // "Remote · New York City, NY, USA" reads better as "New York City, NY, USA (remote)".
 function postedFor(location: string): string {
   const place = location.replace(/^remote\s*[·,|-]\s*/i, "");
-  return place === location ? location : `${place} (remote)`;
+  return place === location ? location : t("remotePlace", place);
 }
 
 export function badgeMatch(

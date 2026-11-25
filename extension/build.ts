@@ -56,6 +56,7 @@ async function build(target: BuildTarget): Promise<string> {
     path.join(out, "manifest.json"),
     `${JSON.stringify(manifest(target, VERSION, originFor(target)), null, 2)}\n`,
   );
+  cpSync(path.join(ROOT, "_locales"), path.join(out, "_locales"), { recursive: true });
   cpSync(path.join(ROOT, "store", "icons"), path.join(out, "icons"), {
     recursive: true,
     filter: (file) => !file.endsWith("-store.png") && !file.includes("promo"),

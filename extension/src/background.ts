@@ -11,6 +11,7 @@ import type {
 import type { AnswerResult } from "@/lib/ai/types";
 import { chrome, type MessageSender } from "./chrome";
 import { OTTO_ORIGIN, OTTO_VISIT_TTL_MS, ottoUrl, PENDING_TTL_MS, PROFILE_TTL_MS } from "./config";
+import { t } from "./i18n";
 import type {
   AnswersReply,
   AppliedReply,
@@ -33,12 +34,12 @@ type Called<T> = { ok: true; data: T } | Failure;
 const OFFLINE: Failure = {
   ok: false,
   code: "network_error",
-  message: "Otto can't reach his server. Check your connection and try again.",
+  message: t("offline"),
 };
 const SIGNED_OUT: Failure = {
   ok: false,
   code: "unauthorized",
-  message: "Otto isn't connected to your account any more. Connect him again.",
+  message: t("signedOut"),
 };
 
 // Every call carries the token and never cookies, so a page can't act with the person's session.
@@ -66,7 +67,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<Called<T>>
     return {
       ok: false,
       code: body?.error?.code ?? "server_error",
-      message: body?.error?.message ?? "Something went wrong. Try again in a moment.",
+      message: body?.error?.message ?? t("somethingWrong"),
     };
   }
   return { ok: true, data: body };
@@ -106,8 +107,7 @@ async function callFile(path: string): Promise<FileReply> {
     return {
       ok: false,
       code: body?.error?.code ?? "server_error",
-      message:
-        body?.error?.message ?? "Otto couldn't make your resume's PDF. Try again in a moment.",
+      message: body?.error?.message ?? t("pdfFailed"),
     };
   }
   const disposition = res.headers.get("content-disposition") ?? "";
@@ -159,7 +159,7 @@ async function connect(
   sender: MessageSender,
 ): Promise<ConnectReply> {
   if (!fromConnectPage(sender) || !token.startsWith("otto_ext_")) {
-    return { ok: false, code: "forbidden", message: "Connect from Otto's own connect page." };
+    return { ok: false, code: "forbidden", message: t("connectFromPage") };
   }
   await writeStored({
     token,
@@ -175,7 +175,7 @@ async function connect(
     return {
       ok: false,
       code: "server_error",
-      message: "Otto couldn't read your account. Try again.",
+      message: t("accountUnreadable"),
     };
   }
   return { ok: true, email: profile.email };
@@ -286,7 +286,7 @@ async function applied(sender: MessageSender): Promise<AppliedReply> {
     return {
       ok: false,
       code: "not_found",
-      message: "Otto has no filled form waiting in this tab.",
+      message: t("noFilledForm"),
     };
   }
   // Taken first, so a thank-you page drawn twice can't add the application twice.

@@ -1,0 +1,732 @@
+{
+  "lang": {
+    "message": "fr"
+  },
+  "extName": {
+    "message": "Otto pour Chrome"
+  },
+  "extDescription": {
+    "message": "Vois comment ton CV correspond à une offre d'emploi, et si tu peux prendre le poste, sur la page même où tu la lis."
+  },
+  "actionTitle": {
+    "message": "Otto : vérifier cette offre"
+  },
+  "showLess": {
+    "message": "Voir moins"
+  },
+  "tuckAway": {
+    "message": "Ranger Otto"
+  },
+  "savedOpenBoard": {
+    "message": "Enregistrée. Ouvrir ton tableau"
+  },
+  "saved": {
+    "message": "Enregistrée"
+  },
+  "save": {
+    "message": "Enregistrer"
+  },
+  "tailor": {
+    "message": "Adapter"
+  },
+  "letter": {
+    "message": "Lettre"
+  },
+  "missing": {
+    "message": "Manque : $TERMS$",
+    "placeholders": {
+      "terms": {
+        "content": "$1"
+      }
+    }
+  },
+  "missingMore": {
+    "message": "Manque : $TERMS$ et $COUNT$ autres",
+    "placeholders": {
+      "terms": {
+        "content": "$1"
+      },
+      "count": {
+        "content": "$2"
+      }
+    }
+  },
+  "allSkillsFound": {
+    "message": "Toutes les compétences citées par l'offre sont dans ton CV."
+  },
+  "skillsOfOne": {
+    "message": "sur $TOTAL$ compétence trouvée",
+    "placeholders": {
+      "total": {
+        "content": "$1"
+      }
+    }
+  },
+  "skillsOfOther": {
+    "message": "sur $TOTAL$ compétences trouvées",
+    "placeholders": {
+      "total": {
+        "content": "$1"
+      }
+    }
+  },
+  "skillsFoundOne": {
+    "message": "$FOUND$ sur $TOTAL$ compétence trouvée",
+    "placeholders": {
+      "found": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "skillsFoundOther": {
+    "message": "$FOUND$ sur $TOTAL$ compétences trouvées",
+    "placeholders": {
+      "found": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "noSkills": {
+    "message": "Aucune compétence connue d'Otto dans cette offre"
+  },
+  "mustHave": {
+    "message": "indispensable"
+  },
+  "niceToHave": {
+    "message": "souhaitée"
+  },
+  "statusShown": {
+    "message": "Dans une ligne"
+  },
+  "statusListed": {
+    "message": "Listée, pas montrée"
+  },
+  "statusMissing": {
+    "message": "Introuvable"
+  },
+  "quote": {
+    "message": "$PLACE$ : « $TEXT$ »",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      },
+      "text": {
+        "content": "$2"
+      }
+    }
+  },
+  "verdictOk": {
+    "message": "OK"
+  },
+  "verdictCheck": {
+    "message": "À vérifier"
+  },
+  "verdictBlocked": {
+    "message": "Probablement bloquant"
+  },
+  "ruleLocation": {
+    "message": "Où tu vis"
+  },
+  "ruleAuthorization": {
+    "message": "Droit de travailler"
+  },
+  "ruleSponsorship": {
+    "message": "Parrainage de visa"
+  },
+  "ruleTimeZone": {
+    "message": "Fuseau horaire"
+  },
+  "ruleWorkType": {
+    "message": "Type de poste"
+  },
+  "checkedAgainst": {
+    "message": "Comparé à"
+  },
+  "checkedAgainstResume": {
+    "message": "comparé à $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1"
+      }
+    }
+  },
+  "skillsHeading": {
+    "message": "Compétences citées par l'offre"
+  },
+  "canYouTakeIt": {
+    "message": "Peux-tu le prendre ?"
+  },
+  "openOtto": {
+    "message": "Ouvrir Otto"
+  },
+  "disconnect": {
+    "message": "Déconnecter"
+  },
+  "seeEverything": {
+    "message": "Voir toutes les compétences et règles"
+  },
+  "savedLine": {
+    "message": "Dans la colonne À postuler de ton tableau."
+  },
+  "openIt": {
+    "message": "L'ouvrir"
+  },
+  "savedAnswersRegion": {
+    "message": "Otto pour Chrome : tes réponses enregistrées"
+  },
+  "savedAnswersMeta": {
+    "message": "tes réponses enregistrées"
+  },
+  "miniLabel": {
+    "message": "Otto : $LINE$",
+    "placeholders": {
+      "line": {
+        "content": "$1"
+      }
+    }
+  },
+  "connectMessage": {
+    "message": "Connecte-moi à ton compte et je comparerai chaque offre d'emploi à ton CV, ici même."
+  },
+  "connectButton": {
+    "message": "Connecter Otto"
+  },
+  "readingResume": {
+    "message": "Lecture de ton CV…"
+  },
+  "needResume": {
+    "message": "J'ai besoin d'un CV pour comparer. Ajoutes-en un dans Otto, puis reviens sur cette offre."
+  },
+  "addResume": {
+    "message": "Ajouter un CV"
+  },
+  "cantFindPost": {
+    "message": "Je ne trouve pas l'offre d'emploi sur cette page. Sélectionne son texte, puis appuie sur Utiliser la sélection."
+  },
+  "useSelection": {
+    "message": "Utiliser la sélection"
+  },
+  "notNow": {
+    "message": "Pas maintenant"
+  },
+  "selectMore": {
+    "message": "Sélectionne quelques lignes de l'offre, au moins les exigences, puis appuie sur Utiliser la sélection."
+  },
+  "groupNorthAmerica": {
+    "message": "Amérique du Nord"
+  },
+  "groupLatam": {
+    "message": "Amérique latine"
+  },
+  "groupEurope": {
+    "message": "Europe"
+  },
+  "groupEu": {
+    "message": "UE"
+  },
+  "groupEmea": {
+    "message": "EMEA"
+  },
+  "groupApac": {
+    "message": "APAC"
+  },
+  "groupAnz": {
+    "message": "Australie et Nouvelle-Zélande"
+  },
+  "groupAmericas": {
+    "message": "les Amériques"
+  },
+  "groupWorldwide": {
+    "message": "monde entier"
+  },
+  "placeAnywhere": {
+    "message": "n'importe où"
+  },
+  "placeNorthAmerica": {
+    "message": "Amérique du Nord"
+  },
+  "placeLatam": {
+    "message": "Amérique latine"
+  },
+  "placeEurope": {
+    "message": "Europe"
+  },
+  "placeEu": {
+    "message": "UE"
+  },
+  "placeEmea": {
+    "message": "Europe, Moyen-Orient et Afrique"
+  },
+  "placeApac": {
+    "message": "Asie-Pacifique"
+  },
+  "placeAnz": {
+    "message": "Australie et Nouvelle-Zélande"
+  },
+  "authUs": {
+    "message": "Exige une autorisation de travail aux États-Unis"
+  },
+  "authUk": {
+    "message": "Exige une autorisation de travail au Royaume-Uni"
+  },
+  "authEu": {
+    "message": "Exige une autorisation de travail dans l'UE"
+  },
+  "authCa": {
+    "message": "Exige une autorisation de travail au Canada"
+  },
+  "visaUs": {
+    "message": "Pas de parrainage de visa pour les États-Unis"
+  },
+  "visaUk": {
+    "message": "Pas de parrainage de visa pour le Royaume-Uni"
+  },
+  "visaEu": {
+    "message": "Pas de parrainage de visa pour l'UE"
+  },
+  "visaCa": {
+    "message": "Pas de parrainage de visa pour le Canada"
+  },
+  "onlyFor": {
+    "message": "Uniquement pour qui vit ici : $PLACE$",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "onSite": {
+    "message": "Sur site à $PLACE$",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "openTo": {
+    "message": "Dans ta zone : $PLACE$",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "openToDetails": {
+    "message": "Dans ta zone : $PLACE$ ($DETAILS$)",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      },
+      "details": {
+        "content": "$2"
+      }
+    }
+  },
+  "remoteWord": {
+    "message": "à distance"
+  },
+  "postedFor": {
+    "message": "Publiée pour $WHERE$",
+    "placeholders": {
+      "where": {
+        "content": "$1"
+      }
+    }
+  },
+  "postedForNot": {
+    "message": "Publiée pour $WHERE$, hors de ta zone ($PLACE$)",
+    "placeholders": {
+      "where": {
+        "content": "$1"
+      },
+      "place": {
+        "content": "$2"
+      }
+    }
+  },
+  "remotePlace": {
+    "message": "$PLACE$ (à distance)",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "noRules": {
+    "message": "Aucune règle de lieu ni de travail dans l'offre"
+  },
+  "perYear": {
+    "message": "par an"
+  },
+  "perMonth": {
+    "message": "par mois"
+  },
+  "perHour": {
+    "message": "de l'heure"
+  },
+  "rightsEu": {
+    "message": "l'UE"
+  },
+  "rightsUs": {
+    "message": "les États-Unis"
+  },
+  "rightsGb": {
+    "message": "le Royaume-Uni"
+  },
+  "choose": {
+    "message": "Choisir"
+  },
+  "yes": {
+    "message": "Oui"
+  },
+  "no": {
+    "message": "Non"
+  },
+  "payHint": {
+    "message": "Par exemple 18 LPA"
+  },
+  "payAmount": {
+    "message": "$LABEL$ : montant",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      }
+    }
+  },
+  "payCurrency": {
+    "message": "$LABEL$ : devise",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      }
+    }
+  },
+  "payPer": {
+    "message": "$LABEL$ : par",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      }
+    }
+  },
+  "yourAnswer": {
+    "message": "Ta réponse"
+  },
+  "asksRegion": {
+    "message": "Réponses dont Otto a besoin"
+  },
+  "asksOne": {
+    "message": "Otto a besoin d'une réponse"
+  },
+  "asksOther": {
+    "message": "Otto a besoin de $COUNT$ réponses",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "saveAndFill": {
+    "message": "Enregistrer et remplir"
+  },
+  "savedToAccount": {
+    "message": "Enregistré dans ton compte, pour que le prochain formulaire ne le demande pas."
+  },
+  "drafting": {
+    "message": "Otto rédige à partir de ton CV et de cette offre…"
+  },
+  "draftAria": {
+    "message": "Brouillon d'Otto"
+  },
+  "cancel": {
+    "message": "Annuler"
+  },
+  "close": {
+    "message": "Fermer"
+  },
+  "useDraft": {
+    "message": "Le mettre dans le formulaire"
+  },
+  "discard": {
+    "message": "Jeter"
+  },
+  "draftWithOtto": {
+    "message": "Rédiger avec Otto"
+  },
+  "draftingShort": {
+    "message": "Rédaction…"
+  },
+  "draftNote": {
+    "message": "Modifie-le ici d'abord. Rien n'entre tant que tu n'appuies pas sur le bouton."
+  },
+  "fieldsOne": {
+    "message": "$COUNT$ champ",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "fieldsOther": {
+    "message": "$COUNT$ champs",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "filled": {
+    "message": "J'ai rempli $FIELDS$.",
+    "placeholders": {
+      "fields": {
+        "content": "$1"
+      }
+    }
+  },
+  "filledAttached": {
+    "message": "J'ai rempli $FIELDS$ et joint $FILE$.",
+    "placeholders": {
+      "fields": {
+        "content": "$1"
+      },
+      "file": {
+        "content": "$2"
+      }
+    }
+  },
+  "fromTailored": {
+    "message": "Ta copie adaptée à ce poste."
+  },
+  "fromResume": {
+    "message": "À partir de $TITLE$.",
+    "placeholders": {
+      "title": {
+        "content": "$1"
+      }
+    }
+  },
+  "protectedOne": {
+    "message": "À toi de voir : $COUNT$ question d'auto-identification ou de consentement. Otto n'y répond jamais.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "protectedOther": {
+    "message": "À toi de voir : $COUNT$ questions d'auto-identification ou de consentement. Otto n'y répond jamais.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "fillYourself": {
+    "message": "Remplis ceux-ci toi-même : $NAMES$.",
+    "placeholders": {
+      "names": {
+        "content": "$1"
+      }
+    }
+  },
+  "fillYourselfMore": {
+    "message": "Remplis ceux-ci toi-même : $NAMES$ et $COUNT$ autres.",
+    "placeholders": {
+      "names": {
+        "content": "$1"
+      },
+      "count": {
+        "content": "$2"
+      }
+    }
+  },
+  "draftsOne": {
+    "message": "$COUNT$ question à rédiger : appuie sur Rédiger avec Otto à côté.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "draftsOther": {
+    "message": "$COUNT$ questions à rédiger : appuie sur Rédiger avec Otto à côté de chacune.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "checkSubmit": {
+    "message": "Vérifie chaque réponse, puis appuie toi-même sur Envoyer. Otto n'envoie jamais de formulaire."
+  },
+  "fillWithOtto": {
+    "message": "Remplir avec Otto"
+  },
+  "fillIntro": {
+    "message": "Otto remplit ce formulaire avec ton CV et tes réponses enregistrées. Tu vérifies et tu appuies sur Envoyer."
+  },
+  "fillFailed": {
+    "message": "Otto n'a pas pu remplir ce formulaire."
+  },
+  "fillFailedReload": {
+    "message": "Otto n'a pas pu remplir ce formulaire. Recharge la page et réessaie."
+  },
+  "tryAgain": {
+    "message": "Réessayer"
+  },
+  "yourSavedAnswers": {
+    "message": "Tes réponses enregistrées"
+  },
+  "fillAgain": {
+    "message": "Remplir à nouveau"
+  },
+  "canWorkIn": {
+    "message": "Droit de travailler : $PLACE$",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "canWorkAsk": {
+    "message": "Droit de travailler ?"
+  },
+  "canWork": {
+    "message": "Je peux travailler"
+  },
+  "cantYet": {
+    "message": "Pas encore"
+  },
+  "visaIn": {
+    "message": "Besoin d'un parrainage de visa : $PLACE$",
+    "placeholders": {
+      "place": {
+        "content": "$1"
+      }
+    }
+  },
+  "visaAsk": {
+    "message": "Visa ?"
+  },
+  "noVisa": {
+    "message": "Pas besoin de visa"
+  },
+  "needsVisa": {
+    "message": "Besoin d'un visa"
+  },
+  "readingAnswers": {
+    "message": "Lecture de tes réponses…"
+  },
+  "answersFailed": {
+    "message": "Otto n'a pas pu lire tes réponses."
+  },
+  "answersIntro": {
+    "message": "Otto met ces réponses dans les formulaires qui les demandent. Elles sont enregistrées dans ton compte, donc chaque navigateur les a."
+  },
+  "noticePeriod": {
+    "message": "Préavis"
+  },
+  "noticeHint": {
+    "message": "Par exemple 30 jours, ou immédiatement"
+  },
+  "currentPay": {
+    "message": "Salaire actuel"
+  },
+  "expectedPay": {
+    "message": "Salaire souhaité"
+  },
+  "whereYouCanWork": {
+    "message": "Où tu peux travailler"
+  },
+  "relocate": {
+    "message": "Prêt à déménager"
+  },
+  "startDate": {
+    "message": "Date de début au plus tôt"
+  },
+  "startHint": {
+    "message": "Par exemple 1er mars 2027, ou 30 jours après une offre"
+  },
+  "heardFrom": {
+    "message": "Comment tu as connu le poste"
+  },
+  "heardHint": {
+    "message": "Site de l'entreprise"
+  },
+  "forgetHint": {
+    "message": "Laisse vide pour l'oublier"
+  },
+  "otherQuestions": {
+    "message": "Autres questions auxquelles tu as répondu"
+  },
+  "saveAnswers": {
+    "message": "Enregistrer les réponses"
+  },
+  "back": {
+    "message": "Retour"
+  },
+  "removedFromApplications": {
+    "message": "Retirée des Candidatures."
+  },
+  "addedToApplications": {
+    "message": "Ajoutée aux Candidatures"
+  },
+  "roleAtCompany": {
+    "message": "$ROLE$ chez $COMPANY$",
+    "placeholders": {
+      "role": {
+        "content": "$1"
+      },
+      "company": {
+        "content": "$2"
+      }
+    }
+  },
+  "appliedToday": {
+    "message": "$WHAT$, candidature envoyée aujourd'hui.",
+    "placeholders": {
+      "what": {
+        "content": "$1"
+      }
+    }
+  },
+  "undo": {
+    "message": "Annuler"
+  },
+  "open": {
+    "message": "Ouvrir"
+  },
+  "offline": {
+    "message": "Otto n'arrive pas à joindre son serveur. Vérifie ta connexion et réessaie."
+  },
+  "signedOut": {
+    "message": "Otto n'est plus connecté à ton compte. Reconnecte-le."
+  },
+  "somethingWrong": {
+    "message": "Un problème est survenu. Réessaie dans un instant."
+  },
+  "pdfFailed": {
+    "message": "Otto n'a pas pu créer le PDF de ton CV. Réessaie dans un instant."
+  },
+  "connectFromPage": {
+    "message": "Connecte-le depuis la page de connexion d'Otto."
+  },
+  "accountUnreadable": {
+    "message": "Otto n'a pas pu lire ton compte. Réessaie."
+  },
+  "noFilledForm": {
+    "message": "Otto n'a aucun formulaire rempli en attente dans cet onglet."
+  },
+  "noPost": {
+    "message": "Otto a besoin de l'offre de ce poste pour rédiger une réponse. Ouvre une fois la page de l'offre, puis reviens au formulaire."
+  },
+  "undoFailed": {
+    "message": "Otto n'a pas pu annuler."
+  }
+}

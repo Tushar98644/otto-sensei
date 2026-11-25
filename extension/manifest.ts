@@ -29,11 +29,12 @@ export const JOB_MATCHES = [
 export function manifest(target: BuildTarget, version: string, origin = ORIGINS[target]) {
   return {
     manifest_version: 3,
-    name: target === "dev" ? "Otto for Chrome (dev)" : "Otto for Chrome",
+    // Words come from _locales in the browser's language (extension/src/i18n.ts); English is the default.
+    default_locale: "en",
+    name: target === "dev" ? "Otto for Chrome (dev)" : "__MSG_extName__",
     short_name: "Otto",
     version,
-    description:
-      "See how your resume matches a job post, and whether you can take the job, right on the page where you read it.",
+    description: "__MSG_extDescription__",
     ...(target === "dev" ? { key: DEV_KEY } : {}),
     minimum_chrome_version: "116",
     icons: {
@@ -43,7 +44,7 @@ export function manifest(target: BuildTarget, version: string, origin = ORIGINS[
       "128": "icons/128.png",
     },
     action: {
-      default_title: "Otto: check this job",
+      default_title: "__MSG_actionTitle__",
       default_icon: { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png" },
     },
     background: { service_worker: "background.js" },

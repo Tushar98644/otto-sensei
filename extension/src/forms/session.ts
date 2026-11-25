@@ -22,6 +22,7 @@ import {
   settle,
   typeValue,
 } from "./apply";
+import { t } from "../i18n";
 import { mountDraftButtons } from "./drafts";
 import { confirmation, formRoot, PLATFORMS, type FormPlatform } from "./platforms";
 import {
@@ -93,8 +94,6 @@ const SUBMIT_RECENT_MS = 10 * 60 * 1000;
 const PARSE_WAIT_MS = 1_200;
 const TYPED_CHECK_MS = 400;
 const PANEL_SETTLE_MS = 300;
-const NO_POST =
-  "Otto needs this job's post to draft an answer. Open the job's own page once, then come back to the form.";
 
 const randomId = (bytes = 18) =>
   btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(bytes))))
@@ -345,7 +344,7 @@ export function createFormSession(ctx: FormContext) {
       startWatching();
     } catch {
       state.phase = "error";
-      state.error = "Otto couldn't fill this form. Reload the page and try again.";
+      state.error = t("fillFailedReload");
     } finally {
       filling = false;
       ctx.changed();
@@ -453,7 +452,7 @@ export function createFormSession(ctx: FormContext) {
     showDrafts();
     ctx.changed();
     if (!post || post.text.length < 80) {
-      state.draft = { ...state.draft, busy: false, error: NO_POST };
+      state.draft = { ...state.draft, busy: false, error: t("noPost") };
       showDrafts();
       ctx.changed();
       return;
@@ -576,7 +575,7 @@ export function createFormSession(ctx: FormContext) {
     });
     state.toast = reply.ok
       ? { kind: "undone" }
-      : { kind: "error", message: reply.message ?? "Otto couldn't undo that." };
+      : { kind: "error", message: reply.message ?? t("undoFailed") };
     ctx.changed();
   }
 

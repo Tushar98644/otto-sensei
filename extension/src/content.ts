@@ -15,6 +15,7 @@ import { canonicalJobUrl, jobSiteOf, SITE_NAMES } from "@/lib/extension/urls";
 import { chrome } from "./chrome";
 import { formPlatformOf } from "./forms/platforms";
 import { createFormSession, payFrom, type FormSession } from "./forms/session";
+import { t } from "./i18n";
 import { badgeMatch, type BadgeMatch } from "./match";
 import { isTabMessage, type Request, type SaveReply, type State } from "./messages";
 import type { Page } from "./page/dom";
@@ -28,8 +29,6 @@ const SCAN_DEBOUNCE_MS = 400;
 const SCAN_GAP_MS = 1_500;
 const URL_POLL_MS = 800;
 const SETTLE_MS = 500;
-const MIN_SELECTION =
-  "Select a few lines of the post, at least its requirements, then press Use selection.";
 
 function send<T>(request: Request): Promise<T> {
   return chrome.runtime.sendMessage(request) as Promise<T>;
@@ -378,7 +377,7 @@ function start() {
         return void send({ type: "disconnect" });
       case "use-selection": {
         const chosen = postFromSelection(currentPage(), window.getSelection()?.toString() ?? "");
-        selectError = chosen ? null : MIN_SELECTION;
+        selectError = chosen ? null : t("selectMore");
         if (chosen) adopt(chosen);
         return draw();
       }
