@@ -1,7 +1,25 @@
 import type { Translations } from "..";
+import accountMenu from "./accountMenu";
+import jobForm from "./jobForm";
 import lint from "./lint";
+import onboarding from "./onboarding";
+import studio from "./studio";
+import studioDownload from "./studioDownload";
+import studioEditor from "./studioEditor";
+import studioSections from "./studioSections";
+import studioTailor from "./studioTailor";
 
 // German (du): list each namespace here as its file lands.
-const de: Translations = { lint };
+const de: Translations = {
+  accountMenu,
+  jobForm,
+  lint,
+  onboarding,
+  studio,
+  studioDownload,
+  studioEditor,
+  studioSections,
+  studioTailor,
+};
 
 export default de;

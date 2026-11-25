@@ -33,7 +33,16 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "extras.kinds.publications.date.label",
     "extras.kinds.custom.date.label",
   ]),
-  de: new Set(),
+  de: new Set([
+    "dashboard.portfolio.title",
+    "links.title",
+    "links.optional",
+    "links.name",
+    "projects.link",
+    "education.details",
+    "extras.details",
+    "extras.kinds.custom.detail.label",
+  ]),
 };
 
 describe("English messages", () => {
