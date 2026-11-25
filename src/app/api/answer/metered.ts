@@ -14,11 +14,12 @@ export const ANSWER_ROUTE = {
     refused: "Otto can't answer that question. Try rewording it.",
     tooLong: "That job post or resume is too long for Otto. Try a shorter job post.",
   },
-  run: async ({ resume, job, question }, user) =>
+  run: async ({ resume, job, question }, user, { ui }) =>
     answerQuestion(
       resume,
       { jobText: job.text, jobTitle: job.title, company: job.company },
       question,
       await readWritingStyle(user.id),
+      { ui },
     ),
 } satisfies MeteredRoute<typeof AnswerRequestSchema, Awaited<ReturnType<typeof answerQuestion>>>;

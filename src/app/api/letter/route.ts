@@ -26,11 +26,12 @@ export async function POST(req: Request): Promise<Response> {
     feature: "letter",
     schema: LetterRequestSchema,
     copy: COPY,
-    run: async ({ resume, job }, user) =>
+    run: async ({ resume, job }, user, { ui }) =>
       writeCoverLetter(
         resume,
         { jobText: job.text, jobTitle: job.title, company: job.company },
         await readWritingStyle(user.id),
+        { ui },
       ),
   });
 }

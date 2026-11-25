@@ -19,7 +19,7 @@ export async function POST(req: Request): Promise<Response> {
     feature: "fix",
     schema: FixRequestSchema,
     copy: COPY,
-    run: fixBullet,
+    run: (input, user, { ui }) => fixBullet(input, { ui }),
     // Answering Otto's questions finishes the fix the first call paid for.
     followUp: {
       subject: ({ bullet, role }) => passSubject(bullet, role.title, role.company),

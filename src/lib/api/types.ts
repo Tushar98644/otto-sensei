@@ -13,6 +13,7 @@ import {
 } from "@/config/plans";
 import { TOPUP_LIMITS } from "@/config/topup";
 import { oneLine } from "@/lib/ai/text";
+import { CONTENT_LANGS } from "@/lib/i18n/languages";
 import type {
   AnswerResult,
   CoverLetterResult,
@@ -81,6 +82,8 @@ export const FixRequestSchema = z.object({
     .array(z.object({ question: z.string().max(300), answer: z.string().trim().max(500) }))
     .max(5)
     .default([]),
+  // The resume's language, when the editor knows it.
+  lang: z.enum(CONTENT_LANGS).optional().catch(undefined),
 });
 export type FixRequestBody = z.input<typeof FixRequestSchema>;
 export type FixResponse = { ok: true; result: FixResult; usage: UsageSnapshot; demo: boolean };

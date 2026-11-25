@@ -66,11 +66,11 @@ export async function POST(req: Request): Promise<Response> {
     feature: "letter",
     schema: InterviewRequestSchema,
     copy: COPY,
-    run: async ({ applicationId, resume, job, focus }, user): Promise<InterviewResult> => {
+    run: async ({ applicationId, resume, job, focus }, user, { ui }): Promise<InterviewResult> => {
       const prep = await prepareInterview(
         resume,
         { jobText: job.text, jobTitle: job.title, company: job.company },
-        { focus },
+        { focus, ui },
       );
       return { prep, saved: await saveForCaller(user.id, applicationId, prep) };
     },

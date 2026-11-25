@@ -1,9 +1,12 @@
 import { z } from "zod";
 import { TEXT_LIMITS } from "@/config/plans";
+import type { Locale } from "@/i18n/config";
 import { aiEnabled } from "@/lib/env";
+import { resumeLang } from "@/lib/resume/lang";
 import { resumeToText } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { runStructured } from "./client";
+import { guardLangs, languagesTag, postLanguage, type Languages } from "./languages";
 import { TAILOR_SYSTEM_PROMPT } from "./prompts";
 import { redactResume, redactorFor } from "./redact";
 import { demoTailor } from "./tailor-demo";
@@ -89,7 +92,12 @@ export function withoutAliases(note: string, refs: readonly EntryRef[]): string 
   );
 }
 
-function tailorMessage(resumeText: string, input: TailorInput, refs: EntryRef[]): string {
+function tailorMessage(
+  resumeText: string,
+  input: TailorInput,
+  refs: EntryRef[],
+  languages: Languages,
+): string {
   const experience = refs.map((ref) => ({
     id: ref.alias,
     role: ref.label,
@@ -101,10 +109,13 @@ function tailorMessage(resumeText: string, input: TailorInput, refs: EntryRef[])
     input.jobText,
   ].filter(Boolean);
   return [
+    languagesTag(languages),
     tag("resume", resumeText),
     tag("experience", JSON.stringify(experience)),
     tag("job_post", post.join("\n")),
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function resolveOrders(
@@ -129,7 +140,11 @@ function resolveOrders(
   return resolved;
 }
 
-export async function tailorResume(resume: Resume, input: TailorInput): Promise<TailorResult> {
+export async function tailorResume(
+  resume: Resume,
+  input: TailorInput,
+  { ui = "en" }: { ui?: Locale } = {},
+): Promise<TailorResult> {
   const job: TailorInput = {
     jobText: input.jobText.trim(),
     jobTitle: clip(oneLine(input.jobTitle), JOB_FIELD_CHARS),
@@ -144,6 +159,8 @@ export async function tailorResume(resume: Resume, input: TailorInput): Promise<
   }
   if (!job.jobText) return finalizeTailor(EMPTY_RAW, resume, job);
   if (!aiEnabled()) return finalizeTailor(demoTailor(resume, job.jobText), resume, job);
+  const lang = resumeLang(resume);
+  const languages: Languages = { resume: lang, ui, post: postLanguage(job.jobText, lang) };
 
   const redactor = redactorFor(resume);
   const shown = redactResume(resume, redactor);
@@ -152,7 +169,7 @@ export async function tailorResume(resume: Resume, input: TailorInput): Promise<
     await runStructured({
       task: "tailor",
       system: TAILOR_SYSTEM_PROMPT,
-      user: tailorMessage(resumeToText(shown), job, experienceRefs(shown)),
+      user: tailorMessage(resumeToText(shown), job, experienceRefs(shown), languages),
       schema: TailorOutputSchema,
       effort: "low",
     }),
@@ -162,5 +179,5 @@ export async function tailorResume(resume: Resume, input: TailorInput): Promise<
     bulletOrder: resolveOrders(output.bulletOrder, refs),
     notes: output.notes.map((note) => withoutAliases(note, refs)),
   };
-  return finalizeTailor(raw, resume, job);
+  return finalizeTailor(raw, resume, job, guardLangs(languages.resume, languages.post));
 }

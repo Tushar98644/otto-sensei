@@ -1,7 +1,11 @@
+import type { ContentLang } from "@/lib/i18n/languages";
+
 export type FixInput = {
   bullet: string;
   role: { title: string; company: string };
   answers: { question: string; answer: string }[];
+  // The resume's language; read from the line when not given.
+  lang?: ContentLang;
 };
 
 export type FixResult = {

@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { TEXT_LIMITS } from "@/config/plans";
+import type { Locale } from "@/i18n/config";
 import { aiEnabled } from "@/lib/env";
+import type { ContentLang } from "@/lib/i18n/languages";
 import { log } from "@/lib/log";
+import { resumeLang } from "@/lib/resume/lang";
 import { listBullets, resumeToText } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import {
@@ -12,6 +15,9 @@ import {
   type WritingTone,
 } from "@/lib/writing-style/schema";
 import { runStructured, type AITask } from "./client";
+import type { NumberLangs } from "./guards";
+import { guardLangs, languagesTag, postLanguage, type Languages } from "./languages";
+import { letterWords } from "./letter-words";
 import {
   ANSWER_SYSTEM_PROMPT,
   LETTER_SYSTEM_PROMPT,
@@ -56,7 +62,6 @@ const JOB_FIELD_CHARS = 200;
 const LETTER_FLOOR_WORDS = 110;
 const ANSWER_FLOOR_WORDS = 45;
 const OUTREACH_FLOOR_WORDS = 45;
-const NOTE_GREETING = "Hi [first name], ";
 // One budget for both calls: the first may use all of it, and a retry starts only if it can finish.
 const TOTAL_DEADLINE_MS = 50_000;
 const MIN_RETRY_MS = 15_000;
@@ -109,7 +114,7 @@ const UK_SPELLING =
   'Spelling: British English, such as "organise", "colour" and "centre", and "CV" for a resume.';
 
 const TAG_START =
-  /<(?=\s*\/?\s*(?:style|resume|role|line|answers|experience|job_post|question)\b)/gi;
+  /<(?=\s*\/?\s*(?:style|resume|role|line|answers|experience|job_post|question|languages)\b)/gi;
 const ANY_TAG = /<\s*\/?\s*[a-z][\w-]*\b[^>]*>/gi;
 const NUMBER_AND_WORD =
   /(?<![\p{L}\p{N}.,])[$€£¥]?(\d+(?:[.,]\d+)*)(?:%|\+|[kKmMbBx](?![\p{L}\p{N}]))?[\s-]+(\p{L}+)/gu;
@@ -122,6 +127,9 @@ type Prepared = {
   noteNumbers: ReadonlySet<string>;
   lines: string[];
   shownNotes: string;
+  languages: Languages;
+  // The resume's and the post's languages, which the guards read in.
+  langs: NumberLangs;
 };
 
 // Swaps the "<" instead of deleting the tag, so the text around it can't join into a new one.
@@ -144,7 +152,12 @@ function factSources(text: string, prepared: Prepared): string[] {
   return backed.length ? [...prepared.sources, backed.join(" ")] : prepared.sources;
 }
 
-function prepare(resume: Resume, input: WritingInput, style: WritingStyleBody): Prepared {
+function prepare(
+  resume: Resume,
+  input: WritingInput,
+  style: WritingStyleBody,
+  ui: Locale = "en",
+): Prepared {
   const job: WritingInput = {
     jobText: input.jobText.trim(),
     jobTitle: clip(oneLine(input.jobTitle), JOB_FIELD_CHARS),
@@ -166,7 +179,10 @@ function prepare(resume: Resume, input: WritingInput, style: WritingStyleBody): 
   const untagged = defuseTags(notes.replace(ANY_TAG, " ")).replace(/[ \t]{2,}/g, " ");
   const shownNotes = redactor.redact(untagged).trim();
   const sources = [resumeText, job.jobTitle, job.company];
-  return { job, shownText, redactor, sources, noteNumbers, lines, shownNotes };
+  const lang = resumeLang(resume);
+  const languages: Languages = { resume: lang, ui, post: postLanguage(job.jobText, lang) };
+  const langs = guardLangs(languages.resume, languages.post);
+  return { job, shownText, redactor, sources, noteNumbers, lines, shownNotes, languages, langs };
 }
 
 // Sent only when it says something, so a default style sends the same message as no style.
@@ -191,10 +207,11 @@ function userMessage(parts: readonly string[]): string {
   return parts.filter(Boolean).join("\n\n");
 }
 
-function closingLine(signOff: string, fallback: string): string {
+function closingLine(signOff: string, fallback: string, comma = true): string {
   const own = oneLine(signOff).replace(/[\s,]+$/u, "");
-  if (!own) return `${fallback},`;
-  return /[.!?]$/u.test(own) ? own : `${own},`;
+  const end = comma ? "," : "";
+  if (!own) return `${fallback}${end}`;
+  return /[.!?]$/u.test(own) ? own : `${own}${end}`;
 }
 
 function postText(job: WritingInput): string {
@@ -217,11 +234,16 @@ function needsRetry(check: ProseCheck): boolean {
 }
 
 // polish() drops stock-phrase sentences, so a draft that stays full length without them is kept.
-function clichesDropCleanly(check: ProseCheck, range: Range, sources: readonly string[]): boolean {
+function clichesDropCleanly(check: ProseCheck, range: Range, prepared: Prepared): boolean {
   if (check.upgrades.length > 0 || check.unbacked.length > 0 || check.maskedNumbers > 0) {
     return false;
   }
-  const { paragraphs, dropped } = dropClichedSentences(check.paragraphs, range.min, sources);
+  const { paragraphs, dropped } = dropClichedSentences(
+    check.paragraphs,
+    range.min,
+    prepared.sources,
+    prepared.langs,
+  );
   return dropped > 0 && paragraphs.length === check.paragraphs.length;
 }
 
@@ -245,13 +267,13 @@ async function draft<T>(request: DraftRequest<T>, prepared: Prepared): Promise<D
     );
     const paragraphs = request.paragraphs(output).map((text) => prepared.redactor.restore(text));
     const sources = factSources(paragraphs.join("\n\n"), prepared);
-    return { check: checkProse(paragraphs, sources, prepared.lines), output };
+    return { check: checkProse(paragraphs, sources, prepared.lines, prepared.langs), output };
   };
   const firstDraft = await call(request.user, TOTAL_DEADLINE_MS);
   const first = firstDraft.check;
   const left = TOTAL_DEADLINE_MS - (Date.now() - started);
   if (!needsRetry(first) || left < MIN_RETRY_MS) return firstDraft;
-  if (clichesDropCleanly(first, request.range, prepared.sources)) {
+  if (clichesDropCleanly(first, request.range, prepared)) {
     log.info(`${request.task}.retry_skipped`, { cliches: first.cliches.length });
     return firstDraft;
   }
@@ -289,21 +311,21 @@ function warningsFor(text: string, prepared: Prepared, blankHint: string): strin
   for (const upgrade of upgradedVerbs(text, prepared.lines)) {
     warnings.push(verbWarning(upgrade.verb, quoted(upgrade.line)));
   }
-  for (const phrase of unbackedIn(text, prepared.sources)) {
+  for (const phrase of unbackedIn(text, prepared.sources, prepared.langs)) {
     warnings.push(unbackedWarning(phrase));
   }
-  const cliches = clichesIn(text, prepared.sources);
+  const cliches = clichesIn(text, prepared.sources, prepared.langs);
   if (cliches.length) warnings.push(clicheWarning(cliches));
   return warnings;
 }
 
-function polish(
-  check: ProseCheck,
-  range: Range,
-  floor: number,
-  sources: readonly string[],
-): string[] {
-  const { paragraphs } = dropClichedSentences(check.paragraphs, floor, sources);
+function polish(check: ProseCheck, range: Range, floor: number, prepared: Prepared): string[] {
+  const { paragraphs } = dropClichedSentences(
+    check.paragraphs,
+    floor,
+    prepared.sources,
+    prepared.langs,
+  );
   const clipped = clipToWords(paragraphs, range.max);
   if (wordCount(clipped.join(" ")) === 0) {
     throw new AIError("invalid_output", "The AI model returned empty text");
@@ -313,6 +335,7 @@ function polish(
 
 function letterMessage(prepared: Prepared, style: string): string {
   return userMessage([
+    languagesTag(prepared.languages),
     dataTag("resume", prepared.shownText),
     dataTag("job_post", postText(prepared.job)),
     style,
@@ -325,18 +348,23 @@ export function assembleLetter(
   name: string,
   company: string,
   signOff = "",
+  lang: ContentLang = "en",
 ): string {
-  const greeting = company ? `Dear ${company} team,` : "Dear hiring team,";
-  const closing = closingLine(signOff, "Best regards");
+  const words = letterWords(lang);
+  const greeting = words.dear(company);
+  const closing = closingLine(signOff, words.regards, words.closingComma);
   return [greeting, ...paragraphs, name ? `${closing}\n${name}` : closing].join("\n\n");
 }
+
+export type WritingOptions = { ui?: Locale };
 
 export async function writeCoverLetter(
   resume: Resume,
   input: WritingInput,
   style: WritingStyleBody = DEFAULT_WRITING_STYLE,
+  { ui }: WritingOptions = {},
 ): Promise<CoverLetterResult> {
-  const prepared = prepare(resume, input, style);
+  const prepared = prepare(resume, input, style, ui);
   const { range, floor } = lengthsFor("letter", style.length);
   const name = oneLine(resume.basics.name);
   const company = prepared.job.company;
@@ -355,12 +383,12 @@ export async function writeCoverLetter(
         ).then((drafted) => drafted.check),
         range,
         floor,
-        prepared.sources,
+        prepared,
       )
     : demoLetter(resume, prepared.job);
   const body = paragraphs.join("\n\n");
   return {
-    letter: assembleLetter(paragraphs, name, company, style.signOff),
+    letter: assembleLetter(paragraphs, name, company, style.signOff, prepared.languages.post),
     words: wordCount(body),
     warnings: warningsFor(body, prepared, "before you send it. Otto never guesses numbers."),
   };
@@ -368,6 +396,7 @@ export async function writeCoverLetter(
 
 function answerMessage(prepared: Prepared, question: string, style: string): string {
   return userMessage([
+    languagesTag(prepared.languages),
     dataTag("resume", prepared.shownText),
     dataTag("job_post", postText(prepared.job)),
     dataTag("question", question),
@@ -381,12 +410,13 @@ export async function answerQuestion(
   input: WritingInput,
   question: string,
   style: WritingStyleBody = DEFAULT_WRITING_STYLE,
+  { ui }: WritingOptions = {},
 ): Promise<AnswerResult> {
   const asked = clip(oneLine(question), QUESTION_CHARS.max);
   if (asked.length < QUESTION_CHARS.min) {
     throw new AIError("invalid_output", "There is no question to answer");
   }
-  const prepared = prepare(resume, input, style);
+  const prepared = prepare(resume, input, style, ui);
   const { range, floor } = lengthsFor("answer", style.length);
   const shownQuestion = prepared.redactor.redact(asked);
   const paragraphs = aiEnabled()
@@ -404,7 +434,7 @@ export async function answerQuestion(
         ).then((drafted) => drafted.check),
         range,
         floor,
-        prepared.sources,
+        prepared,
       )
     : demoAnswer(resume, prepared.job, asked);
   const answer = paragraphs.join("\n\n");
@@ -421,6 +451,7 @@ type OutreachMode =
 
 function outreachMessage(prepared: Prepared, style: string, mode: OutreachMode): string {
   return userMessage([
+    languagesTag(prepared.languages),
     dataTag("resume", prepared.shownText),
     dataTag("job_post", postText(prepared.job)),
     mode.kind === "thank_you" && mode.to ? dataTag("interviewer", mode.to) : "",
@@ -436,19 +467,22 @@ function outreachMessage(prepared: Prepared, style: string, mode: OutreachMode):
 }
 
 // A thank-you greets the interviewer by the name given, else the company's team.
-function greetingFor(mode: OutreachMode, company: string): string {
-  if (mode.kind !== "thank_you") return "[first name]";
-  return mode.to || (company ? `${company} team` : "[first name]");
+function greetingFor(mode: OutreachMode, company: string, lang: ContentLang): string {
+  const words = letterWords(lang);
+  if (mode.kind !== "thank_you") return words.firstName;
+  return mode.to || (company ? words.companyTeam(company) : words.firstName);
 }
 
 function assembleOutreach(
   paragraphs: readonly string[],
   name: string,
   style: WritingStyleBody,
-  greetingName = "[first name]",
+  greetingName: string,
+  lang: ContentLang,
 ): string {
-  const greeting = style.tone === "formal" ? `Dear ${greetingName},` : `Hi ${greetingName},`;
-  const closing = closingLine(style.signOff, "Best");
+  const words = letterWords(lang);
+  const greeting = style.tone === "formal" ? words.formal(greetingName) : words.hi(greetingName);
+  const closing = closingLine(style.signOff, words.best, words.closingComma);
   return [greeting, ...paragraphs, name ? `${closing}\n${name}` : closing].join("\n\n");
 }
 
@@ -467,45 +501,57 @@ function finishOutreach(
   lengths: Lengths,
   mode: OutreachMode,
 ): OutreachParts {
-  const { sources, lines, job } = prepared;
-  const body = polish(email, lengths.range, lengths.floor, sources);
-  const subjectCheck = checkProse([subject], factSources(subject, prepared), lines);
-  const noteCheck = checkProse([note], factSources(note, prepared), lines);
+  const { lines, job, langs } = prepared;
+  const lang = prepared.languages.post ?? "en";
+  const body = polish(email, lengths.range, lengths.floor, prepared);
+  const subjectCheck = checkProse([subject], factSources(subject, prepared), lines, langs);
+  const noteCheck = checkProse([note], factSources(note, prepared), lines, langs);
   const shownSubject = clip(oneLine(subjectCheck.paragraphs[0] ?? ""), SUBJECT_CHARS);
   const shownNote = oneLine(noteCheck.paragraphs.join(" "));
   return {
-    subject: shownSubject && !hasProblems(subjectCheck) ? shownSubject : fallbackSubject(job, mode),
+    subject:
+      shownSubject && !hasProblems(subjectCheck) ? shownSubject : fallbackSubject(job, mode, lang),
     email: body,
-    note: shownNote && !hasProblems(noteCheck) ? shownNote : fallbackNote(body, job, mode),
+    note: shownNote && !hasProblems(noteCheck) ? shownNote : fallbackNote(body, job, mode, lang),
   };
 }
 
-function fallbackSubject(job: WritingInput, mode: OutreachMode): string {
-  const role = job.jobTitle || "The open role";
-  const subject = job.company ? `${role} at ${job.company}` : role;
-  const lead = { first: "", follow_up: "Following up: ", thank_you: "Thank you: " }[mode.kind];
-  return clip(`${lead}${subject}`, SUBJECT_CHARS);
+function fallbackSubject(job: WritingInput, mode: OutreachMode, lang: ContentLang): string {
+  const words = letterWords(lang);
+  const role = job.jobTitle || words.openRole;
+  const subject = job.company ? words.roleAt(role, job.company) : role;
+  return clip(`${words.subjectLead[mode.kind]}${subject}`, SUBJECT_CHARS);
 }
 
-const NOTE_BUDGET = NOTE_CHARS - NOTE_GREETING.length;
+const noteGreeting = (lang: ContentLang) =>
+  letterWords(lang).noteGreeting(letterWords(lang).firstName);
 
 // The email's first sentence when it fits the note, or a plain line naming the role.
-function fallbackNote(body: readonly string[], job: WritingInput, mode: OutreachMode): string {
+function fallbackNote(
+  body: readonly string[],
+  job: WritingInput,
+  mode: OutreachMode,
+  lang: ContentLang,
+): string {
+  const words = letterWords(lang);
+  const budget = NOTE_CHARS - noteGreeting(lang).length;
   const first = sentencesOf(body[0] ?? "")[0]?.trim() ?? "";
-  if (first && first.length <= NOTE_BUDGET) return first;
-  const role = job.jobTitle ? `the ${job.jobTitle} role` : "your open role";
-  const at = job.company ? ` at ${job.company}` : "";
+  if (first && first.length <= budget) return first;
+  const role = job.jobTitle ? words.theRole(job.jobTitle) : words.yourRole;
+  const at = job.company ? words.at(job.company) : "";
   const line =
     mode.kind === "thank_you"
-      ? `Thank you for the conversation about ${role}${at}.`
-      : `${mode.kind === "follow_up" ? "I applied" : "I am applying"} for ${role}${at} and would be glad to connect.`;
-  return clipWords(line, NOTE_BUDGET);
+      ? words.thanks(role, at)
+      : mode.kind === "follow_up"
+        ? words.applied(role, at)
+        : words.applying(role, at);
+  return clipWords(line, budget);
 }
 
 // A thank-you to a named interviewer greets them in the note too; a group thank-you keeps the blank, as a note goes to one person.
-function noteFor(note: string, mode: OutreachMode): string {
-  if (mode.kind !== "thank_you" || !mode.to) return `${NOTE_GREETING}${note}`;
-  const greeting = `Hi ${mode.to}, `;
+function noteFor(note: string, mode: OutreachMode, lang: ContentLang): string {
+  if (mode.kind !== "thank_you" || !mode.to) return `${noteGreeting(lang)}${note}`;
+  const greeting = letterWords(lang).noteGreeting(mode.to);
   return `${greeting}${clipWords(note, NOTE_CHARS - greeting.length)}`;
 }
 
@@ -517,9 +563,11 @@ export async function writeOutreach(
   {
     followUpDays = null,
     thankYou = null,
-  }: { followUpDays?: number | null; thankYou?: { to: string } | null } = {},
+    ui,
+  }: { followUpDays?: number | null; thankYou?: { to: string } | null } & WritingOptions = {},
 ): Promise<OutreachResult> {
-  const prepared = prepare(resume, input, style);
+  const prepared = prepare(resume, input, style, ui);
+  const lang = prepared.languages.post ?? "en";
   const mode: OutreachMode = thankYou
     ? { kind: "thank_you", to: oneLine(thankYou.to) }
     : followUpDays !== null
@@ -561,8 +609,14 @@ export async function writeOutreach(
   );
   return {
     subject: parts.subject,
-    email: assembleOutreach(parts.email, name, style, greetingFor(mode, prepared.job.company)),
-    note: noteFor(parts.note, mode),
+    email: assembleOutreach(
+      parts.email,
+      name,
+      style,
+      greetingFor(mode, prepared.job.company, lang),
+      lang,
+    ),
+    note: noteFor(parts.note, mode, lang),
     words: wordCount(body),
     warnings,
   };

@@ -1,9 +1,12 @@
 import { z } from "zod";
 import { TEXT_LIMITS } from "@/config/plans";
+import type { Locale } from "@/i18n/config";
 import { aiEnabled } from "@/lib/env";
+import { languageOf } from "@/lib/i18n/detect";
 import { runStructured } from "./client";
 import { demoFix, SUGGESTION_CHARS, type PreparedFix } from "./fix-demo";
 import { maskInventedNumbers } from "./guards";
+import { guardLangs, languagesTag, type Languages } from "./languages";
 import { FIX_SYSTEM_PROMPT } from "./prompts";
 import { createRedactor, type Redactor } from "./redact";
 import {
@@ -54,12 +57,13 @@ function prepare(input: FixInput): PreparedFix {
   };
 }
 
-function fixMessage(fix: PreparedFix): string {
+function fixMessage(fix: PreparedFix, languages: Languages): string {
   const { title, company } = fix.role;
   const role =
     [title && `Title: ${title}`, company && `Company: ${company}`].filter(Boolean).join("\n") ||
     "Not given";
-  const parts = [tag("role", role), tag("line", fix.bullet)];
+  const opening = languagesTag(languages);
+  const parts = [...(opening ? [opening] : []), tag("role", role), tag("line", fix.bullet)];
   if (fix.answers.length > 0) {
     const answers = fix.answers.map(
       (entry) => `Q: ${entry.question}\nA: ${entry.answer || "(no answer)"}`,
@@ -99,7 +103,7 @@ function unwrapAnswered(text: string, answers: readonly string[]): string {
   });
 }
 
-function finalizeFix(output: FixOutput, fix: PreparedFix): FixResult {
+function finalizeFix(output: FixOutput, fix: PreparedFix, languages: Languages): FixResult {
   const answered = fix.answers.length > 0;
   const sources = [
     fix.bullet,
@@ -107,7 +111,11 @@ function finalizeFix(output: FixOutput, fix: PreparedFix): FixResult {
     fix.role.company,
     ...fix.answers.map((entry) => entry.answer),
   ];
-  const masked = maskInventedNumbers(asResumeLine(output.suggestion), sources);
+  const masked = maskInventedNumbers(
+    asResumeLine(output.suggestion),
+    sources,
+    guardLangs(languages.resume),
+  );
   const filled = answered ? unwrapAnswered(masked, fix.answers.map((entry) => entry.answer)) : masked;
   const suggestion = clipWords(filled, SUGGESTION_CHARS);
   if (!/[\p{L}\p{N}]/u.test(suggestion)) {
@@ -128,7 +136,9 @@ function finalizeFix(output: FixOutput, fix: PreparedFix): FixResult {
   };
 }
 
-export async function fixBullet(input: FixInput): Promise<FixResult> {
+export type FixOptions = { ui?: Locale };
+
+export async function fixBullet(input: FixInput, { ui = "en" }: FixOptions = {}): Promise<FixResult> {
   const fix = prepare(input);
   if (!fix.bullet) throw new AIError("invalid_output", "There is no line to fix");
   if (fix.bullet.length > TEXT_LIMITS.bulletChars) {
@@ -136,13 +146,15 @@ export async function fixBullet(input: FixInput): Promise<FixResult> {
   }
   if (!aiEnabled()) return demoFix(fix);
 
+  const resume = input.lang ?? languageOf(`${fix.bullet}\n${fix.role.title}`);
+  const languages: Languages = { resume, ui };
   const redactor = createRedactor();
   const output = await runStructured({
     task: "fix",
     system: FIX_SYSTEM_PROMPT,
-    user: fixMessage(redactFix(fix, redactor)),
+    user: fixMessage(redactFix(fix, redactor), languages),
     schema: FixOutputSchema,
     effort: "low",
   });
-  return finalizeFix(redactor.restoreDeep(output), fix);
+  return finalizeFix(redactor.restoreDeep(output), fix, languages);
 }

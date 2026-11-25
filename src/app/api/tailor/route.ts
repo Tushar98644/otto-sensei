@@ -18,7 +18,11 @@ export async function POST(req: Request): Promise<Response> {
     feature: "tailor",
     schema: TailorRequestSchema,
     copy: COPY,
-    run: ({ resume, job }) =>
-      tailorResume(resume, { jobText: job.text, jobTitle: job.title, company: job.company }),
+    run: ({ resume, job }, user, { ui }) =>
+      tailorResume(
+        resume,
+        { jobText: job.text, jobTitle: job.title, company: job.company },
+        { ui },
+      ),
   });
 }
