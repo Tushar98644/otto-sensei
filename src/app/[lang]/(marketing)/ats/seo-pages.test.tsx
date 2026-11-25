@@ -15,10 +15,16 @@ import { SEO_PATHS, atsPath, examplePath } from "@/lib/seo-pages/paths";
 import { TEMPLATE_LIST } from "@/lib/pdf/templates";
 import ComparePage, { generateMetadata as compareMetadata } from "../compare/[competitor]/page";
 import CompareIndexPage from "../compare/page";
-import CoverLetterPage, { metadata as coverLetterMetadata } from "../cover-letter-generator/page";
-import InterviewPrepPage, { metadata as interviewPrepMetadata } from "../interview-prep/page";
-import TrackerPage, { metadata as trackerMetadata } from "../job-application-tracker/page";
-import PortfolioPage, { metadata as portfolioMetadata } from "../portfolio-website-builder/page";
+import CoverLetterPage, {
+  generateMetadata as coverLetterMetadata,
+} from "../cover-letter-generator/page";
+import InterviewPrepPage, {
+  generateMetadata as interviewPrepMetadata,
+} from "../interview-prep/page";
+import TrackerPage, { generateMetadata as trackerMetadata } from "../job-application-tracker/page";
+import PortfolioPage, {
+  generateMetadata as portfolioMetadata,
+} from "../portfolio-website-builder/page";
 import ResumeBuilderPage from "../resume-builder/page";
 import ExamplePage from "../resume-examples/[role]/page";
 import ResumeExamplesPage from "../resume-examples/page";
@@ -229,8 +235,9 @@ const TOOLS = [
 describe("tool pages", () => {
   it.each(TOOLS)(
     "the $name page has its keyword in one h1, its canonical, JSON-LD and CTAs",
-    ({ Page, meta, path, keyword, app, facts }) => {
-      const html = renderToStaticMarkup(<Page />);
+    async ({ Page, meta: generateMetadata, path, keyword, app, facts }) => {
+      const html = renderToStaticMarkup(await Page());
+      const meta = await generateMetadata();
       checkPage(html);
       const h1 = text(/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1] ?? "");
       expect(h1.toLowerCase()).toContain(keyword);
@@ -252,8 +259,8 @@ describe("tool pages", () => {
 });
 
 describe("resume builder and examples", () => {
-  it("the builder links only to known pages, under one h1", () => {
-    const html = renderToStaticMarkup(<ResumeBuilderPage />);
+  it("the builder links only to known pages, under one h1", async () => {
+    const html = renderToStaticMarkup(await ResumeBuilderPage());
     checkPage(html);
     for (const path of [ROUTES.studio, ROUTES.pricing, SEO_PATHS.resumeExamples]) {
       expect(html).toContain(`href="${path}"`);

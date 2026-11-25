@@ -26,15 +26,20 @@ function onThisSite(images: readonly SocialImage[]) {
 }
 
 // Both root layouts use these: src/app/[lang]/layout.tsx and the portfolios' src/app/p/[slug]/layout.tsx.
-export function rootMetadata(locale: Locale, openGraphImages?: readonly SocialImage[]): Metadata {
+export function rootMetadata(
+  locale: Locale,
+  openGraphImages?: readonly SocialImage[],
+  // The tagline and description in the page's language.
+  brand: { tagline: string; description: string } = BRAND,
+): Metadata {
   const images = openGraphImages?.length ? { images: onThisSite(openGraphImages) } : {};
   return {
     metadataBase: new URL(appUrl()),
     title: {
-      default: `${BRAND.name} - ${BRAND.tagline}`,
+      default: `${BRAND.name} - ${brand.tagline}`,
       template: `%s${TITLE_SUFFIX}`,
     },
-    description: BRAND.description,
+    description: brand.description,
     applicationName: BRAND.name,
     openGraph: {
       type: "website",

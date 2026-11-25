@@ -9,27 +9,31 @@ import { SEO_LIMITS } from "@/lib/seo/limits";
 import { ATS_IDS } from "@/lib/seo-pages/ats";
 import { COMPETITORS } from "@/lib/seo-pages/compare";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
-import { Faq } from "./_components/faq";
-import { WebsiteJsonLd } from "./_components/website-json-ld";
-import { metadata as acceptableUseMetadata } from "./acceptable-use/page";
+import { generateMetadata as acceptableUseMetadata } from "./acceptable-use/page";
 import AtsGuidePage, { generateMetadata as guideMetadata } from "./ats/[system]/page";
 import { metadata as atsMetadata } from "./ats/page";
 import ComparePage, { generateMetadata as compareMetadata } from "./compare/[competitor]/page";
 import { metadata as compareIndexMetadata } from "./compare/page";
-import CoverLetterPage, { metadata as coverLetterMetadata } from "./cover-letter-generator/page";
-import InterviewPrepPage, { metadata as interviewPrepMetadata } from "./interview-prep/page";
-import TrackerPage, { metadata as trackerMetadata } from "./job-application-tracker/page";
-import JobMatchPage, { metadata as jobMatchMetadata } from "./job-match/page";
-import PortfolioPage, { metadata as portfolioMetadata } from "./portfolio-website-builder/page";
-import { metadata as homeMetadata } from "./page";
+import CoverLetterPage, {
+  generateMetadata as coverLetterMetadata,
+} from "./cover-letter-generator/page";
+import InterviewPrepPage, {
+  generateMetadata as interviewPrepMetadata,
+} from "./interview-prep/page";
+import TrackerPage, { generateMetadata as trackerMetadata } from "./job-application-tracker/page";
+import JobMatchPage, { generateMetadata as jobMatchMetadata } from "./job-match/page";
+import PortfolioPage, {
+  generateMetadata as portfolioMetadata,
+} from "./portfolio-website-builder/page";
+import HomePage, { generateMetadata as homeMetadata } from "./page";
 import PricingPage, { generateMetadata as pricingMetadata } from "./pricing/page";
-import { metadata as privacyMetadata } from "./privacy/page";
-import { metadata as refundsMetadata } from "./refunds/page";
-import ResumeBuilderPage, { metadata as builderMetadata } from "./resume-builder/page";
+import { generateMetadata as privacyMetadata } from "./privacy/page";
+import { generateMetadata as refundsMetadata } from "./refunds/page";
+import ResumeBuilderPage, { generateMetadata as builderMetadata } from "./resume-builder/page";
 import ExamplePage, { generateMetadata as exampleMetadata } from "./resume-examples/[role]/page";
 import ResumeExamplesPage, { metadata as examplesMetadata } from "./resume-examples/page";
 import ResumeTemplatesPage, { metadata as templatesMetadata } from "./resume-templates/page";
-import { metadata as termsMetadata } from "./terms/page";
+import { generateMetadata as termsMetadata } from "./terms/page";
 
 vi.mock("next/font/google", () => {
   const font = () => () => ({ className: "face", variable: "", style: { fontFamily: "serif" } });
@@ -99,24 +103,15 @@ const exampleHtml = async (role: string) =>
 
 describe("FAQ markup", () => {
   it.each([
-    [
-      "home",
-      async () =>
-        renderToStaticMarkup(
-          <>
-            <WebsiteJsonLd />
-            <Faq />
-          </>,
-        ),
-    ],
+    ["home", async () => renderToStaticMarkup(await HomePage())],
     ["pricing", pricingHtml],
-    ["job match", async () => renderToStaticMarkup(<JobMatchPage />)],
+    ["job match", async () => renderToStaticMarkup(await JobMatchPage())],
     ["resume templates", async () => renderToStaticMarkup(<ResumeTemplatesPage />)],
-    ["resume builder", async () => renderToStaticMarkup(<ResumeBuilderPage />)],
-    ["cover letter generator", async () => renderToStaticMarkup(<CoverLetterPage />)],
-    ["job application tracker", async () => renderToStaticMarkup(<TrackerPage />)],
-    ["interview prep", async () => renderToStaticMarkup(<InterviewPrepPage />)],
-    ["portfolio website builder", async () => renderToStaticMarkup(<PortfolioPage />)],
+    ["resume builder", async () => renderToStaticMarkup(await ResumeBuilderPage())],
+    ["cover letter generator", async () => renderToStaticMarkup(await CoverLetterPage())],
+    ["job application tracker", async () => renderToStaticMarkup(await TrackerPage())],
+    ["interview prep", async () => renderToStaticMarkup(await InterviewPrepPage())],
+    ["portfolio website builder", async () => renderToStaticMarkup(await PortfolioPage())],
     ...ROLE_EXAMPLES.map((example): [string, () => Promise<string>] => [
       `the ${example.slug} example`,
       () => exampleHtml(example.slug),
@@ -138,7 +133,7 @@ describe("FAQ markup", () => {
 
 describe("page JSON-LD", () => {
   it("home names the site, its publisher with a logo, and the app with its offers", async () => {
-    const html = renderToStaticMarkup(<WebsiteJsonLd />);
+    const html = renderToStaticMarkup(await HomePage());
     const [organization] = ofType(html, "Organization");
     expect(organization).toMatchObject({ name: BRAND.name, logo: { "@type": "ImageObject" } });
     const [app] = ofType(html, "WebApplication");
@@ -147,8 +142,8 @@ describe("page JSON-LD", () => {
     expect(app?.offers).toEqual(pricingApp?.offers);
   });
 
-  it("job match is a free web app described by the words under its heading", () => {
-    const html = renderToStaticMarkup(<JobMatchPage />);
+  it("job match is a free web app described by the words under its heading", async () => {
+    const html = renderToStaticMarkup(await JobMatchPage());
     const [app] = ofType(html, "WebApplication");
     expect(app).toMatchObject({
       isAccessibleForFree: true,
@@ -230,14 +225,14 @@ function resolvedTitle(meta: Metadata): string {
 
 async function publicMetadata(): Promise<[string, Metadata][]> {
   return [
-    ["/", homeMetadata],
-    ["/pricing", pricingMetadata()],
-    ["/job-match", jobMatchMetadata],
-    ["/resume-builder", builderMetadata],
-    ["/cover-letter-generator", coverLetterMetadata],
-    ["/job-application-tracker", trackerMetadata],
-    ["/interview-prep", interviewPrepMetadata],
-    ["/portfolio-website-builder", portfolioMetadata],
+    ["/", await homeMetadata()],
+    ["/pricing", await pricingMetadata()],
+    ["/job-match", await jobMatchMetadata()],
+    ["/resume-builder", await builderMetadata()],
+    ["/cover-letter-generator", await coverLetterMetadata()],
+    ["/job-application-tracker", await trackerMetadata()],
+    ["/interview-prep", await interviewPrepMetadata()],
+    ["/portfolio-website-builder", await portfolioMetadata()],
     ["/resume-examples", examplesMetadata],
     ...(await Promise.all(
       ROLE_EXAMPLES.map(async ({ slug }): Promise<[string, Metadata]> => [
@@ -260,10 +255,10 @@ async function publicMetadata(): Promise<[string, Metadata][]> {
         await compareMetadata({ params: Promise.resolve({ competitor: slug }) }),
       ]),
     )),
-    ["/privacy", privacyMetadata],
-    ["/terms", termsMetadata],
-    ["/refunds", refundsMetadata],
-    ["/acceptable-use", acceptableUseMetadata],
+    ["/privacy", await privacyMetadata()],
+    ["/terms", await termsMetadata()],
+    ["/refunds", await refundsMetadata()],
+    ["/acceptable-use", await acceptableUseMetadata()],
   ];
 }
 

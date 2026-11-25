@@ -5,10 +5,10 @@ import { TextLink } from "@/components/site/text-link";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { PLANS, type PlanId } from "@/config/plans";
-import type { JobCounts } from "@/lib/job-feed/counts";
 import { cn } from "@/lib/utils";
+import type { PricingMessages } from "./price-copy";
 import type { PlanBadge, PlanCta } from "./plan-ctas";
-import { planCopy } from "./plan-features";
+import type { PlanCopy } from "./plan-features";
 
 export function plansPanelClasses(count: number): string {
   return cn(
@@ -25,31 +25,34 @@ export type PlanPrice = {
   badge?: string;
 };
 
+export type PlanCardLabels = Pick<PricingMessages["plans"], "referencePrice" | "manage">;
+
 export type PlanCardProps = {
   planId: PlanId;
+  copy: PlanCopy;
+  labels: PlanCardLabels;
   headingAs?: "h2" | "h3";
   badge?: PlanBadge | null;
   price: PlanPrice;
   cta: PlanCta | null;
   manage?: boolean;
   notes?: readonly string[];
-  jobCounts?: JobCounts;
   className?: string;
 };
 
 export function PlanCard({
   planId,
+  copy,
+  labels,
   headingAs: Heading = "h3",
   badge = null,
   price,
   cta,
   manage = false,
   notes = [],
-  jobCounts,
   className,
 }: PlanCardProps) {
   const plan = PLANS[planId];
-  const copy = planCopy(planId, "month", jobCounts);
   return (
     <div
       className={cn(
@@ -68,7 +71,7 @@ export function PlanCard({
         <p className="flex flex-wrap items-baseline gap-x-1 gap-y-2">
           {price.reference ? (
             <s className="mr-1 text-base text-subtle lining-nums tabular-nums">
-              <span className="sr-only">Reference price </span>
+              <span className="sr-only">{labels.referencePrice}</span>
               {price.reference}
             </s>
           ) : null}
@@ -98,7 +101,7 @@ export function PlanCard({
           </IntentLink>
         ) : manage ? (
           <p className="mt-6 flex h-12 items-center justify-center text-base">
-            <TextLink href={ROUTES.dashboardAccount}>Manage your plan</TextLink>
+            <TextLink href={ROUTES.dashboardAccount}>{labels.manage}</TextLink>
           </p>
         ) : null}
         {notes.map((line, index) => (

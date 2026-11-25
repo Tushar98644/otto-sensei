@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openStudioWithFile } from "@/components/match-check/open-studio";
 import { toast } from "@/components/ui/toast";
 import { UPLOAD_LIMITS } from "@/config/plans";
+import { englishMessages } from "@/i18n/messages";
 import {
   homeUploadState,
   pickResumeFile,
@@ -10,11 +11,13 @@ import {
   setHomePicker,
   updateHomeUpload,
 } from "./home-picker";
-import { HomeDropCue, openHomeFile, pickedFile, typingIn } from "./home-upload";
+import { HomeDropCue, openHomeFile, pickedFile as pickedFileIn, typingIn } from "./home-upload";
 
 vi.mock("@/components/match-check/open-studio", () => ({ openStudioWithFile: vi.fn() }));
 vi.mock("@/components/ui/toast", () => ({ toast: vi.fn() }));
 
+const UPLOAD = englishMessages().home.upload;
+const pickedFile = (files: ArrayLike<File> | null) => pickedFileIn(files, UPLOAD);
 const pdf = () => new File(["%PDF-1.7"], "maya-chen.pdf", { type: "application/pdf" });
 
 beforeEach(() => {
@@ -46,6 +49,21 @@ describe("pickedFile", () => {
     });
     const big = { name: "cv.pdf", type: "application/pdf", size: UPLOAD_LIMITS.maxBytes + 1 };
     expect(pickedFile([big as File])).toEqual({ problem: expect.stringMatching(/too big/) });
+  });
+
+  it("says it in the page's language", () => {
+    const words = {
+      oneFile: "Elige un archivo a la vez.",
+      problems: {
+        ...UPLOAD.problems,
+        unsupportedKinds: "Elige un archivo {kinds}.",
+        kinds: "{first} o {last}",
+      },
+    };
+    expect(pickedFileIn([pdf(), pdf()], words)).toEqual({ problem: "Elige un archivo a la vez." });
+    expect(pickedFileIn([new File(["x"], "shot.png", { type: "image/png" })], words)).toEqual({
+      problem: "Elige un archivo PDF o DOCX.",
+    });
   });
 });
 
@@ -135,7 +153,9 @@ describe("pickResumeFile", () => {
 
 describe("before a drag or a paste", () => {
   it("shows no drop cue and never takes a paste meant for a field", () => {
-    expect(renderToStaticMarkup(<HomeDropCue />)).toBe("");
+    expect(
+      renderToStaticMarkup(<HomeDropCue copy={{ drop: UPLOAD.drop, formats: UPLOAD.formats }} />),
+    ).toBe("");
     expect(typingIn(null)).toBe(false);
   });
 });

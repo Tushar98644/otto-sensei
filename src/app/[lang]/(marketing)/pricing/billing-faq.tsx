@@ -1,87 +1,129 @@
+import type { ReactNode } from "react";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
 import {
   applicationLimit,
-  FEATURE_LABELS,
   FEATURES,
   FREE_JOB_MATCHES,
   PLANS,
   PRO_TRIAL,
   resumeLimit,
 } from "@/config/plans";
-import { buysSentence, creditPriceList, TOPUP_LIMITS } from "@/config/topup";
-import { planPriceLabel } from "@/lib/billing/prices";
-import { pluralize } from "@/lib/utils";
+import { TOPUP_LIMITS } from "@/config/topup";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Localize } from "@/i18n/pages";
+import { rich } from "@/i18n/rich";
 import type { FaqItem } from "../_components/faq-list";
 import { MERCHANT } from "../_components/merchant";
-import { formatUsd } from "../_components/plan-features";
+import { creditCopy, priceCopy, usd, type PricingMessages } from "../_components/price-copy";
 
-const count = new Intl.NumberFormat("en-US");
-const freeLimits = `Free has ${count.format(PLANS.free.limits.fix)} ${FEATURE_LABELS.fix} a month (summary help counts as one), reset at the start of each month, and no other AI help.`;
-const monthlyLimits = `Pro and Max limits reset each month, when your plan renews (on a yearly plan, on the day of the month it started): ${FEATURES.map(
-  (feature) =>
-    `${FEATURE_LABELS[feature]}: ${count.format(PLANS.pro.limits[feature])} on Pro, ${count.format(PLANS.max.limits[feature])} on Max`,
-).join("; ")}.`;
-const trialLimits = `The ${PRO_TRIAL.days}-day Pro trial has its own allowance for the whole trial: ${FEATURES.map(
-  (feature) => `${count.format(PRO_TRIAL.limits[feature])} ${FEATURE_LABELS[feature]}`,
-).join(", ")}.`;
-const keptLimits = `Resumes, with tailored versions counted: ${count.format(resumeLimit("free"))} on Free, ${count.format(resumeLimit("pro"))} on Pro and the trial, ${count.format(resumeLimit("max"))} on Max. Tracked applications: ${count.format(applicationLimit("free"))} on Free, ${count.format(applicationLimit("pro"))} on Pro and the trial, ${count.format(applicationLimit("max"))} on Max.`;
-const uploadsNote =
-  "Uploads always work: on Free, or past the AI reads, the basic reader reads them instead.";
+const ORDER = [
+  "trial",
+  "free",
+  "payments",
+  "tax",
+  "cancel",
+  "refund",
+  "limits",
+  "switch",
+  "cancelled",
+] as const satisfies readonly (keyof PricingMessages["faq"])[];
 
-const limitsAnswer = [freeLimits, monthlyLimits, trialLimits, keptLimits, uploadsNote].join(" ");
+function limitsAnswer(t: PricingMessages, format: Format): string {
+  const words = t.faq.limits;
+  const labels = t.features;
+  const count = format.number;
+  return [
+    fmt(words.free, { fix: count(PLANS.free.limits.fix), fixLabel: labels.fix }),
+    fmt(words.monthly, {
+      list: FEATURES.map((feature) =>
+        fmt(words.monthlyItem, {
+          label: labels[feature],
+          pro: count(PLANS.pro.limits[feature]),
+          max: count(PLANS.max.limits[feature]),
+        }),
+      ).join("; "),
+    }),
+    fmt(words.trial, {
+      days: count(PRO_TRIAL.days),
+      list: FEATURES.map((feature) =>
+        fmt(words.trialItem, { count: count(PRO_TRIAL.limits[feature]), label: labels[feature] }),
+      ).join(", "),
+    }),
+    fmt(words.kept, {
+      freeResumes: count(resumeLimit("free")),
+      proResumes: count(resumeLimit("pro")),
+      maxResumes: count(resumeLimit("max")),
+      freeApplications: count(applicationLimit("free")),
+      proApplications: count(applicationLimit("pro")),
+      maxApplications: count(applicationLimit("max")),
+    }),
+    words.uploads,
+  ].join(" ");
+}
 
-// Shown only while credit is on sale.
-export const CREDIT_FAQ: FaqItem = {
-  question: "What if I run out before my plan renews?",
-  answer: `On ${PLANS.pro.name} or ${PLANS.max.name} you can add credit from $${TOPUP_LIMITS.minUsd} to $${TOPUP_LIMITS.maxUsd} at a time, in whole dollars, plus any tax. ${buysSentence(1)}: ${creditPriceList()}. Credit is used only once that month's allowance for the feature runs out, or once the AI budget runs out, at the prices shown at the time it's used. It's prepaid and not refundable once used, never expires while your account exists, works only on a paid plan (not Free or the trial), and is removed if you delete your account. A balance holds up to $${TOPUP_LIMITS.maxBalanceUsd}.`,
-};
+function creditFaq(t: PricingMessages, format: Format): FaqItem {
+  const credit = creditCopy(t.credit, format);
+  return {
+    question: t.faq.credit.question,
+    answer: fmt(t.faq.credit.answer, {
+      pro: PLANS.pro.name,
+      max: PLANS.max.name,
+      min: usd(format, TOPUP_LIMITS.minUsd),
+      maxUsd: usd(format, TOPUP_LIMITS.maxUsd),
+      buys: credit.buysSentence(1),
+      prices: credit.priceList(),
+      balance: usd(format, TOPUP_LIMITS.maxBalanceUsd),
+    }),
+  };
+}
 
-export const BILLING_FAQ: readonly FaqItem[] = [
-  {
-    question: "How does the Pro trial work?",
-    answer: `New accounts can try Pro for ${PRO_TRIAL.days} days, once per person. You add a card at checkout and pay ${formatUsd(PRO_TRIAL.priceUsd)} (plus any tax) when the trial starts. When it ends, Pro starts at ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends and you pay nothing more. During the trial you can build and preview a portfolio; it goes public once Pro starts.`,
-  },
-  {
-    question: "What stays free?",
-    answer: `Uploading with the basic reader, the recruiter view, editing and fixing by hand, ${PLANS.free.limits.fix} line fixes a month with Otto, ${pluralize(resumeLimit("free"), "resume")}, the Classic and Compact formats, PDF downloads, your ${FREE_JOB_MATCHES} closest job matches and ${pluralize(applicationLimit("free"), "tracked application")} with its reminder. No card, no time limit. More line fixes and the rest of Otto's AI help, the other formats, up to ${count.format(resumeLimit("pro"))} resumes, Word downloads, the full list of job matches with filters, tracking up to ${count.format(applicationLimit("pro"))} applications, share links and the work-rights check come with Pro. If a paid plan ends, everything you made stays: you can still open, edit and download it.`,
-  },
-  {
-    question: "Who handles payments?",
-    answer: `${MERCHANT.name}, our merchant of record. They process your payment on their own checkout page, send your receipts and handle sales tax or VAT, and your card statement shows the charge under their name, starting with ${MERCHANT.statementPrefix}. We never see your full card number.`,
-  },
-  {
-    question: "Will I pay tax on top?",
-    answer:
-      "Depending on where you live, sales tax or VAT may be added at checkout. Prices are in US dollars, and your bank may convert them to your currency.",
-  },
-  {
-    question: "How do I cancel?",
-    answer:
-      "From your account page, anytime. You keep your plan until the end of the period you paid for, and you won't be charged again.",
-  },
-  {
-    question: "Can I get a refund?",
-    answer: (
-      <>
-        Refund requests are handled by {MERCHANT.name}, our merchant of record, under its{" "}
-        <TextLink href={MERCHANT.buyerTermsUrl}>buyer terms</TextLink>. You can also cancel anytime
-        from your account page and you won&apos;t be charged again. See our{" "}
-        <TextLink href={ROUTES.refunds}>refund policy</TextLink>.
-      </>
+// The pricing page's billing questions; the credit one is added only while credit is on sale.
+export function billingFaq(
+  t: PricingMessages,
+  format: Format,
+  href: Localize,
+  credit = false,
+): FaqItem[] {
+  const faq = t.faq;
+  const prices = priceCopy(t, format);
+  const count = format.number;
+  const answers: Record<(typeof ORDER)[number], ReactNode> = {
+    trial: fmt(faq.trial.answer, {
+      days: count(PRO_TRIAL.days),
+      price: prices.trialPrice(),
+      priceLabel: prices.planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval),
+    }),
+    free: fmt(faq.free.answer, {
+      fix: count(PLANS.free.limits.fix),
+      resumes: format.plural(t.copy.resumes, resumeLimit("free")),
+      matches: count(FREE_JOB_MATCHES),
+      applications: format.plural(t.copy.trackedApplications, applicationLimit("free")),
+      proResumes: count(resumeLimit("pro")),
+      proApplications: count(applicationLimit("pro")),
+    }),
+    payments: fmt(faq.payments.answer, {
+      merchant: MERCHANT.name,
+      prefix: MERCHANT.statementPrefix,
+    }),
+    tax: faq.tax.answer,
+    cancel: faq.cancel.answer,
+    refund: rich(
+      faq.refund.answer,
+      {
+        link: (chunk, index) => (
+          <TextLink href={index === 0 ? MERCHANT.buyerTermsUrl : href(ROUTES.refunds)}>
+            {chunk}
+          </TextLink>
+        ),
+      },
+      { merchant: MERCHANT.name },
     ),
-  },
-  {
-    question: "What are the limits?",
-    answer: limitsAnswer,
-  },
-  {
-    question: "Can I switch between Pro and Max?",
-    answer: `You can move up from Pro to Max on your account page, on the billing period you already have. Your subscription changes in place, so you're never billed twice: you pay the difference for the rest of the period right away. On the Pro trial, starting Max ends the trial and charges the full Max price (plus any tax) to your card on file right away; the ${formatUsd(PRO_TRIAL.priceUsd)} trial charge isn't taken off. To move to Pro, or between monthly and yearly, cancel from your account page and pick the new plan once your current period ends. Moving to Pro keeps every resume and application you have; past Pro's limits, you can add more once you're under them.`,
-  },
-  {
-    question: "What happens to my resumes if I cancel?",
-    answer:
-      "Nothing. They stay yours, and you can keep editing and downloading them for free. A published portfolio goes offline until you're back on Pro or Max; it isn't deleted.",
-  },
-];
+    limits: limitsAnswer(t, format),
+    switch: fmt(faq.switch.answer, { price: prices.trialPrice() }),
+    cancelled: faq.cancelled.answer,
+  };
+  const items = ORDER.map((key) => ({ question: faq[key].question, answer: answers[key] }));
+  return credit ? [...items, creditFaq(t, format)] : items;
+}

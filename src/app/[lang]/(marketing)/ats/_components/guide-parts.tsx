@@ -5,6 +5,7 @@ import { JsonLd } from "@/components/site/json-ld";
 import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import type { Localize } from "@/i18n/pages";
 import { appUrl } from "@/lib/env";
 import { type Crumb, breadcrumbJsonLd } from "@/lib/seo-pages/json-ld";
 import type { RelatedLink } from "@/lib/seo-pages/pages";
@@ -17,11 +18,20 @@ export const H2_CLASSES =
 export const LINK_CLASSES =
   "rounded-sm font-medium text-ink underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-ink";
 
-export function Breadcrumbs({ crumbs }: { crumbs: readonly Crumb[] }) {
+// Labels default to English for the guides (P5); translated pages pass their own, and their links through href().
+export function Breadcrumbs({
+  crumbs,
+  label = "Breadcrumb",
+  language,
+}: {
+  crumbs: readonly Crumb[];
+  label?: string;
+  language?: string;
+}) {
   return (
     <>
-      <JsonLd data={breadcrumbJsonLd(crumbs, appUrl())} />
-      <nav aria-label="Breadcrumb">
+      <JsonLd data={breadcrumbJsonLd(crumbs, appUrl(), language)} />
+      <nav aria-label={label}>
         <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm/6 text-subtle">
           {crumbs.map((crumb, index) => {
             const current = index === crumbs.length - 1;
@@ -74,7 +84,15 @@ export function PageIntro({ eyebrow, title, children, className }: PageIntroProp
   );
 }
 
-export function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
+export function ExternalLink({
+  href,
+  children,
+  newTab = "(opens in a new tab)",
+}: {
+  href: string;
+  children: ReactNode;
+  newTab?: string;
+}) {
   return (
     <a
       href={href}
@@ -84,7 +102,7 @@ export function ExternalLink({ href, children }: { href: string; children: React
     >
       {children}
       <ArrowUpRight aria-hidden className="size-3.5 shrink-0" />
-      <span className="sr-only"> (opens in a new tab)</span>
+      <span className="sr-only">{` ${newTab}`}</span>
     </a>
   );
 }
@@ -93,12 +111,14 @@ export type CheckCtaProps = {
   title?: string;
   children?: ReactNode;
   className?: string;
-};
+} & CheckButtonsProps;
 
 export function CheckCta({
   title = "See how your resume reads",
   children = "Compare your resume with a job post, or see the text hiring software pulls from your file. Both are free, with no card.",
   className,
+  labels,
+  href,
 }: CheckCtaProps) {
   return (
     <section
@@ -109,30 +129,41 @@ export function CheckCta({
         {title}
       </h2>
       <p className="mt-4 max-w-prose text-base/7 text-pretty text-muted">{children}</p>
-      <CheckButtons className="mt-8" />
+      <CheckButtons className="mt-8" labels={labels} href={href} />
     </section>
   );
 }
 
-export function CheckButtons({ className }: { className?: string }) {
+export type CheckButtonsProps = {
+  labels?: { match: string; check: string };
+  href?: Localize;
+};
+
+const ENGLISH_CHECK_LABELS = { match: "Match my resume to a job", check: "Check my resume" };
+
+export function CheckButtons({
+  className,
+  labels = ENGLISH_CHECK_LABELS,
+  href = (path) => path,
+}: { className?: string } & CheckButtonsProps) {
   return (
     <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center", className)}>
       <IntentLink
-        href={SEO_PATHS.jobMatch}
+        href={href(SEO_PATHS.jobMatch)}
         className={buttonClasses({ size: "lg", className: "w-full sm:w-auto" })}
       >
-        Match my resume to a job
+        {labels.match}
         <ArrowRight />
       </IntentLink>
       <IntentLink
-        href={ROUTES.studio}
+        href={href(ROUTES.studio)}
         className={buttonClasses({
           variant: "secondary",
           size: "lg",
           className: "w-full sm:w-auto",
         })}
       >
-        Check my resume
+        {labels.check}
       </IntentLink>
     </div>
   );

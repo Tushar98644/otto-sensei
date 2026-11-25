@@ -39,6 +39,7 @@ import { JobLinkCheck } from "../_components/job-link-check";
 
 export const dynamicParams = false;
 
+// Every language: where the guides aren't published, ats/layout.tsx prerenders that language's 404.
 export function generateStaticParams(): { system: string }[] {
   return ATS_IDS.map((system) => ({ system }));
 }

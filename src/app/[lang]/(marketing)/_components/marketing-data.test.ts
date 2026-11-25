@@ -1,15 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { BILLING_INTERVALS, FEATURES, PLANS, PRICES_USD, PRO_TRIAL } from "@/config/plans";
 import {
-  formatUsd,
-  limitLine,
-  planCopy,
+  BILLING_INTERVALS,
+  FEATURES,
+  PLANS,
+  PRICES_USD,
+  PRO_TRIAL,
+  type AllowancePeriod,
+  type Feature,
+  type PlanId,
+} from "@/config/plans";
+import { formatFor } from "@/i18n/intl";
+import { englishMessages } from "@/i18n/messages";
+import {
+  limitLine as limitLineIn,
+  planCopy as planCopyIn,
   PLAN_ORDER,
   plansOnSale,
-  proTools,
-  quotaLine,
+  proTools as proToolsIn,
+  quotaLine as quotaLineIn,
 } from "./plan-features";
-import { DEMO_CHECKS, DEMO_PERSON, PARSED_LINES } from "./recruiter-demo-data";
+import { usd } from "./price-copy";
+import { demoChecks, demoPerson, parsedLines } from "./recruiter-demo-data";
+
+const EN = englishMessages().pricing;
+const FORMAT = formatFor("en");
+const planCopy = (plan: PlanId, period?: AllowancePeriod) => planCopyIn(EN, FORMAT, plan, period);
+const proTools = () => proToolsIn(EN, FORMAT);
+const quotaLine = (plan: PlanId, period: AllowancePeriod) => quotaLineIn(EN, FORMAT, plan, period);
+const limitLine = (plan: PlanId, feature: Feature, period?: AllowancePeriod) =>
+  limitLineIn(EN, FORMAT, plan, feature, period);
+const formatUsd = (amount: number) => usd(FORMAT, amount);
 
 describe("plan copy", () => {
   it("lists Free, then Pro, then Max", () => {
@@ -132,6 +152,10 @@ describe("plan copy", () => {
 });
 
 describe("recruiter demo", () => {
+  const { home } = englishMessages();
+  const DEMO_PERSON = demoPerson(home.resume);
+  const PARSED_LINES = parsedLines(DEMO_PERSON, home.resume);
+  const DEMO_CHECKS = demoChecks(home.how.checks.items);
   const lines = PARSED_LINES.map((line) => line.map((segment) => segment.text).join(""));
 
   it("starts with the header the way the resume shows it", () => {

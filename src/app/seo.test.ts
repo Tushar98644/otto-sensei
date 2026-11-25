@@ -107,8 +107,11 @@ function pageFileFor(path: string): string | undefined {
   return candidates.find((file) => existsSync(file));
 }
 
+const SITEMAP = await sitemap();
+const TRANSLATED = /^\/(es|pt-br|fr|de)(\/|$)/;
+
 describe("sitemap", () => {
-  const entries = sitemap();
+  const entries = SITEMAP.filter((entry) => !TRANSLATED.test(pathOf(entry.url)));
 
   it("lists the indexable public pages, written as their canonical tags write them", () => {
     expect(entries.map((entry) => entry.url)).toEqual(
@@ -131,6 +134,41 @@ describe("sitemap", () => {
     const paths = entries.map((entry) => pathOf(entry.url));
     for (const path of ["/studio", "/login", "/account", "/dashboard", "/reminder"]) {
       expect(paths).not.toContain(path);
+    }
+  });
+
+  it("lists each translated page with every language it's in, English as x-default", () => {
+    const languages = (path: string) =>
+      SITEMAP.find((entry) => pathOf(entry.url) === path)?.alternates?.languages;
+    const pricing = {
+      en: absoluteUrl("/pricing"),
+      es: absoluteUrl("/es/pricing"),
+      "pt-BR": absoluteUrl("/pt-br/pricing"),
+      fr: absoluteUrl("/fr/pricing"),
+      de: absoluteUrl("/de/pricing"),
+      "x-default": absoluteUrl("/pricing"),
+    };
+    expect(languages("/pricing")).toEqual(pricing);
+    expect(languages("/es/pricing")).toEqual(pricing);
+    expect(languages("/de")).toMatchObject({ en: absoluteUrl("/"), de: absoluteUrl("/de") });
+    const translated = SITEMAP.map((entry) => pathOf(entry.url)).filter((path) =>
+      TRANSLATED.test(path),
+    );
+    for (const prefix of ["/es", "/pt-br", "/fr", "/de"]) {
+      expect(translated).toContain(`${prefix}/privacy`);
+      expect(translated).toContain(`${prefix}/job-match`);
+    }
+  });
+
+  it("never lists a page in a language it isn't published in", () => {
+    const paths = SITEMAP.map((entry) => pathOf(entry.url));
+    for (const path of paths.filter((path) => TRANSLATED.test(path))) {
+      expect(path).not.toMatch(/\/(compare|ats|resume-examples|resume-templates|login)(\/|$)/);
+    }
+    for (const slug of COMPARISONS) {
+      expect(
+        SITEMAP.find((entry) => pathOf(entry.url) === `/compare/${slug}`)?.alternates,
+      ).toBeUndefined();
     }
   });
 
@@ -220,10 +258,10 @@ describe("robots", () => {
     expect(result.sitemap).toEqual([absoluteUrl("/sitemap.xml"), absoluteUrl("/p/sitemap.xml")]);
   });
 
-  it("blocks nothing a sitemap lists", () => {
+  it("blocks nothing a sitemap lists", async () => {
     const blocked = rules.flatMap((rule) => rule.disallow);
     const listed = [
-      ...sitemap().map((entry) => pathOf(entry.url)),
+      ...(await sitemap()).map((entry) => pathOf(entry.url)),
       "/p/maya-chen",
       "/llms.txt",
       "/llms-full.txt",

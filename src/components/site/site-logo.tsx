@@ -7,12 +7,14 @@ import { ROUTES } from "./routes";
 export type SiteLogoProps = {
   className?: string;
   compact?: boolean;
+  // The home page in the page's language.
+  href?: string;
 };
 
-export function SiteLogo({ className, compact = false }: SiteLogoProps) {
+export function SiteLogo({ className, compact = false, href = ROUTES.home }: SiteLogoProps) {
   return (
     <Link
-      href={ROUTES.home}
+      href={href}
       prefetch={false}
       className={cn(
         "inline-flex h-12 items-center gap-2 rounded-lg sm:h-11",

@@ -37,6 +37,7 @@ import { StartFromExample } from "../_components/start-from-example";
 
 export const dynamicParams = false;
 
+// Every language: where examples aren't published, resume-examples/layout.tsx prerenders that language's 404.
 export function generateStaticParams(): { role: string }[] {
   return ROLE_EXAMPLES.map(({ slug }) => ({ role: slug }));
 }

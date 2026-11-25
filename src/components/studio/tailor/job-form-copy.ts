@@ -2,7 +2,7 @@
 
 import { useMessagesOr } from "@/i18n/client";
 import type { Messages } from "@/i18n/messages";
-import englishJobForm from "@/i18n/messages/en/jobForm";
+import englishJobForm from "@/i18n/messages/en/job-form";
 
 export type JobFormCopy = Messages["jobForm"];
 

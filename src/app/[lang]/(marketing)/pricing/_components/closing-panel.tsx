@@ -5,21 +5,35 @@ import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
 import { buttonClasses } from "@/components/ui/button";
 import type { BillingInterval, PaidPlanId } from "@/config/plans";
+import type { Locale } from "@/i18n/config";
+import { formatFor } from "@/i18n/intl";
 import { cn } from "@/lib/utils";
-import { closingCta } from "../../_components/plan-ctas";
+import { closingCta, type PlanMessages } from "../../_components/plan-ctas";
 import { usePlanViewer } from "../../_components/pricing-plans";
 
 export function ClosingPanel({
+  t,
+  locale,
+  studioLabel,
   offer,
   trial: trialOnSale,
   className,
 }: {
+  t: PlanMessages;
+  locale: Locale;
+  studioLabel: string;
   offer: Record<PaidPlanId, readonly BillingInterval[]>;
   trial: boolean;
   className?: string;
 }) {
   const { viewer, trial } = usePlanViewer();
-  const cta = closingCta({ offer, trial: trial ?? trialOnSale, viewer });
+  const cta = closingCta({
+    t,
+    format: formatFor(locale),
+    offer,
+    trial: trial ?? trialOnSale,
+    viewer,
+  });
   if (!cta) return null;
   return (
     <div
@@ -32,7 +46,7 @@ export function ClosingPanel({
         {cta.label}
       </IntentLink>
       <TextLink href={ROUTES.studio} className="inline-flex min-h-11 items-center text-base">
-        Or check your resume free
+        {studioLabel}
       </TextLink>
     </div>
   );

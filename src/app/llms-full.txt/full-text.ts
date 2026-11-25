@@ -1,6 +1,8 @@
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import { PLAN_ORDER, PLANS, isPaidPlan } from "@/config/plans";
+import { formatFor } from "@/i18n/intl";
+import { englishMessages } from "@/i18n/messages";
 import type { BillingOffer } from "@/lib/billing/intervals";
 import { planPrice, priceSentence } from "@/lib/billing/prices";
 import { TEMPLATE_LIST, isProTemplate } from "@/lib/pdf/templates";
@@ -44,23 +46,19 @@ import {
   examplePage,
 } from "@/lib/seo-pages/pages";
 import { SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
-import { HOME_FAQ } from "../[lang]/(marketing)/_components/faq";
+import { homeFaq } from "../[lang]/(marketing)/_components/faq";
 import type { FaqItem } from "../[lang]/(marketing)/_components/faq-list";
 import type { FeatureContent } from "../[lang]/(marketing)/_components/feature-page";
-import { LETTERS } from "../[lang]/(marketing)/cover-letter-generator/content";
-import { INTERVIEW_PREP } from "../[lang]/(marketing)/interview-prep/content";
-import { TRACKER } from "../[lang]/(marketing)/job-application-tracker/content";
-import { PORTFOLIO } from "../[lang]/(marketing)/portfolio-website-builder/content";
+import { letterContent } from "../[lang]/(marketing)/cover-letter-generator/content";
+import { prepContent } from "../[lang]/(marketing)/interview-prep/content";
+import { trackerContent } from "../[lang]/(marketing)/job-application-tracker/content";
+import { portfolioContent } from "../[lang]/(marketing)/portfolio-website-builder/content";
 import type { Note } from "../[lang]/(marketing)/_components/note-rows";
+import { priceCopy } from "../[lang]/(marketing)/_components/price-copy";
 import { planCopy } from "../[lang]/(marketing)/_components/plan-features";
-import { JOB_MATCH_FAQ } from "../[lang]/(marketing)/job-match/faq";
-import { BILLING_FAQ } from "../[lang]/(marketing)/pricing/billing-faq";
-import {
-  AUDIENCES,
-  BUILDER_FAQ,
-  BUILD_STEPS,
-  INDIA_NOTES,
-} from "../[lang]/(marketing)/resume-builder/content";
+import { jobMatchFaq } from "../[lang]/(marketing)/job-match/faq";
+import { billingFaq } from "../[lang]/(marketing)/pricing/billing-faq";
+import { builderContent } from "../[lang]/(marketing)/resume-builder/content";
 import { COMMON, TEMPLATES_FAQ } from "../[lang]/(marketing)/resume-templates/content";
 
 // No live job count here: the file is built once, so it makes no claim a count could outdate.
@@ -75,10 +73,12 @@ function pageHeader(title: string, path: string, base: string): string[] {
 }
 
 function pricingLines(offer: BillingOffer, base: string): string[] {
+  const { pricing } = englishMessages();
+  const format = formatFor("en");
   const plans = PLAN_ORDER.filter((plan) => !isPaidPlan(plan) || offer[plan].length > 0);
   const paid = plans.filter(isPaidPlan);
   const plansText = plans.flatMap((plan) => {
-    const copy = planCopy(plan, "month", NO_COUNT);
+    const copy = planCopy(pricing, format, plan, "month", NO_COUNT);
     const prices = isPaidPlan(plan)
       ? offer[plan].map((interval) => priceSentence(plan, interval))
       : ["Free, with no card and no time limit."];
@@ -101,7 +101,9 @@ function pricingLines(offer: BillingOffer, base: string): string[] {
     ...plansText,
     "### Billing questions",
     "",
-    ...faqLines(BILLING_FAQ).map((line) => line.replace(/^### /, "#### ")),
+    ...faqLines(billingFaq(pricing, format, (path) => path)).map((line) =>
+      line.replace(/^### /, "#### "),
+    ),
   ];
 }
 
@@ -109,36 +111,69 @@ function noteLines(notes: readonly Note[]): string[] {
   return notes.map((note) => `- ${note.title}: ${nodeText(note.text)}`);
 }
 
+// The product pages' words in English, as the site shows them; links stay as written.
+function productCopy() {
+  const { product, pricing } = englishMessages();
+  const format = formatFor("en");
+  return { product, format, prices: priceCopy(pricing, format), href: (path: string) => path };
+}
+
+function homeFaqLines(): string[] {
+  const { format, prices, href } = productCopy();
+  return faqLines(homeFaq(englishMessages().home, format, href, prices));
+}
+
 function builderLines(base: string): string[] {
+  const { product, format, prices, href } = productCopy();
+  const content = builderContent(product.builder, format, href, prices);
   return [
     ...pageHeader("Resume builder", RESUME_BUILDER_PAGE.path, base),
     RESUME_BUILDER_PAGE.description,
     "",
     "### How it builds and checks a resume",
     "",
-    ...noteLines(BUILD_STEPS),
+    ...noteLines(content.steps),
     "",
     "### Who it's for",
     "",
-    ...noteLines(AUDIENCES),
+    ...noteLines(content.audiences),
     "",
     "### Resumes for jobs in India",
     "",
-    ...noteLines(INDIA_NOTES),
+    ...noteLines(content.india),
     "",
-    ...faqLines(BUILDER_FAQ),
+    ...faqLines(content.faq),
   ];
 }
 
-const TOOLS: readonly { title: string; page: SeoPage; content: FeatureContent }[] = [
-  { title: RELATED.coverLetters.title, page: COVER_LETTER_PAGE, content: LETTERS },
-  { title: RELATED.tracker.title, page: TRACKER_PAGE, content: TRACKER },
-  { title: RELATED.interviewPrep.title, page: INTERVIEW_PREP_PAGE, content: INTERVIEW_PREP },
-  { title: RELATED.portfolio.title, page: PORTFOLIO_PAGE, content: PORTFOLIO },
-];
+function tools(): { title: string; page: SeoPage; content: FeatureContent }[] {
+  const { product, format, prices, href } = productCopy();
+  return [
+    {
+      title: RELATED.coverLetters.title,
+      page: COVER_LETTER_PAGE,
+      content: letterContent(product.coverLetters, format, href, prices),
+    },
+    {
+      title: RELATED.tracker.title,
+      page: TRACKER_PAGE,
+      content: trackerContent(product.tracker, format, href, prices),
+    },
+    {
+      title: RELATED.interviewPrep.title,
+      page: INTERVIEW_PREP_PAGE,
+      content: prepContent(product.interviewPrep, format, prices),
+    },
+    {
+      title: RELATED.portfolio.title,
+      page: PORTFOLIO_PAGE,
+      content: portfolioContent(product.portfolio, format, prices),
+    },
+  ];
+}
 
 function toolLines(base: string): string[] {
-  return TOOLS.flatMap(({ title, page, content }) => [
+  return tools().flatMap(({ title, page, content }) => [
     ...pageHeader(title, page.path, base),
     content.intro,
     "",
@@ -295,12 +330,12 @@ export function llmsFullTxt(base: string, offer: BillingOffer): string {
     ...productOverview(),
     "",
     ...pageHeader("Questions people ask", HOME_PAGE.path, base),
-    ...faqLines(HOME_FAQ),
+    ...homeFaqLines(),
     ...pricingLines(offer, base),
     ...pageHeader("Job match check", JOB_MATCH_PAGE.path, base),
     JOB_MATCH_PAGE.description,
     "",
-    ...faqLines(JOB_MATCH_FAQ),
+    ...faqLines(jobMatchFaq(englishMessages().jobMatch.faq, formatFor("en"), (path) => path)),
     ...builderLines(base),
     ...toolLines(base),
     ...examplesLines(base),

@@ -291,19 +291,38 @@ describe("proxy", () => {
       }
     });
 
-    it("serves the app in English while no other language is live, whatever the cookie says", async () => {
-      for (const lang of ["en", "es", "pt-BR", "de", "garbage"]) {
+    it("serves the app in the cookie's language, and English for anything that isn't one", async () => {
+      for (const [lang, segment] of [
+        ["en", "en"],
+        ["es", "es"],
+        ["pt-BR", "pt-br"],
+        ["de", "de"],
+        ["pt-br", "en"],
+        ["garbage", "en"],
+      ] as const) {
         const res = await proxy(visit("/dashboard/jobs", `${COOKIE}=token; otto_lang=${lang}`));
-        expect(rewrite(res), lang).toBe("https://otto.test/en/dashboard/jobs");
+        expect(rewrite(res), lang).toBe(`https://otto.test/${segment}/dashboard/jobs`);
       }
     });
 
-    it("sends a language that isn't live to the English 404, and never sets it", async () => {
-      for (const path of ["/es", "/es/pricing", "/pt-br/dashboard", "/fr/studio", "/de/s/abc"]) {
-        const res = await proxy(visit(path, `${COOKIE}=token`));
-        expect(rewrite(res), path).toBe(`https://otto.test/en${path}`);
+    it("serves a language's public pages at their own address, without setting the app's language", async () => {
+      for (const path of ["/es", "/es/pricing", "/pt-br/job-match", "/de/compare/rezi"]) {
+        const res = await proxy(visit(path));
+        expect(rewrite(res), path).toBeNull();
         expect(res.headers.get("location"), path).toBeNull();
         expect(res.cookies.get("otto_lang"), path).toBeUndefined();
+      }
+    });
+
+    it("sets the app's language only from a prefixed app link, and sends an unknown prefix to the English 404", async () => {
+      const res = await proxy(visit("/fr/studio"));
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe("https://otto.test/studio");
+      expect(res.cookies.get("otto_lang")?.value).toBe("fr");
+      for (const path of ["/xx/pricing", "/pt-pt", "/ES/pricing"]) {
+        const unknown = await proxy(visit(path));
+        expect(rewrite(unknown), path).toBe(`https://otto.test/en${path}`);
+        expect(unknown.cookies.get("otto_lang"), path).toBeUndefined();
       }
     });
 

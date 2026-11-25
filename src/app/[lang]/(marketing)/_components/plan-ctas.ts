@@ -11,15 +11,13 @@ import {
   type PaidPlanId,
   type PlanId,
 } from "@/config/plans";
-import {
-  endsTrialSentence,
-  perMonth,
-  planPriceLabel,
-  trialHeadline,
-  trialSentence,
-} from "@/lib/billing/prices";
-import { trialEndDay } from "@/lib/usage-copy";
-import { formatUsd, planCopy, quotaLine } from "./plan-features";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import { priceCopy, usd, type PriceCopy, type PricingMessages } from "./price-copy";
+import { quotaLine } from "./plan-features";
+
+// What the plan cards read; the pricing page hands these to its client islands.
+export type PlanMessages = Pick<PricingMessages, "prices" | "features" | "plans" | "copy">;
 
 export type PlanViewer = {
   plan: PlanId;
@@ -47,15 +45,12 @@ export type PlanCards = {
   first: PlanId | null;
 };
 
-export const TRIAL_EMAIL_NOTE = "We'll email you the day before it renews.";
-
-const FREE_CTA = { href: ROUTES.studio, label: "Check my resume, free" } as const;
-
-const POPULAR: PlanBadge = { label: "Popular", tone: "ink" };
+type Words = { t: PlanMessages; format: Format; prices: PriceCopy };
 
 const rank = (plan: PlanId) => PLAN_ORDER.indexOf(plan);
 
 function priceNotes(
+  { t, format, prices }: Words,
   plan: PaidPlanId,
   interval: BillingInterval,
   picked: BillingInterval,
@@ -63,46 +58,63 @@ function priceNotes(
 ): string[] {
   if (interval === "year") {
     return [
-      `About ${perMonth(plan)} a month, instead of ${formatUsd(PRICES_USD[plan].month * 12)} a year paid monthly.`,
+      fmt(t.plans.yearlyNote, {
+        perMonth: prices.perMonth(plan),
+        yearly: usd(format, PRICES_USD[plan].month * 12),
+      }),
     ];
   }
-  return choosing && picked !== interval ? ["Sold monthly only, for now."] : [];
+  return choosing && picked !== interval ? [t.plans.monthlyOnly] : [];
 }
 
-function currentNotes(viewer: PlanViewer, plan: PaidPlanId, interval: BillingInterval): string[] {
-  const name = PLANS[plan].name;
+function currentNotes(
+  { t, prices }: Words,
+  viewer: PlanViewer,
+  plan: PaidPlanId,
+  interval: BillingInterval,
+): string[] {
   if (isTrialing(viewer)) {
     return viewer.cancelScheduled
-      ? [`${name} won't start, so you won't pay anything more.`]
-      : [`Then ${planPriceLabel(plan, interval)}, unless you cancel.`, TRIAL_EMAIL_NOTE];
+      ? [fmt(t.plans.wontStart, { plan: PLANS[plan].name })]
+      : [
+          fmt(t.plans.thenPrice, { priceLabel: prices.planPriceLabel(plan, interval) }),
+          t.plans.trialEmail,
+        ];
   }
-  return viewer.cancelScheduled ? ["Set to end, so you won't be charged again."] : [];
+  return viewer.cancelScheduled ? [t.plans.setToEnd] : [];
 }
 
-function currentBadge(viewer: PlanViewer): PlanBadge {
-  if (!isPaidPlan(viewer.plan)) return { label: "Your plan", tone: "neutral" };
+function currentBadge({ t, prices }: Words, viewer: PlanViewer): PlanBadge {
+  if (!isPaidPlan(viewer.plan)) return { label: t.plans.yourPlan, tone: "neutral" };
   return {
     label: viewer.trialEndsAt
-      ? `Current plan · trial until ${trialEndDay(viewer.trialEndsAt)}`
-      : "Current plan",
+      ? fmt(t.plans.currentTrial, { day: prices.trialEndDay(viewer.trialEndsAt) })
+      : t.plans.currentPlan,
     tone: "neutral",
   };
 }
 
 // Mirrors the upgrade dialog's rules (upgrade-offer.ts), so a button here never offers what the account page would refuse.
 export function planCards({
+  t,
+  format,
   plans,
   offer,
   picked,
   trial,
   viewer,
 }: {
+  t: PlanMessages;
+  format: Format;
   plans: readonly PlanId[];
   offer: Record<PaidPlanId, readonly BillingInterval[]>;
   picked: BillingInterval;
   trial: boolean;
   viewer: PlanViewer | null;
 }): PlanCards {
+  const prices = priceCopy(t, format);
+  const words: Words = { t, format, prices };
+  const popular: PlanBadge = { label: t.plans.popular, tone: "ink" };
   const current = viewer?.plan ?? "free";
   const upgrade = upgradeOffer({
     current,
@@ -118,6 +130,7 @@ export function planCards({
   const recommended: PlanId | null =
     current === "free" && buyable.some((card) => card.plan === "pro") ? "pro" : null;
   const primary = recommended ?? buyable[0]?.plan ?? null;
+  const includedIn = fmt(t.plans.includedIn, { plan: PLANS[current].name });
 
   const cards = plans.map((plan): PlanCardState => {
     const own = viewer !== null && viewer.plan === plan;
@@ -126,10 +139,10 @@ export function planCards({
         return {
           plan,
           interval: "month",
-          cta: { ...FREE_CTA, primary: false },
+          cta: { href: ROUTES.studio, label: t.plans.freeCta, primary: false },
           manage: false,
           badge: null,
-          notes: [planCopy("free").note],
+          notes: [t.copy.free.note],
         };
       }
       return {
@@ -137,32 +150,36 @@ export function planCards({
         interval: "month",
         cta: null,
         manage: false,
-        badge: own ? currentBadge(viewer) : null,
-        notes: own ? [] : [`Included in ${PLANS[current].name}.`],
+        badge: own ? currentBadge(words, viewer) : null,
+        notes: own ? [] : [includedIn],
       };
     }
     const card = buyable.find((entry) => entry.plan === plan);
     if (card) {
       const name = PLANS[plan].name;
       const label = card.trial
-        ? trialHeadline()
+        ? prices.trialHeadline()
         : card.endsTrial
-          ? `Start ${name} now`
+          ? fmt(t.plans.startNow, { plan: name })
           : viewer
-            ? `Upgrade to ${name}`
-            : `Get ${name}`;
+            ? fmt(t.plans.upgradeTo, { plan: name })
+            : fmt(t.plans.get, { plan: name });
       const notes = card.trial
-        ? [trialSentence(), TRIAL_EMAIL_NOTE, quotaLine(PRO_TRIAL.plan, "trial")]
+        ? [
+            prices.trialSentence(),
+            t.plans.trialEmail,
+            quotaLine(t, format, PRO_TRIAL.plan, "trial"),
+          ]
         : card.endsTrial
-          ? [endsTrialSentence(plan, card.interval)]
-          : [planCopy(plan).note];
+          ? [prices.endsTrialSentence(plan, card.interval)]
+          : [t.copy[plan].note];
       return {
         plan,
         interval: card.interval,
         cta: { href: upgradeHref(plan, card.interval), label, primary: plan === primary },
         manage: false,
-        badge: plan === "pro" ? POPULAR : null,
-        notes: [...notes, ...priceNotes(plan, card.interval, base, choosing)],
+        badge: plan === "pro" ? popular : null,
+        notes: [...notes, ...priceNotes(words, plan, card.interval, base, choosing)],
       };
     }
     if (own && viewer) {
@@ -172,8 +189,8 @@ export function planCards({
         interval,
         cta: null,
         manage: true,
-        badge: currentBadge(viewer),
-        notes: currentNotes(viewer, plan, interval),
+        badge: currentBadge(words, viewer),
+        notes: currentNotes(words, viewer, plan, interval),
       };
     }
     const interval = offer[plan].includes(base) ? base : "month";
@@ -182,11 +199,8 @@ export function planCards({
       interval,
       cta: null,
       manage: false,
-      badge: plan === "pro" ? POPULAR : null,
-      notes:
-        rank(plan) < rank(current)
-          ? [`Included in ${PLANS[current].name}.`]
-          : ["Not available on your billing period yet."],
+      badge: plan === "pro" ? popular : null,
+      notes: rank(plan) < rank(current) ? [includedIn] : [t.plans.notOnPeriod],
     };
   });
 
@@ -195,15 +209,27 @@ export function planCards({
 }
 
 export function closingCta({
+  t,
+  format,
   offer,
   trial,
   viewer,
 }: {
+  t: PlanMessages;
+  format: Format;
   offer: Record<PaidPlanId, readonly BillingInterval[]>;
   trial: boolean;
   viewer: PlanViewer | null;
 }): PlanCta | null {
   if (viewer && isPaidPlan(viewer.plan)) return null;
-  const { cards } = planCards({ plans: ["pro"], offer, picked: PRO_TRIAL.interval, trial, viewer });
+  const { cards } = planCards({
+    t,
+    format,
+    plans: ["pro"],
+    offer,
+    picked: PRO_TRIAL.interval,
+    trial,
+    viewer,
+  });
   return cards[0]?.cta ?? null;
 }

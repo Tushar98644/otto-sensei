@@ -24,11 +24,18 @@ describe("server messages", () => {
     expect((await getFormat()).locale).toBe("en");
   });
 
-  it("reads English outside [lang] and for a language that isn't live", async () => {
-    for (const lang of [undefined, "es", "pt-br", "xx"]) {
+  it("reads English outside [lang] and for a segment that isn't a language", async () => {
+    for (const lang of [undefined, "pt-BR", "xx"]) {
       setRootLang(lang);
       expect(await getLocale(), String(lang)).toBe("en");
     }
+  });
+
+  it("reads each language from its URL segment", async () => {
+    setRootLang("pt-br");
+    expect(await getLocale()).toBe("pt-BR");
+    setRootLang("es");
+    expect(await getLocale()).toBe("es");
   });
 
   it("hands client components only the namespaces named", async () => {

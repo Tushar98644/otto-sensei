@@ -5,9 +5,8 @@ import { IntentLink } from "@/components/site/intent-link";
 import { JsonLd } from "@/components/site/json-ld";
 import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
-import { PLANS } from "@/config/plans";
-import { trialOffered } from "@/lib/billing/intervals";
-import { trialHeadline, trialPrice } from "@/lib/billing/prices";
+import { fmt } from "@/i18n/format";
+import type { Localize } from "@/i18n/pages";
 import { faqJsonLd } from "@/lib/seo/json-ld";
 import type { RelatedLink } from "@/lib/seo-pages/pages";
 import { cn } from "@/lib/utils";
@@ -21,6 +20,7 @@ import {
 } from "../ats/_components/guide-parts";
 import { type FaqItem, FaqList, faqEntries } from "./faq-list";
 import { type Note, NoteRows } from "./note-rows";
+import { PLAN_NAMES, type ProductMessages } from "./product-copy";
 import { SECTION_TITLE_CLASSES } from "./section";
 
 // The words a product page shares with llms-full.txt.
@@ -35,6 +35,9 @@ export type FeatureContent = {
 export type FeatureAction = { href: string; label: string };
 
 export type FeaturePageProps = {
+  t: ProductMessages["common"];
+  language?: string;
+  href: Localize;
   path: string;
   crumb: string;
   eyebrow: string;
@@ -47,38 +50,32 @@ export type FeaturePageProps = {
   related: readonly RelatedLink[];
 };
 
-export function withTrial(sentence: string): string {
-  return `${sentence} ${trialOffered() ? `${trialHeadline()} for ${trialPrice()}.` : "Cancel anytime."}`;
-}
-
 function Actions({
+  t,
+  href,
   action,
   note,
   className,
-}: {
-  action: FeatureAction;
-  note: string;
-  className?: string;
-}) {
+}: Pick<FeaturePageProps, "t" | "href" | "action"> & { note: string; className?: string }) {
   return (
     <div className={className}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <IntentLink
-          href={action.href}
+          href={href(action.href)}
           className={buttonClasses({ size: "lg", className: "w-full sm:w-auto" })}
         >
           {action.label}
           <ArrowRight />
         </IntentLink>
         <IntentLink
-          href={ROUTES.pricing}
+          href={href(ROUTES.pricing)}
           className={buttonClasses({
             variant: "secondary",
             size: "lg",
             className: "w-full sm:w-auto",
           })}
         >
-          See what {PLANS.pro.name} includes
+          {fmt(t.seePlan, { pro: PLAN_NAMES.pro })}
         </IntentLink>
       </div>
       <p className="mt-3 text-sm/6 text-pretty text-subtle">{note}</p>
@@ -87,10 +84,11 @@ function Actions({
 }
 
 function ClosingPanel({
+  href,
   closing,
   action,
   note,
-}: Pick<FeaturePageProps, "closing" | "action"> & { note: string }) {
+}: Pick<FeaturePageProps, "href" | "closing" | "action"> & { note: string }) {
   return (
     <section
       aria-labelledby="feature-end-title"
@@ -101,7 +99,7 @@ function ClosingPanel({
         {closing.title}
       </h2>
       <IntentLink
-        href={action.href}
+        href={href(action.href)}
         className={buttonClasses({ size: "lg", className: "mt-8 w-full sm:w-auto" })}
       >
         {action.label}
@@ -113,6 +111,8 @@ function ClosingPanel({
 }
 
 export function FeaturePage({
+  t,
+  href,
   path,
   crumb,
   eyebrow,
@@ -123,20 +123,23 @@ export function FeaturePage({
   check,
   closing,
   related,
+  language,
 }: FeaturePageProps) {
   return (
     <div className={PAGE_CLASSES}>
-      <JsonLd data={faqJsonLd(faqEntries(content.faq))} />
+      <JsonLd data={faqJsonLd(faqEntries(content.faq), language)} />
       <Breadcrumbs
+        language={language}
+        label={t.breadcrumb}
         crumbs={[
-          { name: "Home", path: ROUTES.home },
-          { name: crumb, path },
+          { name: t.home, path: href(ROUTES.home) },
+          { name: crumb, path: href(path) },
         ]}
       />
       <PageIntro eyebrow={eyebrow} title={title}>
         <p>{content.intro}</p>
       </PageIntro>
-      <Actions action={action} note={planNote} className="mt-8" />
+      <Actions t={t} href={href} action={action} note={planNote} className="mt-8" />
 
       <section aria-labelledby="features-title" className="mt-24 sm:mt-32">
         <h2 id="features-title" className={H2_CLASSES}>
@@ -147,12 +150,12 @@ export function FeaturePage({
 
       <section aria-labelledby="steps-title" className="mt-24 sm:mt-32">
         <h2 id="steps-title" className={H2_CLASSES}>
-          How it works
+          {t.howItWorks}
         </h2>
         <NoteRows notes={content.steps} numbered className="mt-8" />
       </section>
 
-      <CheckCta className="mt-24 sm:mt-32" title={check.title}>
+      <CheckCta className="mt-24 sm:mt-32" title={check.title} labels={t.checkButtons} href={href}>
         {check.text}
       </CheckCta>
 
@@ -161,14 +164,14 @@ export function FeaturePage({
         className="mt-24 grid gap-12 sm:mt-32 lg:grid-cols-3"
       >
         <h2 id="feature-faq-title" className={H2_CLASSES}>
-          Questions
+          {t.questions}
         </h2>
         <FaqList items={content.faq} className="lg:col-span-2" />
       </section>
 
-      <ClosingPanel closing={closing} action={action} note={planNote} />
+      <ClosingPanel href={href} closing={closing} action={action} note={planNote} />
 
-      <RelatedLinks className="mt-24 sm:mt-32" links={related} />
+      <RelatedLinks className="mt-24 sm:mt-32" title={t.keepReading} links={related} />
     </div>
   );
 }

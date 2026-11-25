@@ -1,12 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
+import matchCheckEn from "@/i18n/messages/en/match-check";
+import type { MatchCheckMessages } from "@/lib/match-check/copy";
 import { isPostText } from "./inputs";
 import type { LinkRead } from "./job-link";
 
 const loadReader = () => import("./job-link");
-
-const LOAD_FAILED = "Otto couldn't read that link just now. Paste the job text instead.";
 
 export type ReadOk = Extract<LinkRead, { ok: true }>;
 
@@ -16,6 +16,7 @@ export type ReadOutcome = { text: string; read: ReadOk | null } | null;
 type Options = {
   onRead: (text: string) => void;
   onPost: (text: string) => void;
+  t?: MatchCheckMessages;
 };
 
 export type JobLinkReader = {
@@ -29,7 +30,7 @@ export type JobLinkReader = {
   prepare: () => void;
 };
 
-export function useJobLink({ onRead, onPost }: Options): JobLinkReader {
+export function useJobLink({ onRead, onPost, t = matchCheckEn }: Options): JobLinkReader {
   const [link, setLink] = useState("");
   const [reading, setReading] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -51,20 +52,20 @@ export function useJobLink({ onRead, onPost }: Options): JobLinkReader {
     setProblem(null);
     try {
       const { linkProblem, readJobLink } = await loadReader();
-      const invalid = linkProblem(value);
+      const invalid = linkProblem(value, t);
       if (invalid) {
         if (id === readId.current) setProblem(invalid);
         return null;
       }
       if (id === readId.current) setReading(true);
-      const result = await readJobLink(value);
+      const result = await readJobLink(value, t);
       if (id !== readId.current) return null;
       setLast(result);
       if (!result.ok) return null;
       onRead(result.text);
       return { text: result.text, read: result };
     } catch {
-      if (id === readId.current) setProblem(LOAD_FAILED);
+      if (id === readId.current) setProblem(t.link.problems.failed);
       return null;
     } finally {
       if (id === readId.current) {

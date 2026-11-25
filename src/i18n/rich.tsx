@@ -4,7 +4,8 @@ import type { MessageValue } from "./types";
 
 export const RICH_TAGS = ["b", "link"] as const;
 export type RichTag = (typeof RICH_TAGS)[number];
-export type RichTags = Partial<Record<RichTag, (chunk: string) => ReactNode>>;
+// index counts that tag within the message, so a message with two links can send each one somewhere.
+export type RichTags = Partial<Record<RichTag, (chunk: string, index: number) => ReactNode>>;
 
 const TAG = /<(b|link)>([\s\S]*?)<\/\1>/g;
 
@@ -20,12 +21,16 @@ export function rich(
   values?: Record<string, MessageValue>,
 ): ReactNode {
   const parts: ReactNode[] = [];
+  const seen: Partial<Record<RichTag, number>> = {};
   let last = 0;
   for (const match of template.matchAll(TAG)) {
-    const [whole, name, inner = ""] = match;
+    const [whole, tag, inner = ""] = match;
+    const name = tag as RichTag;
+    const index = seen[name] ?? 0;
+    seen[name] = index + 1;
     if (match.index > last) parts.push(fill(template.slice(last, match.index), values));
-    const render = tags[name as RichTag] ?? (name === "b" ? bold : (chunk: string) => chunk);
-    parts.push(<Fragment key={match.index}>{render(fill(inner, values))}</Fragment>);
+    const render = tags[name] ?? (name === "b" ? bold : (chunk: string) => chunk);
+    parts.push(<Fragment key={match.index}>{render(fill(inner, values), index)}</Fragment>);
     last = match.index + whole.length;
   }
   if (last === 0) return fill(template, values);

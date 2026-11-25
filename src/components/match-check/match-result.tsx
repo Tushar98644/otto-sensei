@@ -3,54 +3,60 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { formatFor, type Format } from "@/i18n/intl";
+import matchCheckEn from "@/i18n/messages/en/match-check";
 import type { MatchCheck, MatchRow, MatchStatus } from "@/lib/match-check/check";
 import {
   countLine,
   listedNote,
   matchHeadline,
-  MISSING_HINT,
-  STATUS_LABELS,
+  type MatchCheckMessages,
 } from "@/lib/match-check/copy";
 import type { Importance } from "@/lib/match-check/post";
 
-const CHIPS: Record<MatchStatus, ReactNode> = {
-  shown: (
-    <Badge variant="pass">
-      <CircleCheck className="text-pass" aria-hidden />
-      {STATUS_LABELS.shown}
-    </Badge>
-  ),
-  listed: (
-    <Badge variant="warn">
-      <TriangleExclamationPoint className="text-warn" aria-hidden />
-      {STATUS_LABELS.listed}
-    </Badge>
-  ),
-  missing: (
+function Chip({ status, label }: { status: MatchStatus; label: string }) {
+  if (status === "shown") {
+    return (
+      <Badge variant="pass">
+        <CircleCheck className="text-pass" aria-hidden />
+        {label}
+      </Badge>
+    );
+  }
+  if (status === "listed") {
+    return (
+      <Badge variant="warn">
+        <TriangleExclamationPoint className="text-warn" aria-hidden />
+        {label}
+      </Badge>
+    );
+  }
+  return (
     <Badge variant="neutral">
       <Circle aria-hidden />
-      {STATUS_LABELS.missing}
+      {label}
     </Badge>
-  ),
-};
+  );
+}
 
 const ORDER: Record<MatchStatus, number> = { missing: 0, listed: 1, shown: 2 };
 
-type Group = { importance: Importance; title: string };
+type GroupKey = keyof MatchCheckMessages["result"]["groups"];
+type Group = { importance: Importance; key: GroupKey };
 
 const SORTED_GROUPS: readonly Group[] = [
-  { importance: "must", title: "Must-haves" },
-  { importance: "nice", title: "Nice-to-haves" },
-  { importance: null, title: "Also named in the post" },
+  { importance: "must", key: "must" },
+  { importance: "nice", key: "nice" },
+  { importance: null, key: "alsoNamed" },
 ];
-const ONE_GROUP: readonly Group[] = [{ importance: null, title: "Skills the post names" }];
+const ONE_GROUP: readonly Group[] = [{ importance: null, key: "all" }];
 
-function RowItem({ row }: { row: MatchRow }) {
+function RowItem({ row, t }: { row: MatchRow; t: MatchCheckMessages }) {
   return (
     <li className="flex flex-col gap-1.5 py-3">
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 text-sm/6 font-medium break-words text-ink">{row.term}</p>
-        {CHIPS[row.status]}
+        <Chip status={row.status} label={t.result.status[row.status]} />
       </div>
       {row.where ? (
         <div className="flex flex-col gap-0.5">
@@ -67,20 +73,27 @@ export type MatchResultProps = {
   titleAs?: "h2" | "h3";
   footer?: ReactNode;
   className?: string;
+  t?: MatchCheckMessages;
+  format?: Format;
 };
 
-export function MatchResult({ check, titleAs = "h2", footer, className }: MatchResultProps) {
+export function MatchResult({
+  check,
+  titleAs = "h2",
+  footer,
+  className,
+  t = matchCheckEn,
+  format = formatFor("en"),
+}: MatchResultProps) {
   const Sub = titleAs === "h2" ? "h3" : "h4";
+  const words = t.result;
   if (check.total === 0) {
     return (
       <Card className={className}>
         <CardHeader>
-          <Eyebrow>Free word check</Eyebrow>
-          <CardTitle as={titleAs}>{matchHeadline(check)}</CardTitle>
-          <CardDescription className="max-w-prose">
-            Otto looks for the skills, tools, licences and languages he knows, and this post names
-            none of them. Paste the whole post, with its requirements, and check again.
-          </CardDescription>
+          <Eyebrow>{words.eyebrow}</Eyebrow>
+          <CardTitle as={titleAs}>{matchHeadline(check, t, format)}</CardTitle>
+          <CardDescription className="max-w-prose">{words.noneBody}</CardDescription>
         </CardHeader>
         {footer}
       </Card>
@@ -90,26 +103,27 @@ export function MatchResult({ check, titleAs = "h2", footer, className }: MatchR
   const groups = (check.sorted ? SORTED_GROUPS : ONE_GROUP)
     .map((group) => ({
       ...group,
+      title: words.groups[group.key],
       rows: check.rows
         .filter((row) => row.importance === group.importance)
         .sort((a, b) => ORDER[a.status] - ORDER[b.status]),
     }))
     .filter((group) => group.rows.length > 0);
   // The hint goes under the first group with a gap, once.
-  const hintAt = groups.find((group) => group.rows.some((row) => row.status === "missing"))?.title;
-  const counts = [countLine("Must-haves", check.must), countLine("Nice-to-haves", check.nice)];
-  const listed = listedNote(check.listed);
+  const hintAt = groups.find((group) => group.rows.some((row) => row.status === "missing"))?.key;
+  const counts = [
+    countLine(words.groups.must, check.must, t, format),
+    countLine(words.groups.nice, check.nice, t, format),
+  ];
+  const listed = listedNote(check.listed, t, format);
   return (
     <Card className={className}>
       <CardHeader>
-        <Eyebrow>Free word check</Eyebrow>
+        <Eyebrow>{words.eyebrow}</Eyebrow>
         <CardTitle as={titleAs} className="tabular-nums">
-          {matchHeadline(check)}
+          {matchHeadline(check, t, format)}
         </CardTitle>
-        <CardDescription className="max-w-prose">
-          Otto looked for each skill, tool and licence the post names, word for word, the way
-          keyword filters do. It&apos;s a count, not a grade.
-        </CardDescription>
+        <CardDescription className="max-w-prose">{words.body}</CardDescription>
       </CardHeader>
       {counts.some(Boolean) || listed ? (
         <div className="flex flex-col gap-2">
@@ -127,22 +141,22 @@ export function MatchResult({ check, titleAs = "h2", footer, className }: MatchR
           {listed ? <p className="max-w-prose text-sm text-muted">{listed}</p> : null}
         </div>
       ) : null}
-      {groups.map(({ title, rows }) => (
-        <section key={title} aria-label={title} className="flex flex-col gap-1">
+      {groups.map(({ key, title, rows }) => (
+        <section key={key} aria-label={title} className="flex flex-col gap-1">
           <Sub className="text-sm font-medium text-ink">{title}</Sub>
           <ul className="divide-y divide-border border-y border-border">
             {rows.map((row) => (
-              <RowItem key={row.id} row={row} />
+              <RowItem key={row.id} row={row} t={t} />
             ))}
           </ul>
-          {hintAt === title ? (
-            <p className="mt-2 max-w-prose text-sm text-muted">{MISSING_HINT}</p>
+          {hintAt === key ? (
+            <p className="mt-2 max-w-prose text-sm text-muted">{words.missingHint}</p>
           ) : null}
         </section>
       ))}
       {check.asks.length > 0 ? (
-        <section aria-label="Also in the post" className="flex flex-col gap-2">
-          <Sub className="text-sm font-medium text-ink">The post also asks for</Sub>
+        <section aria-label={words.asks.label} className="flex flex-col gap-2">
+          <Sub className="text-sm font-medium text-ink">{words.asks.title}</Sub>
           <ul className="flex flex-col gap-1.5">
             {check.asks.map((ask) => (
               <li key={ask} className="text-sm/6 text-ink">
@@ -150,10 +164,7 @@ export function MatchResult({ check, titleAs = "h2", footer, className }: MatchR
               </li>
             ))}
           </ul>
-          <p className="max-w-prose text-sm text-muted">
-            A word check can&apos;t judge years or degrees. Compare these with your dates and
-            education yourself.
-          </p>
+          <p className="max-w-prose text-sm text-muted">{words.asks.note}</p>
         </section>
       ) : null}
       {footer}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FOOTER_NAV, ROUTES } from "@/components/site/routes";
+import { FOOTER_HREFS, ROUTES } from "@/components/site/routes";
 import { isAppPage } from "./pages";
 
 describe("isAppPage", () => {
@@ -17,7 +17,7 @@ describe("isAppPage", () => {
 
   it.each([
     ROUTES.home,
-    ...FOOTER_NAV.map((link) => link.href),
+    ...FOOTER_HREFS,
     "/reminder",
     "/p/jane-doe",
     "/s/abc123",

@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ROUTES, upgradeHref } from "@/components/site/routes";
 import type { BillingInterval, PaidPlanId, PlanId } from "@/config/plans";
+import { formatFor } from "@/i18n/intl";
+import { englishMessages } from "@/i18n/messages";
 import { trialEndDay } from "@/lib/usage-copy";
-import { closingCta, planCards, TRIAL_EMAIL_NOTE, type PlanViewer } from "./plan-ctas";
+import { closingCta as closingCtaIn, planCards, type PlanViewer } from "./plan-ctas";
 
+const EN = { t: englishMessages().pricing, format: formatFor("en") };
+const TRIAL_EMAIL_NOTE = EN.t.plans.trialEmail;
 const OFFER: Record<PaidPlanId, readonly BillingInterval[]> = {
   pro: ["month", "year"],
   max: ["month", "year"],
@@ -11,11 +15,14 @@ const OFFER: Record<PaidPlanId, readonly BillingInterval[]> = {
 const PLANS_SHOWN: readonly PlanId[] = ["free", "pro", "max"];
 const TRIAL_ENDS = Date.UTC(2026, 10, 24, 12);
 
+const closingCta = (options: Omit<Parameters<typeof closingCtaIn>[0], "t" | "format">) =>
+  closingCtaIn({ ...EN, ...options });
+
 function cardsFor(
   viewer: PlanViewer | null,
   { trial = false, picked = "month" as BillingInterval, offer = OFFER } = {},
 ) {
-  const result = planCards({ plans: PLANS_SHOWN, offer, picked, trial, viewer });
+  const result = planCards({ ...EN, plans: PLANS_SHOWN, offer, picked, trial, viewer });
   const byPlan = Object.fromEntries(result.cards.map((card) => [card.plan, card]));
   return { ...result, free: byPlan.free!, pro: byPlan.pro!, max: byPlan.max! };
 }

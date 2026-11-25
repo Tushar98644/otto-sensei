@@ -5,17 +5,38 @@ import { describe, expect, it } from "vitest";
 import { checkMessages } from "./check";
 import { ENABLED_LOCALES, LOCALES, type Locale } from "./config";
 import { englishMessages, loadMessages, NAMESPACES, translationsFor } from "./messages";
+import { PAGE_KEYS, pageNamespaces, type PageKey } from "./pages";
+import { publishedPages } from "./publish";
 
 const DIR = fileURLToPath(new URL("./messages", import.meta.url));
+
+// The pages P2 translated; the guides (P5) and sign-in (with the app, P3) follow.
+const MARKETING_CORE: readonly PageKey[] = [
+  "/",
+  "/pricing",
+  "/job-match",
+  "/resume-builder",
+  "/cover-letter-generator",
+  "/job-application-tracker",
+  "/interview-prep",
+  "/portfolio-website-builder",
+  "/privacy",
+  "/terms",
+  "/refunds",
+  "/acceptable-use",
+];
 const TRANSLATED = LOCALES.filter((locale): locale is Exclude<Locale, "en"> => locale !== "en");
 const en = englishMessages();
 
+// A namespace's file is its key in kebab case: job-match.ts holds jobMatch.
 const filesIn = (locale: Locale) =>
   readdirSync(path.join(DIR, locale))
     .filter((file) => file.endsWith(".ts") && file !== "index.ts")
-    .map((file) => file.slice(0, -3));
+    .map((file) =>
+      file.slice(0, -3).replace(/-(\w)/g, (_, letter: string) => letter.toUpperCase()),
+    );
 
-// Words that read the same in every language, per locale and message path.
+// Words that read the same in English and this language, by path within their namespace.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
   es: new Set([
     "row.quoted",
@@ -23,6 +44,10 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "design.color",
     "design.densities.normal",
     "row.no",
+    "coverLetters.tones.natural",
+    "coverLetters.tones.formal",
+    "interviewPrep.levels.staff",
+    "footer.groups.legal",
   ]),
   "pt-BR": new Set([
     "card.via",
@@ -33,6 +58,10 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "design.densities.normal",
     "links.title",
     "projects.link",
+    "nav.menu",
+    "coverLetters.tones.natural",
+    "coverLetters.tones.formal",
+    "interviewPrep.levels.staff",
   ]),
   fr: new Set([
     "meta.portfolio",
@@ -57,6 +86,10 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "extras.kinds.publications.name",
     "extras.kinds.publications.date.label",
     "extras.kinds.custom.date.label",
+    "nav.menu",
+    "coverLetters.tones.direct",
+    "interviewPrep.levels.junior",
+    "interviewPrep.levels.senior",
   ]),
   de: new Set([
     "meta.jobs",
@@ -85,6 +118,8 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "education.details",
     "extras.details",
     "extras.kinds.custom.detail.label",
+    "nav.dashboard",
+    "resume.skills.prototyping",
   ]),
 };
 
@@ -118,10 +153,20 @@ describe.each(TRANSLATED)("%s messages", (locale) => {
     expect(problems).toEqual([]);
   });
 
-  it("is complete before it is enabled", async () => {
-    if (!ENABLED_LOCALES.includes(locale)) return;
+  it("publishes a page only once every namespace it reads is translated", async () => {
     const translated = await translationsFor(locale);
-    expect(NAMESPACES.filter((namespace) => !(namespace in translated))).toEqual([]);
+    const published = await publishedPages(locale);
+    for (const key of PAGE_KEYS) {
+      const missing = pageNamespaces(key).filter((namespace) => !(namespace in translated));
+      expect(published.has(key), `${key} (missing: ${missing.join(", ")})`).toBe(
+        ENABLED_LOCALES.includes(locale) && missing.length === 0,
+      );
+    }
+  });
+
+  it("publishes the marketing core (P2)", async () => {
+    const published = await publishedPages(locale);
+    expect(MARKETING_CORE.filter((key) => !published.has(key))).toEqual([]);
   });
 });
 

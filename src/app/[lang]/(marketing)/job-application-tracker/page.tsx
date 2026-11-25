@@ -1,45 +1,59 @@
 import type { Metadata } from "next";
-import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
-import { applicationLimit, PLANS } from "@/config/plans";
-import { pluralize } from "@/lib/utils";
-import { RELATED, TRACKER_PAGE } from "@/lib/seo-pages/pages";
+import { fmt } from "@/i18n/format";
+import { getLocalize, localizedMetadata, requirePublished } from "@/i18n/publish";
+import { getFormat, getLocale, getMessages } from "@/i18n/server";
+import { TRACKER_PAGE } from "@/lib/seo-pages/pages";
 import { displayItalic } from "../_components/display-italic";
-import { FeaturePage, withTrial } from "../_components/feature-page";
-import { TRACKER } from "./content";
+import { FeaturePage } from "../_components/feature-page";
+import { priceCopy } from "../_components/price-copy";
+import {
+  productMeta,
+  publishedRelated,
+  relatedLinks,
+  withTrial,
+} from "../_components/product-copy";
+import { trackerContent, trackerLimits } from "./content";
 
-export const metadata: Metadata = pageMetadata(TRACKER_PAGE);
+const PATH = TRACKER_PAGE.path;
 
-const count = new Intl.NumberFormat("en-US");
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = productMeta(await getMessages("product"), await getFormat(), "tracker");
+  return localizedMetadata({ ...meta, path: PATH });
+}
 
-export default function JobApplicationTrackerPage() {
-  const { free, pro, max } = PLANS;
+export default async function JobApplicationTrackerPage() {
+  await requirePublished(PATH);
+  const t = await getMessages("product");
+  const format = await getFormat();
+  const href = await getLocalize();
+  const prices = priceCopy(await getMessages("pricing"), format);
+  const page = t.tracker;
+  const related = await publishedRelated([
+    "coverLetters",
+    "interviewPrep",
+    "portfolio",
+    "examples",
+  ]);
   return (
     <FeaturePage
-      path={TRACKER_PAGE.path}
-      crumb="Job application tracker"
-      eyebrow="Application tracker"
+      language={await getLocale()}
+      t={t.common}
+      href={href}
+      path={PATH}
+      crumb={page.crumb}
+      eyebrow={page.eyebrow}
       title={
         <>
-          A job application tracker{" "}
-          <em className={displayItalic.className}>that keeps up with your inbox.</em>
+          {page.title} <em className={displayItalic.className}>{page.titleEm}</em>
         </>
       }
-      content={TRACKER}
-      action={{ href: ROUTES.dashboardApplications, label: "Track my applications" }}
-      planNote={withTrial(
-        `${free.name} tracks ${pluralize(applicationLimit("free"), "application")}, ${pro.name} up to ${count.format(applicationLimit("pro"))} with email updates, and ${max.name} up to ${count.format(applicationLimit("max"))}.`,
-      )}
-      check={{
-        title: "Send a resume that reads well",
-        text: "Before you log the next application, see which of the post's skills your resume shows and what hiring software reads from your file. Both checks are free.",
-      }}
-      closing={{
-        title: "Every application, on one board.",
-        pose: "read",
-        art: "Otto the otter, reading a job application",
-      }}
-      related={[RELATED.coverLetters, RELATED.interviewPrep, RELATED.portfolio, RELATED.examples]}
+      content={trackerContent(page, format, href, prices)}
+      action={{ href: ROUTES.dashboardApplications, label: page.action }}
+      planNote={withTrial(t.common, prices, fmt(page.planNote, trackerLimits(page, format)))}
+      check={page.check}
+      closing={{ ...page.closing, pose: "read" }}
+      related={relatedLinks(t.related, format, href, related)}
     />
   );
 }

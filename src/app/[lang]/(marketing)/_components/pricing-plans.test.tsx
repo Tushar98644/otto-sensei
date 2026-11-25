@@ -1,8 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Me } from "@/components/account/use-me";
+import { ROUTES } from "@/components/site/routes";
 import { SHOW_REFERENCE_PRICES } from "@/config/plans";
+import { englishMessages } from "@/i18n/messages";
 import { PricingPlans } from "./pricing-plans";
+
+const EN = { t: englishMessages().pricing, locale: "en", termsHref: ROUTES.terms } as const;
 
 const account = vi.hoisted(() => ({ me: null as Me | null }));
 
@@ -46,7 +50,7 @@ afterEach(() => {
 
 describe("PricingPlans", () => {
   it("shows monthly prices (struck-through references only when switched on) and no price comparisons", () => {
-    const html = text(renderToStaticMarkup(<PricingPlans offer={OFFER} />));
+    const html = text(renderToStaticMarkup(<PricingPlans {...EN} offer={OFFER} />));
     if (SHOW_REFERENCE_PRICES) {
       expect(html).toContain("Reference price $30 $15 /month");
       expect(html).toContain("50% off");
@@ -68,7 +72,7 @@ describe("PricingPlans", () => {
   });
 
   it("puts Pro first for phones, and gives desktop the plan order back", () => {
-    const html = renderToStaticMarkup(<PricingPlans offer={OFFER} headingAs="h2" />);
+    const html = renderToStaticMarkup(<PricingPlans {...EN} offer={OFFER} headingAs="h2" />);
     const order = [...html.matchAll(/<h2[^>]*>(Free|Pro|Max)<\/h2>/g)].map((match) => match[1]);
     expect(order).toEqual(["Pro", "Free", "Max"]);
     expect(html).toContain("lg:order-1");
@@ -76,7 +80,7 @@ describe("PricingPlans", () => {
   });
 
   it("promises the reminder email and shows the trial's allowance under the trial button", () => {
-    const html = text(renderToStaticMarkup(<PricingPlans offer={OFFER} trial />));
+    const html = text(renderToStaticMarkup(<PricingPlans {...EN} offer={OFFER} trial />));
     expect(html).toContain("Try Pro for 7 days");
     expect(html).toContain("We'll email you the day before it renews.");
     expect(html).toContain(
@@ -90,7 +94,7 @@ describe("PricingPlans", () => {
       planInterval: "month",
       trialEndsAt: Date.UTC(2026, 10, 24, 12),
     });
-    const html = text(renderToStaticMarkup(<PricingPlans offer={OFFER} trial />));
+    const html = text(renderToStaticMarkup(<PricingPlans {...EN} offer={OFFER} trial />));
     expect(html).toMatch(/Current plan · trial until Nov 2[45]/);
     expect(html).toContain("Manage your plan");
     expect(html).not.toMatch(/Get Pro|Try Pro|Upgrade to Pro|Popular/);
@@ -100,10 +104,19 @@ describe("PricingPlans", () => {
 
   it("marks a Free account's card as theirs, without a button", () => {
     account.me = signedIn({ plan: "free" }, true);
-    const html = text(renderToStaticMarkup(<PricingPlans offer={OFFER} />));
+    const html = text(renderToStaticMarkup(<PricingPlans {...EN} offer={OFFER} />));
     expect(html).toContain("Your plan");
     expect(html).not.toContain("Check my resume, free");
     expect(html).toContain("Try Pro for 7 days");
     expect(html).toContain("Upgrade to Max");
+  });
+
+  it("writes money and numbers the page's way, and links the terms page it is given", () => {
+    const html = renderToStaticMarkup(
+      <PricingPlans {...EN} locale="de" termsHref="/de/terms" offer={OFFER} />,
+    );
+    expect(text(html)).toMatch(/15\s\$/);
+    expect(text(html)).toContain("2.000 line fixes a month");
+    expect(html).toContain('href="/de/terms"');
   });
 });

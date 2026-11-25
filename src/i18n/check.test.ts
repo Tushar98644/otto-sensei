@@ -66,6 +66,9 @@ describe("checkMessages", () => {
     expect(
       checkMessages("es", withSpanish({ title: "Your resumes" }), english, new Set(["title"])),
     ).toEqual([]);
+    expect(checkMessages("es", { pair: "{count} {label}" }, { pair: "{count} {label}" })).toEqual(
+      [],
+    );
   });
 
   it("checks plural forms against the language's own categories", () => {

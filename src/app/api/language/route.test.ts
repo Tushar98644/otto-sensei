@@ -67,8 +67,8 @@ describe("/api/language", () => {
   it("takes only a language that is live, and nothing else in the body", async () => {
     const user = await signInAs();
     for (const body of [
-      { locale: "es" },
-      { locale: "pt-BR" },
+      { locale: "pt-br" },
+      { locale: "es-MX" },
       { locale: "xx" },
       {},
       { locale: "en", extra: 1 },

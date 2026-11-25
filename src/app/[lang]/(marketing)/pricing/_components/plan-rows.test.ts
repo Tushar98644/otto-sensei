@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { FEATURES, PLANS } from "@/config/plans";
-import { planRows } from "./plan-rows";
+import { formatFor } from "@/i18n/intl";
+import { englishMessages } from "@/i18n/messages";
+import { planRows as planRowsIn } from "./plan-rows";
 
-const count = new Intl.NumberFormat("en-US");
+const format = formatFor("en");
+const planRows = () => planRowsIn(englishMessages().pricing.table, format);
 
 describe("the plan table", () => {
   it("has one row per AI allowance, with the numbers from PLANS", () => {
@@ -10,10 +13,10 @@ describe("the plan table", () => {
     expect(ai?.rows).toHaveLength(FEATURES.length);
     FEATURES.forEach((feature, index) => {
       const row = ai?.rows[index];
-      expect(row?.cells.pro).toBe(count.format(PLANS.pro.limits[feature]));
-      expect(row?.cells.max).toBe(count.format(PLANS.max.limits[feature]));
+      expect(row?.cells.pro).toBe(format.number(PLANS.pro.limits[feature]));
+      expect(row?.cells.max).toBe(format.number(PLANS.max.limits[feature]));
       expect(row?.cells.free).toBe(
-        PLANS.free.limits[feature] > 0 ? count.format(PLANS.free.limits[feature]) : false,
+        PLANS.free.limits[feature] > 0 ? format.number(PLANS.free.limits[feature]) : false,
       );
     });
     expect(ai?.rows.find((row) => row.label === "Line fixes with Otto")?.cells).toEqual({

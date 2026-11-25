@@ -1,16 +1,25 @@
 import { Mail, Phone } from "lucide-react";
 import type { ReactNode } from "react";
 import { Window } from "@/components/ui/panel";
+import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
-import { DEMO_FILE_NAME, DEMO_PERSON } from "./recruiter-demo-data";
+import { DEMO_FILE_NAME, type DemoPerson, type DemoResumeMessages } from "./recruiter-demo-data";
 
-export function ResumeMock({ className }: { className?: string }) {
-  const { name, role, email, phone, skills, languages, jobs } = DEMO_PERSON;
+export function ResumeMock({
+  t,
+  person,
+  className,
+}: {
+  t: DemoResumeMessages;
+  person: DemoPerson;
+  className?: string;
+}) {
+  const { name, role, email, phone, skills, languages, jobs } = person;
   return (
     <Window
       title={DEMO_FILE_NAME}
       role="img"
-      aria-label={`Example resume for ${name}, a ${role.toLowerCase()}. Skills and languages sit in a left column, work history in a right column, with small icons next to her email and phone.`}
+      aria-label={fmt(t.label, { name })}
       className={cn("shadow-float", className)}
     >
       <div className="border-b border-border px-4 py-4 sm:px-5">
@@ -29,15 +38,15 @@ export function ResumeMock({ className }: { className?: string }) {
       </div>
       <div className="grid grid-cols-5">
         <div className="col-span-2 flex flex-col gap-4 bg-surface-muted px-3 py-4 sm:px-4">
-          <MockGroup title="Skills">
+          <MockGroup title={t.headings.skills}>
             <MockList items={skills} />
           </MockGroup>
-          <MockGroup title="Languages">
+          <MockGroup title={t.headings.languages}>
             <MockList items={languages} />
           </MockGroup>
         </div>
         <div className="col-span-3 px-3 py-4 sm:px-4">
-          <MockGroup title="Experience">
+          <MockGroup title={t.headings.experience}>
             <div className="flex flex-col gap-3">
               {jobs.map((job) => (
                 <div key={job.title} className="text-xs">

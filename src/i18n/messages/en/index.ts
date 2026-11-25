@@ -1,5 +1,5 @@
 import account from "./account";
-import accountMenu from "./accountMenu";
+import accountMenu from "./account-menu";
 import api from "./api";
 import applications from "./applications";
 import common from "./common";
@@ -7,11 +7,14 @@ import dashboard from "./dashboard";
 import emails from "./emails";
 import home from "./home";
 import interview from "./interview";
-import jobForm from "./jobForm";
+import jobForm from "./job-form";
+import jobMatch from "./job-match";
 import jobs from "./jobs";
+import legal from "./legal";
 import letters from "./letters";
 import lint from "./lint";
 import login from "./login";
+import matchCheck from "./match-check";
 import onboarding from "./onboarding";
 import portfolio from "./portfolio";
 import pricing from "./pricing";
@@ -19,10 +22,10 @@ import product from "./product";
 import seo from "./seo";
 import site from "./site";
 import studio from "./studio";
-import studioDownload from "./studioDownload";
-import studioEditor from "./studioEditor";
-import studioSections from "./studioSections";
-import studioTailor from "./studioTailor";
+import studioDownload from "./studio-download";
+import studioEditor from "./studio-editor";
+import studioSections from "./studio-sections";
+import studioTailor from "./studio-tailor";
 
 // The source of truth: every other locale is checked against these, key by key.
 const en = {
@@ -36,10 +39,13 @@ const en = {
   home,
   interview,
   jobForm,
+  jobMatch,
   jobs,
+  legal,
   letters,
   lint,
   login,
+  matchCheck,
   onboarding,
   portfolio,
   pricing,

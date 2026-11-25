@@ -1,15 +1,17 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { heroCtaCopy } from "@/app/[lang]/(marketing)/_components/hero";
 import { HeroCta } from "@/app/[lang]/(marketing)/_components/hero-cta";
 import { PricingPlans } from "@/app/[lang]/(marketing)/_components/pricing-plans";
 import { PrimaryCta } from "@/app/[lang]/(marketing)/_components/primary-cta";
 import NotFound from "@/app/[lang]/not-found";
+import { englishMessages } from "@/i18n/messages";
 import { HeaderActions } from "./account-link";
 import { IntentLink } from "./intent-link";
-import { FOOTER_NAV, MAIN_NAV, ROUTES } from "./routes";
+import { FOOTER_HREFS, mainNav, ROUTES } from "./routes";
 import { SiteFooter } from "./site-footer";
-import { SiteHeader } from "./site-header";
+import { headerCopy, SiteHeader } from "./site-header";
 import { TextLink } from "./text-link";
 
 type Rendered = { href: string; prefetch: unknown };
@@ -39,6 +41,9 @@ function linksIn(node: ReactNode): Rendered[] {
 
 const studioLinks = (links: Rendered[]) => links.filter((link) => link.href === ROUTES.studio);
 
+const HEADER_COPY = await headerCopy("en");
+const NOT_FOUND = await NotFound();
+
 beforeEach(() => {
   rendered.length = 0;
 });
@@ -56,11 +61,23 @@ describe("IntentLink", () => {
 
 describe("links to the studio", () => {
   it.each([
-    ["the header button", <HeaderActions key="header" />],
-    ["the hero and closing button", <PrimaryCta key="cta" />],
-    ["the hero's button and job match line", <HeroCta key="hero" />],
-    ["the Free plan card", <PricingPlans key="plans" offer={{ pro: ["month"], max: ["month"] }} />],
-    ["the 404 page", <NotFound key="404" />],
+    ["the header button", <HeaderActions key="header" copy={HEADER_COPY} />],
+    ["the hero and closing button", <PrimaryCta key="cta" copy={englishMessages().home.cta} />],
+    [
+      "the hero's button and job match line",
+      <HeroCta key="hero" copy={heroCtaCopy(englishMessages().home, (path) => path)} />,
+    ],
+    [
+      "the Free plan card",
+      <PricingPlans
+        key="plans"
+        t={englishMessages().pricing}
+        locale="en"
+        termsHref={ROUTES.terms}
+        offer={{ pro: ["month"], max: ["month"] }}
+      />,
+    ],
+    ["the 404 page", NOT_FOUND],
   ])("leave the studio's code alone until someone reaches for %s", (_, node) => {
     const links = studioLinks(linksIn(node));
     expect(links.length).toBeGreaterThan(0);
@@ -69,19 +86,16 @@ describe("links to the studio", () => {
 });
 
 describe("site chrome", () => {
-  it("never prefetches the home page from the logo, nor anything from the footer", () => {
-    const links = linksIn(<SiteFooter />);
-    expect(links.map((link) => link.href)).toEqual([
-      ROUTES.home,
-      ...FOOTER_NAV.map((link) => link.href),
-    ]);
+  it("never prefetches the home page from the logo, nor anything from the footer", async () => {
+    const links = linksIn(await SiteFooter({ locale: "en" }));
+    expect(links.map((link) => link.href)).toEqual([ROUTES.home, ...FOOTER_HREFS]);
     for (const link of links) expect(link.prefetch).toBe(false);
   });
 
-  it("keeps the main navigation prefetched", () => {
-    const links = linksIn(<SiteHeader />);
+  it("keeps the main navigation prefetched", async () => {
+    const links = linksIn(await SiteHeader({ locale: "en" }));
     expect(links.find((link) => link.href === ROUTES.home)?.prefetch).toBe(false);
-    for (const nav of MAIN_NAV) {
+    for (const nav of mainNav(englishMessages().site.nav)) {
       expect(links.find((link) => link.href === nav.href)?.prefetch).toBeUndefined();
     }
   });

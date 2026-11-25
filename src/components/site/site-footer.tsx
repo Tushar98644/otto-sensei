@@ -1,19 +1,43 @@
 import Link from "next/link";
 import { MERCHANT } from "@/app/[lang]/(marketing)/_components/merchant";
 import { BRAND } from "@/config/brand";
-import { FOOTER_GROUPS } from "./routes";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
+import { loadMessages } from "@/i18n/messages";
+import { localizer, pageKey } from "@/i18n/pages";
+import { publishedByLocale, publishedPages } from "@/i18n/publish";
+import { LanguagePicker } from "./language-picker";
+import { FOOTER_GROUPS, ROUTES } from "./routes";
 import { SiteLogo } from "./site-logo";
 
 const SHOW_SUPPORT_EMAIL = !BRAND.supportEmail.toLowerCase().endsWith("@example.com");
 
-export function SiteFooter() {
+export async function SiteFooter({
+  locale = DEFAULT_LOCALE,
+  languages = true,
+}: {
+  locale?: Locale;
+  // Off on a 404, whose address isn't a page in any language.
+  languages?: boolean;
+}) {
+  const { footer } = await loadMessages(locale, "site");
+  const published = await publishedPages(locale);
+  const href = localizer(locale, published);
+  // A translated footer lists only pages in its own language; English lists them all.
+  const groups = FOOTER_GROUPS.map((group) => ({
+    ...group,
+    links: group.links.filter((link) => {
+      const key = pageKey(link.href);
+      return key !== null && published.has(key);
+    }),
+  })).filter((group) => group.links.length > 0);
   return (
     <footer className="border-t border-border bg-background">
       <div className="container-page flex flex-col gap-10 py-10 sm:py-12">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col items-start gap-1">
-            <SiteLogo />
-            <p className="text-sm text-muted">Made for job seekers everywhere.</p>
+            <SiteLogo href={href(ROUTES.home)} />
+            <p className="text-sm text-muted">{footer.tagline}</p>
             {SHOW_SUPPORT_EMAIL ? (
               <a
                 href={`mailto:${BRAND.supportEmail}`}
@@ -24,26 +48,26 @@ export function SiteFooter() {
             ) : null}
           </div>
           <nav
-            aria-label="Footer"
+            aria-label={footer.label}
             className="grid min-w-0 grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-3 sm:gap-x-12"
           >
-            {FOOTER_GROUPS.map((group) => (
-              <div key={group.title} className="flex flex-col">
+            {groups.map((group) => (
+              <div key={group.id} className="flex flex-col">
                 <h2
-                  id={`footer-${group.title.toLowerCase()}`}
+                  id={`footer-${group.id}`}
                   className="font-sans text-xs/4 font-medium tracking-widest text-subtle uppercase"
                 >
-                  {group.title}
+                  {footer.groups[group.id]}
                 </h2>
-                <ul aria-labelledby={`footer-${group.title.toLowerCase()}`} className="mt-2">
+                <ul aria-labelledby={`footer-${group.id}`} className="mt-2">
                   {group.links.map((link) => (
                     <li key={link.href}>
                       <Link
-                        href={link.href}
+                        href={href(link.href)}
                         prefetch={false}
                         className="inline-flex min-h-11 items-center text-sm whitespace-nowrap text-muted transition-colors hover:text-ink pointer-fine:min-h-8"
                       >
-                        {link.label}
+                        {footer.links[link.key]}
                       </Link>
                     </li>
                   ))}
@@ -53,8 +77,17 @@ export function SiteFooter() {
           </nav>
         </div>
         <p className="text-sm/5 text-subtle">
-          © {new Date().getUTCFullYear()} {BRAND.name} · Payments by {MERCHANT.name}
+          © {new Date().getUTCFullYear()} {BRAND.name} ·{" "}
+          {fmt(footer.payments, { merchant: MERCHANT.name })}
         </p>
+        {languages ? (
+          <LanguagePicker
+            label={footer.language}
+            current={locale}
+            published={await publishedByLocale()}
+            className="-mt-6"
+          />
+        ) : null}
       </div>
     </footer>
   );

@@ -4,14 +4,14 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
-import { useMarketingLinks, useSignedIn } from "./use-account-link";
+import { useMarketingLinks, useSignedIn, type HeaderCopy } from "./use-account-link";
 
-export function MobileNav() {
+export function MobileNav({ copy }: { copy: HeaderCopy }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const links = useMarketingLinks();
+  const links = useMarketingLinks(copy);
   const signedIn = useSignedIn();
 
   useEffect(() => {
@@ -46,14 +46,14 @@ export function MobileNav() {
         className={buttonClasses({ variant: "ghost", size: "icon", className: "-mr-3.5 size-12" })}
       >
         {open ? <X className="size-5" /> : <Menu className="size-5" />}
-        <span className="sr-only">Menu</span>
+        <span className="sr-only">{copy.menu}</span>
       </button>
       <div
         id={panelId}
         hidden={!open}
         className="absolute inset-x-0 top-full border-b border-border bg-background shadow-float"
       >
-        <nav aria-label="Main" className="container-page flex flex-col py-2">
+        <nav aria-label={copy.navLabel} className="container-page flex flex-col py-2">
           {links.map((link) => (
             <Link
               key={link.href}

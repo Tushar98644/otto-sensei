@@ -5,10 +5,14 @@ import { IntentLink } from "@/components/site/intent-link";
 import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import { pickResumeFile, preloadOpener, useHomeUpload } from "./home-picker";
 
+export type PrimaryCtaCopy = { check: string; continueWith: string };
+
 export type PrimaryCtaProps = {
+  copy: PrimaryCtaCopy;
   id?: string;
   className?: string;
   // A resume this browser already holds: the button goes back to it instead of asking for a file.
@@ -16,7 +20,7 @@ export type PrimaryCtaProps = {
 };
 
 // A link to the studio until the home page hydrates, then the file picker; a modified click still opens the studio.
-export function PrimaryCta({ id, className, savedTitle }: PrimaryCtaProps) {
+export function PrimaryCta({ copy, id, className, savedTitle }: PrimaryCtaProps) {
   const { opening } = useHomeUpload();
   const picks = !savedTitle;
   return (
@@ -35,7 +39,11 @@ export function PrimaryCta({ id, className, savedTitle }: PrimaryCtaProps) {
         className: cn("w-full max-w-full sm:w-auto sm:max-w-md", className),
       })}
     >
-      {savedTitle ? <span className="truncate">Continue with {savedTitle}</span> : "Check my resume"}
+      {savedTitle ? (
+        <span className="truncate">{fmt(copy.continueWith, { title: savedTitle })}</span>
+      ) : (
+        copy.check
+      )}
       {opening ? <Spinner className="size-5" /> : <ArrowRight />}
     </IntentLink>
   );

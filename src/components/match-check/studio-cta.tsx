@@ -7,6 +7,10 @@ import { useState } from "react";
 import { ROUTES } from "@/components/site/routes";
 import { Button } from "@/components/ui/button";
 import { PLANS } from "@/config/plans";
+import { fmt } from "@/i18n/format";
+import { formatFor, type Format } from "@/i18n/intl";
+import matchCheckEn from "@/i18n/messages/en/match-check";
+import type { MatchCheckMessages } from "@/lib/match-check/copy";
 import type { StudioHandoff } from "./open-studio";
 
 // The studio's store loads only on intent, so the page itself stays light.
@@ -17,22 +21,25 @@ const UpgradeHost = dynamic(() =>
   import("@/components/account/upgrade-prompt").then((module) => module.UpgradePromptHost),
 );
 
-function opensWith(handoff: StudioHandoff): string {
-  if ("file" in handoff) return "The free studio reads your file";
-  return handoff.sample
-    ? "The free studio opens with the sample resume"
-    : "The free studio opens with the resume you pasted";
+function opensWith(handoff: StudioHandoff, t: MatchCheckMessages["studio"]): string {
+  if ("file" in handoff) return t.opens.file;
+  return handoff.sample ? t.opens.sample : t.opens.pasted;
 }
 
-function handoffLine(handoff: StudioHandoff): string {
-  return `${opensWith(handoff)} and keeps this job post for Tailor.`;
-}
-
-export function StudioCta({ handoff }: { handoff: StudioHandoff }) {
+export function StudioCta({
+  handoff,
+  t = matchCheckEn,
+  format = formatFor("en"),
+}: {
+  handoff: StudioHandoff;
+  t?: MatchCheckMessages;
+  format?: Format;
+}) {
   const router = useRouter();
   const [opening, setOpening] = useState(false);
   const [upgrade, setUpgrade] = useState(false);
   const [failed, setFailed] = useState(false);
+  const words = t.studio;
 
   function prepare() {
     router.prefetch(ROUTES.studio);
@@ -58,10 +65,12 @@ export function StudioCta({ handoff }: { handoff: StudioHandoff }) {
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl bg-surface-muted p-4 sm:p-6">
-      <p className="text-base/6 font-semibold text-ink">Take both to the studio</p>
+      <p className="text-base/6 font-semibold text-ink">{words.title}</p>
       <p className="max-w-prose text-sm/6 text-muted">
-        {handoffLine(handoff)} Fix lines by hand or with Otto ({PLANS.free.limits.fix} line fixes a
-        month free) and download a clean PDF. On Pro, Otto tailors your resume to this job.
+        {fmt(words.body, {
+          opens: opensWith(handoff, words),
+          fixes: format.number(PLANS.free.limits.fix),
+        })}
       </p>
       <Button
         loading={opening}
@@ -70,12 +79,12 @@ export function StudioCta({ handoff }: { handoff: StudioHandoff }) {
         onFocus={prepare}
         onClick={() => void open()}
       >
-        Fix these lines with Otto
+        {words.cta}
         <ArrowRight />
       </Button>
       {failed ? (
         <p role="alert" className="text-sm font-medium text-fail-ink">
-          The studio didn&apos;t open. Check your connection, then try again.
+          {words.failed}
         </p>
       ) : null}
       {upgrade ? <UpgradeHost /> : null}

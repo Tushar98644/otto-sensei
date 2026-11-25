@@ -3,12 +3,13 @@
 import { FileUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { ROUTES } from "@/components/site/routes";
 import { UPLOAD_ACCEPT } from "@/components/studio/upload/upload-handoff";
-import { checkFile, formatBytes } from "@/components/ui/file-check";
+import { checkFile, type FileCheckCopy } from "@/components/ui/file-check";
 import { toast } from "@/components/ui/toast";
 import { UPLOAD_LIMITS } from "@/config/plans";
+import { fmt } from "@/i18n/format";
 import {
   homeUploadState,
   loadOpener,
@@ -26,12 +27,22 @@ const UpgradeHost = dynamic(() =>
 
 export type Picked = { file: File } | { problem: string } | null;
 
+export type FileProblems = { oneFile: string; problems: FileCheckCopy };
+
+export type HomeUploadCopy = FileProblems & { opening: string };
+
+export type HomeDropCueCopy = { drop: string; formats: string };
+
 // The one file handed over, or why the studio couldn't take it.
-export function pickedFile(files: ArrayLike<File> | null | undefined): Picked {
+export function pickedFile(files: ArrayLike<File> | null | undefined, copy: FileProblems): Picked {
   const file = files?.[0];
   if (!files || !file) return null;
-  if (files.length > 1) return { problem: "Choose one file at a time." };
-  const problem = checkFile(file, { accept: UPLOAD_ACCEPT, maxBytes: UPLOAD_LIMITS.maxBytes });
+  if (files.length > 1) return { problem: copy.oneFile };
+  const problem = checkFile(
+    file,
+    { accept: UPLOAD_ACCEPT, maxBytes: UPLOAD_LIMITS.maxBytes },
+    copy.problems,
+  );
   return problem ? { problem } : { file };
 }
 
@@ -66,10 +77,13 @@ function carriesFiles(event: DragEvent): boolean {
 }
 
 // Mounted once on the home page: the picker behind "Check my resume", a file dropped anywhere and a pasted file.
-export function HomeUpload() {
+export function HomeUpload({ copy }: { copy: HomeUploadCopy }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const { opening, upgrade } = useHomeUpload();
+  const pick = useEffectEvent((files: ArrayLike<File> | null | undefined) =>
+    pickedFile(files, copy),
+  );
 
   useEffect(() => {
     setHomePicker(inputRef.current);
@@ -100,11 +114,11 @@ export function HomeUpload() {
       event.preventDefault();
       depth = 0;
       updateHomeUpload({ dragging: false });
-      void openHomeFile(pickedFile(event.dataTransfer?.files), go);
+      void openHomeFile(pick(event.dataTransfer?.files), go);
     };
     const onPaste = (event: ClipboardEvent) => {
       if (typingIn(event.target)) return;
-      const picked = pickedFile(event.clipboardData?.files);
+      const picked = pick(event.clipboardData?.files);
       if (!picked) return;
       event.preventDefault();
       void openHomeFile(picked, go);
@@ -133,14 +147,14 @@ export function HomeUpload() {
         hidden
         tabIndex={-1}
         onChange={(event) => {
-          const picked = pickedFile(event.currentTarget.files);
+          const picked = pickedFile(event.currentTarget.files, copy);
           // Lets the same file be picked again after a rejection.
           event.currentTarget.value = "";
           void openHomeFile(picked, (href) => router.push(href));
         }}
       />
       <p role="status" className="sr-only">
-        {opening ? `Opening ${opening} in the studio.` : ""}
+        {opening ? fmt(copy.opening, { name: opening }) : ""}
       </p>
       {upgrade ? <UpgradeHost /> : null}
     </>
@@ -148,7 +162,7 @@ export function HomeUpload() {
 }
 
 // Covers the hero's example while a file is dragged over the page.
-export function HomeDropCue() {
+export function HomeDropCue({ copy }: { copy: HomeDropCueCopy }) {
   const { dragging } = useHomeUpload();
   if (!dragging) return null;
   return (
@@ -157,10 +171,8 @@ export function HomeDropCue() {
       className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-ink bg-surface-muted px-6 text-center"
     >
       <FileUp className="size-6 text-ink" />
-      <p className="text-lg/7 font-medium text-ink">Drop your resume to check it</p>
-      <p className="text-sm text-muted">
-        PDF or Word (.docx), up to {formatBytes(UPLOAD_LIMITS.maxBytes)}
-      </p>
+      <p className="text-lg/7 font-medium text-ink">{copy.drop}</p>
+      <p className="text-sm text-muted">{copy.formats}</p>
     </div>
   );
 }

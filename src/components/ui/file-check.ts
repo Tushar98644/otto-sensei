@@ -1,21 +1,39 @@
+import { fmt } from "@/i18n/format";
+
 export type FileRules = {
   accept?: string;
   maxBytes?: number;
 };
 
+// A page's own words for the problems: {kinds} names the accepted types, joined by "{first} or {last}".
+export type FileCheckCopy = {
+  unsupported: string;
+  unsupportedKinds: string;
+  kinds: string;
+  empty: string;
+  tooBig: string;
+};
+
+export const FILE_CHECK_ENGLISH: FileCheckCopy = {
+  unsupported: "That file type isn't supported.",
+  unsupportedKinds: "That file type isn't supported. Choose a {kinds} file.",
+  kinds: "{first} or {last}",
+  empty: "That file is empty. Choose another one.",
+  tooBig: "That file is too big. The limit is {limit}.",
+};
+
 export function checkFile(
   file: Pick<File, "name" | "type" | "size">,
   rules: FileRules,
+  copy: FileCheckCopy = FILE_CHECK_ENGLISH,
 ): string | null {
   if (rules.accept && !matchesAccept(file, rules.accept)) {
-    const kinds = describeAccept(rules.accept);
-    return kinds
-      ? `That file type isn't supported. Choose a ${kinds} file.`
-      : "That file type isn't supported.";
+    const kinds = describeAccept(rules.accept, copy.kinds);
+    return kinds ? fmt(copy.unsupportedKinds, { kinds }) : copy.unsupported;
   }
-  if (file.size === 0) return "That file is empty. Choose another one.";
+  if (file.size === 0) return copy.empty;
   if (rules.maxBytes !== undefined && file.size > rules.maxBytes) {
-    return `That file is too big. The limit is ${formatBytes(rules.maxBytes)}.`;
+    return fmt(copy.tooBig, { limit: formatBytes(rules.maxBytes) });
   }
   return null;
 }
@@ -44,7 +62,7 @@ function matchesAccept(file: Pick<File, "name" | "type">, accept: string): boole
   });
 }
 
-function describeAccept(accept: string): string {
+function describeAccept(accept: string, join: string): string {
   const names = [
     ...new Set(
       acceptTokens(accept)
@@ -53,5 +71,5 @@ function describeAccept(accept: string): string {
     ),
   ];
   if (names.length <= 1) return names[0] ?? "";
-  return `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`;
+  return fmt(join, { first: names.slice(0, -1).join(", "), last: names.at(-1) ?? "" });
 }

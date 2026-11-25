@@ -79,6 +79,16 @@ describe("rich", () => {
     expect(html(out)).toBe('Read our <a href="/privacy">privacy policy</a>, <strong>Ana</strong>.');
   });
 
+  it("tells each link its place, so one message can hold two different links", () => {
+    const hrefs = ["/terms", "/privacy"];
+    const out = rich("Read the <link>terms</link> and <link>privacy policy</link>.", {
+      link: (text, index) => <Link href={hrefs[index] ?? "/"}>{text}</Link>,
+    });
+    expect(html(out)).toBe(
+      'Read the <a href="/terms">terms</a> and <a href="/privacy">privacy policy</a>.',
+    );
+  });
+
   it("returns plain text when there are no tags", () => {
     expect(rich("Hello {name}", {}, { name: "Ana" })).toBe("Hello Ana");
   });

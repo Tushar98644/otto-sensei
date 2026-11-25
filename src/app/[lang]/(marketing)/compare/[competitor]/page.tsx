@@ -36,6 +36,7 @@ import { CompareTable, PipelineStrip, ReasonCards } from "../_components/compare
 
 export const dynamicParams = false;
 
+// Every language: where comparisons aren't published, compare/layout.tsx prerenders that language's 404.
 export function generateStaticParams(): { competitor: string }[] {
   return COMPETITORS.map(({ slug }) => ({ competitor: slug }));
 }

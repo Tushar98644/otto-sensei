@@ -62,23 +62,41 @@ describe("routeLocale", () => {
   });
 
   it("serves the app in the cookie's language, but only a live one", () => {
-    expect(routeLocale("/dashboard", "en")).toEqual({
-      action: "serve",
-      locale: "en",
-      pathname: "/dashboard",
-    });
-    for (const cookie of ["es", "pt-BR", "fr", "de", "xx", "", "en-US", undefined]) {
+    for (const cookie of ["en", "es", "pt-BR", "fr", "de"] as const) {
+      expect(routeLocale("/dashboard/jobs", cookie), cookie).toEqual({
+        action: "serve",
+        locale: cookie,
+        pathname: "/dashboard/jobs",
+      });
+      expect(cookieLocale(cookie)).toBe(cookie);
+    }
+    for (const cookie of ["xx", "", "en-US", "pt-br", undefined]) {
       expect(routeLocale("/dashboard/jobs", cookie), String(cookie)).toEqual({
         action: "serve",
         locale: "en",
         pathname: "/dashboard/jobs",
       });
-      expect(cookieLocale(cookie)).toBe(cookie === "en" ? "en" : null);
+      expect(cookieLocale(cookie)).toBeNull();
     }
   });
 
-  it("treats a language that isn't live as an unknown path, so it gets the 404", () => {
-    for (const pathname of ["/es", "/es/pricing", "/pt-br/dashboard", "/fr/studio", "/de/s/abc"]) {
+  it("serves a live language's public pages under its prefix, and its app paths set the cookie", () => {
+    expect(routeLocale("/es", undefined)).toEqual({ action: "serve", locale: "es", pathname: "/" });
+    expect(routeLocale("/pt-br/pricing", undefined)).toEqual({
+      action: "serve",
+      locale: "pt-BR",
+      pathname: "/pricing",
+    });
+    expect(routeLocale("/fr/studio", undefined)).toEqual({
+      action: "redirect",
+      pathname: "/studio",
+      status: 307,
+      cookie: "fr",
+    });
+  });
+
+  it("treats a prefix that isn't a language as an unknown path, so it gets the 404", () => {
+    for (const pathname of ["/xx", "/xx/pricing", "/pt-pt/pricing", "/ES/pricing"]) {
       const route = routeLocale(pathname, "es");
       expect(route, pathname).toEqual({ action: "serve", locale: "en", pathname });
       expect(internalPath("en", pathname)).toBe(`/en${pathname}`);

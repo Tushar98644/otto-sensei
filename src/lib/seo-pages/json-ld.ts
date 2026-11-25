@@ -1,6 +1,7 @@
 import { BRAND } from "@/config/brand";
 import type { TemplateInfo } from "@/lib/pdf/templates";
 import {
+  inLanguage,
   type JsonLdData,
   publisherJsonLd,
   shareImageUrl,
@@ -13,17 +14,24 @@ import { type Competitor, compareTitle } from "./compare";
 
 export type Crumb = { name: string; path: string };
 
-export function breadcrumbJsonLd(crumbs: readonly Crumb[], base: string): JsonLdData {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: crumbs.map((crumb, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: crumb.name,
-      item: absoluteUrl(crumb.path, base),
-    })),
-  };
+export function breadcrumbJsonLd(
+  crumbs: readonly Crumb[],
+  base: string,
+  language?: string,
+): JsonLdData {
+  return inLanguage(
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: crumbs.map((crumb, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: crumb.name,
+        item: absoluteUrl(crumb.path, base),
+      })),
+    },
+    language,
+  );
 }
 
 type ArticleInfo = {
