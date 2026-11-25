@@ -12,16 +12,12 @@ import {
 } from "lucide-react";
 import { useMe } from "@/components/account/use-me";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { useLocalSave, useStudioStore } from "@/lib/store/resume-store";
 import { flushCloudSync, useBackup } from "@/lib/sync/use-cloud-sync";
 import { Popover, usePopover } from "./popover";
-import {
-  isSaveProblem,
-  SAVE_COPY,
-  saveState,
-  type SaveProblem,
-  type SaveState,
-} from "./save-state";
+import { isSaveProblem, saveState, type SaveProblem, type SaveState } from "./save-state";
 
 const ICONS: Record<SaveState, LucideIcon> = {
   saving: CloudUpload,
@@ -36,10 +32,11 @@ export function SaveStatus({ resumeId }: { resumeId: string | null }) {
   const { user, loading } = useMe();
   const local = useLocalSave();
   const backup = useBackup(resumeId);
+  const t = useMessages("studio").save;
   if (!resumeId || loading) return null;
 
   const state = saveState(local, backup, user !== null);
-  const { label, detail } = SAVE_COPY[state];
+  const { label, detail } = t.states[state];
   // Signed out, nothing goes to the cloud.
   const Icon = state === "saving" && !user ? Save : ICONS[state];
   const problem = isSaveProblem(state);
@@ -48,7 +45,7 @@ export function SaveStatus({ resumeId }: { resumeId: string | null }) {
     <>
       {problem ? (
         <Popover
-          label="Save status"
+          label={t.status}
           align="end"
           triggerClassName="relative flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-warn-soft px-2 text-sm font-medium whitespace-nowrap text-warn-ink transition-shadow after:absolute after:-inset-1.5 hover:ring-1 hover:ring-ink/20 aria-expanded:ring-1 aria-expanded:ring-ink/30 md:px-2.5"
           trigger={
@@ -71,7 +68,7 @@ export function SaveStatus({ resumeId }: { resumeId: string | null }) {
         </p>
       )}
       <span role="status" className="sr-only">
-        {problem ? `${label}. ${detail}` : ""}
+        {problem ? fmt(t.announce, { label, detail }) : ""}
       </span>
     </>
   );
@@ -80,6 +77,7 @@ export function SaveStatus({ resumeId }: { resumeId: string | null }) {
 function ProblemPanel({ state }: { state: SaveProblem }) {
   const { close } = usePopover();
   const setStep = useStudioStore((s) => s.setStep);
+  const t = useMessages("studio").save;
 
   function act() {
     if (state === "retrying") void flushCloudSync();
@@ -89,9 +87,9 @@ function ProblemPanel({ state }: { state: SaveProblem }) {
 
   return (
     <div className="flex flex-col items-start gap-3">
-      <p className="text-sm/6 text-pretty text-ink">{SAVE_COPY[state].detail}</p>
+      <p className="text-sm/6 text-pretty text-ink">{t.states[state].detail}</p>
       <Button variant="secondary" size="sm" onClick={act}>
-        {state === "retrying" ? "Try again now" : "Go to Download"}
+        {state === "retrying" ? t.retry : t.toDownload}
       </Button>
     </div>
   );

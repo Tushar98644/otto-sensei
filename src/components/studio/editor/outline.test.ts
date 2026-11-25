@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lintResume } from "@/lib/lint/bullets";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { EN } from "../testing";
 import { fixOutline, READING_LINE_PX, readingLine } from "./outline";
 
 function resume(): Resume {
@@ -42,7 +43,7 @@ describe("fixOutline", () => {
   it("lists sections in print order with the entries that hold lines and their counts", () => {
     const value = resume();
     const byBullet = new Map(Object.entries(lintResume(value).byBullet));
-    const outline = fixOutline(value, byBullet);
+    const outline = fixOutline(value, byBullet, EN.studioEditor.outline);
     expect(outline[0]).toEqual({
       key: "basics",
       label: "Name and contact",

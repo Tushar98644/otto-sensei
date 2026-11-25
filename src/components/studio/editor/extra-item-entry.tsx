@@ -4,13 +4,14 @@ import { memo } from "react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormat, useMessages } from "@/i18n/client";
 import { extrasOf, type ExtraItem, type ExtraKind, type Resume } from "@/lib/resume/schema";
 import { BulletList } from "./bullet-list";
 import { metaLine, moveItem, patchItem, removeItem, setHidden, singleLine } from "./edits";
 import type { EntryProps } from "./entry-list";
 import { EntryShell } from "./entry-shell";
 import {
-  EXTRA_FORMS,
+  extraForms,
   editExtraItems,
   extraItemHeading,
   removeItemQuestion,
@@ -46,9 +47,11 @@ export const ExtraItemEntry = memo(function ExtraItemEntry({
     (resume) => itemsOf(resume, sectionId).find((entry) => entry.id === entryId),
     undefined,
   );
+  const t = useMessages("studioEditor").extras;
+  const format = useFormat();
   if (!item) return null;
 
-  const form = EXTRA_FORMS[kind];
+  const form = extraForms(t)[kind];
   const headingId = entryFieldId(entryId, "heading");
   const firstFieldId = entryFieldId(entryId, "first");
   const heading = extraItemHeading(item, form);
@@ -72,7 +75,7 @@ export const ExtraItemEntry = memo(function ExtraItemEntry({
       canMoveUp={index > 0}
       canMoveDown={index < count - 1}
       onMove={(delta) => edit((items) => moveItem(items, entryId, delta))}
-      confirm={removeItemQuestion(item, form)}
+      confirm={removeItemQuestion(item, form, format)}
       onRemove={remove}
       hidden={item.hidden === true}
       onToggleHidden={() =>
@@ -96,7 +99,7 @@ export const ExtraItemEntry = memo(function ExtraItemEntry({
           parentId={entryId}
           ownerHeadingId={headingId}
           bullets={item.bullets}
-          title={form.lines ?? "Lines"}
+          title={form.lines ?? t.lines}
         />
       ) : null}
     </EntryShell>
@@ -114,8 +117,9 @@ function ExtraItemFields({
   firstFieldId: string;
   onChange: (patch: ItemPatch) => void;
 }) {
-  const date = form.date ?? (item.date.trim() ? { label: "Date", placeholder: "" } : null);
-  const detail = form.detail ?? (item.detail.trim() ? { label: "Details", placeholder: "" } : null);
+  const t = useMessages("studioEditor").extras;
+  const date = form.date ?? (item.date.trim() ? { label: t.date, placeholder: "" } : null);
+  const detail = form.detail ?? (item.detail.trim() ? { label: t.details, placeholder: "" } : null);
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Field label={form.title.label}>

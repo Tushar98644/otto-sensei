@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
@@ -16,19 +18,20 @@ import { useSettled } from "./use-settled";
 // The selector runs on every store change, so an unchanged resume is a lookup.
 const outlines = new WeakMap<Resume, string>();
 
-function outlineJson(resume: Resume): string {
+function outlineJson(resume: Resume, t: Messages["studioEditor"]["outline"]): string {
   let json = outlines.get(resume);
   if (json === undefined) {
-    json = JSON.stringify(fixOutline(resume, lintOf(resume).byBullet));
+    json = JSON.stringify(fixOutline(resume, lintOf(resume).byBullet, t));
     outlines.set(resume, json);
   }
   return json;
 }
 
 function useOutline(resumeId: string): OutlineSection[] {
+  const t = useMessages("studioEditor").outline;
   const json = useStudioStore((state) => {
     const resume = pickResume(state, resumeId);
-    return resume ? outlineJson(resume) : "[]";
+    return resume ? outlineJson(resume, t) : "[]";
   });
   const settled = useSettled(json, SETTLE_MS);
   return useMemo(() => JSON.parse(settled) as OutlineSection[], [settled]);
@@ -105,15 +108,16 @@ export function FixOutline({ resumeId }: { resumeId: string }) {
   const outline = useOutline(resumeId);
   const reading = useReading(outline);
   const [readingSection = "", readingEntry = ""] = reading.split(" ");
+  const t = useMessages("studioEditor").outline;
 
   return (
     <>
       <PhoneSections outline={outline} current={readingSection} />
       <nav
-        aria-label="Resume sections"
+        aria-label={t.sections}
         className="sticky top-20 hidden max-h-[calc(100dvh-6rem)] self-start overflow-y-auto overscroll-contain rounded-2xl bg-surface p-2 lg:block"
       >
-        <Eyebrow className="px-2.5 pt-2 pb-1">Your resume</Eyebrow>
+        <Eyebrow className="px-2.5 pt-2 pb-1">{t.yourResume}</Eyebrow>
         <ul className="flex flex-col">
           {outline.map((section) => (
             <li key={section.key}>
@@ -165,6 +169,7 @@ function PhoneSections({
   current: string;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const t = useMessages("studioEditor").outline;
 
   useEffect(() => {
     const row = rowRef.current;
@@ -178,7 +183,7 @@ function PhoneSections({
 
   return (
     <nav
-      aria-label="Jump to a section"
+      aria-label={t.jump}
       className="sticky top-14 z-20 -mx-4 bg-surface-muted px-4 py-2 sm:top-16 sm:-mx-6 sm:px-6 lg:hidden"
     >
       <div

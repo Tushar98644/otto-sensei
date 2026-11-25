@@ -3,7 +3,8 @@
 import { RotateCcw, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
-import { formatRelativeTime } from "@/components/studio/relative-time";
+import { countText } from "@/components/studio/count";
+import { relativeTimeIn } from "@/components/studio/relative-time";
 import { useNow } from "@/components/studio/use-now";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -11,6 +12,8 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import {
   VERSION_NAME_MAX,
   cleanVersionName,
@@ -18,7 +21,6 @@ import {
   versionToDrop,
 } from "@/lib/store/history";
 import { useStudioStore, useVersions, type ResumeVersion } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
 
 export type VersionsDialogProps = {
   resumeId: string | null;
@@ -28,12 +30,13 @@ export type VersionsDialogProps = {
 
 export function VersionsDialog({ resumeId, open, onOpenChange }: VersionsDialogProps) {
   const versions = useVersions(resumeId);
+  const t = useMessages("studio").versions;
   return (
     <Dialog
       open={open && resumeId !== null}
       onOpenChange={onOpenChange}
-      title="Versions"
-      description="Save this resume as it is now, and come back to it any time. Restoring keeps what you have now as a version too."
+      title={t.title}
+      description={t.description}
     >
       {open && resumeId ? (
         <div className="flex flex-col gap-8">
@@ -59,31 +62,30 @@ function SaveVersionForm({
   const [draft, setDraft] = useState(() => suggestVersionName(versions));
   const [error, setError] = useState<string | null>(null);
   const dropping = versionToDrop(versions);
+  const t = useMessages("studio").versions;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = cleanVersionName(draft);
     if (!name) {
-      setError("Give it a name, like “Before tailoring”.");
+      setError(t.nameNeeded);
       return;
     }
     const saved = useStudioStore.getState().saveVersion(resumeId, name);
     if (!saved) {
-      setError("That resume isn't here anymore.");
+      setError(t.gone);
       return;
     }
-    toast({ title: "Version saved", description: saved.name, variant: "success" });
+    toast({ title: t.saved, description: saved.name, variant: "success" });
   }
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
       <Field
-        label="Name this version"
+        label={t.nameLabel}
         error={error}
         hint={
-          dropping
-            ? `You can keep ${versions.length}. Saving removes the oldest, “${dropping.name}”.`
-            : undefined
+          dropping ? fmt(t.dropping, { count: versions.length, name: dropping.name }) : undefined
         }
       >
         <Input
@@ -99,7 +101,7 @@ function SaveVersionForm({
         />
       </Field>
       <div className="flex justify-end">
-        <Button type="submit">Save version</Button>
+        <Button type="submit">{t.save}</Button>
       </div>
     </form>
   );
@@ -115,21 +117,17 @@ function VersionList({
   onRestored: () => void;
 }) {
   const now = useNow();
+  const t = useMessages("studio").versions;
+  const format = useFormat();
 
   if (versions.length === 0) {
-    return (
-      <OttoNote
-        size="sm"
-        live={false}
-        message="Save a version before a big change, like tailoring. You can come back to it later."
-      />
-    );
+    return <OttoNote size="sm" live={false} message={t.empty} />;
   }
 
   function deleteVersion(version: ResumeVersion) {
     useStudioStore.getState().deleteVersion(resumeId, version.id);
     undoToast({
-      title: "Version deleted",
+      title: t.deleted,
       description: version.name,
       onUndo: () => useStudioStore.getState().putVersionBack(resumeId, version),
     });
@@ -138,8 +136,8 @@ function VersionList({
   function restore(version: ResumeVersion) {
     if (!useStudioStore.getState().restoreVersion(resumeId, version.id)) return;
     toast({
-      title: "Version restored",
-      description: `“${version.name}” is back. What you had is kept in your versions.`,
+      title: t.restored,
+      description: fmt(t.restoredNote, { name: version.name }),
       variant: "success",
     });
     onRestored();
@@ -151,7 +149,7 @@ function VersionList({
         id="saved-versions"
         className="text-xs/4 font-medium tracking-widest text-subtle uppercase"
       >
-        Saved · {pluralize(versions.length, "version")}
+        {fmt(t.savedCount, { versions: countText(format, t.count, versions.length) })}
       </h3>
       <ul className="divide-y divide-border border-y border-border">
         {versions.map((version) => (
@@ -179,22 +177,25 @@ function VersionRow({
   onRestore: () => void;
   onDelete: () => void;
 }) {
+  const studio = useMessages("studio");
+  const t = studio.versions;
+  const when = relativeTimeIn(useFormat(), studio.justNow, version.savedAt, now);
   return (
     <li className="flex items-center gap-2 py-3">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm/6 font-medium text-ink">{version.name}</p>
         <p className="text-xs/5 text-subtle">
-          {version.auto ? "Kept for you" : "Saved"} {formatRelativeTime(version.savedAt, now)}
+          {fmt(version.auto ? t.keptWhen : t.savedWhen, { when })}
         </p>
       </div>
       <Button variant="secondary" size="sm" onClick={onRestore}>
         <RotateCcw aria-hidden />
-        Restore
+        {t.restore}
       </Button>
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`Delete version “${version.name}”`}
+        aria-label={fmt(t.delete, { name: version.name })}
         className="text-muted hover:text-ink"
         onClick={onDelete}
       >

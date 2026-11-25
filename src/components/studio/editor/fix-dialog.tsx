@@ -2,15 +2,15 @@
 
 import { useEffect, useId, useMemo, type ReactNode } from "react";
 import { useMe } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { PLANS, type PlanId, type UsagePeriod } from "@/config/plans";
+import { useMessages } from "@/i18n/client";
 import { useStudioStore } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 import { DemoNote } from "../demo-note";
 import {
   answerInputId,
@@ -22,7 +22,8 @@ import {
   updateButtonId,
 } from "./fix-dialog-parts";
 import { weakLinesLeft } from "./fix-queue";
-import { fixAllowanceText, hasPlaceholders, problemMessage } from "./fix-text";
+import { fixAllowanceText, hasPlaceholders, problemMessage, type FixWords } from "./fix-text";
+import { useFixWords } from "./fix-words";
 import { lintOf } from "./lint-cache";
 import { pickResume, useBulletIssues } from "./use-editor";
 import type { FixFlow, FixReady, FixState } from "./use-fix-flow";
@@ -52,6 +53,7 @@ function readyView({ result, target }: FixReady): ReadyView {
 }
 
 function ottoLine(
+  words: FixWords,
   state: FixState,
   limit: number,
   signedIn: boolean,
@@ -61,24 +63,24 @@ function ottoLine(
   switch (state.status) {
     case "closed":
     case "loading":
-      return OTTO.fix.working;
+      return words.t.otto.working;
     case "failed":
-      return problemMessage(state.problem, limit, signedIn, period, plan);
+      return problemMessage(words, state.problem, limit, signedIn, period, plan);
     case "ready": {
       const view = readyView(state);
-      if (state.refining) return OTTO.fix.working;
-      if (view.lineGood) return OTTO.fix.lineGood;
-      if (view.asking && state.draft === null) return OTTO.fix.asking;
-      return OTTO.fix.suggestion;
+      if (state.refining) return words.t.otto.working;
+      if (view.lineGood) return words.t.otto.lineGood;
+      if (view.asking && state.draft === null) return words.t.otto.asking;
+      return words.t.otto.suggestion;
     }
   }
 }
 
-function ottoMeta(state: FixState, left: number): string | undefined {
+function ottoMeta({ t, format }: FixWords, state: FixState, left: number): string | undefined {
   const count = state.status === "ready" ? state.result.questions.length : 0;
   const parts: string[] = [];
-  if (count > 0) parts.push(pluralize(count, "question"));
-  if (left > 0) parts.push(`${pluralize(left, "line")} to go after this`);
+  if (count > 0) parts.push(countText(format, t.counts.questions, count));
+  if (left > 0) parts.push(countText(format, t.dialog.linesToGo, left));
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
@@ -107,6 +109,8 @@ export function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string 
   const plan = user?.plan ?? null;
   const left = useLinesLeft(resumeId, state, flow.seen);
   const next = canMoveOn(state, left);
+  const words = useFixWords();
+  const t = words.t.dialog;
 
   const result = state.status === "ready" ? state.result : null;
   const focusId = state.status === "ready" ? readyFocusId(baseId, state) : null;
@@ -138,7 +142,7 @@ export function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string 
       variant={lineGood && next ? "primary" : "ghost"}
       onClick={next ? flow.skipLine : flow.close}
     >
-      {next ? (lineGood ? "Next line" : "Keep mine & next") : "Keep mine"}
+      {next ? (lineGood ? t.nextLine : t.keepNext) : t.keep}
     </Button>
   );
   let content: ReactNode = null;
@@ -156,7 +160,7 @@ export function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string 
         <>
           {keep}
           <Button id={`${baseId}-retry`} onClick={flow.retry}>
-            Try again
+            {t.tryAgain}
           </Button>
         </>
       );
@@ -173,6 +177,7 @@ export function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string 
           signedIn={user !== null}
           next={next}
           allowance={fixAllowanceText(
+            words,
             me?.usage?.fix ?? state.usage.fix,
             plan,
             period,
@@ -180,11 +185,13 @@ export function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string 
           )}
         />
       );
-      footer = <ReadyFooter flow={flow} state={state} baseId={baseId} keep={keep} next={next} />;
+      footer = (
+        <ReadyFooter flow={flow} state={state} baseId={baseId} keep={keep} next={next} t={t} />
+      );
       break;
   }
 
-  const otto = ottoLine(state, limit, user !== null, period, plan);
+  const otto = ottoLine(words, state, limit, user !== null, period, plan);
 
   return (
     <Dialog
@@ -192,14 +199,14 @@ export function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string 
       onOpenChange={(open) => {
         if (!open) flow.close();
       }}
-      title="Fix this line"
+      title={t.title}
       size="lg"
       footer={footer}
     >
       {state.status === "closed" ? null : (
         <div aria-busy={state.status === "loading" || undefined} className="flex flex-col gap-5">
           {/* One note for all states: live regions only announce changes to existing text. */}
-          <OttoNote size="sm" meta={ottoMeta(state, left)} message={otto} />
+          <OttoNote size="sm" meta={ottoMeta(words, state, left)} message={otto} />
           <OriginalLine
             text={state.target.text}
             marks={lineIssues.flatMap((issue) => (issue.match ? [issue.match] : []))}
@@ -233,6 +240,8 @@ function ReadyContent({
 }) {
   const { result, draft, refining, problem, answers, demo } = state;
   const view = readyView(state);
+  const words = useFixWords();
+  const demoNote = useMessages("studio").demoNote;
 
   return (
     <>
@@ -259,10 +268,10 @@ function ReadyContent({
       ) : null}
       {problem ? (
         <Alert variant={problem.kind === "error" ? "error" : "warn"}>
-          {problemMessage(problem, limit, signedIn, period, plan)}
+          {problemMessage(words, problem, limit, signedIn, period, plan)}
         </Alert>
       ) : null}
-      {demo ? <DemoNote /> : null}
+      {demo ? <DemoNote text={demoNote} /> : null}
       {allowance ? <p className="text-sm text-muted">{allowance}</p> : null}
     </>
   );
@@ -274,11 +283,12 @@ function ReadyFooter({
   baseId,
   keep,
   next,
-}: ReadyProps & { keep: ReactNode; next: boolean }) {
+  t,
+}: ReadyProps & { keep: ReactNode; next: boolean; t: FixWords["t"]["dialog"] }) {
   const view = readyView(state);
   const { draft, refining, result } = state;
   const then = next ? "next" : "close";
-  const useLabel = next ? "Use & next" : "Use this line";
+  const useLabel = next ? t.useNext : t.use;
   if (view.lineGood) return keep;
 
   if (draft !== null) {
@@ -305,7 +315,7 @@ function ReadyFooter({
         onClick={flow.startEditing}
         disabled={refining}
       >
-        Edit before using
+        {t.editFirst}
       </Button>
       <Button
         id={`${baseId}-use`}

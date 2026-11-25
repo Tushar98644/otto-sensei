@@ -2,6 +2,7 @@
 
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useMessages } from "@/i18n/client";
 import { newExperience } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { EntryList } from "./entry-list";
@@ -22,6 +23,7 @@ export const ExperienceEditor = memo(function ExperienceEditor({ resumeId }: { r
   );
   const units = useMemo(() => parseRoleLayout(layout), [layout]);
   const total = units.reduce((sum, ids) => sum + ids.length, 0);
+  const t = useMessages("studioEditor").experience;
 
   function add() {
     const job = newExperience();
@@ -34,9 +36,9 @@ export const ExperienceEditor = memo(function ExperienceEditor({ resumeId }: { r
   return (
     <EntryList
       count={total}
-      empty="No jobs yet. Start with your most recent one."
+      empty={t.empty}
       addId={EXPERIENCE_ADD_ID}
-      addLabel="Add a job"
+      addLabel={t.add}
       onAdd={add}
       limit={LIST_LIMITS.experience}
     >

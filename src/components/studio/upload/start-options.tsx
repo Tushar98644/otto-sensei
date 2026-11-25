@@ -2,9 +2,9 @@
 
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useRef } from "react";
-import { OTTO } from "@/components/mascot/lines";
 import { Button } from "@/components/ui/button";
 import { ProMark } from "@/components/ui/pro-mark";
+import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { LOCAL_IMPORT_ACCEPT, type LocalImportKind } from "./local-import-kinds";
 
@@ -27,13 +27,15 @@ export function StartOptions({
   guidedNeedsPro = false,
   disabled = false,
 }: StartOptionsProps) {
+  const studio = useMessages("studio");
+  const t = studio.start;
   return (
     <div className="flex flex-col gap-3">
       <div className={LIST}>
         <OptionRow
-          title="No resume yet? Build with Otto"
+          title={t.guided}
           pro={guidedNeedsPro}
-          description="Answer a few questions and I'll write the first draft."
+          description={t.guidedDetail}
           onClick={onGuided}
           disabled={disabled}
         />
@@ -41,15 +43,15 @@ export function StartOptions({
 
       <details className="group">
         <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-1 rounded-lg text-sm font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
-          Other ways to start
+          {t.other}
           <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
         </summary>
         <ul className={cn("mt-2", LIST)}>
           <li>
             <FileRow
               kind="linkedin"
-              title="Import from LinkedIn"
-              description="Use the ZIP from LinkedIn's “Get a copy of your data”. It stays on your device."
+              title={t.linkedin}
+              description={t.linkedinDetail}
               onFile={onLocalFile}
               disabled={disabled}
             />
@@ -57,16 +59,16 @@ export function StartOptions({
           <li>
             <FileRow
               kind="jsonresume"
-              title="Import a JSON Resume"
-              description="A resume.json file from jsonresume.org or another resume tool."
+              title={t.jsonResume}
+              description={t.jsonResumeDetail}
               onFile={onLocalFile}
               disabled={disabled}
             />
           </li>
           <li>
             <OptionRow
-              title="Start from scratch"
-              description={OTTO.upload.scratch}
+              title={t.scratch}
+              description={studio.otto.upload.scratch}
               onClick={onScratch}
               disabled={disabled}
             />
@@ -75,14 +77,14 @@ export function StartOptions({
       </details>
 
       <p className="flex min-h-11 flex-wrap items-center gap-x-1 text-sm text-muted">
-        No file handy?
+        {t.noFile}
         <Button
           variant="link"
           onClick={onSample}
           disabled={disabled}
           className="text-muted hover:text-ink pointer-coarse:min-h-11"
         >
-          Try a sample resume
+          {t.sample}
         </Button>
       </p>
     </div>

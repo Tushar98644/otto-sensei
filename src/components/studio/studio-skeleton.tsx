@@ -1,9 +1,13 @@
+"use client";
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMessages } from "@/i18n/client";
 
 export function StudioSkeleton() {
+  const t = useMessages("studio");
   return (
     <div role="status" className="flex flex-col gap-8">
-      <span className="sr-only">Loading your studio…</span>
+      <span className="sr-only">{t.loading.studio}</span>
       <div className="flex items-center justify-between gap-3 md:hidden">
         <Skeleton className="size-11 rounded-lg" />
         <Skeleton className="h-4 w-40" />

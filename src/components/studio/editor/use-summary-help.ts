@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useAccountGate, useResumeAfterSignIn } from "@/components/account/account-gate";
 import { patchMe, useMe } from "@/components/account/use-me";
 import { PLANS, type UsageSnapshot } from "@/config/plans";
+import { fmt } from "@/i18n/format";
 import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import type { SummaryOption, SummaryRequestBody } from "@/lib/api/types";
 import { EDIT_LABELS } from "@/lib/store/resume-store";
 import { fixErrorMessage, problemMessage } from "./fix-text";
+import { useFixWords } from "./fix-words";
 import { CHAR_LIMITS } from "./limits";
 import { editSection, getResume } from "./use-editor";
-
-const SIGN_IN_REASON = `Sign in for summary help. On Free it uses 1 of your ${PLANS.free.limits.fix} line fixes a month.`;
 
 type Mode = SummaryRequestBody["mode"];
 
@@ -45,6 +45,8 @@ export function useSummaryHelp(resumeId: string, focusInput: () => void) {
   const requestRef = useRef(0);
   const busyRef = useRef(false);
   const limit = me?.usage?.fix.limit ?? PLANS.free.limits.fix;
+  const words = useFixWords();
+  const signInReason = fmt(words.t.summary.signIn, { count: PLANS.free.limits.fix });
 
   useEffect(() => {
     gateRef.current = gate;
@@ -56,7 +58,7 @@ export function useSummaryHelp(resumeId: string, focusInput: () => void) {
     busyRef.current = true;
     try {
       const signedIn = await gateRef.current
-        .requireUser(SIGN_IN_REASON, { kind: `summary:${resumeId}`, ids: { mode } })
+        .requireUser(signInReason, { kind: `summary:${resumeId}`, ids: { mode } })
         .catch(() => false);
       if (!signedIn) return;
       const id = ++requestRef.current;
@@ -86,8 +88,8 @@ export function useSummaryHelp(resumeId: string, focusInput: () => void) {
           const limited = { kind: "limit", budget: isBudgetReached(error) } as const;
           message =
             isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")
-              ? problemMessage(limited, limit, false, me?.period, user?.plan)
-              : SIGN_IN_REASON;
+              ? problemMessage(words, limited, limit, false, me?.period, user?.plan)
+              : signInReason;
         }
         setHelp({ status: "failed", mode, message });
       }

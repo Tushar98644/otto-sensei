@@ -1,3 +1,7 @@
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
+import type { PluralForms } from "@/i18n/types";
 import type { EntrySection } from "@/lib/resume/ops";
 import {
   MAX_SECTION_TITLE_CHARS,
@@ -7,7 +11,7 @@ import {
   type SectionKey,
   type SectionTitles,
 } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 
 export function isBulletSection(key: SectionKey): key is EntrySection {
   return key === "experience" || key === "projects" || key === "education";
@@ -56,35 +60,41 @@ export function setSectionHidden(resume: Resume, key: SectionKey, hidden: boolea
   return { ...resume, hiddenSections: next.length > 0 ? next : undefined };
 }
 
-function countOf(count: number, noun: string, hidden = 0): string {
-  if (count === 0) return "None yet";
-  return hidden > 0 ? `${pluralize(count, noun)} · ${hidden} hidden` : pluralize(count, noun);
+type Counts = { t: Messages["studioEditor"]; format: Format };
+
+function countOf({ t, format }: Counts, count: number, forms: PluralForms, hidden = 0): string {
+  if (count === 0) return t.extras.noneYet;
+  const text = countText(format, forms, count);
+  return hidden > 0 ? fmt(t.extras.withHidden, { count: text, hidden }) : text;
 }
 
 function hiddenCount(items: readonly { hidden?: boolean }[]): number {
   return items.filter((item) => item.hidden === true).length;
 }
 
-export function sectionCount(resume: Resume, key: SectionKey): string | null {
+export function sectionCount(resume: Resume, key: SectionKey, words: Counts): string | null {
+  const forms = words.t.sectionCounts;
   switch (key) {
     case "summary":
       return null;
     case "experience":
-      return countOf(resume.experience.length, "job", hiddenCount(resume.experience));
+      return countOf(words, resume.experience.length, forms.jobs, hiddenCount(resume.experience));
     case "projects":
-      return countOf(resume.projects.length, "project", hiddenCount(resume.projects));
+      return countOf(words, resume.projects.length, forms.projects, hiddenCount(resume.projects));
     case "education":
-      return countOf(resume.education.length, "school", hiddenCount(resume.education));
+      return countOf(words, resume.education.length, forms.schools, hiddenCount(resume.education));
     case "skills":
       return countOf(
+        words,
         resume.skills.reduce((total, group) => total + group.items.length, 0),
-        "skill",
+        forms.skills,
         resume.skills.reduce((total, group) => total + (group.hidden ? group.items.length : 0), 0),
       );
     case "certifications":
       return countOf(
+        words,
         resume.certifications.length,
-        "certification",
+        forms.certifications,
         hiddenCount(resume.certifications),
       );
   }

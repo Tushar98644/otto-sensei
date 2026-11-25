@@ -3,6 +3,7 @@
 import { memo, useState } from "react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useMessages } from "@/i18n/client";
 import type { Basics } from "@/lib/resume/schema";
 import { CHAR_LIMITS } from "./limits";
 import { LinksEditor } from "./links-editor";
@@ -15,6 +16,7 @@ type BasicsText = Partial<Omit<Basics, "links">>;
 export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: string }) {
   const basics = useResumeValue(resumeId, (resume) => resume.basics, undefined);
   const [checkEmail, setCheckEmail] = useState(false);
+  const t = useMessages("studioEditor").basics;
   if (!basics) return null;
 
   // An email field drops a trailing space, so typing one can change nothing.
@@ -31,13 +33,13 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
   const email = basics.email.trim();
   const emailError =
     checkEmail && email !== "" && !LOOKS_LIKE_EMAIL.test(email)
-      ? "This email looks incomplete. Check it so recruiters can reach you."
+      ? t.emailIncomplete
       : undefined;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Full name">
+        <Field label={t.name}>
           <Input
             value={basics.name}
             onChange={(event) => update({ name: event.target.value })}
@@ -46,15 +48,15 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
             placeholder="Alex Morgan"
           />
         </Field>
-        <Field label="Headline" optional>
+        <Field label={t.headline} optional>
           <Input
             value={basics.headline}
             onChange={(event) => update({ headline: event.target.value })}
             maxLength={CHAR_LIMITS.headline}
-            placeholder="Product designer"
+            placeholder={t.headlinePlaceholder}
           />
         </Field>
-        <Field label="Email" error={emailError}>
+        <Field label={t.email} error={emailError}>
           <Input
             type="email"
             inputMode="email"
@@ -67,7 +69,7 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
             placeholder="alex@example.com"
           />
         </Field>
-        <Field label="Phone" optional>
+        <Field label={t.phone} optional>
           <Input
             type="tel"
             inputMode="tel"
@@ -79,16 +81,16 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
           />
         </Field>
         <Field
-          label="Location"
+          label={t.location}
           optional
-          hint="City and country is enough."
+          hint={t.locationHint}
           className="sm:col-span-2"
         >
           <Input
             value={basics.location}
             onChange={(event) => update({ location: event.target.value })}
             maxLength={CHAR_LIMITS.location}
-            placeholder="Lisbon, Portugal"
+            placeholder={t.locationPlaceholder}
           />
         </Field>
       </div>

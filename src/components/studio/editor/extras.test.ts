@@ -14,9 +14,9 @@ import {
 } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { setHidden } from "./edits";
+import { EN, EN_FORMAT } from "../testing";
 import {
-  EXTRA_DESCRIPTIONS,
-  EXTRA_FORMS,
+  extraForms,
   appendExtraItem,
   appendExtraSection,
   defaultExtraTitle,
@@ -38,6 +38,8 @@ function item(patch: Partial<ExtraItem> = {}): ExtraItem {
   return { ...newExtraItem(), ...patch };
 }
 
+const EXTRA_FORMS = extraForms(EN.studioEditor.extras);
+
 function withSections(...sections: ExtraSection[]): Resume {
   return { ...emptyResume(0), extras: sections };
 }
@@ -46,7 +48,7 @@ describe("extra section copy", () => {
   it("has a form, a description and a starting title for every kind", () => {
     for (const kind of EXTRA_KINDS) {
       expect(EXTRA_FORMS[kind].addLabel).not.toBe("");
-      expect(EXTRA_DESCRIPTIONS[kind]).not.toBe("");
+      expect(EN.studioEditor.extras.kinds[kind].description).not.toBe("");
       expect(defaultExtraTitle(kind)).toBe(newExtraSection(kind).title);
     }
     expect(defaultExtraTitle("languages")).toBe("Languages");
@@ -176,34 +178,34 @@ describe("extra items", () => {
 
   it("asks before removing only what has content", () => {
     const form = EXTRA_FORMS.volunteering;
-    expect(removeItemQuestion(item(), form)).toBeNull();
-    expect(removeItemQuestion(item({ title: "Mentor" }), form)).toBe("Remove this role?");
+    expect(removeItemQuestion(item(), form, EN_FORMAT)).toBeNull();
+    expect(removeItemQuestion(item({ title: "Mentor" }), form, EN_FORMAT)).toBe("Remove this role?");
     const withLines = item({
       title: "Mentor",
       bullets: [newBullet("Taught 12 kids"), newBullet("")],
     });
-    expect(removeItemQuestion(withLines, form)).toBe("Remove this role and its 1 line?");
+    expect(removeItemQuestion(withLines, form, EN_FORMAT)).toBe("Remove this role and its 1 line?");
   });
 });
 
 describe("removeSectionQuestion", () => {
   it("asks only when some item has content, and counts those", () => {
     const empty = newExtraSection("languages");
-    expect(removeSectionQuestion(empty)).toBeNull();
+    expect(removeSectionQuestion(empty, EXTRA_FORMS, EN_FORMAT)).toBeNull();
     const filled = {
       ...empty,
       items: [item({ title: "Spanish" }), item({ title: "French" }), item()],
     };
-    expect(removeSectionQuestion(filled)).toBe("Remove Languages and its 2 languages?");
+    expect(removeSectionQuestion(filled, EXTRA_FORMS, EN_FORMAT)).toBe("Remove Languages and its 2 languages?");
   });
 });
 
 describe("extraCount", () => {
   it("counts items and says how many are hidden", () => {
     const section = newExtraSection("languages");
-    expect(extraCount({ ...section, items: [] })).toBe("None yet");
-    expect(extraCount({ ...section, items: [item(), item()] })).toBe("2 languages");
-    expect(extraCount({ ...section, items: [item(), item({ hidden: true })] })).toBe(
+    expect(extraCount({ ...section, items: [] }, EN.studioEditor.extras, EN_FORMAT)).toBe("None yet");
+    expect(extraCount({ ...section, items: [item(), item()] }, EN.studioEditor.extras, EN_FORMAT)).toBe("2 languages");
+    expect(extraCount({ ...section, items: [item(), item({ hidden: true })] }, EN.studioEditor.extras, EN_FORMAT)).toBe(
       "2 languages · 1 hidden",
     );
   });

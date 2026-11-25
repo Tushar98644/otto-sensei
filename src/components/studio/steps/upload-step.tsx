@@ -20,14 +20,19 @@ import { Dropzone } from "@/components/ui/dropzone";
 import { Lazy, whenIdle } from "@/components/ui/lazy";
 import { checkFile, formatBytes } from "@/components/ui/file-check";
 import { RESUME_LIMITS, UPLOAD_LIMITS } from "@/config/plans";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { track } from "@/lib/analytics/client";
 import { api, isApiError } from "@/lib/api/client";
 import { titleFromFileName } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { useResumeList, useStudioStore } from "@/lib/store/resume-store";
 import { noteReadByRules, noteReadWell } from "../import-notes";
+import { uploadFailed } from "../otto";
 import { clearGuidedDraft, guidedDraftLoader, guidedDraftRequested } from "../upload/guided-start";
 import { clearHandedUpload, handedUpload, UPLOAD_ACCEPT } from "../upload/upload-handoff";
+import type { LocalImportError } from "../upload/local-import";
 import type { LocalImportKind } from "../upload/local-import-kinds";
 import { RecentResumes } from "../upload/recent-resumes";
 import { openSample } from "../upload/sample-start";
@@ -40,7 +45,11 @@ type UploadState =
   | { status: "reading"; file: File }
   | { status: "failed"; message: string; file: File | null };
 
+type Otto = Messages["studio"]["otto"];
+
 export function UploadStep() {
+  const studio = useMessages("studio");
+  const t = studio.upload;
   const { format, addResume } = useChosenFormat();
   const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
@@ -50,7 +59,7 @@ export function UploadStep() {
     if (!handed) return { status: "idle" };
     const problem = checkFile(handed, { accept: ACCEPT, maxBytes: UPLOAD_LIMITS.maxBytes });
     return problem
-      ? { status: "failed", message: OTTO.upload.failed(problem), file: null }
+      ? { status: "failed", message: uploadFailed(studio.otto, problem), file: null }
       : { status: "reading", file: handed };
   });
   const [guided, setGuided] = useState(guidedDraftRequested);
@@ -94,7 +103,7 @@ export function UploadStep() {
       setStep("review");
     } catch (error) {
       if (!mounted.current) return;
-      setState({ status: "failed", message: describeError(error), file });
+      setState({ status: "failed", message: describeError(studio.otto, error), file });
     }
   }
 
@@ -120,7 +129,7 @@ export function UploadStep() {
         if (!mounted.current) return;
         const message =
           error instanceof LocalImportError
-            ? OTTO.upload.failed(error.message)
+            ? uploadFailed(studio.otto, localImportError(t, error))
             : OTTO.errors.generic;
         setState({ status: "failed", message, file: null });
       }
@@ -161,7 +170,7 @@ export function UploadStep() {
     setStep("fix");
   }
 
-  const otto = ottoFor(state);
+  const otto = ottoFor(studio.otto, state);
   const retryFile = state.status === "failed" ? state.file : null;
 
   if (guided) {
@@ -184,7 +193,7 @@ export function UploadStep() {
         {retryFile ? (
           <Button variant="secondary" onClick={() => void upload(retryFile)}>
             <RotateCcw />
-            Try again
+            {t.tryAgain}
           </Button>
         ) : full ? (
           <Button variant="secondary" onClick={() => openUpgradePrompt("resumes")}>
@@ -199,40 +208,38 @@ export function UploadStep() {
         <Dropzone
           onFile={(file) => void upload(file)}
           onReject={(message) =>
-            setState({ status: "failed", message: OTTO.upload.failed(message), file: null })
+            setState({ status: "failed", message: uploadFailed(studio.otto, message), file: null })
           }
           accept={ACCEPT}
           maxBytes={UPLOAD_LIMITS.maxBytes}
           disabled={reading}
-          label="Upload your resume, a PDF or Word file"
+          label={t.dropLabel}
           className="min-h-56"
         >
           {state.status === "reading" ? (
             <OttoWorking
               task="import"
               layout="stack"
-              message={`Otto is reading ${state.file.name}.`}
-              detail="This takes a few seconds."
+              message={fmt(t.reading, { name: state.file.name })}
+              detail={t.readingDetail}
               className="max-w-full"
             />
           ) : (
             <>
               <FileUp className="size-6 text-ink" aria-hidden />
               <p className="font-medium text-ink">
-                <span className="pointer-coarse:hidden">
-                  Drop your resume here, or choose a file
-                </span>
-                <span className="hidden pointer-coarse:inline">Choose a file</span>
+                <span className="pointer-coarse:hidden">{t.drop}</span>
+                <span className="hidden pointer-coarse:inline">{t.choose}</span>
               </p>
               <p className="text-sm text-muted">
-                PDF or Word (.docx), up to {formatBytes(UPLOAD_LIMITS.maxBytes)}
+                {fmt(t.kinds, { size: formatBytes(UPLOAD_LIMITS.maxBytes) })}
               </p>
             </>
           )}
         </Dropzone>
         <p className="flex items-start gap-2 text-sm text-muted">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-pass" aria-hidden />
-          Your file is checked and then thrown away. We don&apos;t store it.
+          {t.privacy}
         </p>
       </div>
 
@@ -252,19 +259,26 @@ export function UploadStep() {
   );
 }
 
-function ottoFor(state: UploadState): string {
+function ottoFor(otto: Otto, state: UploadState): string {
   switch (state.status) {
     case "idle":
-      return OTTO.upload.idle;
+      return otto.upload.idle;
     case "reading":
-      return OTTO.upload.reading;
+      return otto.upload.reading;
     case "failed":
       return state.message;
   }
 }
 
-function describeError(error: unknown): string {
+function describeError(otto: Otto, error: unknown): string {
   if (isApiError(error, "rate_limited")) return OTTO.errors.rateLimited;
-  if (isApiError(error)) return OTTO.upload.failed(error.message);
+  if (isApiError(error)) return uploadFailed(otto, error.message);
   return OTTO.errors.generic;
+}
+
+function localImportError(t: Messages["studio"]["upload"], error: LocalImportError): string {
+  const { problem } = error;
+  if (problem.kind === "empty") return t.fileEmpty;
+  if (problem.kind === "tooBig") return fmt(t.fileTooBig, { size: problem.size });
+  return error.message;
 }

@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input";
 import { VoiceInput } from "@/components/ui/voice-field";
 import { useAccountGate } from "@/components/account/account-gate";
 import { DRAFT_LIMITS } from "@/config/plans";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { api, isApiError } from "@/lib/api/client";
 import type { DraftRequestBody } from "@/lib/api/types";
 import type { Resume } from "@/lib/resume/schema";
@@ -31,13 +34,14 @@ type JobForm = {
 
 type Status = { kind: "editing" } | { kind: "drafting" } | { kind: "failed"; message: string };
 
-const NOTE_EXAMPLES = [
-  "Answered about 40 customer emails a day",
-  "Trained 3 new team members",
-  "Set up a weekly sales report in Excel",
-  "Cut stock waste by checking orders twice a week",
-];
+type GuidedCopy = Messages["studio"]["guided"];
+
 const MIN_NOTES = 2;
+
+function noteExample(t: GuidedCopy, index: number): string | undefined {
+  const { first, second, third, fourth } = t.noteExamples;
+  return [first, second, third, fourth][index];
+}
 
 function emptyJob(): JobForm {
   return { company: "", title: "", startDate: "", endDate: "", current: false, notes: ["", ""] };
@@ -53,6 +57,7 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
   const [status, setStatus] = useState<Status>({ kind: "editing" });
   const formRef = useRef<HTMLFormElement>(null);
   const gate = useAccountGate();
+  const t = useMessages("studio").guided;
 
   const job = screen >= 0 ? jobs[screen] : undefined;
   const drafting = status.kind === "drafting";
@@ -63,10 +68,10 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
 
   function validate(): boolean {
     const found: Record<string, string> = {};
-    if (screen === -1 && !role.trim()) found.role = "Tell Otto the job you want, like “Data analyst”.";
+    if (screen === -1 && !role.trim()) found.role = t.roleNeeded;
     if (job) {
-      if (!job.title.trim()) found.title = "Add your job title.";
-      if (!job.notes.some((note) => note.trim())) found.notes = "Add at least one thing you did.";
+      if (!job.title.trim()) found.title = t.titleNeeded;
+      if (!job.notes.some((note) => note.trim())) found.notes = t.notesNeeded;
     }
     setErrors(found);
     if (Object.keys(found).length > 0) {
@@ -115,27 +120,27 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
       onDrafted(named, usedAI);
     } catch (error) {
       if (gate.handleApiError(error, "draft")) setStatus({ kind: "editing" });
-      else setStatus({ kind: "failed", message: describeError(error) });
+      else setStatus({ kind: "failed", message: describeError(t, error) });
     }
   }
 
   const otto =
     status.kind === "drafting"
-      ? "Writing your first draft now. I only use what you told me."
+      ? t.otto.drafting
       : status.kind === "failed"
         ? status.message
         : screen === -1
-          ? "Let's build it together. First, what job do you want next?"
-          : "Tell me about one job, internship or volunteer role. Numbers help, if you know them.";
+          ? t.otto.role
+          : t.otto.job;
   const isLast = screen === jobs.length - 1;
 
   return (
     <div className="flex flex-col gap-6">
-      <OttoNote message={otto} meta={screen >= 0 ? `Job ${screen + 1} of ${jobs.length}` : undefined}>
+      <OttoNote message={otto} meta={screen >= 0 ? fmt(t.jobOf, { number: screen + 1, total: jobs.length }) : undefined}>
         {status.kind === "failed" ? (
           <Button variant="secondary" onClick={() => formRef.current?.requestSubmit()}>
             <RotateCcw />
-            Try again
+            {t.tryAgain}
           </Button>
         ) : null}
       </OttoNote>
@@ -144,23 +149,23 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
         <fieldset disabled={drafting} className="flex min-w-0 flex-col gap-5">
           {screen === -1 ? (
             <>
-              <legend className="sr-only">The job you want</legend>
-              <Field label="The job you want" error={errors.role} hint="One job title is enough.">
+              <legend className="sr-only">{t.role}</legend>
+              <Field label={t.role} error={errors.role} hint={t.roleHint}>
                 <Input
                   value={role}
                   onChange={(event) => setRole(event.target.value)}
-                  placeholder="Customer success manager"
+                  placeholder={t.rolePlaceholder}
                   maxLength={200}
                   autoComplete="off"
                  
                 />
               </Field>
-              <Field label="Your name" optional hint="It goes on the resume. Otto's AI never sees it.">
+              <Field label={t.name} optional hint={t.nameHint}>
                 <Input value={name} onChange={(event) => setName(event.target.value)} maxLength={200} autoComplete="name" />
               </Field>
             </>
           ) : job ? (
-            <JobFields job={job} errors={errors} onChange={updateJob} />
+            <JobFields job={job} errors={errors} onChange={updateJob} t={t} />
           ) : null}
         </fieldset>
 
@@ -172,23 +177,23 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
             disabled={drafting}
           >
             <ArrowLeft />
-            {screen === -1 ? "Other ways to start" : "Back"}
+            {screen === -1 ? t.otherWays : t.back}
           </Button>
           {job && jobs.length > 1 ? (
             <Button type="button" variant="ghost" onClick={removeJob} disabled={drafting}>
               <X />
-              Remove this job
+              {t.removeJob}
             </Button>
           ) : null}
           <span className="hidden flex-1 sm:block" />
           {job && isLast && jobs.length < DRAFT_LIMITS.jobs ? (
             <Button type="button" variant="secondary" onClick={addJob} disabled={drafting}>
               <Plus />
-              Add another job
+              {t.addJob}
             </Button>
           ) : null}
           <Button type="submit" loading={drafting}>
-            {screen === -1 ? "Next" : isLast ? (drafting ? "Writing…" : "Write my draft") : "Next job"}
+            {screen === -1 ? t.next : isLast ? (drafting ? t.writing : t.write) : t.nextJob}
           </Button>
         </div>
       </form>
@@ -202,29 +207,30 @@ type JobFieldsProps = {
   job: JobForm;
   errors: Record<string, string>;
   onChange: (patch: Partial<JobForm>) => void;
+  t: GuidedCopy;
 };
 
-function JobFields({ job, errors, onChange }: JobFieldsProps) {
+function JobFields({ job, errors, onChange, t }: JobFieldsProps) {
   const setNote = (index: number, value: string) =>
     onChange({ notes: job.notes.map((note, k) => (k === index ? value : note)) });
   return (
     <>
-      <legend className="sr-only">One job</legend>
+      <legend className="sr-only">{t.oneJob}</legend>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Job title" error={errors.title}>
-          <Input value={job.title} onChange={(e) => onChange({ title: e.target.value })} placeholder="Support specialist" maxLength={200} />
+        <Field label={t.title} error={errors.title}>
+          <Input value={job.title} onChange={(e) => onChange({ title: e.target.value })} placeholder={t.titlePlaceholder} maxLength={200} />
         </Field>
-        <Field label="Company" optional>
+        <Field label={t.company} optional>
           <Input value={job.company} onChange={(e) => onChange({ company: e.target.value })} placeholder="Contoso" maxLength={200} />
         </Field>
-        <Field label="Started" optional>
-          <Input value={job.startDate} onChange={(e) => onChange({ startDate: e.target.value })} placeholder="Mar 2023" maxLength={50} />
+        <Field label={t.started} optional>
+          <Input value={job.startDate} onChange={(e) => onChange({ startDate: e.target.value })} placeholder={t.startedPlaceholder} maxLength={50} />
         </Field>
-        <Field label="Ended" optional>
+        <Field label={t.ended} optional>
           <Input
-            value={job.current ? "Present" : job.endDate}
+            value={job.current ? t.present : job.endDate}
             onChange={(e) => onChange({ endDate: e.target.value })}
-            placeholder="Jan 2025"
+            placeholder={t.endedPlaceholder}
             maxLength={50}
             disabled={job.current}
           />
@@ -237,21 +243,21 @@ function JobFields({ job, errors, onChange }: JobFieldsProps) {
           onChange={(e) => onChange({ current: e.target.checked })}
           className="size-5 shrink-0 cursor-pointer accent-ink"
         />
-        I work here now
+        {t.current}
       </label>
 
       <fieldset className="flex min-w-0 flex-col gap-3">
-        <legend className="mb-1 text-sm font-medium text-ink">Things you did</legend>
+        <legend className="mb-1 text-sm font-medium text-ink">{t.notes}</legend>
         <p className="-mt-1 text-sm text-muted">
-          {`${MIN_NOTES} to ${DRAFT_LIMITS.notesPerJob}, in your own words. Add numbers you know; Otto marks the ones to fill in.`}
+          {fmt(t.notesHint, { min: MIN_NOTES, max: DRAFT_LIMITS.notesPerJob })}
         </p>
         {job.notes.map((note, index) => (
-          <Field key={index} label={`Thing you did ${index + 1}`} hideLabel error={index === 0 ? errors.notes : undefined}>
+          <Field key={index} label={fmt(t.note, { number: index + 1 })} hideLabel error={index === 0 ? errors.notes : undefined}>
             <VoiceInput
               value={note}
               onChange={(e) => setNote(index, e.target.value)}
               onDictate={(text) => setNote(index, text)}
-              placeholder={NOTE_EXAMPLES[index]}
+              placeholder={noteExample(t, index)}
               maxLength={DRAFT_LIMITS.noteChars}
             />
           </Field>
@@ -259,7 +265,7 @@ function JobFields({ job, errors, onChange }: JobFieldsProps) {
         {job.notes.length < DRAFT_LIMITS.notesPerJob ? (
           <Button type="button" variant="link" size="sm" className="self-start" onClick={() => onChange({ notes: [...job.notes, ""] })}>
             <Plus />
-            Add one more
+            {t.addNote}
           </Button>
         ) : null}
       </fieldset>
@@ -267,7 +273,7 @@ function JobFields({ job, errors, onChange }: JobFieldsProps) {
   );
 }
 
-function describeError(error: unknown): string {
+function describeError(t: GuidedCopy, error: unknown): string {
   if (
     isApiError(error, "rate_limited") ||
     isApiError(error, "limit_reached") ||
@@ -275,7 +281,7 @@ function describeError(error: unknown): string {
   ) {
     return error.message;
   }
-  if (isApiError(error, "network_error")) return "I can't reach the server. Check your connection and try again.";
-  if (isApiError(error, "bad_request")) return "Something in the form didn't come through. Check each job and try again.";
+  if (isApiError(error, "network_error")) return t.offline;
+  if (isApiError(error, "bad_request")) return t.badForm;
   return OTTO.errors.generic;
 }

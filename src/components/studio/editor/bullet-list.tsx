@@ -4,6 +4,8 @@ import { Plus } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { hasEnded } from "@/lib/lint/bullets";
 import type { BulletSection } from "@/lib/resume/ops";
 import { newBullet, type Bullet } from "@/lib/resume/schema";
@@ -34,10 +36,11 @@ export function BulletList({
   ownerHeadingId,
   bullets,
   title,
-  addLabel = "Add a line",
+  addLabel,
   actions,
 }: BulletListProps) {
   const titleId = useId();
+  const t = useMessages("studioEditor").line;
   const max = BULLET_LIMITS[section];
   const full = bullets.length >= max;
   const lines = useEntryLines(resumeId, section, parentId);
@@ -94,11 +97,11 @@ export function BulletList({
           className="text-muted hover:text-ink max-sm:h-11"
         >
           <Plus />
-          {addLabel}
+          {addLabel ?? t.add}
         </Button>
         {actions}
         {full ? (
-          <p className="pl-4 text-sm text-muted">{`That's the most lines this can hold (${max}).`}</p>
+          <p className="pl-4 text-sm text-muted">{fmt(t.full, { max })}</p>
         ) : null}
       </div>
       {ticks ? (

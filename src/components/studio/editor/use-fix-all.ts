@@ -11,10 +11,12 @@ import { OTTO } from "@/components/mascot/lines";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import type { Feature } from "@/config/plans";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import type { FixResponse } from "@/lib/api/types";
 import { EDIT_LABELS, useStudioStore } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 import {
   applyFixes,
   canAccept,
@@ -56,7 +58,12 @@ async function askOtto(request: FixRequest, gate: AccountGate): Promise<Asked> {
   const known = recallFix(request);
   if (known) return { response: known };
   try {
-    const response = await api.fix({ ...request, answers: [...request.answers] });
+    const response = await api.fix({
+      bullet: request.bullet,
+      role: request.role,
+      answers: [...request.answers],
+      ...(request.lang ? { lang: request.lang } : {}),
+    });
     patchMe({ usage: response.usage });
     rememberFix(request, response);
     return { response };
@@ -86,6 +93,8 @@ function failureMessage(problem: FixProblem): string | null {
 
 export function useFixAll(resumeId: string) {
   const gate = useAccountGate();
+  const t = useMessages("studioEditor").all.toasts;
+  const format = useFormat();
   const [state, setState] = useState<FixAllState>(CLOSED);
   const [upsell, setUpsell] = useState<Upsell>({ open: false });
   const gateRef = useRef(gate);
@@ -114,10 +123,14 @@ export function useFixAll(resumeId: string) {
   const ask = useCallback(
     async (item: FixAllItem, answers: readonly FixAnswer[]): Promise<Asked | null> => {
       const session = sessionRef.current;
-      const asked = await askOtto({ bullet: item.text, role: item.role, answers }, gateRef.current);
+      const lang = getResume(resumeId)?.lang;
+      const asked = await askOtto(
+        { bullet: item.text, role: item.role, answers, ...(lang ? { lang } : {}) },
+        gateRef.current,
+      );
       return sessionRef.current === session ? asked : null;
     },
-    [],
+    [resumeId],
   );
 
   // Each run has its own stop flag, so a resumed run never shares a queue with a stopped one.
@@ -167,10 +180,7 @@ export function useFixAll(resumeId: string) {
       const resume = getResume(resumeId);
       const lines = resume ? weakLines(resume, lintOf(resume).byBullet) : [];
       if (lines.length === 0) {
-        toast({
-          title: "Every line reads well",
-          description: "Nothing for Otto to fix right now.",
-        });
+        toast({ title: t.allGood, description: t.allGoodNote });
         return;
       }
       const { items, capped } = planFixAll(lines, left);
@@ -266,10 +276,7 @@ export function useFixAll(resumeId: string) {
     const resume = getResume(resumeId);
     if (!item || !resume || !canAccept(item)) return;
     if (applyFixes(resume, [item]).applied.length === 0) {
-      toast({
-        title: "This line changed since Otto read it",
-        description: "Your newer words stay.",
-      });
+      toast({ title: t.lineChanged, description: t.newerStays });
       update(bulletId, { decision: "rejected" });
       return;
     }
@@ -287,13 +294,11 @@ export function useFixAll(resumeId: string) {
     const { items } = state;
     const { applied } = applyFixes(resume, items);
     if (applied.length === 0) {
-      toast({
-        title: "These lines changed since Otto read them",
-        description: "Your newer words stay.",
-      });
+      toast({ title: t.linesChanged, description: t.newerStays });
       return;
     }
-    const label = applied.length === 1 ? EDIT_LABELS.fix : `Otto fixed ${applied.length} lines`;
+    const label =
+      applied.length === 1 ? EDIT_LABELS.fix : fmt(t.fixedLabel, { count: applied.length });
     editResume(resumeId, (current) => applyFixes(current, items).resume, { label });
     const after = getResume(resumeId);
     const done = new Set(applied);
@@ -306,14 +311,11 @@ export function useFixAll(resumeId: string) {
     }
     const session = sessionRef.current;
     undoToast({
-      title: `Otto fixed ${pluralize(applied.length, "line")}`,
+      title: countText(format, t.fixed, applied.length),
       onUndo: () => {
         const store = useStudioStore.getState();
         if (store.resumes[resumeId] !== after) {
-          toast({
-            title: "You've changed it since",
-            description: "Use Undo at the top of the editor.",
-          });
+          toast({ title: t.changedSince, description: t.useUndo });
           return;
         }
         store.undo(resumeId);

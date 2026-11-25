@@ -11,6 +11,7 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useMessages } from "@/i18n/client";
 
 export type SectionTitleFormProps = {
   initial: string;
@@ -28,6 +29,7 @@ export function SectionTitleForm({
   onCancel,
 }: SectionTitleFormProps) {
   const [draft, setDraft] = useState(initial);
+  const t = useMessages("studioEditor").menus;
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   // Saving or cancelling unmounts the form; a blur on the way out must not save a second time.
@@ -70,7 +72,7 @@ export function SectionTitleForm({
         value={draft}
         maxLength={maxLength}
         placeholder={placeholder}
-        aria-label="Section title"
+        aria-label={t.sectionTitle}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={handleKeyDown}
       />
@@ -78,7 +80,7 @@ export function SectionTitleForm({
         type="submit"
         variant="ghost"
         size="icon"
-        aria-label="Save title"
+        aria-label={t.saveTitle}
         className="shrink-0"
       >
         <Check />
@@ -86,7 +88,7 @@ export function SectionTitleForm({
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Cancel"
+        aria-label={t.cancel}
         onClick={() => finish(onCancel)}
         className="shrink-0"
       >

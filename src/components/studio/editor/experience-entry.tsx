@@ -5,8 +5,12 @@ import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { PluralForms } from "@/i18n/types";
 import type { Experience } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 import { BulletList } from "./bullet-list";
 import { DateRangeFields } from "./date-range-fields";
 import {
@@ -43,12 +47,12 @@ function hasContent(job: Experience): boolean {
   );
 }
 
-function removeQuestion(job: Experience, noun: string): string | null {
+type Removal = { alone: string; withLines: PluralForms };
+
+function removeQuestion(job: Experience, words: Removal, format: Format): string | null {
   if (!hasContent(job)) return null;
   const lines = job.bullets.filter((bullet) => bullet.text.trim()).length;
-  return lines > 0
-    ? `Remove this ${noun} and its ${pluralize(lines, "line")}?`
-    : `Remove this ${noun}?`;
+  return lines > 0 ? countText(format, words.withLines, lines) : words.alone;
 }
 
 export const ExperienceEntry = memo(function ExperienceEntry({
@@ -65,6 +69,9 @@ export const ExperienceEntry = memo(function ExperienceEntry({
     (resume) => resume.experience.find((item) => item.id === entryId),
     undefined,
   );
+  const editor = useMessages("studioEditor");
+  const t = editor.experience;
+  const format = useFormat();
   if (!job) return null;
 
   const grouped = rolePosition >= 0 && roleCount > 1;
@@ -72,7 +79,8 @@ export const ExperienceEntry = memo(function ExperienceEntry({
   const firstFieldId = entryFieldId(entryId, "first");
   const role = job.title.trim();
   const company = job.company.trim();
-  const title = [role, company].filter(Boolean).join(" at ") || "New job";
+  const title =
+    role && company ? fmt(t.roleAt, { role, company }) : role || company || t.newJob;
   const offerRole = company !== "" && (!grouped || rolePosition === roleCount - 1);
   const update = (patch: ExperiencePatch) =>
     editList(resumeId, "experience", (jobs) =>
@@ -95,8 +103,8 @@ export const ExperienceEntry = memo(function ExperienceEntry({
       resumeId={resumeId}
       headingId={headingId}
       removeId={entryFieldId(entryId, "remove")}
-      title={grouped ? `${role || "New role"} at ${company}` : title}
-      heading={grouped ? role || "New role" : title}
+      title={grouped ? fmt(t.roleAt, { role: role || t.newRole, company }) : title}
+      heading={grouped ? role || t.newRole : title}
       headingLevel={grouped ? 5 : 4}
       rail={grouped ? (rolePosition === 0 ? "start" : "continue") : undefined}
       lead={
@@ -114,7 +122,7 @@ export const ExperienceEntry = memo(function ExperienceEntry({
       canMoveUp={grouped ? rolePosition > 0 : index > 0}
       canMoveDown={grouped ? rolePosition < roleCount - 1 : index < count - 1}
       onMove={move}
-      confirm={removeQuestion(job, grouped ? "role" : "job")}
+      confirm={removeQuestion(job, grouped ? t.removeRole : t.removeJob, format)}
       onRemove={remove}
       hidden={job.hidden === true}
       onToggleHidden={() =>
@@ -135,7 +143,7 @@ export const ExperienceEntry = memo(function ExperienceEntry({
         parentId={entryId}
         ownerHeadingId={grouped ? `${headingId} ${companyHeadingId(firstRoleId)}` : headingId}
         bullets={job.bullets}
-        title="What you did"
+        title={editor.whatYouDid}
         actions={
           offerRole ? (
             <AddRoleButton resumeId={resumeId} afterId={entryId} firstRoleId={firstRoleId} />
@@ -164,13 +172,15 @@ function CompanyHeader({
   canMoveUp: boolean;
   canMoveDown: boolean;
 }) {
+  const t = useMessages("studioEditor").experience;
+  const format = useFormat();
   return (
     <div className="group/company flex items-start gap-1 sm:-mr-3">
       <div className="min-w-0 flex-1 py-2.5">
         <h4 id={companyHeadingId(roleId)} className="text-base/6 font-medium break-words text-ink">
           {company}
         </h4>
-        <p className="text-sm/5 text-subtle">{pluralize(roles, "role")}</p>
+        <p className="text-sm/5 text-subtle">{countText(format, t.roles, roles)}</p>
       </div>
       <MoveButtons
         label={company}
@@ -204,6 +214,7 @@ function AddRoleButton({
     (resume) => resume.experience.length >= LIST_LIMITS.experience,
     false,
   );
+  const t = useMessages("studioEditor").experience;
 
   function add() {
     const job = newRole(company);
@@ -222,7 +233,7 @@ function AddRoleButton({
       className="text-muted hover:text-ink max-sm:h-11"
     >
       <Plus />
-      {`Add another role at ${company}`}
+      {fmt(t.addRole, { company })}
     </Button>
   );
 }
@@ -238,18 +249,19 @@ function ExperienceFields({
   firstFieldId: string;
   onChange: (patch: ExperiencePatch) => void;
 }) {
+  const t = useMessages("studioEditor").experience;
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Job title">
+      <Field label={t.title}>
         <Input
           id={firstFieldId}
           value={job.title}
           onChange={(event) => update({ title: event.target.value })}
           maxLength={CHAR_LIMITS.jobTitle}
-          placeholder="Product designer"
+          placeholder={t.titlePlaceholder}
         />
       </Field>
-      <Field label="Company">
+      <Field label={t.company}>
         <Input
           value={job.company}
           onChange={(event) => update({ company: event.target.value })}
@@ -257,19 +269,19 @@ function ExperienceFields({
           placeholder="Northwind"
         />
       </Field>
-      <Field label="Location" optional className="sm:col-span-2">
+      <Field label={t.location} optional className="sm:col-span-2">
         <Input
           value={job.location}
           onChange={(event) => update({ location: event.target.value })}
           maxLength={CHAR_LIMITS.jobLocation}
-          placeholder="Remote, or city and country"
+          placeholder={t.locationPlaceholder}
         />
       </Field>
       <DateRangeFields
         className="sm:col-span-2"
         startDate={job.startDate}
         endDate={job.endDate}
-        presentLabel="I work here now"
+        presentLabel={t.present}
         onChange={update}
       />
     </div>

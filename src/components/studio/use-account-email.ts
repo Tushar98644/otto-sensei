@@ -18,7 +18,7 @@ function remember(id: string) {
   writeJsonItem(STORAGE_KEY, list);
 }
 
-export function useAccountEmailPrefill(): void {
+export function useAccountEmailPrefill(label: string): void {
   const { user } = useMe();
   const email = user?.email ?? "";
   const activeId = useStudioStore((s) => s.activeId);
@@ -35,7 +35,7 @@ export function useAccountEmailPrefill(): void {
       .updateResume(
         activeId,
         (resume) => ({ ...resume, basics: { ...resume.basics, email } }),
-        { label: "Added your account email" },
+        { label },
       );
-  }, [email, activeId, needsEmail]);
+  }, [email, activeId, needsEmail, label]);
 }

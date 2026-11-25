@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { VoiceInput, VoiceTextarea } from "@/components/ui/voice-field";
+import { useMessages } from "@/i18n/client";
 import { singleLine } from "./edits";
 import { FIX_ANSWER_LIMITS, hasPlaceholders, splitMarks, splitPlaceholders } from "./fix-text";
 import { CHAR_LIMITS } from "./limits";
@@ -19,9 +20,10 @@ export type OriginalLineProps = {
 };
 
 export function OriginalLine({ text, marks = [] }: OriginalLineProps) {
+  const t = useMessages("studioEditor").dialog;
   return (
     <div className="flex flex-col gap-2">
-      <h3 className={LABEL_CLASSES}>Your line</h3>
+      <h3 className={LABEL_CLASSES}>{t.yourLine}</h3>
       <p className="rounded-xl bg-surface-muted px-4 py-3 text-base/7 text-ink">
         {splitMarks(text, marks).map((part, index) =>
           part.marked ? (
@@ -38,9 +40,10 @@ export function OriginalLine({ text, marks = [] }: OriginalLineProps) {
 }
 
 export function IssueList({ issues }: { issues: string[] }) {
+  const t = useMessages("studioEditor").dialog;
   return (
     <div className="flex flex-col gap-2">
-      <h3 className={LABEL_CLASSES}>What to improve</h3>
+      <h3 className={LABEL_CLASSES}>{t.improve}</h3>
       <ul role="list" className="flex flex-col gap-1.5">
         {issues.map((issue, index) => (
           <li key={index} className="flex items-start gap-2 text-sm text-ink">
@@ -62,10 +65,11 @@ export type SuggestionProps = {
 export function Suggestion({ text, hintId, asking }: SuggestionProps) {
   const headingId = useId();
   const blanks = hasPlaceholders(text);
+  const t = useMessages("studioEditor").dialog;
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h3 id={headingId} className={LABEL_CLASSES}>
-        Otto&apos;s version
+        {t.ottoVersion}
       </h3>
       <div className="flex flex-col gap-2 border-b border-border-strong py-2.5 sm:flex-row sm:items-start sm:gap-3">
         <p className="min-w-0 flex-1 text-base/7 text-ink">
@@ -81,18 +85,15 @@ export function Suggestion({ text, hintId, asking }: SuggestionProps) {
         </p>
         <span className="shrink-0 sm:mt-0.5">
           {blanks ? (
-            <StatusPill status="warn">Fill the blanks</StatusPill>
+            <StatusPill status="warn">{t.fillBlanks}</StatusPill>
           ) : (
-            <StatusPill status="pass">New line</StatusPill>
+            <StatusPill status="pass">{t.newLine}</StatusPill>
           )}
         </span>
       </div>
       {blanks ? (
         <p id={hintId} className="text-sm text-muted">
-          Words in [brackets] are blanks for your real facts.{" "}
-          {asking
-            ? "Answer the questions below, or edit the line yourself."
-            : "Edit the line to fill them in."}
+          {t.blanks} {asking ? t.blanksAsking : t.blanksEdit}
         </p>
       ) : null}
     </section>
@@ -126,6 +127,7 @@ export function QuestionsForm({
 }: QuestionsFormProps) {
   const headingId = useId();
   const answered = answers.some((answer) => answer.trim() !== "");
+  const t = useMessages("studioEditor").dialog;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -139,7 +141,7 @@ export function QuestionsForm({
       className="flex flex-col gap-4 rounded-2xl bg-surface-muted p-4"
     >
       <h3 id={headingId} className={LABEL_CLASSES}>
-        A few quick questions
+        {t.questions}
       </h3>
       {questions.map((question, index) => (
         <Field key={index} label={question} optional>
@@ -160,9 +162,9 @@ export function QuestionsForm({
           loading={refining}
           disabled={!answered}
         >
-          Update suggestion
+          {t.update}
         </Button>
-        {answered ? null : <p className="text-sm text-muted">Answer at least one to update it.</p>}
+        {answered ? null : <p className="text-sm text-muted">{t.answerOne}</p>}
       </div>
       {refining ? <OttoWorking task="fix" size="sm" /> : null}
     </form>
@@ -177,6 +179,7 @@ export type DraftFieldProps = {
 };
 
 export function DraftField({ id, value, onChange, onSubmit }: DraftFieldProps) {
+  const t = useMessages("studioEditor").dialog;
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
@@ -185,12 +188,8 @@ export function DraftField({ id, value, onChange, onSubmit }: DraftFieldProps) {
 
   return (
     <Field
-      label="Your version"
-      hint={
-        hasPlaceholders(value)
-          ? "Swap the [blanks] for your real facts before you use it."
-          : "Change anything you like. Nothing changes on your resume until you use it."
-      }
+      label={t.yourVersion}
+      hint={hasPlaceholders(value) ? t.draftBlanks : t.draftHint}
     >
       <VoiceTextarea
         id={id}

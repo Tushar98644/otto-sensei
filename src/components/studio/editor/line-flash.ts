@@ -3,7 +3,6 @@
 import { useSyncExternalStore } from "react";
 
 export const LINE_FLASH_MS = 2500;
-export const LINE_FLASH_LABEL = "Line updated";
 
 let flashedId: string | null = null;
 let timer: number | undefined;
@@ -39,10 +38,11 @@ export function useLineFlash(bulletId: string): boolean {
   );
 }
 
-export function useFlashAnnouncement(): string {
+// Whether a line just changed, for the editor's status message.
+export function useLineFlashed(): boolean {
   return useSyncExternalStore(
     subscribe,
-    () => (flashedId ? LINE_FLASH_LABEL : ""),
-    () => "",
+    () => flashedId !== null,
+    () => false,
   );
 }

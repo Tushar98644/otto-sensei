@@ -5,12 +5,11 @@ import { useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { api, isApiError } from "@/lib/api/client";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { noteReadByAI, noteReadByRules, rereadableFile } from "../import-notes";
-
-const REREAD_LABEL = "Otto re-read your file";
 
 function withReadContent(current: Resume, read: Resume): Resume {
   return {
@@ -31,6 +30,7 @@ export function RereadNote({ resumeId }: { resumeId: string }) {
   const pro = useProTools();
   const updateResume = useStudioStore((s) => s.updateResume);
   const [busy, setBusy] = useState(false);
+  const t = useMessages("studio").reread;
   const file = rereadableFile(resumeId);
   if (pro !== true || !file) return null;
 
@@ -40,28 +40,23 @@ export function RereadNote({ resumeId }: { resumeId: string }) {
       const { resume, usedAI, basicReader } = await api.importFile(source, { reader: "ai" });
       if (usedAI) {
         updateResume(resumeId, (current) => withReadContent(current, resume), {
-          label: REREAD_LABEL,
+          label: t.done,
         });
         noteReadByAI(resumeId);
         toast({
-          title: REREAD_LABEL,
-          description: "Undo puts the first read back.",
+          title: t.done,
+          description: t.undoNote,
           variant: "success",
         });
       } else if (basicReader) {
         noteReadByRules(resumeId, true);
       } else {
-        toast({
-          title: "Otto couldn't re-read it this time",
-          description: "Your resume is as it was.",
-        });
+        toast({ title: t.notThisTime, description: t.unchanged });
       }
     } catch (error) {
       toast({
-        title: isApiError(error, "rate_limited")
-          ? "That's a lot at once"
-          : "Otto couldn't re-read it",
-        description: "Your resume is as it was. Try again in a minute.",
+        title: isApiError(error, "rate_limited") ? t.tooMany : t.failed,
+        description: t.failedNote,
         variant: "error",
       });
     } finally {
@@ -73,14 +68,14 @@ export function RereadNote({ resumeId }: { resumeId: string }) {
     <p className="flex items-start gap-2 text-sm text-muted">
       <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
       <span>
-        Sorted in a second, no AI read used. Something in the wrong place?{" "}
+        {t.sorted}{" "}
         <Button
           variant="link"
           loading={busy}
           onClick={() => void reread(file)}
           className="align-baseline"
         >
-          {busy ? "Otto is re-reading it" : "Let Otto re-read it"}
+          {busy ? t.busy : t.action}
         </Button>
       </span>
     </p>

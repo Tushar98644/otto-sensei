@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 export type FixFirstEntry = {
@@ -25,7 +26,7 @@ export type FixFirstProps = {
 
 export function FixFirst({
   items,
-  title = "Fix these first",
+  title,
   description,
   empty,
   footer,
@@ -33,12 +34,13 @@ export function FixFirst({
   className,
 }: FixFirstProps) {
   const headingId = useId();
+  const t = useMessages("studio");
   return (
     <Card id={id} className={cn("scroll-mt-24", className)}>
       <section aria-labelledby={headingId} className="flex flex-col gap-4">
         <CardHeader>
           <CardTitle as="h2" id={headingId} className="text-base/6 font-semibold">
-            {title}
+            {title ?? t.fixFirst}
           </CardTitle>
           {description ? <CardDescription>{description}</CardDescription> : null}
         </CardHeader>

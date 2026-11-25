@@ -6,9 +6,12 @@ import { patchMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import { toast } from "@/components/ui/toast";
 import { TEXT_LIMITS, type UsageSnapshot } from "@/config/plans";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { FixResult } from "@/lib/ai/types";
 import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import type { FixResponse } from "@/lib/api/types";
+import type { ContentLang } from "@/lib/i18n/languages";
 import { findBullet, setBulletText } from "@/lib/resume/ops";
 import { EDIT_LABELS } from "@/lib/store/resume-store";
 import { recallFix, rememberFix } from "./fix-memory";
@@ -23,6 +26,7 @@ export type FixTarget = {
   bulletId: string;
   text: string;
   role: { title: string; company: string };
+  lang?: ContentLang;
 };
 
 export type FixReady = {
@@ -64,6 +68,7 @@ function readyState(target: FixTarget, response: FixResponse): FixReady {
 
 export function useFixFlow(resumeId: string) {
   const gate = useAccountGate();
+  const t = useMessages("studioEditor").dialog;
   const [state, setState] = useState<FixState>(CLOSED);
   const [seen, setSeen] = useState<readonly string[]>(NONE_SEEN);
   const gateRef = useRef(gate);
@@ -77,7 +82,12 @@ export function useFixFlow(resumeId: string) {
   const send = useCallback(
     async (target: FixTarget, answers: FixAnswer[]): Promise<Outcome | null> => {
       const id = ++requestRef.current;
-      const request = { bullet: target.text, role: target.role, answers };
+      const request = {
+        bullet: target.text,
+        role: target.role,
+        answers,
+        ...(target.lang ? { lang: target.lang } : {}),
+      };
       const known = recallFix(request);
       if (known) return { response: known };
       try {
@@ -123,8 +133,8 @@ export function useFixFlow(resumeId: string) {
       if (!line || !text) return null;
       if (text.length > TEXT_LIMITS.bulletChars) {
         toast({
-          title: "This line is too long for Otto",
-          description: `Trim it to under ${TEXT_LIMITS.bulletChars} characters, then try again.`,
+          title: t.tooLong,
+          description: fmt(t.tooLongNote, { count: TEXT_LIMITS.bulletChars }),
         });
         return null;
       }
@@ -132,10 +142,15 @@ export function useFixFlow(resumeId: string) {
         .requireUser(OTTO.signIn.reason("fix"), { kind: `fix:${resumeId}`, ids: { bulletId } })
         .catch(() => false);
       return signedIn
-        ? { bulletId, text, role: { title: line.roleTitle, company: line.company } }
+        ? {
+            bulletId,
+            text,
+            role: { title: line.roleTitle, company: line.company },
+            ...(resume?.lang ? { lang: resume.lang } : {}),
+          }
         : null;
     },
-    [resumeId],
+    [resumeId, t],
   );
 
   const open = useCallback(

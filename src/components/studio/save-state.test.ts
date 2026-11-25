@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isSaveProblem, SAVE_COPY, saveState } from "./save-state";
+import studio from "@/i18n/messages/en/studio";
+import { isSaveProblem, saveState } from "./save-state";
+
+const SAVE_COPY = studio.save.states;
 
 describe("saveState", () => {
   it("says saving while this browser's save waits out the pause", () => {

@@ -6,17 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-field";
-import type { SummaryOption, SummaryOptionKind } from "@/lib/api/types";
+import { useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
+import type { SummaryOption } from "@/lib/api/types";
 import { DemoNote } from "../demo-note";
 import { fixAllowanceText, hasPlaceholders, splitPlaceholders } from "./fix-text";
+import { useFixWords } from "./fix-words";
 import { CHAR_LIMITS } from "./limits";
 import { sameText, type Ready, type SummaryFlow } from "./use-summary-help";
 
-const KIND_LABELS: Record<SummaryOptionKind, string> = {
-  achievements: "Leads with results",
-  role: "Leads with your role",
-  tightened: "Tighter version",
-};
+type OptionCopy = Messages["studioEditor"]["summary"]["options"];
 
 export function ReadyOptions({
   flow,
@@ -29,7 +28,10 @@ export function ReadyOptions({
 }) {
   const unchanged =
     state.mode === "improve" && sameText(state.options[0]?.text ?? "", state.original);
-  const allowance = fixAllowanceText(state.usage.fix, flow.plan, flow.period, flow.trial);
+  const words = useFixWords();
+  const allowance = fixAllowanceText(words, state.usage.fix, flow.plan, flow.period, flow.trial);
+  const demoNote = useMessages("studio").demoNote;
+  const t = words.t.summary.options;
   return (
     <>
       {unchanged ? null : (
@@ -42,11 +44,12 @@ export function ReadyOptions({
               draft={state.editing?.index === index ? state.editing.draft : null}
               onEdit={(draft) => flow.setEditing(draft === null ? null : { index, draft })}
               onUse={flow.apply}
+              t={t}
             />
           ))}
         </ul>
       )}
-      {state.demo ? <DemoNote /> : null}
+      {state.demo ? <DemoNote text={demoNote} /> : null}
       {allowance ? <p className="text-sm text-muted">{allowance}</p> : null}
     </>
   );
@@ -58,9 +61,10 @@ type OptionRowProps = {
   draft: string | null;
   onEdit: (draft: string | null) => void;
   onUse: (text: string) => void;
+  t: OptionCopy;
 };
 
-function OptionRow({ option, id, draft, onEdit, onUse }: OptionRowProps) {
+function OptionRow({ option, id, draft, onEdit, onUse, t }: OptionRowProps) {
   const blanks = hasPlaceholders(option.text);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const editing = draft !== null;
@@ -71,7 +75,7 @@ function OptionRow({ option, id, draft, onEdit, onUse }: OptionRowProps) {
 
   return (
     <li className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
-      <Eyebrow>{KIND_LABELS[option.kind]}</Eyebrow>
+      <Eyebrow>{t.kinds[option.kind]}</Eyebrow>
       {draft === null ? (
         <p className="text-base/7 text-pretty text-ink">
           {splitPlaceholders(option.text).map((part, index) =>
@@ -87,7 +91,7 @@ function OptionRow({ option, id, draft, onEdit, onUse }: OptionRowProps) {
       ) : (
         <>
           <Label htmlFor={`${id}-draft`} className="sr-only">
-            Your version
+            {t.yourVersion}
           </Label>
           <VoiceTextarea
             ref={draftRef}
@@ -113,17 +117,17 @@ function OptionRow({ option, id, draft, onEdit, onUse }: OptionRowProps) {
       ) : null}
       {blanks && draft === null ? (
         <p id={`${id}-hint`} className="text-sm text-muted">
-          Words in [brackets] are blanks for your real facts. Edit it to fill them in.
+          {t.blanks}
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         {draft === null ? (
           <Button variant="secondary" size="sm" onClick={() => onEdit(option.text)}>
-            Edit first
+            {t.edit}
           </Button>
         ) : (
           <Button variant="ghost" size="sm" onClick={() => onEdit(null)}>
-            Cancel edit
+            {t.cancel}
           </Button>
         )}
         <Button
@@ -132,7 +136,7 @@ function OptionRow({ option, id, draft, onEdit, onUse }: OptionRowProps) {
           aria-describedby={blanks && draft === null ? `${id}-hint` : undefined}
           onClick={() => onUse(draft ?? option.text)}
         >
-          Use this
+          {t.use}
         </Button>
       </div>
     </li>

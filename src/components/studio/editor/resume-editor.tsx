@@ -4,6 +4,7 @@ import { TriangleExclamationPoint } from "lucide-react";
 import { memo, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Badge } from "@/components/ui/badge";
+import { useFormat, useMessages } from "@/i18n/client";
 import { SECTION_LABELS, isSectionHidden, type SectionKey } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { BasicsForm } from "./basics-form";
@@ -14,7 +15,8 @@ import { ExtrasArea } from "./extras-editor";
 import { FixDialogProvider } from "./fix-provider";
 import { sectionDomId } from "./focus";
 import { CHAR_LIMITS } from "./limits";
-import { useFlashAnnouncement } from "./line-flash";
+import { countText } from "../count";
+import { useLineFlashed } from "./line-flash";
 import { MoveButtons } from "./move-buttons";
 import { ProjectsEditor } from "./projects-editor";
 import { SectionCard } from "./section-card";
@@ -61,10 +63,11 @@ export const ResumeEditor = memo(function ResumeEditor({
 });
 
 function FlashAnnouncer() {
-  const message = useFlashAnnouncement();
+  const flashed = useLineFlashed();
+  const t = useMessages("studioEditor");
   return (
     <p role="status" className="sr-only">
-      {message}
+      {flashed ? t.lineUpdated : ""}
     </p>
   );
 }
@@ -72,9 +75,10 @@ function FlashAnnouncer() {
 const BasicsCard = memo(function BasicsCard({ resumeId }: { resumeId: string }) {
   const name = useResumeValue(resumeId, (resume) => resume.basics.name.trim(), "");
   const hasEmail = useResumeValue(resumeId, (resume) => resume.basics.email.trim() !== "", false);
+  const t = useMessages("studioEditor");
   return (
     <SectionCard
-      title="Name and contact"
+      title={t.basics.section}
       count={name || null}
       sectionId={sectionDomId("basics")}
       defaultOpen={!(name && hasEmail)}
@@ -99,6 +103,8 @@ const SectionSlot = memo(function SectionSlot({
 }: SectionSlotProps) {
   const { title, count, needWork, hidden } = useSectionMeta(resumeId, sectionKey);
   const label = title || SECTION_LABELS[sectionKey];
+  const t = useMessages("studioEditor");
+  const format = useFormat();
 
   return (
     <SectionCard
@@ -123,7 +129,7 @@ const SectionSlot = memo(function SectionSlot({
         needWork > 0 ? (
           <Badge variant="warn">
             <TriangleExclamationPoint />
-            {`${needWork} ${needWork === 1 ? "needs" : "need"} work`}
+            {countText(format, t.counts.needWork, needWork)}
           </Badge>
         ) : null
       }

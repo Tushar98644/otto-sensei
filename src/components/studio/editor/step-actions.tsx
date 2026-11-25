@@ -4,14 +4,16 @@ import { ArrowRight } from "lucide-react";
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { STEP_BAR_CLASSES } from "@/components/studio/step-bar";
+import { useMessages } from "@/i18n/client";
 import { useStudioStore } from "@/lib/store/resume-store";
 
 export const StepActions = memo(function StepActions() {
   const setStep = useStudioStore((state) => state.setStep);
+  const t = useMessages("studioEditor").stepBar;
   return (
     <div data-tour-edge className={STEP_BAR_CLASSES}>
       <Button variant="ghost" onClick={() => setStep("download")} data-tour="studio-download">
-        Skip to download
+        {t.skip}
       </Button>
       <Button
         onClick={() => setStep("tailor")}
@@ -19,7 +21,8 @@ export const StepActions = memo(function StepActions() {
         data-tour="studio-tailor"
       >
         <span>
-          Next: Tailor<span className="max-sm:sr-only"> to a job</span>
+          {t.next.before}
+          <span className="max-sm:sr-only">{t.next.wide}</span>
         </span>
         <ArrowRight />
       </Button>

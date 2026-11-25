@@ -6,8 +6,11 @@ import { GitHubImportButton } from "@/components/github/github-import-button";
 import { GitHubOffer } from "@/components/github/github-offer";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useFormat, useMessages } from "@/i18n/client";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
 import { newProject, type Project } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 import { BulletList } from "./bullet-list";
 import { DateRangeFields } from "./date-range-fields";
 import { dateSpan, metaLine, moveItem, patchItem, removeItem, setHidden } from "./edits";
@@ -23,6 +26,7 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
   const ids = useItemIds(resumeId, (resume) => resume.projects);
   const username = useResumeValue(resumeId, usernameFromResume, "");
   const upFront = useResumeValue(resumeId, offersGitHubImport, false);
+  const t = useMessages("studioEditor").projects;
 
   function add() {
     const project = newProject();
@@ -35,9 +39,9 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
   const list = (
     <EntryList
       count={ids.length}
-      empty="No projects yet. Side projects, open source and school work all count."
+      empty={t.empty}
       addId={ADD_ID}
-      addLabel="Add a project"
+      addLabel={t.add}
       onAdd={add}
       limit={LIST_LIMITS.projects}
       more={
@@ -45,7 +49,7 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
           <GitHubImportButton
             resumeId={resumeId}
             variant="ghost"
-            label={username ? "Add from my GitHub" : "Add from GitHub"}
+            label={username ? t.githubMine : t.github}
           />
         )
       }
@@ -65,11 +69,15 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
   );
 });
 
-function removeQuestion(project: Project): string | null {
+function removeQuestion(
+  t: Messages["studioEditor"]["projects"],
+  format: Format,
+  project: Project,
+): string | null {
   const lines = project.bullets.filter((bullet) => bullet.text.trim()).length;
-  if (lines > 0) return `Remove this project and its ${pluralize(lines, "line")}?`;
+  if (lines > 0) return countText(format, t.removeWithLines, lines);
   const filled = [project.name, project.link, project.tech, project.startDate, project.endDate];
-  return filled.some((value) => value?.trim()) ? "Remove this project?" : null;
+  return filled.some((value) => value?.trim()) ? t.remove : null;
 }
 
 const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, count }: EntryProps) {
@@ -78,6 +86,9 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
     (resume) => resume.projects.find((item) => item.id === entryId),
     undefined,
   );
+  const editor = useMessages("studioEditor");
+  const t = editor.projects;
+  const format = useFormat();
   if (!project) return null;
 
   const headingId = entryFieldId(entryId, "heading");
@@ -98,13 +109,13 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
       resumeId={resumeId}
       headingId={headingId}
       removeId={entryFieldId(entryId, "remove")}
-      title={project.name.trim() || "New project"}
+      title={project.name.trim() || t.newItem}
       canMoveUp={index > 0}
       canMoveDown={index < count - 1}
       onMove={(delta) =>
         editList(resumeId, "projects", (projects) => moveItem(projects, entryId, delta))
       }
-      confirm={removeQuestion(project)}
+      confirm={removeQuestion(t, format, project)}
       onRemove={remove}
       hidden={project.hidden === true}
       onToggleHidden={() =>
@@ -121,16 +132,16 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
         firstFieldId,
         content: (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Project name">
+            <Field label={t.name}>
               <Input
                 id={firstFieldId}
                 value={project.name}
                 onChange={(event) => update({ name: event.target.value })}
                 maxLength={CHAR_LIMITS.projectName}
-                placeholder="Budget tracker app"
+                placeholder={t.namePlaceholder}
               />
             </Field>
-            <Field label="Link" optional>
+            <Field label={t.link} optional>
               <Input
                 type="url"
                 inputMode="url"
@@ -142,7 +153,7 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
                 placeholder="github.com/alex/budget"
               />
             </Field>
-            <Field label="Tools" optional className="sm:col-span-2">
+            <Field label={t.tools} optional className="sm:col-span-2">
               <Input
                 value={project.tech ?? ""}
                 onChange={(event) => update({ tech: event.target.value })}
@@ -154,7 +165,7 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
               className="sm:col-span-2"
               startDate={project.startDate ?? ""}
               endDate={project.endDate ?? ""}
-              presentLabel="Still working on it"
+              presentLabel={t.present}
               onChange={update}
             />
           </div>
@@ -167,7 +178,7 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
         parentId={entryId}
         ownerHeadingId={headingId}
         bullets={project.bullets}
-        title="What you did"
+        title={editor.whatYouDid}
       />
     </EntryShell>
   );

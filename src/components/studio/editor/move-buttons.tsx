@@ -4,6 +4,8 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import type { MouseEvent } from "react";
 import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 
 export const ICON_ACTION_CLASSES =
@@ -25,6 +27,7 @@ export function MoveButtons({
   onMove,
   className,
 }: MoveButtonsProps) {
+  const t = useMessages("studioEditor").menus;
   function move(event: MouseEvent<HTMLButtonElement>, delta: -1 | 1, allowed: boolean) {
     if (!allowed) return;
     const button = event.currentTarget;
@@ -38,7 +41,7 @@ export function MoveButtons({
       <Button
         variant="ghost"
         size="icon"
-        aria-label={`Move ${label} up`}
+        aria-label={fmt(t.moveLabelUp, { label })}
         aria-disabled={canMoveUp ? undefined : true}
         onClick={(event) => move(event, -1, canMoveUp)}
         className={ICON_ACTION_CLASSES}
@@ -48,7 +51,7 @@ export function MoveButtons({
       <Button
         variant="ghost"
         size="icon"
-        aria-label={`Move ${label} down`}
+        aria-label={fmt(t.moveLabelDown, { label })}
         aria-disabled={canMoveDown ? undefined : true}
         onClick={(event) => move(event, 1, canMoveDown)}
         className={ICON_ACTION_CLASSES}

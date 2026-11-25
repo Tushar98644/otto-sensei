@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trashWithUndo } from "@/components/ui/trash-with-undo";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
-import { formatRelativeTime } from "./relative-time";
+import { relativeTimeIn } from "./relative-time";
 import { resumeLabel, tailoredLabel } from "./resume-label";
 
 const TITLE_MAX = 200;
@@ -37,9 +39,12 @@ export function ResumeSwitcherItem({
   const inputRef = useRef<HTMLInputElement>(null);
   const renameRef = useRef<HTMLButtonElement>(null);
   const previousMode = useRef<Mode>("view");
+  const studio = useMessages("studio");
+  const t = studio.switcher;
+  const format = useFormat();
 
   const title = resumeLabel(resume);
-  const tailored = tailoredLabel(resume);
+  const tailored = tailoredLabel(resume, studio.resume);
 
   useEffect(() => {
     const previous = previousMode.current;
@@ -87,13 +92,13 @@ export function ResumeSwitcherItem({
             maxLength={TITLE_MAX}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleRenameKeyDown}
-            aria-label="Resume name"
+            aria-label={t.name}
             className="h-10"
           />
-          <Button type="submit" variant="ghost" size="icon" aria-label="Save name">
+          <Button type="submit" variant="ghost" size="icon" aria-label={t.saveName}>
             <Check />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Cancel" onClick={() => setMode("view")}>
+          <Button variant="ghost" size="icon" aria-label={t.cancel} onClick={() => setMode("view")}>
             <X />
           </Button>
         </form>
@@ -115,18 +120,22 @@ export function ResumeSwitcherItem({
         <span className="flex w-full min-w-0 items-center gap-2">
           <span className="truncate text-sm font-medium text-ink">{title}</span>
           {active ? <Check className="size-4 shrink-0 text-ink" aria-hidden /> : null}
-          {active ? <span className="sr-only">(open now)</span> : null}
+          {active ? <span className="sr-only">{t.openNow}</span> : null}
         </span>
         <span className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
           {tailored ? <Badge className="max-w-full truncate bg-lavender text-ink">{tailored}</Badge> : null}
-          <span>Edited {formatRelativeTime(resume.updatedAt, now)}</span>
+          <span>
+            {fmt(studio.resume.edited, {
+              when: relativeTimeIn(format, studio.justNow, resume.updatedAt, now),
+            })}
+          </span>
         </span>
       </button>
       <Button
         ref={renameRef}
         variant="ghost"
         size="icon"
-        aria-label={`Rename ${title}`}
+        aria-label={fmt(t.rename, { title })}
         onClick={startRename}
         className="text-muted hover:text-ink"
       >
@@ -135,7 +144,7 @@ export function ResumeSwitcherItem({
       <Button
         variant="ghost"
         size="icon"
-        aria-label={`Delete ${title}`}
+        aria-label={fmt(t.delete, { title })}
         onClick={remove}
         className="text-muted hover:text-fail-ink"
       >

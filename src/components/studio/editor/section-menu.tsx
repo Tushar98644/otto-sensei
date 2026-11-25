@@ -3,6 +3,8 @@
 import { Ellipsis, Eye, EyeOff, Pencil, Trash } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { ICON_ACTION_CLASSES } from "./move-buttons";
 
 export type SectionOptions = {
@@ -27,35 +29,36 @@ export type SectionMenuProps = {
 export function SectionMenu({ title, options, onRename, onRemove }: SectionMenuProps) {
   const { onToggleHidden } = options;
   const hidden = options.hidden === true;
+  const t = useMessages("studioEditor").menus;
   const items: MenuEntry[] = [];
-  if (options.rename) items.push({ label: "Rename section", icon: Pencil, onSelect: onRename });
+  if (options.rename) items.push({ label: t.renameSection, icon: Pencil, onSelect: onRename });
   if (onToggleHidden) {
     items.push(
       hidden
         ? {
-            label: "Show in this version",
+            label: t.showVersion,
             icon: Eye,
-            description: "Put it back in the PDF",
+            description: t.showVersionHint,
             onSelect: onToggleHidden,
           }
         : {
-            label: "Hide in this version",
+            label: t.hideVersion,
             icon: EyeOff,
-            description: "It stays here, but the PDF leaves it out",
+            description: t.hideVersionHint,
             onSelect: onToggleHidden,
           },
     );
   }
   if (options.remove) {
     if (items.length > 0) items.push("separator");
-    items.push({ label: "Remove section", icon: Trash, tone: "danger", onSelect: onRemove });
+    items.push({ label: t.removeSection, icon: Trash, tone: "danger", onSelect: onRemove });
   }
 
   return (
     <Menu
-      label={`Options for ${title}`}
+      label={fmt(t.options, { label: title })}
       align="end"
-      triggerLabel={`More for ${title}`}
+      triggerLabel={fmt(t.more, { label: title })}
       triggerClassName={buttonClasses({
         variant: "ghost",
         size: "icon",

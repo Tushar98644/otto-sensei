@@ -13,6 +13,7 @@ import product from "./product";
 import seo from "./seo";
 import site from "./site";
 import studio from "./studio";
+import studioEditor from "./studioEditor";
 
 // The source of truth: every other locale is checked against these, key by key.
 const en = {
@@ -31,6 +32,7 @@ const en = {
   seo,
   site,
   studio,
+  studioEditor,
 } as const;
 
 export default en;

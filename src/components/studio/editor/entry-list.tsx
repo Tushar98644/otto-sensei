@@ -3,6 +3,8 @@
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 export type EntryProps = { resumeId: string; entryId: string; index: number; count: number };
 
@@ -28,6 +30,7 @@ export function EntryList({
   children,
 }: EntryListProps) {
   const full = count >= limit;
+  const t = useMessages("studioEditor").entry;
   return (
     <div className="flex flex-col gap-4">
       {count > 0 ? (
@@ -45,7 +48,7 @@ export function EntryList({
         </Button>
         {full ? null : more}
         {full ? (
-          <p className="text-sm text-muted">{`That's the most this section can hold (${limit}).`}</p>
+          <p className="text-sm text-muted">{fmt(t.full, { max: limit })}</p>
         ) : null}
       </div>
     </div>

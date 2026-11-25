@@ -2,18 +2,19 @@
 
 import type { ReactNode } from "react";
 import { useMe } from "@/components/account/use-me";
-import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { PLANS, type PlanId, type UsagePeriod } from "@/config/plans";
-import { thisPeriod } from "@/lib/usage-copy";
-import { pluralize } from "@/lib/utils";
+import { fmt } from "@/i18n/format";
+import { countText } from "../count";
+import { thisPeriodIn } from "../usage";
 import { countItems, type FixAllCounts } from "./fix-all";
 import { FixAllRow } from "./fix-all-row";
-import { problemMessage } from "./fix-text";
+import { problemMessage, type FixWords } from "./fix-text";
+import { useFixWords } from "./fix-words";
 import type { FixAll, FixAllStop } from "./use-fix-all";
 
 export type FixAllDialogProps = { all: FixAll };
@@ -25,20 +26,26 @@ type Account = {
   plan: PlanId | null;
 };
 
-function ottoLine(stop: FixAllStop | null, counts: FixAllCounts, account: Account): string {
+function ottoLine(
+  words: FixWords,
+  stop: FixAllStop | null,
+  counts: FixAllCounts,
+  account: Account,
+): string {
+  const { otto } = words.t;
   if (stop && stop.kind !== "user") {
-    return problemMessage(stop, account.limit, account.signedIn, account.period, account.plan);
+    return problemMessage(words, stop, account.limit, account.signedIn, account.period, account.plan);
   }
-  if (counts.running > 0) return OTTO.fix.allWorking;
-  if (stop) return OTTO.fix.allStopped;
-  if (counts.questions > 0) return OTTO.fix.allAsking;
-  return counts.acceptable > 0 ? OTTO.fix.allReview : OTTO.fix.allDone;
+  if (counts.running > 0) return otto.allWorking;
+  if (stop) return otto.allStopped;
+  if (counts.questions > 0) return otto.allAsking;
+  return counts.acceptable > 0 ? otto.allReview : otto.allDone;
 }
 
-function ottoMeta(counts: FixAllCounts): string {
-  const parts = [pluralize(counts.total, "line")];
-  if (counts.running > 0) parts.push(`${counts.finished} done`);
-  if (counts.questions > 0) parts.push(pluralize(counts.questions, "question"));
+function ottoMeta({ t, format }: FixWords, counts: FixAllCounts): string {
+  const parts = [countText(format, t.counts.lines, counts.total)];
+  if (counts.running > 0) parts.push(fmt(t.all.done, { count: counts.finished }));
+  if (counts.questions > 0) parts.push(countText(format, t.counts.questions, counts.questions));
   return parts.join(" · ");
 }
 
@@ -55,27 +62,30 @@ export function FixAllDialog({ all }: FixAllDialogProps) {
     plan: user?.plan ?? null,
   };
   const canResume = !working && counts.stopped > 0 && state.stop?.kind !== "limit";
+  const words = useFixWords();
+  const { format } = words;
+  const t = words.t.all;
 
   let footer: ReactNode;
   if (counts.acceptable > 0) {
     footer = (
       <>
         <Button variant="ghost" onClick={working ? all.stop : all.close}>
-          {working ? "Stop" : "Close"}
+          {working ? t.stop : t.close}
         </Button>
         <Button onClick={all.acceptAll}>
-          {counts.acceptable > 1 ? `Accept all ${counts.acceptable}` : "Accept the new line"}
+          {counts.acceptable > 1 ? fmt(t.acceptAll, { count: counts.acceptable }) : t.acceptOne}
         </Button>
       </>
     );
   } else if (working) {
     footer = (
       <Button variant="ghost" onClick={all.stop}>
-        Stop
+        {t.stop}
       </Button>
     );
   } else {
-    footer = <Button onClick={all.close}>Done</Button>;
+    footer = <Button onClick={all.close}>{t.finish}</Button>;
   }
 
   return (
@@ -84,13 +94,17 @@ export function FixAllDialog({ all }: FixAllDialogProps) {
       onOpenChange={(open) => {
         if (!open) all.close();
       }}
-      title={`Fix ${pluralize(counts.total, "line")} with Otto`}
+      title={countText(format, t.title, counts.total)}
       size="lg"
       illustration={
-        <OttoNote size="sm" meta={ottoMeta(counts)} message={ottoLine(state.stop, counts, account)}>
+        <OttoNote
+          size="sm"
+          meta={ottoMeta(words, counts)}
+          message={ottoLine(words, state.stop, counts, account)}
+        >
           {canResume ? (
             <Button variant="secondary" size="sm" onClick={all.fixRest}>
-              {`Fix the other ${pluralize(counts.stopped, "line")}`}
+              {countText(format, t.fixRest, counts.stopped)}
             </Button>
           ) : null}
         </OttoNote>
@@ -103,14 +117,19 @@ export function FixAllDialog({ all }: FixAllDialogProps) {
             <Progress
               value={counts.finished}
               max={counts.total}
-              label="Lines Otto has rewritten"
+              label={t.progress}
               hideLabel
               size="sm"
             />
           ) : null}
           {state.capped > 0 ? (
             <Alert variant="info">
-              {`You have ${pluralize(counts.taken, "fix", "fixes")} left ${thisPeriod(period)}, so Otto took the first ${pluralize(counts.taken, "line")}. The other ${pluralize(state.capped, "line")} can wait.`}
+              {fmt(t.capped, {
+                fixes: countText(format, t.fixesLeft, counts.taken),
+                period: thisPeriodIn(words.usage, period),
+                lines: countText(format, t.firstLines, counts.taken),
+                rest: countText(format, t.restLines, state.capped),
+              })}
             </Alert>
           ) : null}
           <ol role="list" className="flex flex-col divide-y divide-border">

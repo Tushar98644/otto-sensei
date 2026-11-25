@@ -3,8 +3,10 @@
 import { memo } from "react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { newSkillGroup, type SkillGroup } from "@/lib/resume/schema";
-import { pluralize } from "@/lib/utils";
+import { countText } from "../count";
 import { ChipsInput } from "./chips-input";
 import { addSkills, moveItem, patchItem, removeItem, setHidden } from "./edits";
 import { EntryList, type EntryProps } from "./entry-list";
@@ -18,6 +20,8 @@ const ADD_ID = addButtonId("skills");
 export const SkillsEditor = memo(function SkillsEditor({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => resume.skills);
 
+  const t = useMessages("studioEditor").skills;
+
   function add() {
     const group = newSkillGroup("");
     editThenFocus(
@@ -29,9 +33,9 @@ export const SkillsEditor = memo(function SkillsEditor({ resumeId }: { resumeId:
   return (
     <EntryList
       count={ids.length}
-      empty="No skills yet. Add the tools and skills you use most."
+      empty={t.empty}
       addId={ADD_ID}
-      addLabel={ids.length === 0 ? "Add skills" : "Add another group"}
+      addLabel={ids.length === 0 ? t.add : t.addGroup}
       onAdd={add}
       limit={LIST_LIMITS.skillGroups}
     >
@@ -59,9 +63,11 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
     (resume) => resume.skills.find((item) => item.id === entryId),
     undefined,
   );
+  const t = useMessages("studioEditor").skills;
+  const format = useFormat();
   if (!group) return null;
 
-  const title = group.label.trim() || (count === 1 ? "Skills" : `Group ${index + 1}`);
+  const title = group.label.trim() || (count === 1 ? t.label : fmt(t.group, { number: index + 1 }));
   const firstFieldId = entryFieldId(entryId, "first");
   const update = (change: (current: SkillGroup) => SkillGroup) =>
     editList(resumeId, "skills", (groups) => patchItem(groups, entryId, change));
@@ -83,7 +89,7 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
       onMove={(delta) => editList(resumeId, "skills", (groups) => moveItem(groups, entryId, delta))}
       confirm={
         group.items.length > 0
-          ? `Remove this group and its ${pluralize(group.items.length, "skill")}?`
+          ? countText(format, t.remove, group.items.length)
           : null
       }
       onRemove={remove}
@@ -94,9 +100,9 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
         firstFieldId,
         content: (
           <Field
-            label="Group name"
+            label={t.groupName}
             optional
-            hint="Like Languages, Tools or Design. Leave it empty for one simple list."
+            hint={t.groupHint}
           >
             <Input
               id={firstFieldId}
@@ -106,7 +112,7 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
                 update((current) => ({ ...current, label }));
               }}
               maxLength={CHAR_LIMITS.skillGroupLabel}
-              placeholder="Tools"
+              placeholder={t.groupPlaceholder}
             />
           </Field>
         ),
@@ -114,7 +120,7 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
     >
       <ChipsInput
         id={entryFieldId(entryId, "skills")}
-        label="Skills"
+        label={t.label}
         labelHidden
         items={group.items}
         full={group.items.length >= LIST_LIMITS.skillsPerGroup}

@@ -15,9 +15,10 @@ import { flushSync } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import {
   EXTRA_KINDS,
-  EXTRA_KIND_LABELS,
   extrasOf,
   newExtraItem,
   newExtraSection,
@@ -28,8 +29,7 @@ import { pickNeighbor, setHidden } from "./edits";
 import { EntryList } from "./entry-list";
 import { ExtraItemEntry } from "./extra-item-entry";
 import {
-  EXTRA_DESCRIPTIONS,
-  EXTRA_FORMS,
+  extraForms,
   appendExtraItem,
   appendExtraSection,
   defaultExtraTitle,
@@ -41,6 +41,7 @@ import {
 } from "./extras";
 import { addButtonId, editThenFocus, entryFieldId, sectionDomId } from "./focus";
 import { CHAR_LIMITS, LIST_LIMITS } from "./limits";
+import { countText } from "../count";
 import { MoveButtons } from "./move-buttons";
 import { SectionCard } from "./section-card";
 import {
@@ -70,6 +71,7 @@ function focusAddSection() {
 export const ExtrasArea = memo(function ExtrasArea({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => extrasOf(resume));
   const full = ids.length >= LIST_LIMITS.extraSections;
+  const t = useMessages("studioEditor").extras;
 
   function add(kind: ExtraKind) {
     const section = newExtraSection(kind);
@@ -96,32 +98,30 @@ export const ExtrasArea = memo(function ExtrasArea({ resumeId }: { resumeId: str
           <>
             <Button variant="secondary" disabled>
               <Plus />
-              Add a section
+              {t.addSection}
             </Button>
-            <p className="text-sm text-muted">{`That's the most extra sections a resume can hold (${LIST_LIMITS.extraSections}).`}</p>
+            <p className="text-sm text-muted">{fmt(t.full, { max: LIST_LIMITS.extraSections })}</p>
           </>
         ) : (
           <>
             <Menu
-              label="Add a section"
+              label={t.addSection}
               triggerClassName={buttonClasses({ variant: "secondary" })}
               trigger={
                 <>
                   <Plus aria-hidden />
-                  Add a section
+                  {t.addSection}
                 </>
               }
               items={EXTRA_KINDS.map((kind) => ({
-                label: EXTRA_KIND_LABELS[kind],
+                label: t.kinds[kind].name,
                 icon: KIND_ICONS[kind],
-                description: EXTRA_DESCRIPTIONS[kind],
+                description: t.kinds[kind].description,
                 onSelect: () => add(kind),
               }))}
             />
             {ids.length === 0 ? (
-              <p className="text-sm text-muted">
-                Languages, awards, volunteering, or one of your own.
-              </p>
+              <p className="text-sm text-muted">{t.hint}</p>
             ) : null}
           </>
         )}
@@ -139,11 +139,13 @@ const ExtraSectionCard = memo(function ExtraSectionCard({
   count,
 }: ExtraSectionCardProps) {
   const meta = useExtraSectionMeta(resumeId, sectionId);
+  const editor = useMessages("studioEditor");
+  const format = useFormat();
   const question = useResumeValue(
     resumeId,
     (resume) => {
       const section = extrasOf(resume).find((item) => item.id === sectionId);
-      return section ? removeSectionQuestion(section) : null;
+      return section ? removeSectionQuestion(section, extraForms(editor.extras), format) : null;
     },
     null,
   );
@@ -169,7 +171,7 @@ const ExtraSectionCard = memo(function ExtraSectionCard({
         meta.needWork > 0 ? (
           <Badge variant="warn">
             <TriangleExclamationPoint />
-            {`${meta.needWork} ${meta.needWork === 1 ? "needs" : "need"} work`}
+            {countText(format, editor.counts.needWork, meta.needWork)}
           </Badge>
         ) : null
       }
@@ -216,7 +218,7 @@ const ExtraItems = memo(function ExtraItems({
     resumeId,
     (resume) => extrasOf(resume).find((section) => section.id === sectionId)?.items ?? [],
   );
-  const form = EXTRA_FORMS[kind];
+  const form = extraForms(useMessages("studioEditor").extras)[kind];
   const addId = addButtonId(`extra-${sectionId}`);
 
   function add() {

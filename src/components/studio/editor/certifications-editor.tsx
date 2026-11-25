@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useMessages } from "@/i18n/client";
 import { newCertification, type Certification } from "@/lib/resume/schema";
 import { metaLine, moveItem, patchItem, removeItem, setHidden } from "./edits";
 import { EntryList, type EntryProps } from "./entry-list";
@@ -19,6 +20,7 @@ export const CertificationsEditor = memo(function CertificationsEditor({
   resumeId: string;
 }) {
   const ids = useItemIds(resumeId, (resume) => resume.certifications);
+  const t = useMessages("studioEditor").certifications;
 
   function add() {
     const certification = newCertification();
@@ -31,9 +33,9 @@ export const CertificationsEditor = memo(function CertificationsEditor({
   return (
     <EntryList
       count={ids.length}
-      empty="No certifications yet. Add the ones that matter for the jobs you want."
+      empty={t.empty}
       addId={ADD_ID}
-      addLabel="Add a certification"
+      addLabel={t.add}
       onAdd={add}
       limit={LIST_LIMITS.certifications}
     >
@@ -61,6 +63,7 @@ const CertificationEntry = memo(function CertificationEntry({
     (resume) => resume.certifications.find((item) => item.id === entryId),
     undefined,
   );
+  const t = useMessages("studioEditor").certifications;
   if (!certification) return null;
 
   const update = (patch: Partial<Omit<Certification, "id" | "hidden">>) =>
@@ -84,13 +87,13 @@ const CertificationEntry = memo(function CertificationEntry({
       resumeId={resumeId}
       headingId={entryFieldId(entryId, "heading")}
       removeId={entryFieldId(entryId, "remove")}
-      title={certification.name.trim() || "New certification"}
+      title={certification.name.trim() || t.newItem}
       canMoveUp={index > 0}
       canMoveDown={index < count - 1}
       onMove={(delta) =>
         editList(resumeId, "certifications", (items) => moveItem(items, entryId, delta))
       }
-      confirm={filled ? "Remove this certification?" : null}
+      confirm={filled ? t.remove : null}
       onRemove={remove}
       hidden={certification.hidden === true}
       onToggleHidden={() =>
@@ -123,9 +126,10 @@ function CertificationFields({
   firstFieldId: string;
   onChange: (patch: Partial<Omit<Certification, "id" | "hidden">>) => void;
 }) {
+  const t = useMessages("studioEditor").certifications;
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Name" className="sm:col-span-2">
+      <Field label={t.name} className="sm:col-span-2">
         <Input
           id={firstFieldId}
           value={certification.name}
@@ -134,7 +138,7 @@ function CertificationFields({
           placeholder="Google Data Analytics Certificate"
         />
       </Field>
-      <Field label="Issued by" optional>
+      <Field label={t.issuer} optional>
         <Input
           value={certification.issuer}
           onChange={(event) => update({ issuer: event.target.value })}
@@ -142,12 +146,12 @@ function CertificationFields({
           placeholder="Google"
         />
       </Field>
-      <Field label="Date" optional>
+      <Field label={t.date} optional>
         <Input
           value={certification.date}
           onChange={(event) => update({ date: event.target.value })}
           maxLength={CHAR_LIMITS.certDate}
-          placeholder="Jun 2024"
+          placeholder={t.datePlaceholder}
         />
       </Field>
     </div>
