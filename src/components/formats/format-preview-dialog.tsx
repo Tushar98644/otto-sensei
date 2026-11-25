@@ -17,6 +17,9 @@ export type FormatPreviewDialogProps = {
   ready: boolean;
   opening?: boolean;
   onUse: (info: TemplateInfo) => void;
+  // A page in another language passes its own; the image's takes {name}.
+  closeLabel?: string;
+  imageAlt?: string;
 };
 
 export function FormatPreviewDialog({
@@ -27,6 +30,8 @@ export function FormatPreviewDialog({
   ready,
   opening = false,
   onUse,
+  closeLabel,
+  imageAlt,
 }: FormatPreviewDialogProps) {
   const words = useMessagesOr("formats", EN_FORMATS);
   return (
@@ -36,6 +41,7 @@ export function FormatPreviewDialog({
         if (!open) onClose();
       }}
       size="lg"
+      closeLabel={closeLabel ?? words.gallery.close}
       title={
         <span className="flex items-center gap-2">
           {info?.name}
@@ -47,7 +53,7 @@ export function FormatPreviewDialog({
         info ? (
           <>
             <Button variant="ghost" onClick={onClose}>
-              {words.gallery.close}
+              {closeLabel ?? words.gallery.close}
             </Button>
             <Button onClick={() => onUse(info)} disabled={!ready} loading={opening} data-autofocus>
               {actionLabel}
@@ -61,7 +67,7 @@ export function FormatPreviewDialog({
           <FormatImage
             info={info}
             sizes={PREVIEW_SIZES}
-            alt={fmt(words.gallery.alt, { name: info.name })}
+            alt={fmt(imageAlt ?? words.gallery.alt, { name: info.name })}
             decoding="sync"
             className="mx-auto max-h-[65dvh] w-auto max-w-full shadow-page"
           />

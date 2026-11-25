@@ -11,7 +11,7 @@ const POINTS: readonly (keyof HomeMessages["emailTracking"]["points"])[] = [
   "rules",
 ];
 
-export function EmailTrackingShowcase({ t }: Pick<HomeProps, "t">) {
+export function EmailTrackingShowcase({ t, common }: Pick<HomeProps, "t" | "common">) {
   const email = t.emailTracking;
   return (
     <Section
@@ -24,7 +24,7 @@ export function EmailTrackingShowcase({ t }: Pick<HomeProps, "t">) {
       </SectionHeader>
       <figure className="mt-12 sm:mt-16">
         <div className="overflow-hidden rounded-3xl bg-surface p-2 shadow-card sm:p-3">
-          <GuideVideo src={EMAIL_BOARD_CLIP} width={1440} height={1000} />
+          <GuideVideo src={EMAIL_BOARD_CLIP} width={1440} height={1000} labels={common?.video} />
         </div>
         <figcaption className="mt-4 max-w-3xl text-sm/6 text-pretty text-subtle">
           {email.caption}

@@ -1,17 +1,17 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { IntentLink } from "@/components/site/intent-link";
-import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
-import {
-  COMPETITORS,
-  COMPETITORS_CHECKED,
-  compareTitle,
-  ottoReasons,
-} from "@/lib/seo-pages/compare";
-import { COMPARE_INDEX_PAGE, RELATED, calendarMonth } from "@/lib/seo-pages/pages";
+import { fmt } from "@/i18n/format";
+import { getLocalize, localizedMetadata } from "@/i18n/publish";
+import { rich } from "@/i18n/rich";
+import { getFormat, getLocale, getMessages } from "@/i18n/server";
+import { COMPETITORS_CHECKED, ottoReasons } from "@/lib/seo-pages/compare";
+import { competitorsIn } from "@/lib/seo-pages/locales";
+import { COMPARE_INDEX_PAGE, calendarMonthIn } from "@/lib/seo-pages/pages";
 import { comparePath } from "@/lib/seo-pages/paths";
+import { compareIndexMeta, compareTitleIn, seoRelated } from "../_components/seo-copy";
 import {
   Breadcrumbs,
   CheckCta,
@@ -22,47 +22,56 @@ import {
 } from "../ats/_components/guide-parts";
 import { PipelineStrip } from "./_components/compare-parts";
 
-export const metadata: Metadata = pageMetadata(COMPARE_INDEX_PAGE);
+export async function generateMetadata(): Promise<Metadata> {
+  return localizedMetadata(compareIndexMeta(await getMessages("compare"), await getFormat()));
+}
 
-export default function CompareIndexPage() {
+export default async function CompareIndexPage() {
+  const locale = await getLocale();
+  const format = await getFormat();
+  const href = await getLocalize();
+  const t = await getMessages("compare");
+  const product = await getMessages("product");
+  const seo = await getMessages("seo");
+  const competitors = await competitorsIn(locale);
+  const month = (chunk: string) => <time dateTime={COMPETITORS_CHECKED.slice(0, 7)}>{chunk}</time>;
   return (
     <div className={PAGE_CLASSES}>
       <Breadcrumbs
+        language={locale}
+        label={product.common.breadcrumb}
         crumbs={[
-          { name: "Home", path: ROUTES.home },
-          { name: "Compare", path: COMPARE_INDEX_PAGE.path },
+          { name: product.common.home, path: href(ROUTES.home) },
+          { name: t.crumb, path: href(COMPARE_INDEX_PAGE.path) },
         ]}
       />
-      <PageIntro eyebrow="Compare" title={`How ${BRAND.name} compares`}>
-        <p>
-          {BRAND.shortName} doesn&apos;t stop at the resume: it carries on through the jobs, the
-          applications and the interviews. Here is how it compares, tool by tool.
-        </p>
+      <PageIntro eyebrow={t.index.eyebrow} title={fmt(t.index.title, { brand: BRAND.name })}>
+        <p>{fmt(t.index.intro, { short: BRAND.shortName })}</p>
         <p className="text-base/7 text-subtle">
-          Facts about each product come from its own website, as of{" "}
-          <time dateTime={COMPETITORS_CHECKED.slice(0, 7)}>
-            {calendarMonth(COMPETITORS_CHECKED)}
-          </time>
-          , with a link to every source on each page.
+          {rich(
+            t.index.facts,
+            { link: month },
+            { month: calendarMonthIn(format, COMPETITORS_CHECKED) },
+          )}
         </p>
       </PageIntro>
 
-      <PipelineStrip className="mt-16 sm:mt-24" />
+      <PipelineStrip t={t.pipeline} className="mt-16 sm:mt-24" />
 
       <section aria-labelledby="comparisons-title" className="mt-24 sm:mt-32">
         <h2 id="comparisons-title" className={H2_CLASSES}>
-          {BRAND.name} vs the others
+          {fmt(t.index.listTitle, { brand: BRAND.name })}
         </h2>
         <ul role="list" className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {COMPETITORS.map((competitor) => (
+          {competitors.map((competitor) => (
             <li key={competitor.slug}>
               <IntentLink
-                href={comparePath(competitor.slug)}
+                href={href(comparePath(competitor.slug))}
                 className="group flex h-full flex-col gap-3 rounded-3xl bg-surface p-6 shadow-card transition-colors hover:bg-surface-hover"
               >
                 <span className="flex items-center justify-between gap-3">
                   <span className="text-lg/7 font-medium tracking-tight text-ink">
-                    {compareTitle(competitor)}
+                    {compareTitleIn(t, competitor)}
                   </span>
                   <ArrowRight
                     aria-hidden
@@ -78,11 +87,19 @@ export default function CompareIndexPage() {
         </ul>
       </section>
 
-      <CheckCta className="mt-24 sm:mt-32" title={`Try ${BRAND.name} on your resume`} />
+      <CheckCta
+        className="mt-24 sm:mt-32"
+        title={fmt(t.index.cta, { brand: BRAND.name })}
+        labels={product.common.checkButtons}
+        href={href}
+      >
+        {seo.checkCta.text}
+      </CheckCta>
 
       <RelatedLinks
         className="mt-24 sm:mt-32"
-        links={[RELATED.ats, RELATED.templates, RELATED.pricing]}
+        title={product.common.keepReading}
+        links={await seoRelated(product, seo, format, href, ["ats", "templates", "pricing"])}
       />
     </div>
   );

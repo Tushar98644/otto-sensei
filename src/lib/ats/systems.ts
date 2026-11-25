@@ -9,7 +9,7 @@ const SAP_NOTE = "SAP support note";
 const SAP_LEARNING = "SAP Learning";
 const WORKABLE_HELP = "Workable help center";
 
-const greenhouse: readonly HiringNote[] = [
+const greenhouse = [
   {
     topic: "screening",
     fact: "Employers can set the form to reject you automatically for some answers to yes/no and pick-from-a-list questions.",
@@ -56,12 +56,12 @@ const greenhouse: readonly HiringNote[] = [
     },
     optIn: true,
   },
-];
+] as const satisfies readonly HiringNote[];
 
 const WORKDAY_PARSING =
   "https://doc.workday.com/admin-guide/en-us/human-capital-management/recruiting/candidates/set-up-prospects-and-candidates/hdc1552497830785.html";
 
-const workday: readonly HiringNote[] = [
+const workday = [
   {
     topic: "file",
     fact: "Workday's resume reader never fills in the Skills or Languages fields.",
@@ -93,20 +93,20 @@ const workday: readonly HiringNote[] = [
     },
     optIn: true,
   },
-];
+] as const satisfies readonly HiringNote[];
 
-const lever: readonly HiringNote[] = [
+const lever = [
   {
     topic: "ai",
     fact: "Lever offers recruiters Talent Fit, a percentage for how closely your skills match the job post. Lever says recruiters make the final call.",
     todo: "Use the job post's words for skills you really have.",
     source: { label: "Lever", url: "https://www.lever.co/ai-features" },
   },
-];
+] as const satisfies readonly HiringNote[];
 
 const ASHBY_REVIEW = "https://docs.ashbyhq.com/ai-assisted-application-review";
 
-const ashby: readonly HiringNote[] = [
+const ashby = [
   {
     topic: "ai",
     fact: "With AI review on, Ashby checks your resume against each of the team's criteria: meets, does not meet, or undecided.",
@@ -132,14 +132,17 @@ const ashby: readonly HiringNote[] = [
     todo: ANSWER_THE_SAME,
     source: { label: "Ashby docs", url: "https://docs.ashbyhq.com/auto-reject-applications" },
   },
-];
+] as const satisfies readonly HiringNote[];
 
-const icims: readonly HiringNote[] = [
+const icims = [
   {
     topic: "screening",
     fact: "iCIMS employers can add knock-out questions that screen applicants out when they apply.",
     todo: ANSWER_THE_SAME,
-    source: { label: "iCIMS blog", url: "https://www.icims.com/blog/recruiting-process-automation/" },
+    source: {
+      label: "iCIMS blog",
+      url: "https://www.icims.com/blog/recruiting-process-automation/",
+    },
   },
   {
     topic: "ai",
@@ -150,12 +153,12 @@ const icims: readonly HiringNote[] = [
       url: "https://www.icims.com/blog/how-icims-supports-the-nyc-automated-employment-decision-tools-law/",
     },
   },
-];
+] as const satisfies readonly HiringNote[];
 
 const TALEO_SEARCH =
   "https://docs.oracle.com/en/cloud/saas/taleo-enterprise/21c/otrcg/c-advancedsearchkeywords.html";
 
-const taleo: readonly HiringNote[] = [
+const taleo = [
   {
     topic: "search",
     fact: "Taleo's keyword search matches exact words, unless the recruiter turns on Related Terms.",
@@ -186,12 +189,12 @@ const taleo: readonly HiringNote[] = [
       url: "https://docs.oracle.com/en/cloud/saas/taleo-enterprise/21b/otfru/prescreening-candidates.html",
     },
   },
-];
+] as const satisfies readonly HiringNote[];
 
 const SAP_PRESCREENING = "https://userapps.support.sap.com/sap/support/knowledge/en/2204476";
 const SAP_PARSING = "https://userapps.support.sap.com/sap/support/knowledge/en/2081576";
 
-const successfactors: readonly HiringNote[] = [
+const successfactors = [
   {
     topic: "screening",
     fact: "A wrong answer to a disqualifier question rejects you automatically.",
@@ -226,12 +229,12 @@ const successfactors: readonly HiringNote[] = [
     },
     optIn: true,
   },
-];
+] as const satisfies readonly HiringNote[];
 
 const WINSTON =
   "https://learning.sap.com/courses/smartrecruiters-for-sap-successfactors-academy/introducing-winston-match_f55ee6b8-e404-4ef4-87fa-056cab22f2ef";
 
-const smartrecruiters: readonly HiringNote[] = [
+const smartrecruiters = [
   {
     topic: "screening",
     fact: "Any yes/no or dropdown question can be a knock-out. A knock-out answer rejects you automatically, by default with an email an hour later.",
@@ -253,17 +256,20 @@ const smartrecruiters: readonly HiringNote[] = [
     todo: "Use clear, standard job titles.",
     source: { label: SAP_LEARNING, url: WINSTON },
   },
-];
+] as const satisfies readonly HiringNote[];
 
 const WORKABLE_AGENT =
   "https://help.workable.com/hc/en-us/articles/38381544828695-Using-the-Workable-Agent";
 
-const workable: readonly HiringNote[] = [
+const workable = [
   {
     topic: "screening",
     fact: "Knock-out questions are yes/no only. The knock-out answer disqualifies you, and you aren't told.",
     todo: ANSWER_THE_SAME,
-    source: { label: WORKABLE_HELP, url: "https://help.workable.com/hc/en-us/articles/115012238688" },
+    source: {
+      label: WORKABLE_HELP,
+      url: "https://help.workable.com/hc/en-us/articles/115012238688",
+    },
   },
   {
     topic: "file",
@@ -288,9 +294,9 @@ const workable: readonly HiringNote[] = [
     source: { label: WORKABLE_HELP, url: WORKABLE_AGENT },
     optIn: true,
   },
-];
+] as const satisfies readonly HiringNote[];
 
-const bamboohr: readonly HiringNote[] = [
+const bamboohr = [
   {
     topic: "review",
     fact: "In BambooHR's hiring tool, people on the team read your resume and answers and rate you themselves.",
@@ -300,11 +306,11 @@ const bamboohr: readonly HiringNote[] = [
       url: "https://www.bamboohr.com/integrations/listings/bamboohr-applicant-tracking",
     },
   },
-];
+] as const satisfies readonly HiringNote[];
 
 const JOBVITE = "https://www.jobvite.com/commitment-to-transparency/";
 
-const jobvite: readonly HiringNote[] = [
+const jobvite = [
   {
     topic: "ai",
     fact: "Jobvite's AI pulls a list of skills from your resume, and its match results reach recruiters as grades.",
@@ -317,21 +323,24 @@ const jobvite: readonly HiringNote[] = [
     todo: "Spend your words on skills and results.",
     source: { label: "Jobvite", url: JOBVITE },
   },
-];
+] as const satisfies readonly HiringNote[];
 
-const recruitee: readonly HiringNote[] = [
+const recruitee = [
   {
     topic: "screening",
     fact: "Knockout questions (yes/no, single or multiple choice) disqualify the wrong answer automatically, and can send the rejection email too.",
     todo: ANSWER_THE_SAME,
-    source: { label: "Recruitee help center", url: "https://support.recruitee.com/articles/6108676" },
+    source: {
+      label: "Recruitee help center",
+      url: "https://support.recruitee.com/articles/6108676",
+    },
   },
-];
+] as const satisfies readonly HiringNote[];
 
 const TEAMTAILOR_COPILOT =
   "https://support.teamtailor.com/en/articles/10209597-co-pilot-candidate-screening";
 
-const teamtailor: readonly HiringNote[] = [
+const teamtailor = [
   {
     topic: "ai",
     fact: "With Co-pilot on, AI checks you against criteria the team writes: met, not met, or a dash when there's too little to go on.",
@@ -345,7 +354,7 @@ const teamtailor: readonly HiringNote[] = [
     todo: "Keep your letter and answers in line with your resume.",
     source: { label: "Teamtailor help center", url: TEAMTAILOR_COPILOT },
   },
-];
+] as const satisfies readonly HiringNote[];
 
 export const HIRING_SYSTEMS: Readonly<Record<HiringSystemId, HiringSystem>> = {
   greenhouse: { id: "greenhouse", name: "Greenhouse", notes: greenhouse },
@@ -361,6 +370,23 @@ export const HIRING_SYSTEMS: Readonly<Record<HiringSystemId, HiringSystem>> = {
   jobvite: { id: "jobvite", name: "Jobvite", notes: jobvite },
   recruitee: { id: "recruitee", name: "Recruitee", notes: recruitee },
   teamtailor: { id: "teamtailor", name: "Teamtailor", notes: teamtailor },
+};
+
+// Each system's notes as written, so a translation (src/lib/seo-pages/locales) matches them one for one.
+export type SystemNotes = {
+  greenhouse: typeof greenhouse;
+  lever: typeof lever;
+  ashby: typeof ashby;
+  workday: typeof workday;
+  icims: typeof icims;
+  taleo: typeof taleo;
+  successfactors: typeof successfactors;
+  smartrecruiters: typeof smartrecruiters;
+  workable: typeof workable;
+  bamboohr: typeof bamboohr;
+  jobvite: typeof jobvite;
+  recruitee: typeof recruitee;
+  teamtailor: typeof teamtailor;
 };
 
 const FILE_NOTE_SYSTEMS: readonly HiringSystemId[] = [

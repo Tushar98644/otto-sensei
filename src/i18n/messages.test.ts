@@ -10,7 +10,7 @@ import { publishedPages } from "./publish";
 
 const DIR = fileURLToPath(new URL("./messages", import.meta.url));
 
-// The pages P2 translated, and sign-in (with the app, P3); the guides (P5) follow.
+// The pages P2 and P5 translated, and sign-in (with the app, P3).
 const MARKETING_CORE: readonly PageKey[] = [
   "/",
   "/pricing",
@@ -25,6 +25,10 @@ const MARKETING_CORE: readonly PageKey[] = [
   "/terms",
   "/refunds",
   "/acceptable-use",
+  "/resume-examples",
+  "/resume-templates",
+  "/ats",
+  "/compare",
 ];
 const TRANSLATED = LOCALES.filter((locale): locale is Exclude<Locale, "en"> => locale !== "en");
 const en = englishMessages();
@@ -82,6 +86,7 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "apple",
     "pick.repos",
     "pick.pulls",
+    "title",
   ]),
   "pt-BR": new Set([
     "families.design",
@@ -135,6 +140,7 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "dialog.link",
     "apple",
     "pick.pulls",
+    "title",
   ]),
   fr: new Set([
     "families.design",
@@ -220,6 +226,9 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "toast.region",
     "apple",
     "pick.pulls",
+    "guide.sourcesTitle",
+    "page.sources",
+    "formatsTitle",
   ]),
   de: new Set([
     "levels.senior",
@@ -265,7 +274,6 @@ const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
     "focus.devops.label",
     "focus.design.label",
     "levels.junior",
-    "levels.senior",
     "text.situation",
     "cards.demo",
     "dialog.choice",
@@ -352,7 +360,7 @@ describe.each(TRANSLATED)("%s messages", (locale) => {
     }
   });
 
-  it("publishes the marketing core (P2)", async () => {
+  it("publishes the marketing core and the guides (P2, P5)", async () => {
     const published = await publishedPages(locale);
     expect(MARKETING_CORE.filter((key) => !published.has(key))).toEqual([]);
   });

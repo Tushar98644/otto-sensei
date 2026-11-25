@@ -4,6 +4,8 @@ import type { Translation } from "../../types";
 // Words shared by every page, in Spanish.
 export default {
   skipToContent: "Saltar al contenido",
+  otto: "Otto, la nutria",
+  video: { play: "Reproducir", pause: "Pausar" },
   brand: {
     tagline: "Toda tu búsqueda de empleo, en un solo lugar.",
     description:

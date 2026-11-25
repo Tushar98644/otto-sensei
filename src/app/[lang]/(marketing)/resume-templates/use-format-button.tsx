@@ -9,6 +9,7 @@ import { ROUTES } from "@/components/site/routes";
 import { Button } from "@/components/ui/button";
 import type { TemplateInfo } from "@/lib/pdf/templates";
 import type { TemplateId } from "@/lib/resume/schema";
+import { fmt } from "@/i18n/format";
 
 const loadOpener = () => import("./open-format");
 
@@ -54,10 +55,11 @@ function useOpenFormat() {
 export type UseFormatButtonProps = {
   id: TemplateId;
   name: string;
+  label?: string;
 };
 
 // Sits above the card-wide preview button, so it keeps its own clicks.
-export function UseFormatButton({ id, name }: UseFormatButtonProps) {
+export function UseFormatButton({ id, name, label = "Use this format" }: UseFormatButtonProps) {
   const { opening, prepare, open } = useOpenFormat();
   return (
     <Button
@@ -69,7 +71,7 @@ export function UseFormatButton({ id, name }: UseFormatButtonProps) {
       onFocus={prepare}
       onClick={() => void open(id)}
     >
-      Use this format
+      {label}
       <span className="sr-only">: {name}</span>
       <ArrowRight />
     </Button>
@@ -79,16 +81,23 @@ export function UseFormatButton({ id, name }: UseFormatButtonProps) {
 export type PreviewFormatButtonProps = {
   id: TemplateId;
   name: string;
+  // "See the full {name} page" in the page's language.
+  label?: string;
   children: ReactNode;
 };
 
 // Its hit area stretches over the whole card (the nearest positioned parent).
-export function PreviewFormatButton({ id, name, children }: PreviewFormatButtonProps) {
+export function PreviewFormatButton({
+  id,
+  name,
+  label = "See the full {name} page",
+  children,
+}: PreviewFormatButtonProps) {
   const preload = () => preloadFormatPreview(id);
   return (
     <button
       type="button"
-      aria-label={`See the full ${name} page`}
+      aria-label={fmt(label, { name })}
       aria-haspopup="dialog"
       onPointerEnter={preload}
       onFocus={preload}
@@ -102,11 +111,14 @@ export function PreviewFormatButton({ id, name, children }: PreviewFormatButtonP
 
 export type PreviewFormat = { info: TemplateInfo; pro: boolean };
 
+export type FormatPreviewLabels = { use: string; close: string; imageAlt: string };
+
 export type FormatPreviewHostProps = {
   formats: readonly PreviewFormat[];
+  labels?: FormatPreviewLabels;
 };
 
-export function FormatPreviewHost({ formats }: FormatPreviewHostProps) {
+export function FormatPreviewHost({ formats, labels }: FormatPreviewHostProps) {
   const id = useSyncExternalStore(
     subscribePreview,
     () => previewing,
@@ -124,7 +136,9 @@ export function FormatPreviewHost({ formats }: FormatPreviewHostProps) {
       info={shown?.info ?? null}
       pro={shown?.pro ?? false}
       onClose={() => showPreview(null)}
-      actionLabel="Use this format"
+      actionLabel={labels?.use ?? "Use this format"}
+      closeLabel={labels?.close}
+      imageAlt={labels?.imageAlt}
       ready={opening === null}
       opening={opening !== null}
       onUse={(info) => void open(info.id)}

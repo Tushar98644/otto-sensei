@@ -1,21 +1,24 @@
 import type { Metadata } from "next";
 import { FormatImage } from "@/components/formats/format-image";
-import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { JsonLd } from "@/components/site/json-ld";
-import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
 import { Panel } from "@/components/ui/panel";
 import { PLANS } from "@/config/plans";
+import { fmt } from "@/i18n/format";
+import { getLocalize, localizedMetadata } from "@/i18n/publish";
+import { getFormat, getLocale, getMessages } from "@/i18n/server";
 import { appUrl } from "@/lib/env";
 import { isProTemplate, TEMPLATE_LIST } from "@/lib/pdf/templates";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { faqJsonLd } from "@/lib/seo/json-ld";
 import { templateListJsonLd } from "@/lib/seo-pages/json-ld";
-import { RELATED, RESUME_TEMPLATES_PAGE } from "@/lib/seo-pages/pages";
+import { RESUME_TEMPLATES_PAGE } from "@/lib/seo-pages/pages";
 import { displayItalic } from "../_components/display-italic";
 import { FaqList, faqEntries } from "../_components/faq-list";
+import { freeFormats } from "../_components/product-copy";
+import { seoRelated, templatesMeta } from "../_components/seo-copy";
 import {
   Breadcrumbs,
   CheckCta,
@@ -24,7 +27,7 @@ import {
   PageIntro,
   RelatedLinks,
 } from "../ats/_components/guide-parts";
-import { COMMON, TEMPLATES_FAQ, freeFormats, proCount } from "./content";
+import { formatInfo, proCount, templatesContent } from "./content";
 import {
   FormatPreviewHost,
   type PreviewFormat,
@@ -32,58 +35,73 @@ import {
   UseFormatButton,
 } from "./use-format-button";
 
-export const metadata: Metadata = pageMetadata(RESUME_TEMPLATES_PAGE);
+export async function generateMetadata(): Promise<Metadata> {
+  return localizedMetadata(templatesMeta(await getMessages("resumeTemplates"), await getFormat()));
+}
 
 // The drawn widths: three columns of at most 15rem, two of half the page, one of the page less its padding.
 const IMAGE_SIZES =
   "(min-width: 1024px) 15rem, (min-width: 640px) calc(50vw - 8.75rem), calc(100vw - 8.5rem)";
-const PREVIEW_FORMATS: readonly PreviewFormat[] = TEMPLATE_LIST.map((info) => ({
-  info,
-  pro: isProTemplate(info.id),
-}));
 
-export default function ResumeTemplatesPage() {
+export default async function ResumeTemplatesPage() {
+  const locale = await getLocale();
+  const format = await getFormat();
+  const href = await getLocalize();
+  const t = await getMessages("resumeTemplates");
+  const product = await getMessages("product");
+  const seo = await getMessages("seo");
+  const content = templatesContent(t, format, href);
+  const formats: readonly PreviewFormat[] = TEMPLATE_LIST.map((info) => ({
+    info: formatInfo(t, info),
+    pro: isProTemplate(info.id),
+  }));
+  const labels = { preview: t.preview, use: t.use, close: t.close, imageAlt: t.imageAlt };
   return (
     <div className={PAGE_CLASSES}>
       <JsonLd
         data={templateListJsonLd(
-          PREVIEW_FORMATS.map(({ info, pro }) => ({ info, free: !pro })),
-          RESUME_TEMPLATES_PAGE.path,
+          formats.map(({ info, pro }) => ({ info, free: !pro })),
+          href(RESUME_TEMPLATES_PAGE.path),
           appUrl(),
+          t.listName,
+          locale,
         )}
       />
-      <JsonLd data={faqJsonLd(faqEntries(TEMPLATES_FAQ))} />
+      <JsonLd data={faqJsonLd(faqEntries(content.faq), locale)} />
       <Breadcrumbs
+        language={locale}
+        label={product.common.breadcrumb}
         crumbs={[
-          { name: "Home", path: ROUTES.home },
-          { name: "Resume templates", path: RESUME_TEMPLATES_PAGE.path },
+          { name: product.common.home, path: href(ROUTES.home) },
+          { name: t.crumb, path: href(RESUME_TEMPLATES_PAGE.path) },
         ]}
       />
       <PageIntro
-        eyebrow="Resume templates"
+        eyebrow={t.eyebrow}
         title={
           <>
-            {TEMPLATE_IDS.length} resume formats,{" "}
-            <em className={displayItalic.className}>each one column of real text.</em>
+            {fmt(t.title, { count: format.number(TEMPLATE_IDS.length) })}{" "}
+            <em className={displayItalic.className}>{t.titleEm}</em>
           </>
         }
       >
         <p>
-          Each one copies a widely used resume layout, and each PDF is tested by reading it back.{" "}
-          {freeFormats} are free to download as PDFs; the other {proCount} come with{" "}
-          {PLANS.pro.name}, and you can try them on your resume first.
+          {fmt(t.intro, {
+            freeFormats: freeFormats(format),
+            proCount: format.number(proCount),
+            pro: PLANS.pro.name,
+          })}
         </p>
       </PageIntro>
-      <OttoNote live={false} message={OTTO.formats.tip} className="mt-8 max-w-2xl" />
+      <OttoNote live={false} message={t.tip} className="mt-8 max-w-2xl" />
 
       <section aria-labelledby="formats-title" className="mt-12 sm:mt-16">
         <h2 id="formats-title" className="sr-only">
-          Formats
+          {t.formatsTitle}
         </h2>
         <Panel>
           <ul role="list" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {TEMPLATE_LIST.map((info) => {
-              const pro = isProTemplate(info.id);
+            {formats.map(({ info, pro }) => {
               const titleId = `format-${info.id}`;
               return (
                 <li key={info.id} id={info.id} className="scroll-mt-24">
@@ -101,12 +119,13 @@ export default function ResumeTemplatesPage() {
                         <Badge>{PLANS.free.name}</Badge>
                       )}
                     </div>
-                    <PreviewFormatButton id={info.id} name={info.name}>
+                    <PreviewFormatButton id={info.id} name={info.name} label={t.preview}>
                       <span className="block h-56 overflow-hidden rounded-xl bg-surface-muted px-6 pt-6">
                         <FormatImage
                           info={info}
                           sizes={IMAGE_SIZES}
                           loading="lazy"
+                          alt={fmt(t.imageAlt, { name: info.name })}
                           className="shadow-page transition-[translate,box-shadow] duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-page-lift"
                         />
                       </span>
@@ -115,22 +134,22 @@ export default function ResumeTemplatesPage() {
                       <p className="text-base/6 font-medium text-pretty text-ink">{info.bestFor}</p>
                       <p className="text-sm/6 text-pretty text-muted">{info.description}</p>
                     </div>
-                    <UseFormatButton id={info.id} name={info.name} />
+                    <UseFormatButton id={info.id} name={info.name} label={t.use} />
                   </article>
                 </li>
               );
             })}
           </ul>
         </Panel>
-        <FormatPreviewHost formats={PREVIEW_FORMATS} />
+        <FormatPreviewHost formats={formats} labels={labels} />
       </section>
 
       <section aria-labelledby="common-title" className="mt-24 sm:mt-32">
         <h2 id="common-title" className={H2_CLASSES}>
-          What every format has in common
+          {t.commonTitle}
         </h2>
         <ul role="list" className="mt-8 divide-y divide-border border-y border-border">
-          {COMMON.map(({ title, text }) => (
+          {content.common.map(({ title, text }) => (
             <li key={title} className="grid gap-2 py-6 sm:grid-cols-2 sm:gap-8">
               <h3 className="text-lg/7 font-medium tracking-tight text-ink">{title}</h3>
               <p className="max-w-prose text-base/7 text-pretty text-muted">{text}</p>
@@ -144,16 +163,24 @@ export default function ResumeTemplatesPage() {
         className="mt-24 grid gap-12 sm:mt-32 lg:grid-cols-3"
       >
         <h2 id="templates-faq-title" className={H2_CLASSES}>
-          Questions
+          {product.common.questions}
         </h2>
-        <FaqList items={TEMPLATES_FAQ} className="lg:col-span-2" />
+        <FaqList items={content.faq} className="lg:col-span-2" />
       </section>
 
-      <CheckCta className="mt-24 sm:mt-32" />
+      <CheckCta
+        className="mt-24 sm:mt-32"
+        title={seo.checkCta.title}
+        labels={product.common.checkButtons}
+        href={href}
+      >
+        {seo.checkCta.text}
+      </CheckCta>
 
       <RelatedLinks
         className="mt-24 sm:mt-32"
-        links={[RELATED.ats, RELATED.compare, RELATED.pricing]}
+        title={product.common.keepReading}
+        links={await seoRelated(product, seo, format, href, ["ats", "compare", "pricing"])}
       />
     </div>
   );

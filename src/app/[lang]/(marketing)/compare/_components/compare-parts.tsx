@@ -10,68 +10,39 @@ import {
 } from "lucide-react";
 import { OttoMark } from "@/components/site/otto-mark";
 import { BRAND } from "@/config/brand";
+import { PLANS } from "@/config/plans";
+import { fmt } from "@/i18n/format";
 import type { CompareCell, CompareNote, Competitor } from "@/lib/seo-pages/compare";
 import { cn } from "@/lib/utils";
+import type { CompareMessages } from "../../_components/seo-copy";
 import { H2_CLASSES } from "../../ats/_components/guide-parts";
 
-type Step = { icon: LucideIcon; title: string; text: string; pro?: boolean };
+type Step = { icon: LucideIcon; key: keyof PipelineWords["steps"]; pro?: boolean };
+
+type PipelineWords = CompareMessages["pipeline"];
 
 // The whole hunt in one account; facts about Otto only, so they hold on every comparison.
 const PIPELINE: readonly Step[] = [
-  {
-    icon: FileText,
-    title: "Check your resume",
-    text: "See what hiring software reads, fix weak lines with Otto, download a clean PDF.",
-  },
-  {
-    icon: Search,
-    title: "Find jobs that fit",
-    text: "Open jobs from companies' own sites, read daily and ranked for your resume.",
-  },
-  {
-    icon: PenLine,
-    title: "Tailor every application",
-    text: "A copy of your resume for each job, plus cover letters and outreach.",
-    pro: true,
-  },
-  {
-    icon: Inbox,
-    title: "Track it from your inbox",
-    text: "Applications on one board that move by themselves from your job emails.",
-    pro: true,
-  },
-  {
-    icon: MessagesSquare,
-    title: "Prep for interviews",
-    text: "Likely questions and stories from your own resume, for each interview.",
-    pro: true,
-  },
-  {
-    icon: Globe,
-    title: "Share a portfolio",
-    text: "A portfolio site made from your resume, at your own link.",
-    pro: true,
-  },
+  { icon: FileText, key: "check" },
+  { icon: Search, key: "jobs" },
+  { icon: PenLine, key: "tailor", pro: true },
+  { icon: Inbox, key: "track", pro: true },
+  { icon: MessagesSquare, key: "prep", pro: true },
+  { icon: Globe, key: "share", pro: true },
 ];
 
-export function PipelineStrip({ className }: { className?: string }) {
+export function PipelineStrip({ t, className }: { t: PipelineWords; className?: string }) {
   return (
     <section aria-labelledby="pipeline-title" className={className}>
       <div className="flex max-w-2xl flex-col gap-3">
         <h2 id="pipeline-title" className={H2_CLASSES}>
-          More than a resume checker
+          {t.title}
         </h2>
-        <p className="text-lg/7 text-pretty text-muted">
-          {BRAND.name} is your whole job hunt in one account, from the first resume check to the
-          interview.
-        </p>
+        <p className="text-lg/7 text-pretty text-muted">{fmt(t.intro, { brand: BRAND.name })}</p>
       </div>
       <ol role="list" className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {PIPELINE.map((step, index) => (
-          <li
-            key={step.title}
-            className="flex flex-col gap-4 rounded-3xl bg-surface p-6 shadow-card"
-          >
+          <li key={step.key} className="flex flex-col gap-4 rounded-3xl bg-surface p-6 shadow-card">
             <span className="flex items-center justify-between">
               <span
                 aria-hidden
@@ -85,14 +56,14 @@ export function PipelineStrip({ className }: { className?: string }) {
             </span>
             <span className="flex flex-col gap-1.5">
               <span className="flex items-center gap-2 text-lg/7 font-medium tracking-tight text-ink">
-                {step.title}
+                {t.steps[step.key].title}
                 {step.pro ? (
                   <span className="rounded-md bg-surface-muted px-1.5 text-xs/5 font-medium text-muted">
-                    Pro
+                    {PLANS.pro.name}
                   </span>
                 ) : null}
               </span>
-              <span className="text-base/7 text-pretty text-muted">{step.text}</span>
+              <span className="text-base/7 text-pretty text-muted">{t.steps[step.key].text}</span>
             </span>
           </li>
         ))}
@@ -117,13 +88,11 @@ function Cell({ cell, name, ours }: { cell: CompareCell; name: string; ours: boo
   );
 }
 
-export function CompareTable({ competitor }: { competitor: Competitor }) {
+export function CompareTable({ competitor, caption }: { competitor: Competitor; caption: string }) {
   return (
     <div className="mt-10 overflow-hidden rounded-3xl bg-surface shadow-card">
       <table className="w-full border-collapse text-left md:table-fixed">
-        <caption className="sr-only">
-          {BRAND.name} and {competitor.name}, side by side
-        </caption>
+        <caption className="sr-only">{caption}</caption>
         <thead className="max-md:sr-only">
           <tr className="border-b border-border">
             <td className="w-[22%] px-6 py-4" />

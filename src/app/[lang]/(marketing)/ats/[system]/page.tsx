@@ -3,29 +3,35 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IntentLink } from "@/components/site/intent-link";
 import { JsonLd } from "@/components/site/json-ld";
-import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
-import type { HiringNote } from "@/lib/ats/types";
+import { fmt } from "@/i18n/format";
+import type { Localize } from "@/i18n/pages";
+import { getLocalize, localizedMetadata } from "@/i18n/publish";
+import { rich } from "@/i18n/rich";
+import { getFormat, getLocale, getMessages } from "@/i18n/server";
+import type { HiringNote, HiringSystemId } from "@/lib/ats/types";
 import { appUrl } from "@/lib/env";
 import {
   ATS_GUIDES,
   ATS_IDS,
-  GENERAL_ADVICE,
   type AtsGuide,
+  type GuideWords,
   atsGuide,
+  generalAdvice,
   guideHeadline,
   guideSources,
   isAtsId,
   readsFiles,
-  TOPIC_TITLES,
   topicList,
 } from "@/lib/seo-pages/ats";
 import type { SystemNames } from "@/lib/seo-pages/job-link";
 import { atsGuideJsonLd } from "@/lib/seo-pages/json-ld";
-import { ATS_INDEX_PAGE, atsGuidePage } from "@/lib/seo-pages/pages";
-import { SEO_PATHS, atsPath } from "@/lib/seo-pages/paths";
+import { atsTranslation } from "@/lib/seo-pages/locales";
+import { ATS_INDEX_PAGE } from "@/lib/seo-pages/pages";
+import { SEO_PAGES_UPDATED, SEO_PATHS, atsPath } from "@/lib/seo-pages/paths";
 import { cn } from "@/lib/utils";
+import { atsGuideMeta } from "../../_components/seo-copy";
 import {
   Breadcrumbs,
   CheckCta,
@@ -46,92 +52,151 @@ export function generateStaticParams(): { system: string }[] {
 
 type Props = { params: Promise<{ system: string }> };
 
-async function guideFor(params: Props["params"]): Promise<AtsGuide> {
+type Guide = { guide: AtsGuide; words: GuideWords };
+
+// The guide in this request's language, with the words around its notes.
+async function guideFor(params: Props["params"]): Promise<Guide> {
   const { system } = await params;
   if (!isAtsId(system)) notFound();
-  return atsGuide(system);
+  const locale = await getLocale();
+  const t = await getMessages("ats");
+  const translation = await atsTranslation(locale);
+  return { guide: atsGuide(system, translation, t.topics.titles), words: { locale, t } };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  return pageMetadata(atsGuidePage(await guideFor(params)));
+  const { guide, words } = await guideFor(params);
+  return localizedMetadata(atsGuideMeta(guide, words));
 }
 
 const SYSTEM_NAMES = Object.fromEntries(
   ATS_GUIDES.map((guide) => [guide.id, guide.name]),
 ) as SystemNames;
 
+const guidePaths = (href: Localize) =>
+  Object.fromEntries(ATS_IDS.map((id) => [id, href(atsPath(id))])) as Record<
+    HiringSystemId,
+    string
+  >;
+
 const SMALL_TITLE_CLASSES = "font-sans text-lg/7 font-medium tracking-tight text-ink";
 
-function NoteRow({ note, sourceLabel }: { note: HiringNote; sourceLabel: string }) {
+function NoteRow({
+  note,
+  sourceLabel,
+  t,
+  newTab,
+}: {
+  note: HiringNote;
+  sourceLabel: string;
+  t: GuideWords["t"]["guide"];
+  newTab: string;
+}) {
   return (
     <li className="flex flex-col gap-2 py-6">
       <p className="text-base/7 text-pretty text-ink">{note.fact}</p>
       <p className="text-base/7 text-pretty text-muted">
-        <span className="font-medium text-ink">What to do: </span>
+        <span className="font-medium text-ink">{`${t.whatToDo} `}</span>
         {note.todo}
       </p>
       <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm/6 text-subtle">
-        {note.optIn ? <span>Only if the employer turns it on</span> : null}
+        {note.optIn ? <span>{t.optIn}</span> : null}
         <span>
-          Source: <ExternalLink href={note.source.url}>{sourceLabel}</ExternalLink>
+          {`${t.source} `}
+          <ExternalLink href={note.source.url} newTab={newTab}>
+            {sourceLabel}
+          </ExternalLink>
         </span>
       </p>
     </li>
   );
 }
 
-function SideCta({ name }: { name: string }) {
+function SideCta({
+  name,
+  t,
+  buttons,
+  href,
+}: {
+  name: string;
+  t: GuideWords["t"]["guide"];
+  buttons: { match: string; check: string };
+  href: Localize;
+}) {
   return (
     <section
       aria-labelledby="side-cta-title"
       className="mb-10 hidden rounded-2xl bg-surface-muted p-6 lg:block"
     >
       <h2 id="side-cta-title" className={SMALL_TITLE_CLASSES}>
-        Applying through {name}?
+        {fmt(t.sideTitle, { name })}
       </h2>
-      <p className="mt-1 text-sm/6 text-pretty text-muted">
-        See which of the job&apos;s skills your resume shows. Free, no sign-in.
-      </p>
+      <p className="mt-1 text-sm/6 text-pretty text-muted">{t.sideText}</p>
       <IntentLink
-        href={SEO_PATHS.jobMatch}
+        href={href(SEO_PATHS.jobMatch)}
         className={buttonClasses({ variant: "secondary", className: "mt-4 w-full" })}
       >
-        Match my resume to a job
+        {buttons.match}
         <ArrowRight />
       </IntentLink>
       <IntentLink
-        href={ROUTES.studio}
+        href={href(ROUTES.studio)}
         className={cn(LINK_CLASSES, "mt-2 inline-flex min-h-9 items-center text-sm/6")}
       >
-        Check my resume
+        {buttons.check}
       </IntentLink>
     </section>
   );
 }
 
 export default async function AtsGuidePage({ params }: Props) {
-  const guide = await guideFor(params);
-  const sources = guideSources(guide);
+  const { guide, words } = await guideFor(params);
+  const { locale, t } = words;
+  const page = t.guide;
+  const format = await getFormat();
+  const href = await getLocalize();
+  const product = await getMessages("product");
+  const seo = await getMessages("seo");
+  const translation = await atsTranslation(locale);
+  const sources = guideSources(guide, words);
   const labels = new Map(sources.map((source) => [source.url, source.label]));
   const others = ATS_GUIDES.filter((other) => other.id !== guide.id);
   const count = guide.notes.length;
+  const meta = atsGuideMeta(guide, words);
+  const generalLink = (chunk: string) => (
+    <a href="#general-title" className={LINK_CLASSES}>
+      {chunk}
+    </a>
+  );
   return (
     <div className={PAGE_CLASSES}>
-      <JsonLd data={atsGuideJsonLd(guide, atsGuidePage(guide), appUrl())} />
+      <JsonLd
+        data={atsGuideJsonLd(
+          guide,
+          {
+            path: meta.path,
+            description: meta.description,
+            lastModified: SEO_PAGES_UPDATED,
+            headline: guideHeadline(guide, words),
+          },
+          appUrl(),
+          locale,
+          sources,
+        )}
+      />
       <Breadcrumbs
+        language={locale}
+        label={product.common.breadcrumb}
         crumbs={[
-          { name: "Home", path: ROUTES.home },
-          { name: "ATS guides", path: ATS_INDEX_PAGE.path },
-          { name: guide.name, path: atsPath(guide.id) },
+          { name: product.common.home, path: href(ROUTES.home) },
+          { name: t.crumb, path: href(ATS_INDEX_PAGE.path) },
+          { name: guide.name, path: href(atsPath(guide.id)) },
         ]}
       />
-      <PageIntro eyebrow="ATS guide" title={guideHeadline(guide)}>
+      <PageIntro eyebrow={page.eyebrow} title={guideHeadline(guide, words)}>
         <p>{guide.what}</p>
         <p className="text-base/7 text-subtle">
-          {count === 1
-            ? "1 sourced note, linked to the page it comes from."
-            : `${count} sourced notes, each linked to the page it comes from.`}{" "}
-          Employers set {guide.name} up in different ways, so not every note applies to every job.
+          {format.plural(page.count, count)} {fmt(page.setUp, { name: guide.name })}
         </p>
       </PageIntro>
 
@@ -139,24 +204,26 @@ export default async function AtsGuidePage({ params }: Props) {
         <div className="flex flex-col gap-16 lg:col-span-2">
           <section aria-labelledby="spot-title" className="rounded-3xl bg-surface-muted p-6 sm:p-8">
             <h2 id="spot-title" className={SMALL_TITLE_CLASSES}>
-              How to tell a job uses {guide.name}
+              {fmt(page.spotTitle, { name: guide.name })}
             </h2>
             <p className="mt-2 text-base/7 text-pretty text-muted">{guide.spot}</p>
-            <JobLinkCheck className="mt-6" system={guide.id} names={SYSTEM_NAMES} />
+            <JobLinkCheck
+              className="mt-6"
+              system={guide.id}
+              names={SYSTEM_NAMES}
+              t={t.jobLink}
+              action={href(SEO_PATHS.jobMatch)}
+              guidePaths={guidePaths(href)}
+            />
           </section>
 
           {readsFiles(guide) ? null : (
             <section aria-labelledby="file-title">
               <h2 id="file-title" className={H2_CLASSES}>
-                {TOPIC_TITLES.file}
+                {t.topics.titles.file}
               </h2>
               <p className="mt-4 max-w-prose text-base/7 text-pretty text-muted">
-                Otto&apos;s notes don&apos;t cover how {guide.name} reads files yet, so there&apos;s
-                nothing sourced to share here. The{" "}
-                <a href="#general-title" className={LINK_CLASSES}>
-                  general advice
-                </a>{" "}
-                below is a safe start.
+                {rich(page.noFileNotes, { link: generalLink }, { name: guide.name })}
               </p>
             </section>
           )}
@@ -172,6 +239,8 @@ export default async function AtsGuidePage({ params }: Props) {
                     key={note.fact}
                     note={note}
                     sourceLabel={labels.get(note.source.url) ?? note.source.label}
+                    t={page}
+                    newTab={seo.newTab}
                   />
                 ))}
               </ul>
@@ -180,14 +249,16 @@ export default async function AtsGuidePage({ params }: Props) {
 
           <section aria-labelledby="general-title" className="scroll-mt-24">
             <h2 id="general-title" className={H2_CLASSES}>
-              General advice for any hiring system
+              {page.generalTitle}
             </h2>
             <p className="mt-4 max-w-prose text-base/7 text-pretty text-muted">
-              Not specific to {guide.name}. These tips come up again and again in the notes Otto has
-              on {ATS_GUIDES.length} hiring systems.
+              {fmt(page.generalIntro, {
+                name: guide.name,
+                count: format.number(ATS_GUIDES.length),
+              })}
             </p>
             <ul role="list" className="mt-6 divide-y divide-border border-y border-border">
-              {GENERAL_ADVICE.map((tip) => (
+              {generalAdvice(translation).map((tip) => (
                 <li key={tip.title} className="flex flex-col gap-1 py-6">
                   <h3 className="text-lg/7 font-medium tracking-tight text-ink">{tip.title}</h3>
                   <p className="max-w-prose text-base/7 text-pretty text-muted">{tip.text}</p>
@@ -196,19 +267,25 @@ export default async function AtsGuidePage({ params }: Props) {
             </ul>
           </section>
 
-          <CheckCta />
+          <CheckCta title={seo.checkCta.title} labels={product.common.checkButtons} href={href}>
+            {seo.checkCta.text}
+          </CheckCta>
 
           <section aria-labelledby="sources-title">
             <h2 id="sources-title" className={H2_CLASSES}>
-              Sources
+              {page.sourcesTitle}
             </h2>
             <ul role="list" className="mt-6 flex flex-col gap-3 text-base/7">
               {sources.map((source) => (
                 <li key={source.url} className="flex flex-col">
-                  <ExternalLink href={source.url}>{source.label}</ExternalLink>
+                  <ExternalLink href={source.url} newTab={seo.newTab}>
+                    {source.label}
+                  </ExternalLink>
                   <span className="text-sm/6 text-pretty text-subtle">
                     {new URL(source.url).hostname}
-                    {source.byTopic ? null : ` · on ${topicList(source.topics)}`}
+                    {source.byTopic
+                      ? null
+                      : ` · ${fmt(t.sources.covers, { topics: topicList(source.topics, words) })}`}
                   </span>
                 </li>
               ))}
@@ -216,19 +293,16 @@ export default async function AtsGuidePage({ params }: Props) {
           </section>
         </div>
 
-        <aside
-          aria-label="Next steps and more guides"
-          className="lg:sticky lg:top-24 lg:self-start"
-        >
-          <SideCta name={guide.name} />
+        <aside aria-label={page.aside} className="lg:sticky lg:top-24 lg:self-start">
+          <SideCta name={guide.name} t={page} buttons={product.common.checkButtons} href={href} />
           <h2 id="more-title" className={SMALL_TITLE_CLASSES}>
-            More ATS guides
+            {page.moreTitle}
           </h2>
           <ul role="list" aria-labelledby="more-title" className="mt-3 grid grid-cols-2 gap-x-6">
             {others.map((other) => (
               <li key={other.id}>
                 <IntentLink
-                  href={atsPath(other.id)}
+                  href={href(atsPath(other.id))}
                   className="inline-flex min-h-11 items-center rounded-sm text-base/6 text-muted transition-colors hover:text-ink lg:min-h-9"
                 >
                   {other.name}
@@ -241,13 +315,13 @@ export default async function AtsGuidePage({ params }: Props) {
             className="mt-6 flex flex-col gap-2 border-t border-border pt-6 text-sm/6"
           >
             <li>
-              <IntentLink href={SEO_PATHS.resumeTemplates} className={LINK_CLASSES}>
-                Resume templates in one column of real text
+              <IntentLink href={href(SEO_PATHS.resumeTemplates)} className={LINK_CLASSES}>
+                {page.templatesLink}
               </IntentLink>
             </li>
             <li>
-              <IntentLink href={SEO_PATHS.compare} className={LINK_CLASSES}>
-                How Otto compares with other tools
+              <IntentLink href={href(SEO_PATHS.compare)} className={LINK_CLASSES}>
+                {page.compareLink}
               </IntentLink>
             </li>
           </ul>

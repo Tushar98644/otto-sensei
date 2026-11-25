@@ -8,25 +8,42 @@ import { TextLink } from "@/components/site/text-link";
 import { buttonClasses } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { fmt } from "@/i18n/format";
 import type { HiringSystemId } from "@/lib/ats/types";
-import { type SystemNames, jobLinkLine, readJobLink } from "@/lib/seo-pages/job-link";
-import { JOB_MATCH_PARAM, SEO_PATHS, atsPath } from "@/lib/seo-pages/paths";
+import {
+  type JobLinkWords,
+  type SystemNames,
+  jobLinkLine,
+  readJobLink,
+} from "@/lib/seo-pages/job-link";
+import { JOB_MATCH_PARAM } from "@/lib/seo-pages/paths";
 
 export type JobLinkCheckProps = {
   system: HiringSystemId;
   names: SystemNames;
+  // The page's words, and where the match check and each guide live in its language.
+  t: JobLinkWords;
+  action: string;
+  guidePaths: Readonly<Record<HiringSystemId, string>>;
   className?: string;
 };
 
-export function JobLinkCheck({ system, names, className }: JobLinkCheckProps) {
+export function JobLinkCheck({
+  system,
+  names,
+  t,
+  action,
+  guidePaths,
+  className,
+}: JobLinkCheckProps) {
   const id = useId();
   const [link, setLink] = useState("");
   const read = readJobLink(link);
   const other = read.kind === "system" && read.id !== system ? read.id : null;
   return (
     <div className={className}>
-      <Form action={SEO_PATHS.jobMatch} prefetch={false} className="flex flex-col gap-2">
-        <Label htmlFor={id}>Job link</Label>
+      <Form action={action} prefetch={false} className="flex flex-col gap-2">
+        <Label htmlFor={id}>{t.label}</Label>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Input
             id={id}
@@ -43,13 +60,15 @@ export function JobLinkCheck({ system, names, className }: JobLinkCheckProps) {
             placeholder="https://…"
           />
           <button type="submit" className={buttonClasses({ className: "w-full sm:w-auto" })}>
-            Check my resume against this job
+            {t.submit}
             <ArrowRight />
           </button>
         </div>
       </Form>
-      <OttoNote size="sm" className="mt-6" message={jobLinkLine(read, system, names)}>
-        {other ? <TextLink href={atsPath(other)}>Read the {names[other]} guide</TextLink> : null}
+      <OttoNote size="sm" className="mt-6" message={jobLinkLine(read, system, names, t)}>
+        {other ? (
+          <TextLink href={guidePaths[other]}>{fmt(t.readGuide, { name: names[other] })}</TextLink>
+        ) : null}
       </OttoNote>
     </div>
   );

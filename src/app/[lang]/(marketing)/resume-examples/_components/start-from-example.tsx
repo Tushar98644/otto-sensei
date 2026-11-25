@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { ROUTES } from "@/components/site/routes";
 import { Button } from "@/components/ui/button";
+import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 
 // The studio's store and the examples' data load only on intent, so the page itself stays light.
@@ -19,10 +20,19 @@ const UpgradeHost = dynamic(() =>
 export type StartFromExampleProps = {
   slug: string;
   role: string;
+  // The button in the page's language, and which language's copy of the example opens.
+  label?: string;
+  locale?: Locale;
   className?: string;
 };
 
-export function StartFromExample({ slug, role, className }: StartFromExampleProps) {
+export function StartFromExample({
+  slug,
+  role,
+  label = "Start from this example",
+  locale = "en",
+  className,
+}: StartFromExampleProps) {
   const router = useRouter();
   const [opening, setOpening] = useState(false);
   const [upgrade, setUpgrade] = useState(false);
@@ -37,7 +47,7 @@ export function StartFromExample({ slug, role, className }: StartFromExampleProp
     try {
       const { openExampleInStudio } = await loadOpener();
       // Replacing the saved resume in the upgrade dialog opens the example after all.
-      if (await openExampleInStudio(slug, () => void open())) {
+      if (await openExampleInStudio(slug, () => void open(), locale)) {
         router.push(ROUTES.studio);
         return;
       }
@@ -58,7 +68,7 @@ export function StartFromExample({ slug, role, className }: StartFromExampleProp
         onFocus={prepare}
         onClick={() => void open()}
       >
-        Start from this example
+        {label}
         <span className="sr-only">: {role}</span>
         <ArrowRight />
       </Button>

@@ -4,13 +4,17 @@ import {
   FREE_JOB_MATCHES,
   FREE_TEMPLATES,
   PLANS,
+  PRICES_USD,
   resumeLimit,
 } from "@/config/plans";
+import type { Format } from "@/i18n/intl";
+import type { PluralForms } from "@/i18n/types";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
 import { planPrice } from "@/lib/billing/prices";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { pluralize } from "@/lib/utils";
+import type { Words } from "./words";
 
 export type CompareSource = { label: string; url: string };
 // The answer is 2 to 4 words that stand alone; the detail adds to it without repeating it.
@@ -107,7 +111,7 @@ const READ_BACK: CompareNote = {
   text: "Every format is one column of real text, and each PDF is tested by reading it back.",
 };
 
-const jobscan: Competitor = {
+const jobscan = {
   slug: "jobscan",
   name: "Jobscan",
   site: "https://www.jobscan.co/",
@@ -192,11 +196,11 @@ const jobscan: Competitor = {
     },
   ],
   checked: "2026-11-18",
-};
+} as const satisfies Competitor;
 
 export const REZI_PRO_USD = 29;
 
-const rezi: Competitor = {
+const rezi = {
   slug: "rezi",
   name: "Rezi",
   site: "https://www.rezi.ai/",
@@ -270,9 +274,9 @@ const rezi: Competitor = {
     { label: "Rezi home page", url: "https://www.rezi.ai/" },
   ],
   checked: "2026-11-22",
-};
+} as const satisfies Competitor;
 
-const kickresume: Competitor = {
+const kickresume = {
   slug: "kickresume",
   name: "Kickresume",
   site: "https://www.kickresume.com/en/",
@@ -347,9 +351,9 @@ const kickresume: Competitor = {
   ],
   checked: "2026-11-22",
   pricedByCountry: true,
-};
+} as const satisfies Competitor;
 
-const resumeio: Competitor = {
+const resumeio = {
   slug: "resume-io",
   name: "Resume.io",
   site: "https://resume.io/",
@@ -419,9 +423,9 @@ const resumeio: Competitor = {
   ],
   checked: "2026-11-22",
   pricedByCountry: true,
-};
+} as const satisfies Competitor;
 
-const enhancv: Competitor = {
+const enhancv = {
   slug: "enhancv",
   name: "Enhancv",
   site: "https://enhancv.com/",
@@ -493,9 +497,9 @@ const enhancv: Competitor = {
   ],
   checked: "2026-11-22",
   pricedByCountry: true,
-};
+} as const satisfies Competitor;
 
-const novoresume: Competitor = {
+const novoresume = {
   slug: "novoresume",
   name: "Novoresume",
   site: "https://novoresume.com/",
@@ -562,9 +566,9 @@ const novoresume: Competitor = {
   ],
   checked: "2026-11-22",
   pricedByCountry: true,
-};
+} as const satisfies Competitor;
 
-const zety: Competitor = {
+const zety = {
   slug: "zety",
   name: "Zety",
   site: "https://zety.com/",
@@ -615,9 +619,9 @@ const zety: Competitor = {
   sources: [{ label: "Zety pricing page", url: "https://zety.com/pricing" }],
   checked: "2026-11-22",
   asListed: true,
-};
+} as const satisfies Competitor;
 
-const teal: Competitor = {
+const teal = {
   slug: "teal",
   name: "Teal",
   site: "https://www.tealhq.com/",
@@ -666,9 +670,9 @@ const teal: Competitor = {
   ],
   checked: "2026-11-22",
   asListed: true,
-};
+} as const satisfies Competitor;
 
-const canva: Competitor = {
+const canva = {
   slug: "canva",
   name: "Canva",
   site: "https://www.canva.com/",
@@ -715,19 +719,73 @@ const canva: Competitor = {
   sources: [{ label: "Canva Pro pricing page", url: "https://www.canva.com/en_in/pro/" }],
   checked: "2026-11-22",
   asListed: true,
+} as const satisfies Competitor;
+
+const LIST = [jobscan, rezi, kickresume, resumeio, enhancv, novoresume, zety, teal, canva] as const;
+
+export const COMPETITORS: readonly Competitor[] = LIST;
+
+type Entry = (typeof LIST)[number];
+export type CompetitorSlug = Entry["slug"];
+
+// A translated page shows the table, the reasons and the sources; the summary, strengths and picks feed only llms-full.txt, which stays English.
+type CompareFixed =
+  "slug" | "name" | "site" | "url" | "checked" | "summary" | "strengths" | "pickThem" | "pickOtto";
+
+export type CompetitorWords<S extends CompetitorSlug> = Words<
+  Extract<Entry, { slug: S }>,
+  CompareFixed
+>;
+
+export type CompareTranslation = { readonly [S in CompetitorSlug]: CompetitorWords<S> };
+
+// What a translation fills in: Otto's own numbers and prices, already in its language.
+export type CompareValues = {
+  // US dollars as the language writes them: v.usd(29).
+  usd: (amount: number) => string;
+  number: (value: number) => string;
+  // A long date as the language writes it, from "2026-06-18".
+  date: (day: string) => string;
+  // The form for the count, with {count} in it: v.plural({ one: "{count} resume", other: "{count} resumes" }, 1).
+  plural: (forms: PluralForms, count: number) => string;
+  freeFormats: string;
+  systemCount: string;
+  fixes: string;
+  freeJobMatches: string;
+  freeResumes: number;
+  freeApplications: number;
+  proApplications: string;
+  proMonthly: string;
+  maxMonthly: string;
+  templateCount: string;
+  freeTemplateCount: string;
+  reziPro: string;
 };
 
-export const COMPETITORS: readonly Competitor[] = [
-  jobscan,
-  rezi,
-  kickresume,
-  resumeio,
-  enhancv,
-  novoresume,
-  zety,
-  teal,
-  canva,
-];
+export function compareValues(format: Format): CompareValues {
+  const usd = (amount: number) =>
+    format.currency(amount, "USD", { trailingZeroDisplay: "stripIfInteger" });
+  const list = FREE_TEMPLATES.map((id) => TEMPLATE_INFO[id].name);
+  return {
+    usd,
+    number: (value) => format.number(value),
+    date: (day) =>
+      format.date(new Date(`${day}T00:00:00Z`), { dateStyle: "long", timeZone: "UTC" }),
+    plural: (forms, count) => format.plural(forms, count),
+    freeFormats: format.list(list, { type: "conjunction" }),
+    systemCount: format.number(systemCount),
+    fixes: format.number(fixes),
+    freeJobMatches: format.number(FREE_JOB_MATCHES),
+    freeResumes: resumeLimit("free"),
+    freeApplications: applicationLimit("free"),
+    proApplications: format.number(applicationLimit("pro")),
+    proMonthly: usd(PRICES_USD.pro.month),
+    maxMonthly: usd(PRICES_USD.max.month),
+    templateCount: format.number(TEMPLATE_IDS.length),
+    freeTemplateCount: format.number(FREE_TEMPLATES.length),
+    reziPro: usd(REZI_PRO_USD),
+  };
+}
 
 // Newest first, so the index and the full text name the latest check.
 export const COMPETITORS_CHECKED = COMPETITORS.map((competitor) => competitor.checked)

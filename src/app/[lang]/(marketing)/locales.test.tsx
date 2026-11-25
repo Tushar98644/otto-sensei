@@ -71,13 +71,13 @@ describe("a translated page", () => {
   });
 });
 
-describe("a page that isn't translated yet", () => {
-  it("is a 404 at /es/compare and /es/compare/rezi, and served in English", async () => {
-    // Every language lists every comparison; the layout turns the untranslated ones into 404s.
+describe("a guide section (P5)", () => {
+  it("lists every comparison for every language, and its layout lets each published one through", async () => {
+    // Every language lists every comparison; the layout would turn an unpublished one into a 404.
     expect(competitorParams().map(({ competitor }) => competitor)).toContain("rezi");
-    setRootLang("es");
-    await expect(CompareLayout({ children: null })).rejects.toThrow();
-    setRootLang("en");
-    expect(await CompareLayout({ children: "ok" })).toBe("ok");
+    for (const segment of ["en", "es", "pt-br", "fr", "de"]) {
+      setRootLang(segment);
+      expect(await CompareLayout({ children: "ok" }), segment).toBe("ok");
+    }
   });
 });

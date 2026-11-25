@@ -1,6 +1,7 @@
 import { TITLE_SUFFIX } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
+import type { Format } from "@/i18n/intl";
 import { FREE_TEMPLATES, PLANS, PRO_TRIAL } from "@/config/plans";
 import { planPrice, trialPrice } from "@/lib/billing/prices";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";
@@ -58,6 +59,21 @@ const monthYear = new Intl.DateTimeFormat("en-US", {
 
 export function calendarMonth(day: string): string {
   return monthYear.format(new Date(`${day}T00:00:00Z`));
+}
+
+// The same dates in a page's language; English keeps the formatters above.
+export function calendarDateIn(format: Format, day: string): string {
+  if (format.locale === "en") return calendarDate(day);
+  return format.date(new Date(`${day}T00:00:00Z`), { dateStyle: "long", timeZone: "UTC" });
+}
+
+export function calendarMonthIn(format: Format, day: string): string {
+  if (format.locale === "en") return calendarMonth(day);
+  return format.date(new Date(`${day}T00:00:00Z`), {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 // A title too long for a search result keeps its keywords and drops the brand.
@@ -163,7 +179,7 @@ export const TOOL_PAGES: readonly SeoPage[] = [
 ];
 
 // The year a searcher sees in a title says the advice is current; it follows the examples' own dates.
-const EXAMPLES_YEAR = latestExampleUpdate().slice(0, 4);
+export const EXAMPLES_YEAR = latestExampleUpdate().slice(0, 4);
 
 export const RESUME_EXAMPLES_PAGE: SeoPage = {
   path: SEO_PATHS.resumeExamples,

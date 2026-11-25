@@ -44,7 +44,10 @@ type ArticleInfo = {
   citations: readonly { label: string; url: string }[];
 };
 
-function articleJsonLd(article: ArticleInfo, base: string): JsonLdData {
+// A page's path, words and date; headline is given when the page isn't in English.
+type ArticlePage = { path: string; description: string; lastModified: string; headline?: string };
+
+function articleJsonLd(article: ArticleInfo, base: string, language = "en"): JsonLdData {
   const url = absoluteUrl(article.path, base);
   const publisher = publisherJsonLd(base);
   return {
@@ -56,7 +59,7 @@ function articleJsonLd(article: ArticleInfo, base: string): JsonLdData {
     url,
     mainEntityOfPage: url,
     dateModified: article.dateModified,
-    inLanguage: "en",
+    inLanguage: language,
     image: shareImageUrl(base),
     author: publisher,
     publisher,
@@ -72,33 +75,37 @@ function articleJsonLd(article: ArticleInfo, base: string): JsonLdData {
 
 export function atsGuideJsonLd(
   guide: AtsGuide,
-  page: { path: string; description: string; lastModified: string },
+  page: ArticlePage,
   base: string,
+  language?: string,
+  citations: readonly { label: string; url: string }[] = guideSources(guide),
 ): JsonLdData {
   return articleJsonLd(
     {
       type: "TechArticle",
       path: page.path,
-      headline: guideHeadline(guide),
+      headline: page.headline ?? guideHeadline(guide),
       description: page.description,
       dateModified: page.lastModified,
       about: [{ "@type": "SoftwareApplication", name: guide.name }],
-      citations: guideSources(guide),
+      citations,
     },
     base,
+    language,
   );
 }
 
 export function compareJsonLd(
   competitor: Competitor,
-  page: { path: string; description: string; lastModified: string },
+  page: ArticlePage,
   base: string,
+  language?: string,
 ): JsonLdData {
   return articleJsonLd(
     {
       type: "Article",
       path: page.path,
-      headline: compareTitle(competitor),
+      headline: page.headline ?? compareTitle(competitor),
       description: page.description,
       dateModified: page.lastModified,
       about: [
@@ -108,6 +115,7 @@ export function compareJsonLd(
       citations: competitor.sources,
     },
     base,
+    language,
   );
 }
 
@@ -115,27 +123,32 @@ export function templateListJsonLd(
   formats: readonly { info: TemplateInfo; free: boolean }[],
   path: string,
   base: string,
+  name = "Resume formats",
+  language?: string,
 ): JsonLdData {
   const page = absoluteUrl(path, base);
-  return {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    "@id": `${page}#formats`,
-    name: "Resume formats",
-    numberOfItems: formats.length,
-    itemListElement: formats.map(({ info, free }, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      item: {
-        "@type": "CreativeWork",
-        "@id": `${page}#${info.id}`,
-        name: info.name,
-        url: `${page}#${info.id}`,
-        description: `${info.bestFor} ${info.description}`,
-        isAccessibleForFree: free,
-      },
-    })),
-  };
+  return inLanguage(
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "@id": `${page}#formats`,
+      name,
+      numberOfItems: formats.length,
+      itemListElement: formats.map(({ info, free }, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        item: {
+          "@type": "CreativeWork",
+          "@id": `${page}#${info.id}`,
+          name: info.name,
+          url: `${page}#${info.id}`,
+          description: `${info.bestFor} ${info.description}`,
+          isAccessibleForFree: free,
+        },
+      })),
+    },
+    language,
+  );
 }
 
 export function pageListJsonLd(
@@ -143,19 +156,23 @@ export function pageListJsonLd(
   path: string,
   items: readonly { name: string; path: string }[],
   base: string,
+  language?: string,
 ): JsonLdData {
   const page = absoluteUrl(path, base);
-  return {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    "@id": `${page}#list`,
-    name,
-    numberOfItems: items.length,
-    itemListElement: items.map((item, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: item.name,
-      url: absoluteUrl(item.path, base),
-    })),
-  };
+  return inLanguage(
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "@id": `${page}#list`,
+      name,
+      numberOfItems: items.length,
+      itemListElement: items.map((item, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: item.name,
+        url: absoluteUrl(item.path, base),
+      })),
+    },
+    language,
+  );
 }

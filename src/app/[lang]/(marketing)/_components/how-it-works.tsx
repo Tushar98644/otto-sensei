@@ -33,7 +33,7 @@ const STEPS: readonly Step[] = [
 
 const momentId = (step: Step) => `how-${step.id}`;
 
-export function HowItWorks({ t, format }: Pick<HomeProps, "t" | "format">) {
+export function HowItWorks({ t, format, common }: Pick<HomeProps, "t" | "format" | "common">) {
   const how = t.how;
   return (
     <Section
@@ -70,7 +70,15 @@ export function HowItWorks({ t, format }: Pick<HomeProps, "t" | "format">) {
                   titleAs="h3"
                   titleId={`${momentId(step)}-title`}
                   title={name}
-                  otto={<Otto pose={step.otto} size={64} lively delay={-1.3 * index} />}
+                  otto={
+                    <Otto
+                      pose={step.otto}
+                      size={64}
+                      title={common?.otto}
+                      lively
+                      delay={-1.3 * index}
+                    />
+                  }
                 >
                   {caption}
                 </MomentCaption>
