@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { lookingForOf } from "@/lib/job-feed/looking-for";
 import { matchProfileOf } from "@/lib/job-feed/profile";
 import type { LookingForChoice, MatchProfile } from "@/lib/job-feed/types";
@@ -23,6 +24,8 @@ import { ACCOUNT_SECTIONS } from "./links";
 const NO_MATCH: MatchProfile = { skills: [], titles: [], years: null };
 
 export function LookingForSettingsCard() {
+  const account = useMessages("account");
+  const words = account.lookingFor;
   const work = useWorkProfile();
   const titleId = useId();
   const resumes = useResumeList();
@@ -45,7 +48,7 @@ export function LookingForSettingsCard() {
     try {
       await saveLookingForChoice(userId, next);
     } catch (error) {
-      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+      toast({ title: account.saveFailed, description: errorMessage(error), variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -60,25 +63,23 @@ export function LookingForSettingsCard() {
     >
       <CardHeader>
         <CardTitle as="h3" id={titleId}>
-          Looking for
+          {words.title}
         </CardTitle>
-        <CardDescription>
-          The role, level and place Jobs puts first. Guessed from your resume until you pick.
-        </CardDescription>
+        <CardDescription>{words.intro}</CardDescription>
       </CardHeader>
       {work.status === "loading" ? (
         <Skeleton className="h-11 w-full" />
       ) : work.status === "error" ? (
         <Alert
           variant="error"
-          title="Couldn't load what you're looking for"
+          title={words.loadFailed}
           action={
             <Button variant="secondary" onClick={work.retry}>
-              Try again
+              {account.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {account.checkConnection}
         </Alert>
       ) : (
         <LookingForCard
@@ -89,11 +90,7 @@ export function LookingForSettingsCard() {
           country={work.profile.country}
           saving={saving}
           onChange={(next) => void change(work.userId, next)}
-          note={
-            base
-              ? "Tap a part to change it. Saves as you go."
-              : "Tap a part to pick a role and level. Saves as you go."
-          }
+          note={base ? words.change : words.pick}
         />
       )}
     </Card>

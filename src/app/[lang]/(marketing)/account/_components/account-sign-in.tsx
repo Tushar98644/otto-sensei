@@ -7,6 +7,7 @@ import type { Me } from "@/components/account/use-me";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { upgradeHref } from "@/components/site/routes";
 import type { BillingInterval, PaidPlanId } from "@/config/plans";
+import { useMessages } from "@/i18n/client";
 
 export type AccountSignInProps = {
   billing: Me["billing"];
@@ -26,6 +27,7 @@ export function AccountSignIn({
   autoFocus,
   onSignedIn,
 }: AccountSignInProps) {
+  const words = useMessages("account").view;
   const card =
     plan && billing.mode !== "disabled"
       ? upgradeOffer({
@@ -39,7 +41,7 @@ export function AccountSignIn({
     ? card.trial
       ? UPGRADE_SIGN_IN_TITLE.trial
       : UPGRADE_SIGN_IN_TITLE.upgrade
-    : "Sign in";
+    : words.signIn;
 
   return (
     <div data-sign-in className="mx-auto flex w-full max-w-lg flex-col gap-8">

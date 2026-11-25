@@ -5,7 +5,13 @@ import { useEffect, useState } from "react";
 import { upgradeReturnPath } from "@/components/account/upgrade-return";
 import { refreshMe } from "@/components/account/use-me";
 import { toast } from "@/components/ui/toast";
-import { BILLING_INTERVALS, PAID_PLANS, type BillingInterval, type PaidPlanId } from "@/config/plans";
+import {
+  BILLING_INTERVALS,
+  PAID_PLANS,
+  type BillingInterval,
+  type PaidPlanId,
+} from "@/config/plans";
+import type { Messages } from "@/i18n/messages";
 
 export type AccountArrival = {
   upgrade: boolean;
@@ -46,7 +52,7 @@ export function readArrival(searchParams: Pick<URLSearchParams, "get">): Account
   };
 }
 
-export function useAccountArrival(): AccountArrival {
+export function useAccountArrival(words: Messages["account"]["arrival"]): AccountArrival {
   const searchParams = useSearchParams();
   const [arrival] = useState<AccountArrival>(() => readArrival(searchParams));
 
@@ -55,31 +61,31 @@ export function useAccountArrival(): AccountArrival {
       // Going back to a page gets its own toast once the plan shows.
       if (!arrival.next) {
         toast({
-          title: "Thanks for upgrading!",
-          description: "Your upgrade can take a minute to appear.",
+          title: words.thanks,
+          description: words.thanksDetail,
           variant: "success",
         });
       }
       void refreshMe();
     } else if (arrival.checkout === "cancelled") {
-      toast({ title: "Checkout cancelled", description: "Nothing was charged." });
+      toast({ title: words.cancelled, description: words.nothingCharged });
     }
     if (arrival.topup === "success") {
       const next = arrival.next;
       toast({
-        title: "Thanks! Your credit is on its way.",
-        description: "It can take a minute to show here.",
+        title: words.credit,
+        description: words.creditDetail,
         variant: "success",
         ...(next
-          ? { action: { label: "Go back", onAction: () => window.location.assign(next) } }
+          ? { action: { label: words.goBack, onAction: () => window.location.assign(next) } }
           : {}),
       });
       void refreshMe();
     } else if (arrival.topup === "cancelled") {
-      toast({ title: "Checkout cancelled", description: "Nothing was charged." });
+      toast({ title: words.cancelled, description: words.nothingCharged });
     }
-    if (arrival.portalMock) toast({ title: "Test mode: you're back on Free." });
-  }, [arrival]);
+    if (arrival.portalMock) toast({ title: words.testMode });
+  }, [arrival, words]);
 
   // Next patches replaceState in its own mount effect, which runs after this one: wait a tick.
   useEffect(() => {

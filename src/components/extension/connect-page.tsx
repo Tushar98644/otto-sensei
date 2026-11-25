@@ -13,6 +13,8 @@ import { ROUTES } from "@/components/site/routes";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { LivePill } from "@/components/ui/live-pill";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { api } from "@/lib/api/client";
 import { CHROME_STORE_URL } from "@/lib/extension/store";
 import {
@@ -30,6 +32,8 @@ type Step =
   | { kind: "connected"; email: string }
   | { kind: "failed"; message: string };
 
+export type ConnectWords = Messages["account"]["extension"]["connect"];
+
 // The bridge script loads with the page, but may answer a moment after it.
 const LOOK_MS = 2_500;
 const SITES = ["LinkedIn", "Naukri", "Indeed", "Greenhouse", "Lever", "Ashby", "Workday"];
@@ -38,7 +42,8 @@ function post(message: PageMessage) {
   window.postMessage(message, window.location.origin);
 }
 
-export function ConnectPage() {
+// The page has no messages provider: its server page hands these words over.
+export function ConnectPage({ words }: { words: ConnectWords }) {
   const router = useRouter();
   const { user, loading } = useMe();
   const [step, setStep] = useState<Step>({ kind: "looking" });
@@ -101,47 +106,41 @@ export function ConnectPage() {
       <Otto pose={done ? "cheer" : "wave"} size={132} settle lively={!done} />
       <div className="flex flex-col items-center gap-3">
         <h1 className="font-display text-4xl/10 font-normal tracking-tight text-balance text-ink sm:text-5xl/13">
-          {done ? "Otto is on your job hunt" : "Connect Otto for Chrome"}
+          {done ? words.doneTitle : words.title}
         </h1>
         <p className="max-w-md text-base/7 text-pretty text-muted">
-          {done
-            ? "Open any job post. Otto's badge shows how your resume matches, and whether you can take the job, before you read a word."
-            : "One tap links the extension to your account, so the badge can check posts against your resume."}
+          {done ? words.doneIntro : words.intro}
         </p>
       </div>
 
       <div aria-live="polite" className="flex w-full flex-col items-center gap-4">
         {loading || step.kind === "looking" ? (
-          <LivePill busy>
-            {loading ? "Checking your account" : "Looking for the extension"}
-          </LivePill>
+          <LivePill busy>{loading ? words.checkingAccount : words.looking}</LivePill>
         ) : step.kind === "connecting" ? (
-          <LivePill busy>Connecting</LivePill>
+          <LivePill busy>{words.connecting}</LivePill>
         ) : step.kind === "connected" ? (
-          <ConnectedCard email={step.email} />
+          <ConnectedCard words={words} email={step.email} />
         ) : step.kind === "missing" ? (
           <Alert
             variant="info"
-            title="Otto for Chrome isn't in this browser yet"
+            title={words.missing}
             className="w-full max-w-md text-left"
             action={
               <Button variant="secondary" size="sm" onClick={retry}>
-                I&apos;ve added it
+                {words.added}
               </Button>
             }
           >
-            {CHROME_STORE_URL
-              ? "Add the extension to Chrome, then come back to this tab. If you just added it, reload this page."
-              : "Otto for Chrome is coming soon to the Chrome Web Store. If you already have it, reload this page."}
+            {CHROME_STORE_URL ? words.missingStore : words.missingSoon}
           </Alert>
         ) : (
           <Alert
             variant="error"
-            title="That didn't connect"
+            title={words.failed}
             className="w-full max-w-md text-left"
             action={
               <Button variant="secondary" size="sm" onClick={retry}>
-                Try again
+                {words.tryAgain}
               </Button>
             }
           >
@@ -153,22 +152,25 @@ export function ConnectPage() {
   );
 }
 
-function ConnectedCard({ email }: { email: string }) {
+function ConnectedCard({ words, email }: { words: ConnectWords; email: string }) {
   return (
     <div className="flex w-full max-w-md flex-col gap-5 rounded-2xl bg-surface p-5 text-left shadow-card sm:p-6">
-      <LivePill className="self-start">Connected as {email}</LivePill>
+      <LivePill className="self-start">{fmt(words.connectedAs, { email })}</LivePill>
       <OttoNote
         size="sm"
         live={false}
-        message={`Try a post on ${SITES.slice(0, -1).join(", ")} or ${SITES.at(-1)}. On any other site, press my button in the toolbar.`}
+        message={fmt(words.tryPost, {
+          sites: SITES.slice(0, -1).join(", "),
+          last: SITES.at(-1) ?? "",
+        })}
       />
       <div className="flex flex-wrap gap-2">
         <Link href={ROUTES.dashboardApplications} className={buttonClasses({ size: "sm" })}>
-          Open your board
+          {words.board}
           <ArrowRight aria-hidden />
         </Link>
         <Button variant="ghost" size="sm" onClick={() => window.close()}>
-          Close this tab
+          {words.close}
         </Button>
       </div>
     </div>

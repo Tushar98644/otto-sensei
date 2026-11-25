@@ -5,8 +5,15 @@ import { useEffect, useRef, useState, type Ref } from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
 import { Button, buttonClasses } from "@/components/ui/button";
+import type { Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
+import { formatFor } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
 import { SNOOZE_DAYS } from "@/lib/applications/follow-up";
 import type { FollowUpActionResponse } from "@/lib/notifications/types";
+
+// The page has no messages provider: its server page hands these words and the locale over.
+export type ReminderWords = Messages["account"]["reminder"];
 
 export type ReminderRequest =
   | { kind: "done" | "snooze"; u: string; a: string; t: string }
@@ -16,46 +23,44 @@ type State = { kind: "ready" } | { kind: "working" } | { kind: "settled"; messag
 
 type Confirm = { message: string; label: string };
 
-export const MISSING_PART = "That link is missing a part. Open your applications instead.";
-
 // Mail scanners open (and some run) every link in an email, so nothing is sent until this press.
-export const REMINDER_CONFIRM: Record<ReminderRequest["kind"], Confirm> = {
-  done: {
-    message: "Followed up on this one? Mark it done and I'll stop reminding you.",
-    label: "Mark done",
-  },
-  snooze: {
-    message: `Not ready to follow up yet? I'll remind you again in ${SNOOZE_DAYS} days.`,
-    label: `Snooze ${SNOOZE_DAYS} days`,
-  },
-  unsubscribe: {
-    message: "Turn off reminder emails? Your reminders stay in the bell in your dashboard.",
-    label: "Turn off reminder emails",
-  },
-};
+export function reminderConfirm(words: ReminderWords): Record<ReminderRequest["kind"], Confirm> {
+  const days = { days: SNOOZE_DAYS };
+  return {
+    done: words.done,
+    snooze: { message: fmt(words.snooze.message, days), label: fmt(words.snooze.label, days) },
+    unsubscribe: words.unsubscribe,
+  };
+}
 
 export type ReminderJob = { company: string; role: string };
 
-export function confirmMessage(kind: ReminderRequest["kind"], job: ReminderJob | null): string {
+export function confirmMessage(
+  words: ReminderWords,
+  kind: ReminderRequest["kind"],
+  job: ReminderJob | null,
+): string {
   const company = job?.company.trim();
-  if (!company || kind === "unsubscribe") return REMINDER_CONFIRM[kind].message;
+  if (!company || kind === "unsubscribe") return reminderConfirm(words)[kind].message;
   const role = job?.role.trim();
-  if (kind === "snooze") {
-    return `Not ready to follow up with ${company} yet? I'll remind you again in ${SNOOZE_DAYS} days.`;
-  }
-  return role
-    ? `Followed up with ${company} about the ${role} job? Mark it done and I'll stop reminding you.`
-    : `Followed up with ${company}? Mark it done and I'll stop reminding you.`;
+  if (kind === "snooze") return fmt(words.snoozeCompany, { company, days: SNOOZE_DAYS });
+  return role ? fmt(words.doneRole, { company, role }) : fmt(words.doneCompany, { company });
 }
 
-const DAY = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" });
+const DAY = { weekday: "long", month: "short", day: "numeric" } as const;
 
-export async function sendReminderAction(request: ReminderRequest): Promise<string> {
+export async function sendReminderAction(
+  words: ReminderWords,
+  locale: Locale,
+  request: ReminderRequest,
+): Promise<string> {
   if (request.kind === "unsubscribe") {
     const query = new URLSearchParams({ u: request.u, t: request.t });
-    const res = await fetch(`/api/notifications/unsubscribe?${query.toString()}`, { method: "POST" });
-    if (!res.ok) throw new Error("That unsubscribe link isn't valid. Turn emails off on your Account page.");
-    return "Done. You won't get reminder emails any more. The bell in your dashboard keeps them.";
+    const res = await fetch(`/api/notifications/unsubscribe?${query.toString()}`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error(words.badUnsubscribe);
+    return words.unsubscribed;
   }
   const res = await fetch("/api/notifications/follow-up", {
     method: "POST",
@@ -63,39 +68,45 @@ export async function sendReminderAction(request: ReminderRequest): Promise<stri
     body: JSON.stringify({ u: request.u, a: request.a, act: request.kind, t: request.t }),
   });
   const body = (await res.json().catch(() => null)) as
-    | FollowUpActionResponse
-    | { ok: false; error?: { message?: string } }
-    | null;
+    FollowUpActionResponse | { ok: false; error?: { message?: string } } | null;
   if (!res.ok || !body?.ok) {
-    throw new Error(
-      (body && !body.ok ? body.error?.message : undefined) ??
-        "That didn't go through. Open your applications instead.",
-    );
+    throw new Error((body && !body.ok ? body.error?.message : undefined) ?? words.failed);
   }
-  const name = body.company || "that job";
-  if (request.kind === "done") return `Marked done. I won't remind you about ${name} again.`;
+  const name = body.company || words.thatJob;
+  if (request.kind === "done") return fmt(words.marked, { name });
   return body.followUpAt === null
-    ? `${name} has moved on from Applied, so there's nothing to snooze.`
-    : `Snoozed for ${SNOOZE_DAYS} days. I'll remind you about ${name} on ${DAY.format(body.followUpAt)}.`;
+    ? fmt(words.movedOn, { name })
+    : fmt(words.snoozed, {
+        days: SNOOZE_DAYS,
+        name,
+        day: formatFor(locale).date(body.followUpAt, DAY),
+      });
 }
 
-function ApplicationsLink({ ref }: { ref?: Ref<HTMLAnchorElement> }) {
+function ApplicationsLink({ label, ref }: { label: string; ref?: Ref<HTMLAnchorElement> }) {
   return (
     <Link
       ref={ref}
       href={ROUTES.dashboardApplications}
       className={buttonClasses({ variant: "secondary" })}
     >
-      Open your applications
+      {label}
     </Link>
   );
 }
 
-function ReminderConfirm({ request, job }: { request: ReminderRequest; job: ReminderJob | null }) {
+type Words = { words: ReminderWords; locale: Locale };
+
+function ReminderConfirm({
+  request,
+  job,
+  words,
+  locale,
+}: Words & { request: ReminderRequest; job: ReminderJob | null }) {
   const [state, setState] = useState<State>({ kind: "ready" });
   const linkRef = useRef<HTMLAnchorElement>(null);
   const settled = state.kind === "settled";
-  const confirm = REMINDER_CONFIRM[request.kind];
+  const confirm = reminderConfirm(words)[request.kind];
 
   // The pressed button goes away, so focus moves to what replaces it instead of the page.
   useEffect(() => {
@@ -104,20 +115,20 @@ function ReminderConfirm({ request, job }: { request: ReminderRequest; job: Remi
 
   function press() {
     setState({ kind: "working" });
-    sendReminderAction(request).then(
+    sendReminderAction(words, locale, request).then(
       (message) => setState({ kind: "settled", message }),
       (error: unknown) =>
         setState({
           kind: "settled",
-          message: error instanceof Error ? error.message : "That didn't go through.",
+          message: error instanceof Error ? error.message : words.failedShort,
         }),
     );
   }
 
   return (
-    <OttoNote message={settled ? state.message : confirmMessage(request.kind, job)}>
+    <OttoNote message={settled ? state.message : confirmMessage(words, request.kind, job)}>
       {settled ? (
-        <ApplicationsLink ref={linkRef} />
+        <ApplicationsLink label={words.applications} ref={linkRef} />
       ) : (
         <Button loading={state.kind === "working"} onClick={press}>
           {confirm.label}
@@ -130,14 +141,16 @@ function ReminderConfirm({ request, job }: { request: ReminderRequest; job: Remi
 export function ReminderAction({
   request,
   job = null,
-}: {
+  words,
+  locale,
+}: Words & {
   request: ReminderRequest | null;
   job?: ReminderJob | null;
 }) {
-  if (request) return <ReminderConfirm request={request} job={job} />;
+  if (request) return <ReminderConfirm request={request} job={job} words={words} locale={locale} />;
   return (
-    <OttoNote message={MISSING_PART}>
-      <ApplicationsLink />
+    <OttoNote message={words.missing}>
+      <ApplicationsLink label={words.applications} />
     </OttoNote>
   );
 }

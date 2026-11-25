@@ -1,15 +1,26 @@
 import type { MouseEvent } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import en from "@/i18n/messages/en";
 import ReminderPage from "../page";
 import {
-  confirmMessage,
-  MISSING_PART,
-  REMINDER_CONFIRM,
-  ReminderAction,
-  sendReminderAction,
+  confirmMessage as confirmIn,
+  ReminderAction as ReminderIn,
+  reminderConfirm,
+  sendReminderAction as sendIn,
+  type ReminderJob,
   type ReminderRequest,
 } from "./reminder-action";
+
+const WORDS = en.account.reminder;
+const REMINDER_CONFIRM = reminderConfirm(WORDS);
+const MISSING_PART = WORDS.missing;
+const confirmMessage = (kind: ReminderRequest["kind"], job: ReminderJob | null) =>
+  confirmIn(WORDS, kind, job);
+const sendReminderAction = (request: ReminderRequest) => sendIn(WORDS, "en", request);
+const ReminderAction = (props: { request: ReminderRequest | null; job?: ReminderJob | null }) => (
+  <ReminderIn {...props} words={WORDS} locale="en" />
+);
 
 const presses = vi.hoisted(
   () => [] as Array<((event: MouseEvent<HTMLButtonElement>) => void) | undefined>,

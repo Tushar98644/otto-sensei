@@ -13,9 +13,13 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
 import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
-import { dayLabel } from "@/lib/career-log/month";
-import { WEEK_NAMES, WEEKDAY_NAMES } from "@/lib/career-log/schedule";
+import { splitDate } from "@/lib/career-log/month";
+import type { LocalDate } from "@/lib/career-log/types";
 import type { SettingsChangeBody } from "@/lib/career-log/validation";
 import { cn } from "@/lib/utils";
 import { browserTimeZone, saveSettings, useCareerLog } from "./use-career-log";
@@ -27,24 +31,39 @@ const SEGMENT = cn(
   "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink",
 );
 
+type LogWords = Messages["account"]["careerLog"];
+
 // Monday first, as most calendars outside the US show it.
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const WEEKS = ["first", "second", "third", "fourth", "last"] as const;
+const DAY = { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" } as const;
+const WEEKDAY = { weekday: "long", timeZone: "UTC" } as const;
 
-function savedTitle(change: SettingsChangeBody): string {
-  if (change.checkins !== undefined) {
-    return change.checkins ? "Monthly check-ins are on." : "Monthly check-ins are off.";
-  }
-  if (change.emails !== undefined) {
-    return change.emails ? "Check-in emails are on." : "Check-in emails are off.";
-  }
+// "Mon, Nov 3", as lib/career-log/month's dayLabel writes it in English.
+function dayLabel(format: Format, date: LocalDate): string {
+  const { year, month, day } = splitDate(date);
+  return format.date(Date.UTC(year, month - 1, day), DAY);
+}
+
+// 4 Jan 1970 was a Sunday, so weekday 0 to 6 lands on Sunday to Saturday.
+function weekdayName(format: Format, weekday: number): string {
+  return format.date(Date.UTC(1970, 0, 4 + weekday), WEEKDAY);
+}
+
+function savedTitle(words: LogWords, change: SettingsChangeBody): string {
+  if (change.checkins !== undefined) return change.checkins ? words.checkinsOn : words.checkinsOff;
+  if (change.emails !== undefined) return change.emails ? words.emailsOn : words.emailsOff;
   if (change.pauseMonths !== undefined) {
-    return change.pauseMonths === 0 ? "Check-ins are back on." : "Check-ins are paused.";
+    return change.pauseMonths === 0 ? words.resumed : words.paused;
   }
-  return "Check-in day saved.";
+  return words.daySaved;
 }
 
 // In Account: free on every plan, so it shows for everyone.
 export function CareerLogSettingsCard() {
+  const account = useMessages("account");
+  const words = account.careerLog;
+  const format = useFormat();
   const userId = useSessionUserId();
   const titleId = useId();
   const ids = useId();
@@ -56,9 +75,9 @@ export function CareerLogSettingsCard() {
     if (!userId) return;
     try {
       await saveSettings(userId, change);
-      toast({ title: savedTitle(change), variant: "success" });
+      toast({ title: savedTitle(words, change), variant: "success" });
     } catch (error) {
-      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+      toast({ title: account.saveFailed, description: errorMessage(error), variant: "error" });
     }
   }
 
@@ -72,18 +91,16 @@ export function CareerLogSettingsCard() {
     >
       <CardHeader>
         <CardTitle as="h3" id={titleId}>
-          Career log
+          {words.title}
         </CardTitle>
-        <CardDescription>
-          A one-minute note each month on what you shipped, so your next resume writes itself. Free
-          on every plan, even if you stop paying.
-        </CardDescription>
+        <CardDescription>{words.intro}</CardDescription>
       </CardHeader>
       {settings && data ? (
         <div className="flex flex-col gap-5">
           <Toggle
-            label="Monthly check-in"
-            hint="Three quick questions once a month, in the bell and on Home. Off until you turn it on."
+            words={words}
+            label={words.monthly}
+            hint={words.monthlyHint}
             value={settings.checkins}
             onChange={(checkins) =>
               void save(checkins ? { checkins, timeZone: browserTimeZone() } : { checkins })
@@ -94,12 +111,12 @@ export function CareerLogSettingsCard() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div className="flex flex-col gap-0.5">
                   <span id={`${ids}-day`} className="text-sm font-medium text-ink">
-                    Ask me on
+                    {words.askOn}
                   </span>
                   <span className="text-sm text-muted">
                     {settings.nextCheckinOn
-                      ? `Next: ${dayLabel(settings.nextCheckinOn)}.`
-                      : "Once a month."}
+                      ? fmt(words.next, { day: dayLabel(format, settings.nextCheckinOn) })
+                      : words.onceAMonth}
                   </span>
                 </div>
                 <div
@@ -108,7 +125,7 @@ export function CareerLogSettingsCard() {
                   className="grid grid-cols-2 gap-2 sm:w-72"
                 >
                   <Select
-                    aria-label="Week of the month"
+                    aria-label={words.week}
                     value={String(settings.day.week)}
                     onChange={(event) =>
                       void save({
@@ -117,14 +134,14 @@ export function CareerLogSettingsCard() {
                       })
                     }
                   >
-                    {WEEK_NAMES.map((name, index) => (
+                    {WEEKS.map((name, index) => (
                       <option key={name} value={index + 1}>
-                        The {name}
+                        {words.weeks[name]}
                       </option>
                     ))}
                   </Select>
                   <Select
-                    aria-label="Day of the week"
+                    aria-label={words.weekday}
                     value={String(settings.day.weekday)}
                     onChange={(event) =>
                       void save({
@@ -135,7 +152,7 @@ export function CareerLogSettingsCard() {
                   >
                     {WEEKDAY_ORDER.map((weekday) => (
                       <option key={weekday} value={weekday}>
-                        {WEEKDAY_NAMES[weekday]}
+                        {weekdayName(format, weekday)}
                       </option>
                     ))}
                   </Select>
@@ -144,12 +161,12 @@ export function CareerLogSettingsCard() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div className="flex flex-col gap-0.5">
                   <label htmlFor={`${ids}-pause`} className="text-sm font-medium text-ink">
-                    Pause
+                    {words.pause}
                   </label>
                   <span className="text-sm text-muted">
                     {settings.pausedUntil
-                      ? `Paused until ${dayLabel(settings.pausedUntil)}.`
-                      : "Busy month? Skip a check-in or three."}
+                      ? fmt(words.pausedUntil, { day: dayLabel(format, settings.pausedUntil) })
+                      : words.busy}
                   </span>
                 </div>
                 <Select
@@ -164,18 +181,21 @@ export function CareerLogSettingsCard() {
                 >
                   {settings.pausedUntil ? (
                     <option value="paused" disabled>
-                      Paused until {dayLabel(settings.pausedUntil)}
+                      {fmt(words.pausedOption, { day: dayLabel(format, settings.pausedUntil) })}
                     </option>
                   ) : null}
-                  <option value="0">{settings.pausedUntil ? "Resume now" : "Not paused"}</option>
-                  <option value="1">Pause for a month</option>
-                  <option value="3">Pause for 3 months</option>
+                  <option value="0">
+                    {settings.pausedUntil ? words.resumeNow : words.notPaused}
+                  </option>
+                  <option value="1">{words.pauseMonth}</option>
+                  <option value="3">{words.pauseThree}</option>
                 </Select>
               </div>
               {data.emailAvailable ? (
                 <Toggle
-                  label="Check-in email"
-                  hint="One short email on the day, never more than one a month. The bell and Home ask either way."
+                  words={words}
+                  label={words.email}
+                  hint={words.emailHint}
                   value={settings.emails}
                   onChange={(emails) => void save({ emails })}
                 />
@@ -187,7 +207,7 @@ export function CareerLogSettingsCard() {
               href={CAREER_LOG_ROUTE}
               className="group inline-flex items-center gap-1 text-sm font-medium text-ink"
             >
-              Open your career log
+              {words.open}
               <ArrowRight
                 aria-hidden
                 className="size-4 text-muted transition-transform group-hover:translate-x-0.5"
@@ -198,14 +218,14 @@ export function CareerLogSettingsCard() {
       ) : query.isError && query.fetchStatus === "idle" ? (
         <Alert
           variant="error"
-          title="Couldn't load your career log settings"
+          title={words.loadFailed}
           action={
             <Button variant="secondary" onClick={() => void query.refetch()}>
-              Try again
+              {account.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {account.checkConnection}
         </Alert>
       ) : (
         <Skeleton className="h-11 w-full" />
@@ -215,11 +235,13 @@ export function CareerLogSettingsCard() {
 }
 
 function Toggle({
+  words,
   label,
   hint,
   value,
   onChange,
 }: {
+  words: LogWords;
   label: string;
   hint: string;
   value: boolean;
@@ -243,8 +265,8 @@ function Toggle({
         className="grid shrink-0 grid-cols-2 gap-1 rounded-xl bg-surface-muted p-1 sm:w-48"
       >
         {[
-          { on: true, label: "On" },
-          { on: false, label: "Off" },
+          { on: true, label: words.on },
+          { on: false, label: words.off },
         ].map((choice) => (
           <label key={choice.label} className={SEGMENT}>
             <input

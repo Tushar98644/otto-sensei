@@ -1,6 +1,11 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderBare } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { UpgradeStatus } from "./upgrade-status";
+import { inEnglish } from "@/components/dashboard/messages-testing";
+
+// The English messages these components read, as the page would pass them.
+const renderToStaticMarkup = (node: ReactNode) => renderBare(inEnglish(node));
 
 const text = (html: string) =>
   html

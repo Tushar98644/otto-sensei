@@ -10,15 +10,13 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PLANS, type PlanId } from "@/config/plans";
-import {
-  buysSentence,
-  centsText,
-  CREDIT_LABEL_ONE,
-  CREDIT_LABELS,
-  creditBuys,
-  TOPUP_LIMITS,
-} from "@/config/topup";
+import { PLANS, type Feature, type PlanId } from "@/config/plans";
+import { centsIn, usdIn } from "@/components/account/local-prices";
+import { creditBuys, TOPUP_LIMITS } from "@/config/topup";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
 import type { CreditInfo } from "@/lib/api/types";
 import type { CreditEntry } from "@/lib/billing/credit-types";
 import { useAppQueryClient } from "@/lib/queries/client";
@@ -26,44 +24,64 @@ import { creditQuery } from "@/lib/queries/options";
 import { cn } from "@/lib/utils";
 import { billingDate } from "./billing-format";
 
-const count = new Intl.NumberFormat("en-US");
+type CreditWords = Messages["account"]["credit"];
+
 const MAX_OVER_PRO_CENTS = (PLANS.max.priceUsd - PLANS.pro.priceUsd) * 100;
+// The features config/topup's buysSentence names, in its order.
+const BUYS_SHOWN: readonly Feature[] = ["tailor", "letter", "fix"];
 
 // Past Max's extra cost in one month of credit, Max would have been the cheaper way.
 export function maxIsCheaper(plan: PlanId, credit: CreditInfo): boolean {
   return plan === "pro" && credit.monthCents > MAX_OVER_PRO_CENTS;
 }
 
-export function maxHint(credit: CreditInfo): string {
-  const extra = centsText(MAX_OVER_PRO_CENTS);
+export function maxHint(words: CreditWords, format: Format, credit: CreditInfo): string {
   const { max, pro } = PLANS;
-  const more = `${count.format(max.limits.tailor)} ${CREDIT_LABELS.tailor} a month to ${pro.name}'s ${count.format(pro.limits.tailor)}`;
-  return `You've added ${centsText(credit.monthCents)} of credit this month. ${max.name} costs ${extra} more than ${pro.name} and has ${more}.`;
+  return fmt(words.maxHint, {
+    added: centsIn(format, credit.monthCents),
+    max: max.name,
+    extra: centsIn(format, MAX_OVER_PRO_CENTS),
+    pro: pro.name,
+    more: format.number(max.limits.tailor),
+    less: format.number(pro.limits.tailor),
+  });
 }
 
-function entryText(entry: CreditEntry): string {
-  if (entry.kind === "added") return "Credit added";
-  if (entry.kind === "taken_back") return "Credit taken back after a refund";
-  if (!entry.feature) return "AI help";
-  const label = entry.count === 1 ? CREDIT_LABEL_ONE[entry.feature] : CREDIT_LABELS[entry.feature];
-  return `${count.format(entry.count)} ${label}`;
+// "$1 = 3 tailored versions, 10 letters or 40 line fixes", as config/topup's buysSentence.
+export function buysLine(words: CreditWords, format: Format, usd: number): string {
+  const parts = BUYS_SHOWN.filter((feature) => creditBuys(usd * 100, feature) > 0).map((feature) =>
+    format.plural(words.labels[feature], creditBuys(usd * 100, feature)),
+  );
+  const last = parts.pop() ?? "";
+  const list = parts.length ? fmt(words.or, { list: parts.join(", "), last }) : last;
+  return fmt(words.buys, { price: usdIn(format, usd), list });
+}
+
+function entryText(words: CreditWords, format: Format, entry: CreditEntry): string {
+  if (entry.kind === "added") return words.added;
+  if (entry.kind === "taken_back") return words.takenBack;
+  if (!entry.feature) return words.aiHelp;
+  return format.plural(words.labels[entry.feature], entry.count);
 }
 
 function History({ userId, balance }: { userId: string; balance: number }) {
+  const account = useMessages("account");
+  const words = account.credit;
+  const format = useFormat();
   const client = useAppQueryClient();
   const query = useQuery({ ...creditQuery(userId, balance), retry: 1 }, client);
   if (query.isError) {
     return (
       <Alert
         variant="error"
-        title="Couldn't load your credit history"
+        title={words.historyFailed}
         action={
           <Button variant="secondary" onClick={() => void query.refetch()}>
-            Try again
+            {account.tryAgain}
           </Button>
         }
       >
-        Check your connection, then try again.
+        {account.checkConnection}
       </Alert>
     );
   }
@@ -75,7 +93,7 @@ function History({ userId, balance }: { userId: string; balance: number }) {
       </div>
     );
   }
-  if (query.data.length === 0) return <p className="text-sm text-muted">Nothing yet.</p>;
+  if (query.data.length === 0) return <p className="text-sm text-muted">{words.nothing}</p>;
   return (
     <ul className="divide-y divide-border border-y border-border">
       {query.data.map((entry) => (
@@ -83,11 +101,13 @@ function History({ userId, balance }: { userId: string; balance: number }) {
           key={`${entry.kind}:${entry.at}:${entry.feature ?? ""}`}
           className="flex items-center gap-3 py-2.5 text-sm"
         >
-          <span className="w-28 shrink-0 text-muted tabular-nums">{billingDate(entry.at)}</span>
-          <span className="min-w-0 flex-1 text-ink">{entryText(entry)}</span>
+          <span className="w-28 shrink-0 text-muted tabular-nums">
+            {billingDate(format, entry.at)}
+          </span>
+          <span className="min-w-0 flex-1 text-ink">{entryText(words, format, entry)}</span>
           <span className={cn("tabular-nums", entry.kind === "added" ? "text-pass" : "text-ink")}>
             {entry.kind === "added" ? "+" : "−"}
-            {centsText(entry.cents)}
+            {centsIn(format, entry.cents)}
           </span>
         </li>
       ))}
@@ -104,6 +124,9 @@ export function CreditCard({
   plan: PlanId;
   onUpgrade?: () => void;
 }) {
+  const account = useMessages("account");
+  const words = account.credit;
+  const format = useFormat();
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState(false);
   const credit = me.billing.credit;
@@ -116,26 +139,24 @@ export function CreditCard({
     <Card id="credit" role="region" aria-labelledby="credit-title">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <CardTitle as="h2" id="credit-title">
-          Credit
+          {words.title}
         </CardTitle>
-        <p className="text-sm text-subtle">Never expires</p>
+        <p className="text-sm text-subtle">{words.neverExpires}</p>
       </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1">
           <p className="flex items-baseline gap-2">
             <span className="font-display text-3xl/9 text-ink lining-nums tabular-nums">
-              {balance > 0 ? centsText(balance) : "$0"}
+              {balance > 0 ? centsIn(format, balance) : usdIn(format, 0)}
             </span>
             <span className="text-sm text-muted">
-              {tailored > 0
-                ? `about ${count.format(tailored)} ${tailored === 1 ? CREDIT_LABEL_ONE.tailor : CREDIT_LABELS.tailor}`
-                : "No credit yet"}
+              {tailored > 0 ? format.plural(words.about, tailored) : words.none}
             </span>
           </p>
           <p className="text-sm/6 text-muted">
             {credit.usable
-              ? "Used only once this month's allowance runs out."
-              : `Credit works on ${PLANS.pro.name} and ${PLANS.max.name}, once any trial has ended. Your balance waits until then.`}
+              ? words.usable
+              : fmt(words.waits, { pro: PLANS.pro.name, max: PLANS.max.name })}
           </p>
         </div>
         <Button
@@ -144,17 +165,20 @@ export function CreditCard({
           disabled={!credit.usable}
           className="w-full sm:w-auto"
         >
-          Add credit
+          {words.add}
         </Button>
       </div>
       <p className="text-sm/6 text-subtle">
-        {buysSentence(1)}. From ${TOPUP_LIMITS.minUsd}, in whole dollars.
+        {fmt(words.from, {
+          buys: buysLine(words, format, 1),
+          min: usdIn(format, TOPUP_LIMITS.minUsd),
+        })}
       </p>
       {maxIsCheaper(plan, credit) ? (
-        <OttoNote size="sm" live={false} message={maxHint(credit)}>
+        <OttoNote size="sm" live={false} message={maxHint(words, format, credit)}>
           {onUpgrade ? (
             <Button variant="link" onClick={onUpgrade} className="text-sm">
-              Upgrade to {PLANS.max.name}
+              {fmt(account.plan.upgradeTo, { plan: PLANS.max.name })}
             </Button>
           ) : null}
         </OttoNote>
@@ -168,7 +192,7 @@ export function CreditCard({
           onClick={() => setOpen((shown) => !shown)}
           className="-ml-3 self-start"
         >
-          {open ? "Hide credit history" : "Show credit history"}
+          {open ? words.hideHistory : words.showHistory}
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} />
         </Button>
         {open ? (

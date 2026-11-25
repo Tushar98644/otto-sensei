@@ -11,20 +11,29 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BRAND } from "@/config/brand";
 import { PLANS, type PlanId } from "@/config/plans";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages";
 import { api } from "@/lib/api/client";
 import { REFERRAL_BONUS, type ReferralSummary } from "@/lib/referrals/referrals";
 import { useCopyLink } from "./use-copy-link";
 
-const SHARE_TEXT = `I use ${BRAND.name} to see what hiring software reads in my resume. Sign up with my link and check yours, and we both get ${REFERRAL_BONUS.fix} more line fixes.`;
+type InviteWords = Messages["account"]["invite"];
 
-export function extrasNote(plan: PlanId, period: ReferralSummary["period"]): string {
+export function extrasNote(
+  words: InviteWords,
+  plan: PlanId,
+  period: ReferralSummary["period"],
+): string {
   if (plan === "free") {
-    return `On Free, each friend adds ${REFERRAL_BONUS.fix} line fixes to that month's ${PLANS.free.limits.fix}. Tailoring comes with Pro, so the ${REFERRAL_BONUS.tailor} tailored versions wait: start a trial or upgrade that month and every extra you haven't used moves with you.`;
+    return fmt(words.free, {
+      fix: REFERRAL_BONUS.fix,
+      limit: PLANS.free.limits.fix,
+      tailor: REFERRAL_BONUS.tailor,
+    });
   }
-  if (period === "trial") {
-    return "Extras add to your trial's limits, and the ones you haven't used carry into your first paid month.";
-  }
-  return `Extras add to your ${PLANS[plan].name} limits.`;
+  if (period === "trial") return words.trial;
+  return fmt(words.paid, { plan: PLANS[plan].name });
 }
 
 type Load =
@@ -35,9 +44,9 @@ type Load =
 const noSubscription = () => () => undefined;
 const canShare = () => typeof navigator !== "undefined" && typeof navigator.share === "function";
 
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
 export function InviteCard({ plan }: { plan: PlanId }) {
+  const account = useMessages("account");
+  const words = account.invite;
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const fetchSummary = useCallback(() => {
     api
@@ -51,12 +60,10 @@ export function InviteCard({ plan }: { plan: PlanId }) {
     <Card id="invite" role="region" aria-labelledby="invite-title">
       <CardHeader>
         <CardTitle as="h2" id="invite-title">
-          Invite friends
+          {words.title}
         </CardTitle>
         <CardDescription>
-          When a friend signs up with your link and checks a resume, you each get{" "}
-          {REFERRAL_BONUS.fix} more line fixes and {REFERRAL_BONUS.tailor} more tailored versions
-          that month.
+          {fmt(words.intro, { fix: REFERRAL_BONUS.fix, tailor: REFERRAL_BONUS.tailor })}
         </CardDescription>
       </CardHeader>
       {load.status === "loading" ? (
@@ -67,7 +74,7 @@ export function InviteCard({ plan }: { plan: PlanId }) {
       ) : load.status === "error" ? (
         <Alert
           variant="error"
-          title="Couldn't load your invite link"
+          title={words.loadFailed}
           action={
             <Button
               variant="secondary"
@@ -76,7 +83,7 @@ export function InviteCard({ plan }: { plan: PlanId }) {
                 fetchSummary();
               }}
             >
-              Try again
+              {account.tryAgain}
             </Button>
           }
         >
@@ -90,14 +97,21 @@ export function InviteCard({ plan }: { plan: PlanId }) {
 }
 
 function InviteDetails({ summary, plan }: { summary: ReferralSummary; plan: PlanId }) {
+  const account = useMessages("account");
+  const words = account.invite;
+  const format = useFormat();
   const shareable = useSyncExternalStore(noSubscription, canShare, () => false);
   const { url, joined, checked, rewarded, maxRewarded, thisPeriod: extras, period } = summary;
-  const { copied, copy } = useCopyLink(url, "Select it and copy it yourself.");
+  const { copied, copy } = useCopyLink(url, {
+    title: words.copyFailed,
+    description: words.copyYourself,
+  });
   const full = rewarded >= maxRewarded;
 
   async function share() {
     try {
-      await navigator.share({ title: BRAND.name, text: SHARE_TEXT, url });
+      const text = fmt(words.shareText, { brand: BRAND.name, fix: REFERRAL_BONUS.fix });
+      await navigator.share({ title: BRAND.name, text, url });
     } catch {
       // Closing the share sheet rejects too, and that's not a failure worth a message.
     }
@@ -109,50 +123,47 @@ function InviteDetails({ summary, plan }: { summary: ReferralSummary; plan: Plan
         <Input
           readOnly
           value={url}
-          aria-label="Your invite link"
+          aria-label={words.yourLink}
           onFocus={(event) => event.currentTarget.select()}
           className="bg-surface-muted sm:flex-1"
         />
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => void copy()} className="flex-1 sm:flex-none">
             {copied ? <Check /> : <Copy />}
-            {copied ? "Copied" : "Copy link"}
+            {copied ? account.copied : account.copyLink}
           </Button>
           {shareable ? (
             <Button onClick={() => void share()} className="flex-1 sm:flex-none">
               <Share />
-              Share
+              {words.share}
             </Button>
           ) : null}
         </div>
       </div>
       <p className="sr-only" aria-live="polite">
-        {copied ? "Invite link copied." : ""}
+        {copied ? words.linkCopied : ""}
       </p>
 
       <Progress
         size="sm"
-        label="Friends who earned you extras"
+        label={words.progress}
         value={rewarded}
         max={maxRewarded}
-        valueText={`${rewarded} of ${maxRewarded}`}
+        valueText={fmt(words.progressValue, { done: rewarded, total: maxRewarded })}
       />
       <p className="text-sm/6 text-muted">
-        {joined === 0
-          ? "Nobody has joined with your link yet."
-          : `${plural(joined, "friend", "friends")} joined, ${checked} checked a resume.`}{" "}
-        {full
-          ? `That's the ${maxRewarded} friends that earn you extras. New friends still get theirs.`
-          : `Extras for up to ${maxRewarded} friends.`}
+        {joined === 0 ? words.nobody : format.plural(words.joined, joined, { checked })}{" "}
+        {full ? fmt(words.full, { max: maxRewarded }) : fmt(words.upTo, { max: maxRewarded })}
       </p>
       {extras.fix > 0 || extras.tailor > 0 ? (
         <p className="text-sm/6 text-ink">
-          {period === "trial" ? "During your trial" : "This month"}{" "}
-          you have {extras.fix} more line fixes and {extras.tailor} more tailored versions from
-          invites.
+          {fmt(period === "trial" ? words.extrasTrial : words.extrasMonth, {
+            fix: extras.fix,
+            tailor: extras.tailor,
+          })}
         </p>
       ) : null}
-      <p className="text-sm/6 text-muted">{extrasNote(plan, period)}</p>
+      <p className="text-sm/6 text-muted">{extrasNote(words, plan, period)}</p>
     </div>
   );
 }

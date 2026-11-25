@@ -10,10 +10,13 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMessages } from "@/i18n/client";
 import { useWorkProfile } from "./use-work-profile";
 import { WorkProfileForm } from "./work-profile-form";
 
 export function WorkProfileCard() {
+  const account = useMessages("account");
+  const words = account.work;
   const work = useWorkProfile();
   const titleId = useId();
   const locked = useProTools() === false;
@@ -29,12 +32,9 @@ export function WorkProfileCard() {
     >
       <CardHeader>
         <CardTitle as="h3" id={titleId}>
-          Where you can work
+          {words.title}
         </CardTitle>
-        <CardDescription>
-          Where you live, your time zone and your visa needs. Jobs flags posts that say they
-          can&apos;t hire you, and can hide them. Only you can see this.
-        </CardDescription>
+        <CardDescription>{words.intro}</CardDescription>
       </CardHeader>
       {locked ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -52,14 +52,14 @@ export function WorkProfileCard() {
       ) : work.status === "error" ? (
         <Alert
           variant="error"
-          title="Couldn't load your work profile"
+          title={words.loadFailed}
           action={
             <Button variant="secondary" onClick={work.retry}>
-              Try again
+              {account.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {account.checkConnection}
         </Alert>
       ) : (
         <WorkProfileForm

@@ -1,10 +1,6 @@
 import { ACCOUNT_SECTIONS } from "@/components/setup/links";
 
-export const ACCOUNT_TABS = [
-  { id: "plan", label: "Plan & billing" },
-  { id: "preferences", label: "Preferences" },
-  { id: "profile", label: "Profile" },
-] as const;
+export const ACCOUNT_TABS = [{ id: "plan" }, { id: "preferences" }, { id: "profile" }] as const;
 
 export type AccountTab = (typeof ACCOUNT_TABS)[number]["id"];
 

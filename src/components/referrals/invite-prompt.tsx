@@ -43,7 +43,10 @@ export function InviteOffer({ url, onDismiss }: { url: string | null; onDismiss:
 }
 
 function InvitePrompt({ url, onDismiss }: { url: string; onDismiss: () => void }) {
-  const { copied, copy } = useCopyLink(url, "Your invite link is on your account page too.");
+  const { copied, copy } = useCopyLink(url, {
+    title: "Couldn't copy the link",
+    description: "Your invite link is on your account page too.",
+  });
   return (
     <section
       aria-label="Invite a friend"

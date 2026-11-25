@@ -12,6 +12,8 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { FOLLOW_UP_DAY_CHOICES, SNOOZE_DAYS } from "@/lib/applications/follow-up";
 import type { ReminderSettings } from "@/lib/notifications/types";
 import { saveReminderSettings, useReminderSettings } from "./use-reminder-settings";
@@ -27,12 +29,13 @@ export function ReminderSettingsCard() {
 }
 
 function CalendarCard() {
+  const words = useMessages("account").reminders;
   const titleId = useId();
   return (
     <Card id="calendar" aria-labelledby={titleId} role="region" className={SECTION_SCROLL}>
       <CardHeader className="sr-only">
         <CardTitle as="h3" id={titleId}>
-          Calendar
+          {words.calendar}
         </CardTitle>
       </CardHeader>
       <CalendarFeed renewable />
@@ -41,6 +44,8 @@ function CalendarCard() {
 }
 
 function RemindersCard() {
+  const account = useMessages("account");
+  const words = account.reminders;
   const { user } = useMe();
   const userId = user?.id ?? null;
   const titleId = useId();
@@ -54,11 +59,11 @@ function RemindersCard() {
     try {
       const res = await saveReminderSettings(userId, change);
       toast({
-        title: `Reminders now come ${res.followUpDays} days after you apply.`,
+        title: fmt(words.saved, { days: res.followUpDays }),
         variant: "success",
       });
     } catch (error) {
-      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+      toast({ title: account.saveFailed, description: errorMessage(error), variant: "error" });
     }
   }
 
@@ -71,14 +76,9 @@ function RemindersCard() {
     >
       <CardHeader>
         <CardTitle as="h3" id={titleId}>
-          Follow-up reminders
+          {words.title}
         </CardTitle>
-        <CardDescription>
-          When you mark a job applied, Otto sets a reminder to follow up and shows it in the bell on
-          your dashboard, with Done and Snooze {SNOOZE_DAYS} days. The day before an interview and
-          on its morning, Otto reminds you there too, and the morning after asks how it went. New
-          matches and views of your links show there as well.
-        </CardDescription>
+        <CardDescription>{fmt(words.intro, { days: SNOOZE_DAYS })}</CardDescription>
       </CardHeader>
       {settings ? (
         <div className="flex flex-col gap-5">
@@ -90,14 +90,14 @@ function RemindersCard() {
       ) : query.isError && query.fetchStatus === "idle" ? (
         <Alert
           variant="error"
-          title="Couldn't load your reminder settings"
+          title={words.loadFailed}
           action={
             <Button variant="secondary" onClick={() => void query.refetch()}>
-              Try again
+              {account.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {account.checkConnection}
         </Alert>
       ) : (
         <Skeleton className="h-11 w-full" />
@@ -107,15 +107,16 @@ function RemindersCard() {
 }
 
 function DelayChoice({ value, onChange }: { value: number; onChange: (days: number) => void }) {
+  const words = useMessages("account").reminders;
   const id = useId();
   const choices = [...new Set<number>([...FOLLOW_UP_DAY_CHOICES, value])].sort((a, b) => a - b);
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="flex flex-col gap-0.5">
         <label htmlFor={id} className="text-sm font-medium text-ink">
-          Remind me to follow up after
+          {words.after}
         </label>
-        <span className="text-sm text-muted">Counted from the day you applied.</span>
+        <span className="text-sm text-muted">{words.counted}</span>
       </div>
       <Select
         id={id}
@@ -125,7 +126,7 @@ function DelayChoice({ value, onChange }: { value: number; onChange: (days: numb
       >
         {choices.map((days) => (
           <option key={days} value={days}>
-            {days} days
+            {fmt(words.days, { count: days })}
           </option>
         ))}
       </Select>

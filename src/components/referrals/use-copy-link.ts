@@ -5,9 +5,10 @@ import { toast } from "@/components/ui/toast";
 
 const COPIED_MS = 2_000;
 
+// The failure toast's words come from the caller, in its language.
 export function useCopyLink(
   url: string,
-  fallback: string,
+  failed: { title: string; description: string },
 ): { copied: boolean; copy: () => Promise<void> } {
   const [copied, setCopied] = useState(false);
 
@@ -22,7 +23,7 @@ export function useCopyLink(
       await navigator.clipboard.writeText(url);
       setCopied(true);
     } catch {
-      toast({ title: "Couldn't copy the link", description: fallback, variant: "error" });
+      toast({ title: failed.title, description: failed.description, variant: "error" });
     }
   }
 

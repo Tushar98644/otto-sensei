@@ -6,11 +6,13 @@ import { errorMessage } from "@/components/account/errors";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
+import { useMessages } from "@/i18n/client";
 import { downloadFile } from "./download-file";
 
 const DATA_EXPORT_PATH = "/api/account/export";
 
 export function YourDataCard() {
+  const words = useMessages("account").data;
   const [pending, setPending] = useState(false);
 
   async function download() {
@@ -19,7 +21,7 @@ export function YourDataCard() {
       await downloadFile(DATA_EXPORT_PATH, "my-data.zip");
     } catch (error) {
       toast({
-        title: "Couldn't download your data",
+        title: words.failed,
         description: errorMessage(error),
         variant: "error",
       });
@@ -33,12 +35,9 @@ export function YourDataCard() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <CardHeader>
           <CardTitle as="h2" id="your-data-title">
-            Your data
+            {words.title}
           </CardTitle>
-          <CardDescription className="max-w-prose">
-            One ZIP file with the resumes saved to your account, your letters, answers and
-            messages, and the jobs you track.
-          </CardDescription>
+          <CardDescription className="max-w-prose">{words.intro}</CardDescription>
         </CardHeader>
         <Button
           variant="secondary"
@@ -47,7 +46,7 @@ export function YourDataCard() {
           className="w-full shrink-0 sm:w-auto"
         >
           <Download />
-          Download my data
+          {words.download}
         </Button>
       </div>
     </Card>

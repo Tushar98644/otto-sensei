@@ -7,30 +7,24 @@ import { SettingsGroup } from "@/components/settings/settings-group";
 import { WritingStyleCard } from "@/components/settings/writing-style-card";
 import { LookingForSettingsCard } from "@/components/setup/looking-for-settings-card";
 import { ACCOUNT_SECTIONS } from "@/components/setup/links";
+import { useMessages } from "@/i18n/client";
 
 export function PreferencesTab() {
+  const words = useMessages("account").preferences;
   return (
     <div className="flex flex-col gap-10">
       <SettingsGroup
         id={ACCOUNT_SECTIONS.writingStyle}
-        title="Writing style"
-        description="Tone, length, spelling and sign-off for everything Otto writes for you."
+        title={words.writingStyle}
+        description={words.writingStyleIntro}
       >
         <WritingStyleCard />
       </SettingsGroup>
-      <SettingsGroup
-        id="job-search"
-        title="Job search"
-        description="Where you can work and what you're looking for, so Jobs shows the right posts first."
-      >
+      <SettingsGroup id="job-search" title={words.jobSearch} description={words.jobSearchIntro}>
         <WorkProfileCard />
         <LookingForSettingsCard />
       </SettingsGroup>
-      <SettingsGroup
-        id="notifications"
-        title="Reminders"
-        description="Reminders to follow up on the jobs you apply to, in the bell, your interviews in your calendar, and your monthly career log."
-      >
+      <SettingsGroup id="notifications" title={words.reminders} description={words.remindersIntro}>
         <ReminderSettingsCard />
         <CareerLogSettingsCard />
       </SettingsGroup>

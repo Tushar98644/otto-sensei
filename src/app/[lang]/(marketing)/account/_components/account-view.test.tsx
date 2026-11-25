@@ -1,8 +1,13 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderBare } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { Me } from "@/components/account/use-me";
 import type { SessionUser } from "@/lib/auth/types";
 import { AccountView } from "./account-view";
+import { inEnglish } from "@/components/dashboard/messages-testing";
+
+// The English messages these components read, as the page would pass them.
+const renderToStaticMarkup = (node: ReactNode) => renderBare(inEnglish(node));
 
 const mocks = vi.hoisted(() => ({
   me: null as Me | null,
