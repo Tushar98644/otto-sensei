@@ -4,13 +4,19 @@ import {
   isPaidPlan,
   isTrialing,
   PLANS,
+  PRO_TRIAL,
   resumeLimit,
   type BillingInterval,
   type PaidPlanId,
 } from "@/config/plans";
-import { planPrice, trialPrice, trialSentence, yearlySavingsPercent } from "@/lib/billing/prices";
+import { planPriceIn, trialPriceIn } from "@/components/account/local-prices";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import type { Messages } from "@/i18n/messages";
+import { yearlySavingsPercent } from "@/lib/billing/prices";
 import { DAY_MS } from "@/lib/time";
-import { trialEndDay } from "@/lib/usage-copy";
+
+export type PlanWords = Messages["account"]["plan"];
 
 export type PlanView =
   | { kind: "free"; trialOffered: boolean }
@@ -59,82 +65,120 @@ export function planName(view: PlanView): string {
   return view.kind === "trial" || view.kind === "paid" ? PLANS[view.plan].name : PLANS.free.name;
 }
 
-function daysLeft(endsAt: number, now: number): string {
+const SHORT_DAY = { month: "short", day: "numeric" } as const;
+
+// "Nov 23", as lib/usage-copy's trialEndDay writes it in English.
+export function shortDay(format: Format, at: number): string {
+  return format.date(at, SHORT_DAY);
+}
+
+function daysLeft(words: PlanWords, format: Format, endsAt: number, now: number): string {
   const days = Math.max(0, Math.ceil((endsAt - now) / DAY_MS));
-  if (days === 0) return "ends today";
-  return days === 1 ? "1 day left" : `${days} days left`;
+  if (days === 0) return words.endsToday;
+  return format.plural(words.daysLeft, days);
 }
 
 // `now` is 0 until the browser's clock is read, and then the pill says only "Trial".
-export function planPill(view: PlanView, now: number): Pill {
+export function planPill(words: PlanWords, format: Format, view: PlanView, now: number): Pill {
+  const pills = words.pills;
   switch (view.kind) {
     case "free":
-      return { label: "Current plan", tone: "neutral" };
+      return { label: pills.current, tone: "neutral" };
     case "held":
-      return { label: "Payment failed", tone: "fail" };
+      return { label: pills.failed, tone: "fail" };
     case "trial":
-      if (view.ending) return { label: `Ends ${trialEndDay(view.endsAt)}`, tone: "warn" };
-      return { label: now > 0 ? `Trial · ${daysLeft(view.endsAt, now)}` : "Trial", tone: "live" };
-    case "paid":
-      if (!view.ending) return { label: "Active", tone: "pass" };
+      if (view.ending) {
+        return { label: fmt(pills.ends, { day: shortDay(format, view.endsAt) }), tone: "warn" };
+      }
       return {
-        label: view.endsAt ? `Ends ${trialEndDay(view.endsAt)}` : "Set to end",
+        label:
+          now > 0
+            ? fmt(pills.trialLeft, { left: daysLeft(words, format, view.endsAt, now) })
+            : pills.trial,
+        tone: "live",
+      };
+    case "paid":
+      if (!view.ending) return { label: pills.active, tone: "pass" };
+      return {
+        label: view.endsAt
+          ? fmt(pills.ends, { day: shortDay(format, view.endsAt) })
+          : pills.setToEnd,
         tone: "warn",
       };
   }
 }
 
-export function priceParts(view: PlanView): PriceParts | null {
+export function priceParts(words: PlanWords, format: Format, view: PlanView): PriceParts | null {
   switch (view.kind) {
     case "free":
     case "held":
       return null;
     case "trial":
       return view.ending
-        ? { amount: trialPrice(), per: null, note: "Nothing more to pay" }
+        ? { amount: trialPriceIn(format), per: null, note: words.nothingMore }
         : {
-            amount: planPrice(view.plan, view.interval),
-            per: `/${view.interval}`,
-            note: `from ${trialEndDay(view.endsAt)}`,
+            amount: planPriceIn(format, view.plan, view.interval),
+            per: words.per[view.interval],
+            note: fmt(words.from, { day: shortDay(format, view.endsAt) }),
           };
     case "paid": {
       const day = view.ending ? view.endsAt : view.renewsAt;
-      const note = day ? `${view.ending ? "until" : "renews"} ${trialEndDay(day)}` : null;
-      return { amount: planPrice(view.plan, view.interval), per: `/${view.interval}`, note };
+      const note = day
+        ? fmt(view.ending ? words.until : words.renews, { day: shortDay(format, day) })
+        : null;
+      return {
+        amount: planPriceIn(format, view.plan, view.interval),
+        per: words.per[view.interval],
+        note,
+      };
     }
   }
 }
 
-export const HELD_TITLE = "Your last payment didn't go through";
-export const HELD_DETAIL = "You're on Free for now. Update your card to get your plan back.";
+export function trialSentenceIn(words: PlanWords, format: Format): string {
+  return fmt(words.trialSentence[PRO_TRIAL.interval], {
+    price: trialPriceIn(format),
+    days: PRO_TRIAL.days,
+    plan: planPriceIn(format, PRO_TRIAL.plan, PRO_TRIAL.interval),
+  });
+}
 
-export function nextStep(view: PlanView): string {
+export function nextStep(words: PlanWords, format: Format, view: PlanView): string {
   switch (view.kind) {
     case "free": {
       const free = applicationLimit("free");
-      const tracked = free === 1 ? "one tracked application" : `${free} tracked applications`;
-      const base = `Free has ${PLANS.free.limits.fix} line fixes a month, plus the recruiter view, editing, PDF downloads, a few job matches and ${tracked}.`;
-      return view.trialOffered ? `${base} Try ${PLANS.pro.name}: ${trialSentence()}` : base;
+      const base = fmt(words.free, {
+        fixes: PLANS.free.limits.fix,
+        tracked: format.plural(words.tracked, free),
+      });
+      return view.trialOffered
+        ? fmt(words.tryPro, { base, pro: PLANS.pro.name, trial: trialSentenceIn(words, format) })
+        : base;
     }
     case "held":
-      return `${HELD_TITLE}. ${HELD_DETAIL}`;
+      return fmt(words.held, { title: words.heldTitle, detail: words.heldDetail });
     case "trial": {
-      const day = trialEndDay(view.endsAt);
+      const day = shortDay(format, view.endsAt);
       const name = PLANS[view.plan].name;
       return view.ending
-        ? `Your trial ends on ${day} and ${name} won't start, so you won't pay anything more.`
-        : `You paid ${trialPrice()} for the trial. On ${day} ${name} starts at ${planPrice(view.plan, view.interval)} a ${view.interval}. We remind you the day before.`;
+        ? fmt(words.trialEnding, { day, name })
+        : fmt(words.trialStarts[view.interval], {
+            trial: trialPriceIn(format),
+            day,
+            name,
+            price: planPriceIn(format, view.plan, view.interval),
+          });
     }
     case "paid": {
       if (view.ending) {
         return view.endsAt
-          ? `Your plan ends on ${trialEndDay(view.endsAt)}, and your account moves to Free then. You won't be charged again.`
-          : "Your plan is set to end, and your account moves to Free then. You won't be charged again.";
+          ? fmt(words.endsOn, { day: shortDay(format, view.endsAt) })
+          : words.setToEnd;
       }
-      const price = `${planPrice(view.plan, view.interval)} a ${view.interval}`;
+      const price = planPriceIn(format, view.plan, view.interval);
       return view.renewsAt
-        ? `Your plan renews on ${trialEndDay(view.renewsAt)} at ${price}. Cancel anytime before then.`
-        : `Your plan renews each ${view.interval} at ${price}. Cancel anytime.`;
+        ? fmt(words.renewsOn[view.interval], { day: shortDay(format, view.renewsAt), price })
+        : fmt(words.renewsEach[view.interval], { price });
     }
   }
 }
@@ -142,15 +186,28 @@ export function nextStep(view: PlanView): string {
 export type YearlyOffer = { line: string; how: string };
 
 // The app never moves a plan between monthly and yearly mid-period, so this says how instead of offering a charge.
-export function yearlyOffer(view: PlanView, offer: Me["billing"]["offer"]): YearlyOffer | null {
+export function yearlyOffer(
+  words: PlanWords,
+  format: Format,
+  view: PlanView,
+  offer: Me["billing"]["offer"],
+): YearlyOffer | null {
   if (view.kind !== "trial" && view.kind !== "paid") return null;
   if (view.ending || view.interval !== "month" || !offer[view.plan].includes("year")) return null;
   const savings = yearlySavingsPercent(view.plan);
   const until = view.kind === "trial" ? view.endsAt : view.renewsAt;
-  const what = view.kind === "trial" ? "your trial" : "monthly";
+  const price = planPriceIn(format, view.plan, "year");
+  const how =
+    view.kind === "trial"
+      ? until
+        ? fmt(words.how.trialBefore, { day: shortDay(format, until) })
+        : words.how.trial
+      : until
+        ? fmt(words.how.paidBefore, { day: shortDay(format, until) })
+        : words.how.paid;
   return {
-    line: `Pay yearly instead: ${planPrice(view.plan, "year")} a year${savings > 0 ? `, ${savings}% less than monthly` : ""}.`,
-    how: `A plan can't move between monthly and yearly partway through. Cancel ${what}${until ? ` before ${trialEndDay(until)}` : ""}, then pick yearly on the pricing page once it ends.`,
+    line: savings > 0 ? fmt(words.yearlySaves, { price, savings }) : fmt(words.yearly, { price }),
+    how,
   };
 }
 
@@ -164,8 +221,12 @@ export function maxMultiple(): number {
   );
 }
 
-export function maxLine(): string {
+export function maxLine(words: PlanWords, format: Format): string {
   const multiple = maxMultiple();
-  const claim = multiple >= 3 ? "at least triple" : multiple >= 2 ? "at least double" : "more than";
-  return `Need more? ${PLANS.max.name} has ${claim} every ${PLANS.pro.name} limit, for ${planPrice("max", "month")} a month.`;
+  const claim = multiple >= 3 ? "triple" : multiple >= 2 ? "double" : "more";
+  return fmt(words.max[claim], {
+    max: PLANS.max.name,
+    pro: PLANS.pro.name,
+    price: planPriceIn(format, "max", "month"),
+  });
 }

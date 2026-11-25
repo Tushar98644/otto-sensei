@@ -9,11 +9,12 @@ import { ResumeWeb } from "@/components/share/resume-web";
 import { SharePageFrame } from "@/components/share/share-page-frame";
 import { ShareUnavailable } from "@/components/share/share-unavailable";
 import { BRAND } from "@/config/brand";
+import { fmt } from "@/i18n/format";
+import { getFormat, getMessages } from "@/i18n/server";
 import { trackShareViewed } from "@/lib/analytics/retention";
 import { currentUserIdHint, getCurrentUser } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { noteShareView } from "@/lib/notifications/view-alerts";
-import { waitText } from "@/lib/rate-limit";
 import { ownerHomeLink } from "@/lib/referrals/records";
 import { ipFromHeaders, openSharePage } from "@/lib/share/page";
 import { readerKey, recordView } from "@/lib/share/records";
@@ -37,11 +38,12 @@ const loadPage = cache(async (slug: string) => openSharePage(slug, ipFromHeaders
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const page = await loadPage(slug);
-  if (page.status !== "ok") return { title: { absolute: "Shared resume" }, robots: NO_INDEX };
+  const { meta } = await getMessages("share");
+  if (page.status !== "ok") return { title: { absolute: meta.shared }, robots: NO_INDEX };
   const { resume, allowIndexing } = page.share;
   const name = resume.basics.name.trim();
-  const title = name ? `${name} - Resume` : "Resume";
-  const description = resume.basics.headline.trim() || `A resume shared from ${BRAND.name}.`;
+  const title = name ? fmt(meta.title, { name }) : meta.untitled;
+  const description = resume.basics.headline.trim() || fmt(meta.description, { brand: BRAND.name });
   return {
     title: { absolute: title },
     description,
@@ -70,19 +72,14 @@ async function ownerIsSignedIn(ownerId: string): Promise<boolean> {
   }
 }
 
-const UPDATED = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
+const UPDATED = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
 
 export default async function SharedResumePage({ params }: Props) {
   const { slug } = await params;
   const page = await loadPage(slug);
   if (page.status === "missing") notFound();
   if (page.status === "rate_limited") {
-    return <ShareUnavailable reason="busy" wait={waitText(page.retryAfterMs)} />;
+    return <ShareUnavailable reason="busy" retryAfterMs={page.retryAfterMs} />;
   }
   const { share } = page;
   const homeLink = ownerHomeLink(share.ownerId);
@@ -105,13 +102,15 @@ export default async function SharedResumePage({ params }: Props) {
     );
   }
   const ownerBar = owner && (await ownerIsSignedIn(share.ownerId));
+  const words = await getMessages("share");
+  const format = await getFormat();
 
   return (
-    <SharePageFrame homeHref={await homeLink}>
+    <SharePageFrame homeHref={await homeLink} madeWith={words.madeWith}>
       {ownerBar ? <ShareOwnerBarSlot ownerId={share.ownerId} slug={slug} /> : null}
       <div className="flex items-center justify-between gap-4">
         <p className="min-w-0 truncate text-sm/5 text-subtle">
-          Resume · Updated {UPDATED.format(share.resume.updatedAt)}
+          {fmt(words.updated, { date: format.date(share.resume.updatedAt, UPDATED) })}
         </p>
         <DownloadPdfButton resume={share.resume} />
       </div>

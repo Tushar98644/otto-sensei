@@ -9,16 +9,19 @@ type Provided = { locale: Locale; messages: Partial<Messages> };
 
 const MessagesContext = createContext<Provided | null>(null);
 
-// Rendered by MessagesFor (./server), which passes only the namespaces it names; a nested one adds its namespaces to the outer ones.
+// Rendered by MessagesFor (./server), which passes only the namespaces it names; a nested one adds to its parent's.
 export function MessagesProvider({
   locale,
   messages,
   children,
 }: Provided & { children: ReactNode }) {
-  const outer = use(MessagesContext)?.messages;
+  const parent = use(MessagesContext);
   const value = useMemo(
-    () => ({ locale, messages: outer ? { ...outer, ...messages } : messages }),
-    [locale, messages, outer],
+    () => ({
+      locale,
+      messages: parent && parent.locale === locale ? { ...parent.messages, ...messages } : messages,
+    }),
+    [locale, messages, parent],
   );
   return <MessagesContext value={value}>{children}</MessagesContext>;
 }

@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api, isApiError } from "@/lib/api/client";
 import type { GitHubStats, PortfolioContent, PortfolioContentView } from "@/lib/portfolio/content";
 import {
@@ -21,9 +23,14 @@ import { cn } from "@/lib/utils";
 import { EditorSection } from "../check-row";
 import { putPortfolio } from "../portfolio-store";
 import { CareerCard } from "./career-card";
-import { flushContent, resetContentStore, useContentStore } from "./content-store";
+import {
+  flushContent,
+  resetContentStore,
+  useContentSaveWords,
+  useContentStore,
+} from "./content-store";
 import { GitHubCard } from "./github-card";
-import { CONTENT_LINES, hiddenOnPage, missingList } from "./lines";
+import { hiddenOnPage, missingList } from "./lines";
 import { MilestonesCard } from "./milestones-card";
 import { NowCard } from "./now-card";
 import { PersonalCard } from "./personal-card";
@@ -54,6 +61,11 @@ export function ContentEditor({
   resume = null,
   onResumeChange,
 }: ContentEditorProps) {
+  const words = useMessages("portfolioContent");
+  const { sections } = useMessages("portfolio");
+  useContentSaveWords(words);
+  const hiddenNote = (wanted: readonly PortfolioSection[]) =>
+    hiddenOnPage(words, sections, pageHidden, wanted);
   useEffect(() => {
     const leave = () => void flushContent({ keepalive: true });
     window.addEventListener("pagehide", leave);
@@ -75,15 +87,15 @@ export function ContentEditor({
         content={content}
         auto={auto}
         view={view}
-        linksHidden={hiddenOnPage(pageHidden, ["links"])}
+        linksHidden={hiddenNote(["links"])}
         showEmail={showEmail}
       />
-      <AboutCard content={content} auto={auto} hidden={hiddenOnPage(pageHidden, ["about"])} />
+      <AboutCard content={content} auto={auto} hidden={hiddenNote(["about"])} />
       <ProjectsCard
         content={content}
         auto={auto}
         github={github}
-        hidden={hiddenOnPage(pageHidden, ["projects"])}
+        hidden={hiddenNote(["projects"])}
         resume={resume}
         onResumeChange={onResumeChange}
       />
@@ -91,7 +103,7 @@ export function ContentEditor({
         content={content}
         auto={auto}
         view={view}
-        hidden={hiddenOnPage(pageHidden, ["experience", "education", "skills"])}
+        hidden={hiddenNote(["experience", "education", "skills"])}
       />
       <NowCard content={content} auto={auto} />
       <MilestonesCard content={content} auto={auto} />
@@ -111,33 +123,36 @@ function CompletenessCard({
   view: PortfolioContentView;
   hidden: ReadonlySet<ContentField>;
 }) {
+  const words = useMessages("portfolioContent");
+  const list = words.checklist;
+  const format = useFormat();
   const status = useContentStore((state) => state.status);
   const uses = contentUsesFor(template);
-  const items = contentChecklist(view, uses, hidden);
-  const missing = missingList(items);
-  const name = PORTFOLIO_TEMPLATE_INFO[template]?.name ?? "This design";
+  const items = contentChecklist(view, uses, list, format, hidden);
+  const missing = missingList(words, format, items);
+  const name = PORTFOLIO_TEMPLATE_INFO[template]?.name ?? list.thisDesign;
   const message =
     status === "loading"
-      ? CONTENT_LINES.loading
+      ? list.loading
       : uses.length === 0
-        ? CONTENT_LINES.resumeOnly
+        ? list.resumeOnly
         : missing
-          ? CONTENT_LINES.missing(missing)
-          : CONTENT_LINES.complete;
+          ? fmt(list.missing, { missing })
+          : list.complete;
   const done = items.filter((item) => item.done).length;
 
   return (
-    <EditorSection title="Your page's content">
+    <EditorSection title={list.title}>
       <OttoNote
         size="sm"
         message={message}
         live
-        meta={uses.length > 0 ? `${name} · ${done} of ${items.length} filled in` : name}
+        meta={uses.length > 0 ? fmt(list.meta, { name, done, total: items.length }) : name}
       />
       {uses.length > 0 ? (
         <>
           <ul
-            aria-label={`What ${name} uses`}
+            aria-label={fmt(list.uses, { name })}
             className="divide-y divide-border border-y border-border"
           >
             {items.map((item) => (
@@ -157,7 +172,7 @@ function CompletenessCard({
                 >
                   {item.label}
                   <span className="sr-only">
-                    {item.hidden ? ": hidden on your page" : item.done ? ": done" : ": to do"}
+                    {item.hidden ? list.hidden : item.done ? list.done : list.todo}
                   </span>
                 </span>
                 <span className="ml-auto truncate text-xs/5 text-subtle">{item.note}</span>
@@ -171,6 +186,7 @@ function CompletenessCard({
 }
 
 export function DeletePortfolio() {
+  const words = useMessages("portfolio").delete;
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -180,14 +196,10 @@ export function DeletePortfolio() {
       await api.deletePortfolio();
       resetContentStore();
       putPortfolio(null);
-      toast({
-        title: "Your page is deleted",
-        description: "Its address and content are gone. Your resume is untouched.",
-        variant: "success",
-      });
+      toast({ title: words.done, description: words.doneDetail, variant: "success" });
     } catch (error) {
       toast({
-        title: "Couldn't delete your page",
+        title: words.failed,
         description: isApiError(error) ? error.message : undefined,
         variant: "error",
       });
@@ -199,15 +211,12 @@ export function DeletePortfolio() {
     <div className="flex flex-wrap items-center gap-2">
       {asking ? (
         <>
-          <p className="w-full text-sm/6 text-muted">
-            This deletes the page, its address and everything you added for it. It can&apos;t be
-            undone.
-          </p>
+          <p className="w-full text-sm/6 text-muted">{words.confirm}</p>
           <Button size="sm" variant="danger" loading={busy} onClick={() => void remove()}>
-            Delete page
+            {words.delete}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setAsking(false)}>
-            Keep it
+            {words.keep}
           </Button>
         </>
       ) : (
@@ -217,7 +226,7 @@ export function DeletePortfolio() {
           className="-ml-3 text-fail"
           onClick={() => setAsking(true)}
         >
-          Delete this page
+          {words.start}
         </Button>
       )}
     </div>

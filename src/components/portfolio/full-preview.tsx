@@ -12,6 +12,8 @@ import {
   type SyntheticEvent,
 } from "react";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { jordanPage } from "@/lib/portfolio/fixtures/jordan";
 import { PORTFOLIO_TEMPLATE_INFO, templateOrder } from "@/lib/portfolio/templates";
 import { PORTFOLIO_TEMPLATE_IDS, type PortfolioTemplateId } from "@/lib/portfolio/types";
@@ -28,7 +30,7 @@ export function FullPortfolioPreview({
   id,
   own,
   action,
-  note = "Preview only: not live yet.",
+  note,
   resumeHref = null,
   onChange,
   onClose,
@@ -41,12 +43,14 @@ export function FullPortfolioPreview({
   onChange: (id: PortfolioTemplateId) => void;
   onClose: () => void;
 }) {
+  const words = useMessages("portfolio");
+  const full = words.full;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [width, setWidth] = useState<Width>("desktop");
   const choice = usePreviewSource(own);
   const data = useMemo(() => choice.sample ?? jordanPage(), [choice.sample]);
-  const { name, description, colors } = PORTFOLIO_TEMPLATE_INFO[id];
+  const { name, colors } = PORTFOLIO_TEMPLATE_INFO[id];
   const order = templateOrder(PORTFOLIO_TEMPLATE_IDS);
   const at = order.indexOf(id);
   const count = order.length;
@@ -96,10 +100,10 @@ export function FullPortfolioPreview({
       <div className="flex h-full flex-col">
         <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-3 sm:gap-3 sm:px-6">
           <div className="flex items-center">
-            <Button variant="ghost" size="sm" onClick={() => step(-1)} aria-label="Previous design">
+            <Button variant="ghost" size="sm" onClick={() => step(-1)} aria-label={full.previous}>
               <ChevronLeft aria-hidden />
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => step(1)} aria-label="Next design">
+            <Button variant="ghost" size="sm" onClick={() => step(1)} aria-label={full.next}>
               <ChevronRight aria-hidden />
             </Button>
           </div>
@@ -108,16 +112,16 @@ export function FullPortfolioPreview({
               {name}
               <span className="font-normal text-subtle">
                 {" "}
-                · {at + 1} of {count}
+                · {fmt(full.position, { at: at + 1, count })}
               </span>
             </p>
             <p className="hidden truncate text-xs/4 text-subtle sm:block">
-              {description} {note}
+              {words.templates[id]} {note ?? full.previewOnly}
             </p>
           </div>
           <div
             role="group"
-            aria-label="Page width"
+            aria-label={full.width}
             className="hidden items-center rounded-full bg-surface-muted p-1 md:flex"
           >
             {(["desktop", "phone"] as const).map((option) => {
@@ -134,7 +138,7 @@ export function FullPortfolioPreview({
                   )}
                 >
                   <Icon className="size-4" aria-hidden />
-                  {option === "desktop" ? "Desktop" : "Phone"}
+                  {words.preview[option]}
                 </button>
               );
             })}
@@ -144,7 +148,7 @@ export function FullPortfolioPreview({
               {action.label}
             </Button>
           ) : null}
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close preview">
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label={full.close}>
             <X aria-hidden />
           </Button>
         </header>

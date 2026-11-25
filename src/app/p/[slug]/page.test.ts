@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { createPortfolio, findPublicPortfolio, updatePortfolio } from "@/lib/portfolio/records";
 import { sampleResume } from "@/lib/portfolio/testing";
+import PortfolioRootLayout, { generateMetadata as layoutMetadata } from "./layout";
 import PublicPortfolioPage, { generateMetadata, generateViewport } from "./page";
 
 const render = vi.hoisted(() => ({ caches: [] as Map<string, unknown>[] }));
@@ -53,5 +54,38 @@ describe("/p/[slug]", () => {
     expect(metadata.title).toEqual({ absolute: "Maya Chen - Portfolio" });
     expect(page).toBeTruthy();
     expect(findPublicPortfolio).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Otto's words on a public portfolio", () => {
+  async function publish(resume: ReturnType<typeof sampleResume>) {
+    const user = await setPlan(await createUser("maya@example.com"), "pro");
+    await createPortfolio(user.id, { resume });
+    await updatePortfolio(user.id, { published: true }, { plan: "pro" });
+    return { params: Promise.resolve({ slug: "maya-chen" }) };
+  }
+
+  it("follow the owner's resume language, never the visitor's", async () => {
+    const props = await publish({ ...sampleResume(), lang: "es" });
+    const metadata = await generateMetadata(props);
+    expect(metadata.title).toEqual({ absolute: "Maya Chen - Portafolio" });
+    const root = await PortfolioRootLayout({ ...props, children: null });
+    expect(root.props).toMatchObject({ lang: "es" });
+    expect((await layoutMetadata(props)).openGraph).toMatchObject({ locale: "es_LA" });
+  });
+
+  it("stay English when the resume has no language set", async () => {
+    const props = await publish(sampleResume());
+    expect((await generateMetadata(props)).title).toEqual({ absolute: "Maya Chen - Portfolio" });
+    const root = await PortfolioRootLayout({ ...props, children: null });
+    expect(root.props).toMatchObject({ lang: "en", skipLabel: "Skip to content" });
+  });
+
+  it("stay English on a page that doesn't exist", async () => {
+    const props = { params: Promise.resolve({ slug: "nobody-here" }) };
+    expect((await generateMetadata(props)).title).toEqual({ absolute: "Portfolio" });
+    expect((await PortfolioRootLayout({ ...props, children: null })).props).toMatchObject({
+      lang: "en",
+    });
   });
 });

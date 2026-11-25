@@ -7,6 +7,7 @@ import type { Me } from "@/components/account/use-me";
 import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
 import { nextPlan } from "@/config/plans";
+import { useFormat, useMessages } from "@/i18n/client";
 import type { SessionUser } from "@/lib/auth/types";
 import { BillingHistoryCard } from "./billing-history";
 import { CreditCard } from "./credit-card";
@@ -17,6 +18,8 @@ import { useBillingHistory } from "./use-billing-history";
 import { UsageMeters } from "./usage-meters";
 
 export function PlanTab({ me, user }: { me: Me; user: SessionUser }) {
+  const words = useMessages("account").plan;
+  const format = useFormat();
   const [changing, setChanging] = useState(false);
   const history = useBillingHistory(me);
   const view = planView(me);
@@ -47,12 +50,15 @@ export function PlanTab({ me, user }: { me: Me; user: SessionUser }) {
       ) : null}
       {user.plan === "pro" && !ending ? (
         <div className="flex flex-col gap-1 rounded-2xl bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
-          <p className="text-sm/6 text-muted">{maxLine()}</p>
+          <p className="text-sm/6 text-muted">{maxLine(words, format)}</p>
           <Link
             href={ROUTES.pricing}
-            className={buttonClasses({ variant: "link", className: "self-start text-sm sm:self-auto" })}
+            className={buttonClasses({
+              variant: "link",
+              className: "self-start text-sm sm:self-auto",
+            })}
           >
-            Compare plans
+            {words.compare}
           </Link>
         </div>
       ) : null}

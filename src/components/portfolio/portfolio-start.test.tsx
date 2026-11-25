@@ -1,8 +1,13 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderBare } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { jordanV2Resume } from "@/lib/portfolio/fixtures/jordan";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
+import { inEnglish } from "@/components/dashboard/messages-testing";
+
+// The English messages these components read, as the page would pass them.
+const renderToStaticMarkup = (node: ReactNode) => renderBare(inEnglish(node));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard/portfolio",

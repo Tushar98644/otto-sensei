@@ -2,6 +2,7 @@
 
 import { ChevronDown, EyeOff } from "lucide-react";
 import type { ReactNode } from "react";
+import { useMessages } from "@/i18n/client";
 import type { ContentSection, PortfolioContent } from "@/lib/portfolio/content";
 import { CheckRow } from "../check-row";
 import { editContent } from "./content-store";
@@ -55,13 +56,14 @@ export function ShowRow({
   section: ContentSection;
   label: string;
 }) {
+  const words = useMessages("portfolioContent").fields;
   const hidden = content.hidden.includes(section);
   return (
     <div className="border-y border-border">
       <CheckRow
         checked={!hidden}
         label={label}
-        hint={hidden ? "Hidden. What's here is kept." : undefined}
+        hint={hidden ? words.hiddenKept : undefined}
         onChange={(show) =>
           editContent((current) => ({
             ...current,

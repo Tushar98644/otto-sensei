@@ -5,6 +5,8 @@ import { resumeLabel, tailoredLabel } from "@/components/studio/resume-label";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import type { Portfolio } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
 import { AddressCard } from "./address-card";
@@ -22,23 +24,26 @@ type SettingsCardProps = {
 };
 
 export function SettingsCard({ portfolio, resumes, source, behind, disabled }: SettingsCardProps) {
+  const words = useMessages("portfolio");
+  const format = useFormat();
+  const set = words.settings;
   const selectId = useId();
   return (
     <div className="flex flex-col gap-10">
       <AddressCard portfolio={portfolio} />
-      <EditorSection title="Made from">
+      <EditorSection title={set.madeFrom}>
         <div className="flex flex-col gap-2">
-          <Label htmlFor={selectId}>Resume</Label>
+          <Label htmlFor={selectId}>{set.resume}</Label>
           <Select
             id={selectId}
             value={source ? source.id : ""}
             disabled={disabled}
             onChange={(event) => {
               const next = resumes.find((resume) => resume.id === event.currentTarget.value);
-              if (next) void savePortfolio({ resume: next });
+              if (next) void savePortfolio({ resume: next }, words.store);
             }}
           >
-            {source ? null : <option value="">A resume that isn&apos;t in this browser</option>}
+            {source ? null : <option value="">{set.notHere}</option>}
             {resumes.map((resume) => (
               <option key={resume.id} value={resume.id}>
                 {[resumeLabel(resume), tailoredLabel(resume)].filter(Boolean).join(" · ")}
@@ -47,13 +52,13 @@ export function SettingsCard({ portfolio, resumes, source, behind, disabled }: S
           </Select>
         </div>
         <fieldset disabled={disabled} className="min-w-0">
-          <legend className="sr-only">Keeping the page up to date</legend>
+          <legend className="sr-only">{set.upToDate}</legend>
           <div className="border-y border-border">
             <CheckRow
               checked={portfolio.sync}
-              onChange={(checked) => void savePortfolio({ sync: checked })}
-              label="Keep in sync with my resume"
-              hint="On: edits to the resume show on the page by themselves."
+              onChange={(checked) => void savePortfolio({ sync: checked }, words.store)}
+              label={set.sync}
+              hint={set.syncHint}
             />
           </div>
         </fieldset>
@@ -63,28 +68,28 @@ export function SettingsCard({ portfolio, resumes, source, behind, disabled }: S
             size="sm"
             className="self-start"
             disabled={disabled}
-            onClick={() => void savePortfolio({ resume: source })}
+            onClick={() => void savePortfolio({ resume: source }, words.store)}
           >
-            Update the page to my latest resume
+            {set.update}
           </Button>
         ) : null}
       </EditorSection>
-      <EditorSection title="Search engines">
+      <EditorSection title={set.search}>
         <fieldset disabled={disabled} className="min-w-0">
-          <legend className="sr-only">Search engines</legend>
+          <legend className="sr-only">{set.search}</legend>
           <div className="border-y border-border">
             <CheckRow
               checked={portfolio.allowIndexing}
-              onChange={(checked) => void savePortfolio({ allowIndexing: checked })}
-              label="Let search engines find it"
-              hint="Off: Google and others are asked to keep it out of search results."
+              onChange={(checked) => void savePortfolio({ allowIndexing: checked }, words.store)}
+              label={set.indexing}
+              hint={set.indexingHint}
             />
           </div>
         </fieldset>
       </EditorSection>
       <EditorSection
-        title="Views"
-        description={`${viewsLabel(portfolio.views)}. Counts leave out you, link previews and search engines.`}
+        title={set.views}
+        description={fmt(set.viewsNote, { views: viewsLabel(words, format, portfolio.views) })}
       />
       <div className="border-t border-border pt-6">
         <DeletePortfolio />

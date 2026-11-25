@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { maxLine } from "@/app/[lang]/(marketing)/account/_components/plan-copy";
+import { maxLine as maxLineIn } from "@/app/[lang]/(marketing)/account/_components/plan-copy";
 import { trialUpgradeNotice } from "@/components/account/trial-upgrade";
 import { PLANS, type BillingInterval, type PaidPlanId, type PlanId } from "@/config/plans";
 import type { MeResponse, UrlResponse } from "@/lib/api/types";
@@ -13,7 +13,11 @@ import {
   yearlySavingsPercent,
 } from "@/lib/billing/prices";
 import { trialEndDay } from "@/lib/usage-copy";
+import { formatFor } from "@/i18n/intl";
+import en from "@/i18n/messages/en";
 import { expect, test } from "./fixtures";
+
+const maxLine = () => maxLineIn(en.account.plan, formatFor("en"));
 import { signIn, subscribe, uniqueEmail } from "./helpers";
 
 // Trial end dates are shown in the browser's time zone, so both sides use UTC.

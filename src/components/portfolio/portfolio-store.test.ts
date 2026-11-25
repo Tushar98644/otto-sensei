@@ -25,8 +25,17 @@ vi.mock("@/components/ui/toast", () => ({ toast, dismissToast: vi.fn() }));
 const { QueryObserver } = await import("@tanstack/react-query");
 const { ApiClientError } = await import("@/lib/api/client");
 const { getQueryClient } = await import("@/lib/queries/client");
-const { makePortfolio, savePortfolio, setPublished, usePortfolioStore } =
-  await import("./portfolio-store");
+const store = await import("./portfolio-store");
+const { usePortfolioStore } = store;
+const { default: en } = await import("@/i18n/messages/en");
+const WORDS = en.portfolio.store;
+const savePortfolio = (patch: Parameters<typeof store.savePortfolio>[0]) =>
+  store.savePortfolio(patch, WORDS);
+const setPublished = (published: boolean) => store.setPublished(published, WORDS);
+const makePortfolio = (
+  resume: Parameters<typeof store.makePortfolio>[0],
+  template?: Portfolio["template"],
+) => store.makePortfolio(resume, WORDS, template);
 
 const KEY = queryKeys.portfolio("ada");
 

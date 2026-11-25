@@ -12,6 +12,9 @@ import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { PORTFOLIO, queryKeys } from "@/lib/queries/keys";
 import { portfolioQuery } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
+import type { PortfolioMessages } from "./i18n";
+
+export type StoreWords = PortfolioMessages["store"];
 
 export const usePortfolioStore = create<{ saving: boolean }>()(() => ({ saving: false }));
 
@@ -52,13 +55,14 @@ export function putPortfolio(portfolio: Portfolio | null): void {
   getQueryClient().setQueriesData<Portfolio | null>({ queryKey: PORTFOLIO }, () => portfolio);
 }
 
-export function messageOf(error: unknown): string {
+export function messageOf(error: unknown, fallback: string): string {
   if (isApiError(error) || error instanceof Error) return error.message;
-  return "Something went wrong. Please try again.";
+  return fallback;
 }
 
 export async function makePortfolio(
   resume: Resume,
+  words: StoreWords,
   template?: PortfolioTemplateId,
 ): Promise<Portfolio | null> {
   usePortfolioStore.setState({ saving: true });
@@ -68,8 +72,8 @@ export async function makePortfolio(
     return portfolio;
   } catch (error) {
     toast({
-      title: "Couldn't make your portfolio",
-      description: messageOf(error),
+      title: words.makeFailed,
+      description: messageOf(error, words.failed),
       variant: "error",
     });
     return null;
@@ -93,14 +97,13 @@ function withSettings(portfolio: Portfolio, patch: UpdatePortfolioBody): Portfol
   return next;
 }
 
-export async function savePortfolio(patch: UpdatePortfolioBody): Promise<boolean> {
+export async function savePortfolio(
+  patch: UpdatePortfolioBody,
+  words: StoreWords,
+): Promise<boolean> {
   const before = currentPortfolio();
   if (!before) {
-    toast({
-      title: "Couldn't save that",
-      description: "Your portfolio hasn't loaded yet. Please try again in a moment.",
-      variant: "error",
-    });
+    toast({ title: words.saveFailed, description: words.notLoaded, variant: "error" });
     return false;
   }
   // Only the newest answer may replace what's shown, or a late one would undo a later switch.
@@ -117,22 +120,27 @@ export async function savePortfolio(patch: UpdatePortfolioBody): Promise<boolean
   } catch (error) {
     if (isApiError(error, "not_found")) putPortfolio(null);
     else if (mine === latestSave) putPortfolio(before);
-    toast({ title: "Couldn't save that", description: messageOf(error), variant: "error" });
+    toast({
+      title: words.saveFailed,
+      description: messageOf(error, words.failed),
+      variant: "error",
+    });
     return false;
   } finally {
     if (mine === latestSave) usePortfolioStore.setState({ saving: false });
   }
 }
 
-export async function setPublished(published: boolean): Promise<void> {
-  if (!(await savePortfolio({ published }))) return;
+export async function setPublished(published: boolean, words: StoreWords): Promise<void> {
+  if (!(await savePortfolio({ published }, words))) return;
   toast({
-    title: published ? "Your page is live" : "Your page is down",
-    description: published
-      ? "Anyone with the address can open it now."
-      : "Anyone who opens the address now sees that it doesn't work.",
+    title: published ? words.live : words.down,
+    description: published ? words.liveDetail : words.downDetail,
     variant: "success",
     durationMs: UNDO_MS,
-    action: { label: "Undo", onAction: () => void savePortfolio({ published: !published }) },
+    action: {
+      label: words.undo,
+      onAction: () => void savePortfolio({ published: !published }, words),
+    },
   });
 }

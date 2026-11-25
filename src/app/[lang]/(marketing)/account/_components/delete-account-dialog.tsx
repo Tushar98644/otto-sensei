@@ -9,11 +9,12 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
-import { centsText } from "@/config/topup";
+import { centsIn } from "@/components/account/local-prices";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import { api } from "@/lib/api/client";
 import { useStudioStore } from "@/lib/store/resume-store";
-
-const CONFIRM_WORD = "DELETE";
 
 export type DeleteAccountDialogProps = {
   open: boolean;
@@ -22,10 +23,12 @@ export type DeleteAccountDialogProps = {
 };
 
 export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccountDialogProps) {
+  const words = useMessages("account").deleteAccount;
+  const format = useFormat();
   const formId = useId();
   const [typed, setTyped] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const confirmed = typed.trim().toUpperCase() === CONFIRM_WORD;
+  const confirmed = typed.trim().toLocaleUpperCase(format.locale) === words.word;
   const credit = useMe().me?.billing.credit?.balanceCents ?? 0;
 
   function handleOpenChange(next: boolean) {
@@ -43,7 +46,7 @@ export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccount
     } catch (error) {
       setDeleting(false);
       toast({
-        title: "Couldn't delete your account",
+        title: words.failed,
         description: errorMessage(error),
         variant: "error",
       });
@@ -59,12 +62,12 @@ export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccount
       open={open}
       onOpenChange={handleOpenChange}
       size="sm"
-      title="Delete your account?"
-      description="This deletes your account, the resumes backed up to it, and your usage history. You can't undo it."
+      title={words.dialogTitle}
+      description={words.dialogIntro}
       footer={
         <>
           <Button variant="secondary" onClick={() => handleOpenChange(false)} disabled={deleting}>
-            Cancel
+            {words.cancel}
           </Button>
           <Button
             type="submit"
@@ -73,29 +76,29 @@ export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccount
             disabled={!confirmed}
             loading={deleting}
           >
-            Delete account
+            {words.title}
           </Button>
         </>
       }
     >
       <form id={formId} noValidate onSubmit={handleSubmit} className="flex flex-col gap-4">
         {isPro ? (
-          <Alert variant="warn" title="This also cancels your plan">
-            Your paid plan ends right away, and you won&apos;t be charged again.
+          <Alert variant="warn" title={words.cancelsPlan}>
+            {words.endsNow}
           </Alert>
         ) : null}
         {credit > 0 ? (
           <p className="text-sm text-muted">
-            Your {centsText(credit)} of credit is removed with it and can&apos;t be used again.
+            {fmt(words.credit, { credit: centsIn(format, credit) })}
           </p>
         ) : null}
-        <p className="text-sm text-muted">Resumes saved in this browser are cleared too.</p>
+        <p className="text-sm text-muted">{words.browser}</p>
         <Field
-          label={
-            <>
-              Type <span className="font-semibold">{CONFIRM_WORD}</span> to confirm
-            </>
-          }
+          label={rich(
+            words.type,
+            { b: (chunk) => <span className="font-semibold">{chunk}</span> },
+            { word: words.word },
+          )}
         >
           <Input
             value={typed}

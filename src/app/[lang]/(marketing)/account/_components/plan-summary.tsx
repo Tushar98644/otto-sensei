@@ -16,10 +16,10 @@ import { Card } from "@/components/ui/card";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { LivePill } from "@/components/ui/live-pill";
 import { PLANS, PRO_TRIAL } from "@/config/plans";
-import { trialPrice } from "@/lib/billing/prices";
+import { trialPriceIn } from "@/components/account/local-prices";
+import { useFormat, useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import {
-  HELD_DETAIL,
-  HELD_TITLE,
   nextStep,
   planName,
   planPill,
@@ -27,6 +27,7 @@ import {
   yearlyOffer,
   type Pill,
   type PlanView,
+  type PlanWords,
 } from "./plan-copy";
 
 export function PlanPill({ pill }: { pill: Pill }) {
@@ -74,27 +75,29 @@ export function PlanSummary({
   view: PlanView;
   onChangePlan: () => void;
 }) {
+  const words = useMessages("account").plan;
+  const format = useFormat();
   const now = useNow();
   const portal = useBillingRedirect("portal");
   const checkout = useBillingRedirect("checkout");
-  const price = priceParts(view);
+  const price = priceParts(words, format, view);
   const mode = me.billing.mode;
-  const yearly = mode === "disabled" ? null : yearlyOffer(view, me.billing.offer);
+  const yearly = mode === "disabled" ? null : yearlyOffer(words, format, view, me.billing.offer);
 
   return (
     <Card id="plan" role="region" aria-labelledby="plan-title" className="gap-5 sm:gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
-          <Eyebrow aria-hidden>Your plan</Eyebrow>
+          <Eyebrow aria-hidden>{words.eyebrow}</Eyebrow>
           <div className="flex flex-wrap items-center gap-3">
             <h2
               id="plan-title"
               className="font-display text-3xl/9 font-normal tracking-tight text-ink sm:text-4xl/10"
             >
-              <span className="sr-only">Your plan: </span>
+              <span className="sr-only">{words.srTitle}</span>
               {planName(view)}
             </h2>
-            <PlanPill pill={planPill(view, now)} />
+            <PlanPill pill={planPill(words, format, view, now)} />
           </div>
         </div>
         {price ? (
@@ -113,20 +116,23 @@ export function PlanSummary({
       {view.kind === "held" ? (
         <Alert
           variant="error"
-          title={HELD_TITLE}
+          title={words.heldTitle}
           action={
             <Button onClick={() => void portal.go()} loading={portal.pending}>
               <CreditCard />
-              Update card
+              {words.updateCard}
             </Button>
           }
         >
-          {HELD_DETAIL}
+          {words.heldDetail}
         </Alert>
       ) : (
         <>
-          <p className="max-w-prose text-sm/6 text-pretty text-muted">{nextStep(view)}</p>
+          <p className="max-w-prose text-sm/6 text-pretty text-muted">
+            {nextStep(words, format, view)}
+          </p>
           <PlanActions
+            words={words}
             view={view}
             onChangePlan={onChangePlan}
             portal={portal}
@@ -137,12 +143,12 @@ export function PlanSummary({
         </>
       )}
 
-      {yearly ? <YearlyRow line={yearly.line} how={yearly.how} /> : null}
+      {yearly ? <YearlyRow label={words.howToSwitch} line={yearly.line} how={yearly.how} /> : null}
 
       {mode === "mock" && view.kind !== "free" ? (
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
-          <Badge>Test mode</Badge>
-          Cancelling or updating your card switches you back to Free.
+          <Badge>{words.testMode}</Badge>
+          {words.testModeLine}
         </p>
       ) : view.kind === "free" ? (
         <BillingNote mode={mode} />
@@ -151,7 +157,7 @@ export function PlanSummary({
   );
 }
 
-function YearlyRow({ line, how }: { line: string; how: string }) {
+function YearlyRow({ label, line, how }: { label: string; line: string; how: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex flex-col gap-2 border-t border-border pt-4">
@@ -165,7 +171,7 @@ function YearlyRow({ line, how }: { line: string; how: string }) {
           onClick={() => setOpen((shown) => !shown)}
           className="self-start px-0 sm:self-auto"
         >
-          How to switch
+          {label}
         </Button>
       </div>
       {open ? (
@@ -178,24 +184,27 @@ function YearlyRow({ line, how }: { line: string; how: string }) {
 }
 
 function PlanActions({
+  words,
   view,
   onChangePlan,
   portal,
   checkout,
   billingOff,
 }: {
+  words: PlanWords;
   view: Exclude<PlanView, { kind: "held" }>;
   onChangePlan: () => void;
   portal: Redirect;
   checkout: Redirect;
   billingOff: boolean;
 }) {
+  const format = useFormat();
   const compare = (
     <Link
       href={ROUTES.pricing}
       className={buttonClasses({ variant: "ghost", className: "w-full sm:w-auto" })}
     >
-      Compare plans
+      {words.compare}
     </Link>
   );
   const row = "flex flex-col gap-2 sm:flex-row sm:flex-wrap";
@@ -210,11 +219,11 @@ function PlanActions({
             loading={checkout.pending}
             className="w-full sm:w-auto"
           >
-            Try {PLANS[PRO_TRIAL.plan].name} for {trialPrice()}
+            {fmt(words.tryFor, { plan: PLANS[PRO_TRIAL.plan].name, price: trialPriceIn(format) })}
           </Button>
         ) : (
           <Button onClick={onChangePlan} className="w-full sm:w-auto">
-            Upgrade to {PLANS.pro.name}
+            {fmt(words.upgradeTo, { plan: PLANS.pro.name })}
           </Button>
         )}
         {compare}
@@ -233,7 +242,7 @@ function PlanActions({
           loading={portal.pending}
           className="w-full sm:w-auto"
         >
-          {view.kind === "trial" ? "Resume trial" : "Resume plan"}
+          {view.kind === "trial" ? words.resumeTrial : words.resumePlan}
         </Button>
         {compare}
       </div>
@@ -246,7 +255,7 @@ function PlanActions({
         compare
       ) : (
         <Button variant="secondary" onClick={onChangePlan} className="w-full sm:w-auto">
-          Change plan
+          {words.change}
         </Button>
       )}
       <Button
@@ -255,7 +264,7 @@ function PlanActions({
         loading={portal.pending}
         className="w-full sm:w-auto"
       >
-        {view.kind === "trial" ? "Cancel trial" : "Cancel plan"}
+        {view.kind === "trial" ? words.cancelTrial : words.cancelPlan}
       </Button>
     </div>
   );

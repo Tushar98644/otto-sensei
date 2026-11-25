@@ -108,6 +108,16 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/account",
   useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }),
 }));
+// These components run outside React here, so they read the English messages straight.
+vi.mock("@/i18n/client", async () => {
+  const { default: en } = await import("@/i18n/messages/en");
+  const { formatFor } = await import("@/i18n/intl");
+  return {
+    useMessages: (namespace: keyof typeof en) => en[namespace],
+    useFormat: () => formatFor("en"),
+    useLocale: () => "en",
+  };
+});
 vi.mock("@/components/account/use-me", () => ({
   useMe: () => ({
     me: mocks.me,

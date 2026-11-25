@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { formatFor } from "@/i18n/intl";
+import en from "@/i18n/messages/en";
 import { PORTFOLIO_TEMPLATE_IDS } from "../types";
 import { contentChecklist, contentUsesFor, TEMPLATE_USES } from "../content-uses";
 import { isThinPage, SAMPLE_NAME } from "../preview-source";
@@ -8,7 +10,12 @@ describe("Jordan's sample page", () => {
   const view = jordanContentView();
 
   it.each(Object.keys(TEMPLATE_USES))("fills every part the %s design draws", (id) => {
-    const missing = contentChecklist(view, contentUsesFor(id)).filter((item) => !item.done);
+    const missing = contentChecklist(
+      view,
+      contentUsesFor(id),
+      en.portfolioContent.checklist,
+      formatFor("en"),
+    ).filter((item) => !item.done);
     expect(missing.map((item) => `${item.field}: ${item.note}`)).toEqual([]);
   });
 

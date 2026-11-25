@@ -5,20 +5,21 @@ import { useBillingRedirect } from "@/components/account/use-billing-redirect";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { cardExpiry } from "./billing-format";
 import type { BillingHistoryState } from "./use-billing-history";
 
-export const MERCHANT_LINE =
-  "Billed by Dodo Payments, our merchant of record. Charges show as DODOPAY on your statement.";
-
 export function PaymentMethodCard({ state }: { state: BillingHistoryState }) {
+  const account = useMessages("account");
+  const words = account.payment;
   const portal = useBillingRedirect("portal");
   const card = state.history?.card ?? null;
   const expiry = card ? cardExpiry(card) : null;
   return (
     <Card id="payment-method" role="region" aria-labelledby="payment-method-title">
       <CardTitle as="h2" id="payment-method-title">
-        Payment method
+        {words.title}
       </CardTitle>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {state.status === "loading" ? (
@@ -34,14 +35,14 @@ export function PaymentMethodCard({ state }: { state: BillingHistoryState }) {
             {card ? (
               <div className="flex min-w-0 flex-col">
                 <span className="text-sm font-medium text-ink">
-                  {card.brand} ending in {card.last4}
+                  {fmt(words.ending, { brand: card.brand, last4: card.last4 })}
                 </span>
                 <span className="text-sm text-muted">
-                  {expiry ? `Expires ${expiry}` : "The card of your last payment"}
+                  {expiry ? fmt(words.expires, { date: expiry }) : words.lastCard}
                 </span>
               </div>
             ) : (
-              <span className="text-sm text-muted">Your card is kept by Dodo Payments.</span>
+              <span className="text-sm text-muted">{words.keptBy}</span>
             )}
           </div>
         )}
@@ -51,10 +52,10 @@ export function PaymentMethodCard({ state }: { state: BillingHistoryState }) {
           loading={portal.pending}
           className="w-full sm:w-auto"
         >
-          Update card
+          {account.plan.updateCard}
         </Button>
       </div>
-      <p className="text-sm/6 text-muted">{MERCHANT_LINE}</p>
+      <p className="text-sm/6 text-muted">{words.merchant}</p>
     </Card>
   );
 }

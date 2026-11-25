@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type { Me } from "@/components/account/use-me";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
+import { useMessages } from "@/i18n/client";
 import type { SessionUser } from "@/lib/auth/types";
 import { ACCOUNT_TABS, isAccountTab } from "./account-tab-state";
 import { PlanTab } from "./plan-tab";
@@ -19,6 +20,7 @@ export function AccountTabs({
   user: SessionUser;
   notice?: ReactNode;
 }) {
+  const words = useMessages("account").tabs;
   const [tab, select] = useAccountTab();
   return (
     <Tabs
@@ -29,12 +31,12 @@ export function AccountTabs({
       className="max-w-4xl gap-6"
     >
       <TabList
-        aria-label="Account"
+        aria-label={words.label}
         className="w-full self-stretch bg-surface-strong sm:w-auto sm:self-start"
       >
         {ACCOUNT_TABS.map((item) => (
           <Tab key={item.id} value={item.id} className="flex-1 px-3 sm:flex-none sm:px-4">
-            {item.label}
+            {words[item.id]}
           </Tab>
         ))}
       </TabList>

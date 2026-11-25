@@ -3,24 +3,26 @@
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useMessages } from "@/i18n/client";
 import { useWritingStyle } from "./use-writing-style";
 import { WritingStyleForm } from "./writing-style-form";
 
 export function WritingStyleCard() {
+  const account = useMessages("account");
   const { status, style, save, retry } = useWritingStyle();
   return (
     <Card>
       {status === "error" ? (
         <Alert
           variant="error"
-          title="Couldn't load your writing style"
+          title={account.style.loadFailed}
           action={
             <Button variant="secondary" onClick={retry}>
-              Try again
+              {account.tryAgain}
             </Button>
           }
         >
-          Check your connection, then try again.
+          {account.checkConnection}
         </Alert>
       ) : (
         // The form waits disabled at its full height, so links to the cards below it land in place.

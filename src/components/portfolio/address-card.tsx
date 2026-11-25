@@ -4,8 +4,10 @@ import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { api } from "@/lib/api/client";
-import { normalizeSlug, SLUG_MAX, SLUG_MESSAGES, slugProblem } from "@/lib/portfolio/slug";
+import { normalizeSlug, SLUG_MAX, SLUG_MIN, slugProblem } from "@/lib/portfolio/slug";
 import { PORTFOLIO_LIMITS, type Portfolio } from "@/lib/portfolio/types";
 import { EditorSection } from "./check-row";
 import { messageOf, savePortfolio, usePortfolioStore } from "./portfolio-store";
@@ -15,6 +17,8 @@ const CHECK_DELAY_MS = 400;
 type Check = { slug: string; available: boolean; message: string | null } | null;
 
 export function AddressCard({ portfolio }: { portfolio: Portfolio }) {
+  const words = useMessages("portfolio");
+  const address = words.address;
   const inputId = useId();
   const noteId = useId();
   const saving = usePortfolioStore((state) => state.saving);
@@ -34,36 +38,37 @@ export function AddressCard({ portfolio }: { portfolio: Portfolio }) {
         .then((answer) => live && setCheck(answer))
         .catch(
           (error: unknown) =>
-            live && setCheck({ slug, available: false, message: messageOf(error) }),
+            live &&
+            setCheck({ slug, available: false, message: messageOf(error, words.store.failed) }),
         );
     }, CHECK_DELAY_MS);
     return () => {
       live = false;
       window.clearTimeout(timer);
     };
-  }, [changed, problem, slug]);
+  }, [changed, problem, slug, words.store.failed]);
 
   const current = check?.slug === slug ? check : null;
   const note = !changed
     ? portfolio.publishedAt !== null
-      ? `Changing it keeps the old address working for ${PORTFOLIO_LIMITS.redirectDays} days.`
-      : "Lowercase letters, numbers and hyphens."
+      ? fmt(address.keepsOld, { days: PORTFOLIO_LIMITS.redirectDays })
+      : address.rules
     : problem
-      ? SLUG_MESSAGES[problem]
+      ? fmt(address.problems[problem], { min: SLUG_MIN, max: SLUG_MAX })
       : current
-        ? (current.message ?? `/p/${slug} is free.`)
-        : "Checking…";
+        ? (current.message ?? fmt(address.free, { slug }))
+        : address.checking;
   const canSave = changed && !problem && current?.available === true && !saving;
 
   async function save() {
-    if (await savePortfolio({ slug })) {
+    if (await savePortfolio({ slug }, words.store)) {
       setDraft(null);
       setCheck(null);
     }
   }
 
   return (
-    <EditorSection title="Address">
+    <EditorSection title={address.title}>
       <form
         className="flex flex-col gap-2"
         onSubmit={(event) => {
@@ -71,7 +76,7 @@ export function AddressCard({ portfolio }: { portfolio: Portfolio }) {
           if (canSave) void save();
         }}
       >
-        <Label htmlFor={inputId}>Your page lives at /p/</Label>
+        <Label htmlFor={inputId}>{address.livesAt}</Label>
         <div className="flex gap-2">
           <Input
             id={inputId}
@@ -86,7 +91,7 @@ export function AddressCard({ portfolio }: { portfolio: Portfolio }) {
           />
           {changed ? (
             <Button type="submit" variant="secondary" disabled={!canSave}>
-              Save
+              {address.save}
             </Button>
           ) : null}
         </div>

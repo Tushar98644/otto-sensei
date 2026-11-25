@@ -93,7 +93,10 @@ describe("the share page", () => {
         ShareOwnerBarSlot,
       );
     expect((await bar())?.props).toEqual({ ownerId: owner.id, slug: "abcdefghjk" });
-    fakeAuth.failNext("getUser", new AuthApiError("Session does not exist", 403, "session_not_found"));
+    fakeAuth.failNext(
+      "getUser",
+      new AuthApiError("Session does not exist", 403, "session_not_found"),
+    );
     expect(await bar()).toBeNull();
     await signInAs("grace@example.com");
     expect(await bar()).toBeNull();
@@ -117,7 +120,9 @@ describe("the share page", () => {
   });
 
   it("links home with a plain anchor, so the page loads in full and the invite tracker sees the code", () => {
-    const link = linkIn(SharePageFrame({ children: null, homeHref: "/?ref=abcd2345" }));
+    const link = linkIn(
+      SharePageFrame({ children: null, homeHref: "/?ref=abcd2345", madeWith: "Made with" }),
+    );
     expect(link?.type).toBe("a");
     expect(link?.props?.href).toBe("/?ref=abcd2345");
   });

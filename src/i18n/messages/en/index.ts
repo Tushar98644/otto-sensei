@@ -19,10 +19,13 @@ import login from "./login";
 import matchCheck from "./match-check";
 import onboarding from "./onboarding";
 import portfolio from "./portfolio";
+import portfolioContent from "./portfolio-content";
 import prep from "./prep";
 import pricing from "./pricing";
 import product from "./product";
 import seo from "./seo";
+import share from "./share";
+import signIn from "./sign-in";
 import site from "./site";
 import studio from "./studio";
 import studioDownload from "./studio-download";
@@ -53,10 +56,13 @@ const en = {
   matchCheck,
   onboarding,
   portfolio,
+  portfolioContent,
   prep,
   pricing,
   product,
   seo,
+  share,
+  signIn,
   site,
   studio,
   studioDownload,

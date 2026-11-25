@@ -15,7 +15,7 @@ export const PAGE_NAMESPACES = {
   "/interview-prep": ["product"],
   "/portfolio-website-builder": ["product"],
   // The sign-in form itself is the app's (src/components/account), translated with it.
-  "/login": ["login", "account"],
+  "/login": ["login", "account", "signIn"],
   "/privacy": ["legal"],
   "/terms": ["legal"],
   "/refunds": ["legal"],

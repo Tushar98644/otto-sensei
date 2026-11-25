@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import {
   CONTENT_LIMITS as L,
   emptyJobExtra,
@@ -45,21 +47,20 @@ function patchSchool(id: string, patch: Partial<SchoolExtra>, undo?: string) {
 }
 
 export function CareerCard({ content, auto, view, hidden }: CardProps & { hidden?: string }) {
+  const words = useMessages("portfolioContent").career;
   const [open, setOpen] = useState<string | null>(null);
   const highlights = view.experience.filter((job) => job.highlight).length;
   return (
     <SectionCard
-      title="Experience and education"
+      title={words.title}
       hidden={hidden}
       meta={
         view.experience.length > 0
-          ? `${highlights} of ${view.experience.length} jobs with a highlight`
-          : "From your resume"
+          ? fmt(words.meta, { done: highlights, total: view.experience.length })
+          : words.fromResume
       }
     >
-      <p className="text-sm/6 text-muted">
-        Jobs and schools come from your resume. Designs mark each one with its initials.
-      </p>
+      <p className="text-sm/6 text-muted">{words.intro}</p>
       {view.experience.map((job) => {
         const own = content.jobs[job.id];
         const base = auto.jobs[job.id];
@@ -83,41 +84,41 @@ export function CareerCard({ content, auto, view, hidden }: CardProps & { hidden
             </summary>
             <div className="flex flex-col gap-4 border-t border-border px-3 pt-4 pb-4 @sm:px-4">
               <TextField
-                label="Highlight"
+                label={words.highlight}
                 value={own?.highlight ?? null}
                 auto={base?.highlight ?? ""}
                 max={L.jobHighlight}
-                placeholder="-72% failed payouts"
-                hint="The strongest number from this job, pulled from its lines."
+                placeholder={words.highlightPlaceholder}
+                hint={words.highlightHint}
                 onChange={(highlight) => patchJob(job.id, { highlight })}
               />
               <TextField
-                label="One-line summary"
+                label={words.summary}
                 value={own?.summary ?? null}
                 auto={base?.summary ?? ""}
                 max={L.jobSummary}
                 multiline
-                placeholder="What you owned there, in one sentence."
+                placeholder={words.summaryPlaceholder}
                 onChange={(summary) => patchJob(job.id, { summary })}
               />
               <FieldRow>
                 <TextField
-                  label="Kind of company"
+                  label={words.kind}
                   value={own?.type ?? null}
                   auto={base?.type ?? ""}
                   max={L.jobType}
-                  placeholder="Fintech · payouts"
+                  placeholder={words.kindPlaceholder}
                   onChange={(type) => patchJob(job.id, { type })}
                 />
                 <LinkField
-                  label="Company website"
+                  label={words.website}
                   value={own?.website ?? ""}
                   placeholder="ledgerly.com"
                   onChange={(website) => patchJob(job.id, { website: website ?? "" })}
                 />
               </FieldRow>
               <TagsField
-                label="Stack"
+                label={words.stack}
                 value={own?.tags ?? null}
                 auto={base?.tags ?? []}
                 max={L.tags}
@@ -139,7 +140,7 @@ export function CareerCard({ content, auto, view, hidden }: CardProps & { hidden
             </summary>
             <div className="flex flex-col gap-4 border-t border-border px-3 pt-4 pb-4 @sm:px-4">
               <LinkField
-                label="School website"
+                label={words.school}
                 value={own?.website ?? ""}
                 placeholder="manchester.ac.uk"
                 onChange={(website) => patchSchool(school.id, { website: website ?? "" })}
@@ -165,14 +166,13 @@ function Monogram({ text }: { text: string }) {
 }
 
 function SkillYears({ content, auto, view }: CardProps) {
+  const words = useMessages("portfolioContent").career;
   const skills = view.skills.flatMap((group) => group.items);
   if (skills.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-ink">Years per skill</p>
-      <p className="text-sm/5 text-subtle">
-        Counted from the jobs that mention each one. Change any that are off.
-      </p>
+      <p className="text-sm font-medium text-ink">{words.skillYears}</p>
+      <p className="text-sm/5 text-subtle">{words.skillYearsHint}</p>
       <ul className="grid grid-cols-2 gap-x-4 gap-y-2 @sm:grid-cols-3">
         {skills.slice(0, L.skillYears).map((skill) => {
           const key = skill.name.toLowerCase();
@@ -181,7 +181,7 @@ function SkillYears({ content, auto, view }: CardProps) {
           return (
             <li key={key} className="flex items-center gap-2">
               <Input
-                aria-label={`Years of ${skill.name}`}
+                aria-label={fmt(words.yearsOf, { skill: skill.name })}
                 type="number"
                 inputMode="numeric"
                 min={0}

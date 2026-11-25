@@ -3,6 +3,7 @@ import { getDb, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { portfolios, users } from "@/db/schema";
 import type { PlanId } from "@/config/plans";
+import type { ContentLang } from "@/lib/i18n/languages";
 import { log } from "@/lib/log";
 import { rateLimit } from "@/lib/rate-limit";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
@@ -420,6 +421,8 @@ export type PublicPortfolio = {
   id: string;
   ownerId: string;
   slug: string;
+  // The language the owner's resume is set to; null reads as English.
+  lang: ContentLang | null;
   template: PortfolioTemplateId;
   view: PortfolioView;
   content: PortfolioContentView;
@@ -448,7 +451,8 @@ export async function findPublicPortfolio(
   if (row && !ownerCanPublish(row)) return { status: "missing" };
   if (row) {
     const { portfolio } = row;
-    const view = portfolioView(snapshotOf(portfolio), {
+    const snapshot = snapshotOf(portfolio);
+    const view = portfolioView(snapshot, {
       showEmail: portfolio.showEmail,
       showPhone: portfolio.showPhone,
       hiddenSections: sectionsOf(portfolio),
@@ -460,6 +464,7 @@ export async function findPublicPortfolio(
         id: portfolio.id,
         ownerId: portfolio.userId,
         slug: portfolio.slug,
+        lang: snapshot.lang ?? null,
         template: portfolio.template,
         view,
         content: contentView({

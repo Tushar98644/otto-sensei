@@ -9,28 +9,51 @@ export const DEFAULT_SHARE_OPTIONS: ShareOptionValues = {
   allowIndexing: false,
 };
 
+export type ShareOptionsCopy = {
+  legend: string;
+  contact: string;
+  contactHint: string;
+  indexing: string;
+  indexingHint: string;
+};
+
+// The share dialog in the studio and dashboard has no share messages yet, so it reads these.
+const englishCopy: ShareOptionsCopy = {
+  legend: "What the page shows",
+  contact: "Show email and phone",
+  contactHint: "Off: the page and its PDF leave them out. Your name, city and links always show.",
+  indexing: "Let search engines list it",
+  indexingHint: "Off: Google and others are asked to keep it out of search results.",
+};
+
 type ShareOptionsProps = {
   value: ShareOptionValues;
   onChange: (patch: Partial<ShareOptionValues>) => void;
   disabled?: boolean;
+  copy?: ShareOptionsCopy;
 };
 
-export function ShareOptions({ value, onChange, disabled = false }: ShareOptionsProps) {
+export function ShareOptions({
+  value,
+  onChange,
+  disabled = false,
+  copy = englishCopy,
+}: ShareOptionsProps) {
   return (
     <fieldset disabled={disabled} className="min-w-0">
-      <legend className="sr-only">What the page shows</legend>
+      <legend className="sr-only">{copy.legend}</legend>
       <div className="divide-y divide-border border-y border-border">
         <Option
           checked={value.showContact}
           onChange={(checked) => onChange({ showContact: checked })}
-          label="Show email and phone"
-          hint="Off: the page and its PDF leave them out. Your name, city and links always show."
+          label={copy.contact}
+          hint={copy.contactHint}
         />
         <Option
           checked={value.allowIndexing}
           onChange={(checked) => onChange({ allowIndexing: checked })}
-          label="Let search engines list it"
-          hint="Off: Google and others are asked to keep it out of search results."
+          label={copy.indexing}
+          hint={copy.indexingHint}
         />
       </div>
     </fieldset>

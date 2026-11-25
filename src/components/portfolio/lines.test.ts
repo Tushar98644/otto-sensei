@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import {
-  PORTFOLIO_LINES,
-  portfolioFacts,
-  PUBLISH_NOTE,
-  resumeLinkLine,
-  saveLabel,
-  viewsLabel,
-} from "./lines";
+import { formatFor } from "@/i18n/intl";
+import en from "@/i18n/messages/en";
+import { liveLine, portfolioFacts, resumeLinkLine, saveLabel, viewsLabel } from "./lines";
+
+const W = en.portfolio;
+const F = formatFor("en");
+const PORTFOLIO_LINES = { ...W.otto, live: (views: number) => liveLine(W, F, views) };
+const PUBLISH_NOTE = W.publishNote;
 
 const words = (line: string) => line.trim().split(/\s+/).length;
 
@@ -32,23 +32,27 @@ describe("Otto's portfolio lines", () => {
   });
 
   it("state facts only in the meta line", () => {
-    expect(portfolioFacts({ projects: 3, jobs: 1, skills: 0 })).toBe("3 projects · 1 job");
-    expect(portfolioFacts({ projects: 0, jobs: 0, skills: 0 })).toBe("");
+    expect(portfolioFacts(W, F, { projects: 3, jobs: 1, skills: 0 })).toBe("3 projects · 1 job");
+    expect(portfolioFacts(W, F, { projects: 0, jobs: 0, skills: 0 })).toBe("");
   });
 
   it("words the top bar's views, save state and publish note plainly", () => {
-    expect(viewsLabel(0)).toBe("No views yet");
-    expect(viewsLabel(1)).toBe("1 view");
-    expect(viewsLabel(1284)).toBe("1,284 views");
-    expect(saveLabel(true, false)).toBe("Saving…");
-    expect(saveLabel(false, false)).toBe("All changes saved");
-    expect(saveLabel(false, true)).toBe("Saved to your live page");
+    expect(viewsLabel(W, F, 0)).toBe("No views yet");
+    expect(viewsLabel(W, F, 1)).toBe("1 view");
+    expect(viewsLabel(W, F, 1284)).toBe("1,284 views");
+    expect(saveLabel(W, true, false)).toBe("Saving…");
+    expect(saveLabel(W, false, false)).toBe("All changes saved");
+    expect(saveLabel(W, false, true)).toBe("Saved to your live page");
     expect(PUBLISH_NOTE).toContain("Publishing comes with Pro");
   });
 
   it("says whether the page links the shared resume, and why not", () => {
-    expect(resumeLinkLine({ href: "/s/abc", shared: true })).toMatch(/links to your shared resume/);
-    expect(resumeLinkLine({ href: null, shared: true })).toMatch(/contact details this page hides/);
-    expect(resumeLinkLine({ href: null, shared: false })).toMatch(/^Share this resume/);
+    expect(resumeLinkLine(W, { href: "/s/abc", shared: true })).toMatch(
+      /links to your shared resume/,
+    );
+    expect(resumeLinkLine(W, { href: null, shared: true })).toMatch(
+      /contact details this page hides/,
+    );
+    expect(resumeLinkLine(W, { href: null, shared: false })).toMatch(/^Share this resume/);
   });
 });

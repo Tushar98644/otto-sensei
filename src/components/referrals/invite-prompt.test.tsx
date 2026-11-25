@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MeState } from "@/components/account/use-me";
 import { PLANS } from "@/config/plans";
+import en from "@/i18n/messages/en";
 import {
   MAX_REWARDED_REFERRALS,
   REFERRAL_BONUS,
@@ -114,12 +115,14 @@ describe("InviteOffer", () => {
 
 describe("extrasNote", () => {
   it("tells Free its line fixes count now and its tailored versions wait for Pro", () => {
-    const free = extrasNote("free", "month");
+    const free = extrasNote(en.account.invite, "free", "month");
     expect(free).toContain(
       `each friend adds ${REFERRAL_BONUS.fix} line fixes to that month's ${PLANS.free.limits.fix}`,
     );
     expect(free).toContain(`the ${REFERRAL_BONUS.tailor} tailored versions wait`);
-    expect(extrasNote("pro", "trial")).toContain("carry into your first paid month");
-    expect(extrasNote("max", "month")).toBe("Extras add to your Max limits.");
+    expect(extrasNote(en.account.invite, "pro", "trial")).toContain(
+      "carry into your first paid month",
+    );
+    expect(extrasNote(en.account.invite, "max", "month")).toBe("Extras add to your Max limits.");
   });
 });

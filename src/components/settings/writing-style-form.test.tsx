@@ -1,7 +1,13 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderBare } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_WRITING_STYLE, type WritingStyle } from "@/lib/writing-style/schema";
 import { WritingStyleForm } from "./writing-style-form";
+import { inEnglish } from "@/components/dashboard/messages-testing";
+import { withMessages } from "@/i18n/messages-testing";
+
+// The English messages these components read, as the page would pass them.
+const renderToStaticMarkup = (node: ReactNode) => renderBare(inEnglish(node));
 
 vi.mock("@/components/ui/use-dictation", () => ({
   useVoiceSupported: () => false,
@@ -52,13 +58,17 @@ describe("WritingStyleForm", () => {
     expect(html).not.toContain('type="submit"');
     expect(text(html)).not.toContain("Save style");
     expect(html).toMatch(/<p role="status"[^>]*>Changes save as you go\.<\/p>/);
-    expect(html).toMatch(/<button (?=[^>]*aria-disabled="true")(?=[^>]*type="button")[^>]*>.*Reset to default<\/button>/);
+    expect(html).toMatch(
+      /<button (?=[^>]*aria-disabled="true")(?=[^>]*type="button")[^>]*>.*Reset to default<\/button>/,
+    );
     expect(text(html)).toContain("0/500");
   });
 
   it("lets a custom style go back to the default", () => {
     const html = render({ ...DEFAULT_WRITING_STYLE, notes: "Keep it modest." });
-    expect(html).toMatch(/<button (?=[^>]*aria-disabled="false")(?=[^>]*type="button")[^>]*>.*Reset to default<\/button>/);
+    expect(html).toMatch(
+      /<button (?=[^>]*aria-disabled="false")(?=[^>]*type="button")[^>]*>.*Reset to default<\/button>/,
+    );
     expect(html).toContain('placeholder="Best regards"');
     expect(html).toContain('maxLength="40"');
     expect(text(html)).toContain("15/500");
@@ -71,7 +81,30 @@ describe("WritingStyleForm", () => {
     expect(loading.match(/<fieldset disabled=""/g)).toHaveLength(3);
     expect(loading).toMatch(/<input disabled=""[^>]*placeholder="Best regards"/);
     expect(loading).toMatch(/<textarea disabled=""/);
-    expect(loading).toMatch(/<button (?=[^>]*aria-disabled="true")(?=[^>]*type="button")[^>]*>.*Reset to default<\/button>/);
+    expect(loading).toMatch(
+      /<button (?=[^>]*aria-disabled="true")(?=[^>]*type="button")[^>]*>.*Reset to default<\/button>/,
+    );
     expect(text(loading)).not.toContain("Plain and friendly");
+  });
+});
+
+describe("WritingStyleForm in Spanish", () => {
+  it("reads its legends, choices and status from the account messages", async () => {
+    const html = renderBare(
+      await withMessages(
+        "es",
+        ["account"],
+        <WritingStyleForm
+          saved={DEFAULT_WRITING_STYLE}
+          onSave={async () => DEFAULT_WRITING_STYLE}
+        />,
+      ),
+    );
+    const words = text(html);
+    for (const legend of ["Tono", "Extensión", "Ortografía"]) expect(html).toContain(legend);
+    expect(words).toContain("Natural Cálido Directo Formal");
+    expect(words).toContain("Los cambios se guardan solos.");
+    expect(html).toContain('placeholder="Saludos cordiales"');
+    expect(words).not.toContain("Changes save as you go");
   });
 });

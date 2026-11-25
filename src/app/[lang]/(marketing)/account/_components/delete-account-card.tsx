@@ -4,10 +4,12 @@ import { Trash } from "lucide-react";
 import { useState } from "react";
 import { SECTION_SCROLL } from "@/components/settings/sections";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 
 export function DeleteAccountCard({ isPro }: { isPro: boolean }) {
+  const words = useMessages("account").deleteAccount;
   const [open, setOpen] = useState(false);
   return (
     <section
@@ -21,12 +23,11 @@ export function DeleteAccountCard({ isPro }: { isPro: boolean }) {
     >
       <div className="flex flex-col gap-0.5">
         <h2 id="delete-account-title" className="font-sans text-sm/6 font-medium text-fail-ink">
-          Delete account
+          {words.title}
         </h2>
         <p className="max-w-prose text-sm/6 text-muted">
-          Deletes your account and everything saved with it. You can&apos;t undo it.{" "}
-          {isPro ? "This also cancels your plan. " : null}
-          Download your data first if you want to keep it.
+          {words.intro} {isPro ? `${words.alsoCancels} ` : null}
+          {words.downloadFirst}
         </p>
       </div>
       <Button
@@ -35,7 +36,7 @@ export function DeleteAccountCard({ isPro }: { isPro: boolean }) {
         className="w-full text-fail-ink hover:bg-fail-soft sm:w-auto"
       >
         <Trash />
-        Delete account
+        {words.title}
       </Button>
       <DeleteAccountDialog open={open} onOpenChange={setOpen} isPro={isPro} />
     </section>

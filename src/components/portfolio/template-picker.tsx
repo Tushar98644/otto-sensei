@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { useMessages } from "@/i18n/client";
 import { PORTFOLIO_TEMPLATE_INFO, templateGroups } from "@/lib/portfolio/templates";
 import { PORTFOLIO_TEMPLATE_IDS, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import { cn } from "@/lib/utils";
@@ -18,21 +19,20 @@ type TemplatePickerProps = {
 };
 
 export function TemplatePicker({ value, onChange, own, disabled = false }: TemplatePickerProps) {
+  const words = useMessages("portfolio");
+  const picker = words.picker;
   const choice = usePreviewSource(own);
   return (
-    <EditorSection
-      title="Design"
-      description="Every design uses the same content. Switch any time; nothing is lost."
-    >
+    <EditorSection title={picker.title} description={picker.intro}>
       <PreviewSourceBar choice={choice} />
       <fieldset disabled={disabled} className="flex min-w-0 flex-col gap-6">
-        <legend className="sr-only">Design</legend>
+        <legend className="sr-only">{picker.title}</legend>
         {templateGroups(PORTFOLIO_TEMPLATE_IDS).map((group) => (
-          <div key={group.label} className="flex flex-col gap-3">
-            <Eyebrow>{group.label}</Eyebrow>
+          <div key={group.id} className="flex flex-col gap-3">
+            <Eyebrow>{picker.groups[group.id]}</Eyebrow>
             <div className="grid grid-cols-2 gap-3 @xl:grid-cols-3">
               {group.ids.map((id) => {
-                const { name, description } = PORTFOLIO_TEMPLATE_INFO[id];
+                const { name } = PORTFOLIO_TEMPLATE_INFO[id];
                 const selected = id === value;
                 return (
                   <label
@@ -61,11 +61,13 @@ export function TemplatePicker({ value, onChange, own, disabled = false }: Templ
                       {selected ? (
                         <span className="flex items-center gap-1 text-xs/4 text-muted">
                           <Check aria-hidden className="size-3.5 text-ink" />
-                          In use
+                          {picker.inUse}
                         </span>
                       ) : null}
                     </span>
-                    <span className="line-clamp-2 px-0.5 text-xs/5 text-muted">{description}</span>
+                    <span className="line-clamp-2 px-0.5 text-xs/5 text-muted">
+                      {words.templates[id]}
+                    </span>
                   </label>
                 );
               })}

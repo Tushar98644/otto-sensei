@@ -3,11 +3,9 @@
 import { Link2 } from "lucide-react";
 import { useShareResume } from "@/components/share/use-share-resume";
 import { Button } from "@/components/ui/button";
-import {
-  PORTFOLIO_SECTION_LABELS,
-  type Portfolio,
-  type PortfolioSection,
-} from "@/lib/portfolio/types";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import type { Portfolio, PortfolioSection } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
 import { CheckRow, EditorSection } from "./check-row";
 import { resumeLinkLine } from "./lines";
@@ -25,17 +23,18 @@ type VisibilityCardProps = {
 };
 
 function ShareAction({ resume, shared }: { resume: Resume; shared: boolean }) {
+  const words = useMessages("portfolio").visibility;
   const share = useShareResume(resume);
   return (
     <div>
       {shared ? (
         <Button variant="secondary" size="sm" onClick={share.open}>
-          Link settings
+          {words.linkSettings}
         </Button>
       ) : (
         <Button variant="secondary" size="sm" onClick={share.share}>
           <Link2 aria-hidden />
-          Share this resume
+          {words.shareResume}
         </Button>
       )}
       {share.dialog}
@@ -52,74 +51,73 @@ export function VisibilityCard({
   source,
   disabled,
 }: VisibilityCardProps) {
+  const words = useMessages("portfolio");
+  const v = words.visibility;
   const hidden = new Set(portfolio.hiddenSections);
   function toggle(section: PortfolioSection, show: boolean) {
     const next = new Set(hidden);
     if (show) next.delete(section);
     else next.add(section);
-    void savePortfolio({ hiddenSections: [...next] });
+    void savePortfolio({ hiddenSections: [...next] }, words.store);
   }
   const shown = sections.filter((section) => !hidden.has(section)).length;
   return (
     <div className="flex flex-col gap-10">
       {sections.length > 0 ? (
         <EditorSection
-          title="On your page"
-          description={`${shown} of ${sections.length} shown. A hidden section keeps what's in it, ready to turn back on.`}
+          title={v.onPage}
+          description={fmt(v.shown, { shown, total: sections.length })}
         >
           <fieldset disabled={disabled} className="min-w-0">
-            <legend className="sr-only">Sections on your page</legend>
+            <legend className="sr-only">{v.legend}</legend>
             <div className="divide-y divide-border border-y border-border">
               {sections.map((section) => (
                 <CheckRow
                   key={section}
                   checked={!hidden.has(section)}
                   onChange={(checked) => toggle(section, checked)}
-                  label={PORTFOLIO_SECTION_LABELS[section]}
-                  hint={hidden.has(section) ? "Hidden on your page" : undefined}
+                  label={words.sections[section]}
+                  hint={hidden.has(section) ? v.hidden : undefined}
                 />
               ))}
             </div>
           </fieldset>
         </EditorSection>
       ) : null}
-      <EditorSection
-        title="Contact details"
-        description="Both start off, so a public page never hands them out unasked."
-      >
+      <EditorSection title={v.contact} description={v.contactIntro}>
         <fieldset disabled={disabled} className="min-w-0">
-          <legend className="sr-only">Contact details</legend>
+          <legend className="sr-only">{v.contact}</legend>
           <div className="divide-y divide-border border-y border-border">
             <CheckRow
               checked={portfolio.showEmail}
-              onChange={(checked) => void savePortfolio({ showEmail: checked })}
-              label="Show my email"
+              onChange={(checked) => void savePortfolio({ showEmail: checked }, words.store)}
+              label={v.showEmail}
               hint={
                 !email
-                  ? "Your resume has no email."
+                  ? v.noEmail
                   : portfolio.showEmail
-                    ? `On: visitors see ${email}.`
-                    : `Off: ${email} stays off the page.`
+                    ? fmt(v.emailOn, { email })
+                    : fmt(v.emailOff, { email })
               }
               disabled={!email}
             />
             <CheckRow
               checked={portfolio.showPhone}
-              onChange={(checked) => void savePortfolio({ showPhone: checked })}
-              label="Show my phone"
+              onChange={(checked) => void savePortfolio({ showPhone: checked }, words.store)}
+              label={v.showPhone}
               hint={
                 !phone
-                  ? "Your resume has no phone number."
+                  ? v.noPhone
                   : portfolio.showPhone
-                    ? `On: visitors see ${phone}.`
-                    : `Off: ${phone} stays off the page.`
+                    ? fmt(v.phoneOn, { phone })
+                    : fmt(v.phoneOff, { phone })
               }
               disabled={!phone}
             />
           </div>
         </fieldset>
       </EditorSection>
-      <EditorSection title="Resume link" description={resumeLinkLine(resumeLink)}>
+      <EditorSection title={v.resumeLink} description={resumeLinkLine(words, resumeLink)}>
         {source ? <ShareAction resume={source} shared={resumeLink.shared} /> : null}
       </EditorSection>
     </div>

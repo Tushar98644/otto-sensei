@@ -11,6 +11,8 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { nextPlan, PLAN_ORDER, PLANS, type PaidPlanId, type PlanId } from "@/config/plans";
+import { useMessages } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { AccountSignIn } from "./account-sign-in";
 import { AccountSkeleton } from "./account-skeleton";
 import { AccountTabs } from "./account-tabs";
@@ -25,8 +27,9 @@ const above = (plan: PlanId, target: PlanId) =>
 const ACTIVATION_SCREEN_MS = 10_000;
 
 export function AccountView() {
+  const words = useMessages("account");
   const { me, user, loading, refresh } = useMe();
-  const arrival = useAccountArrival();
+  const arrival = useAccountArrival(words.arrival);
   const [upgradeRequested, setUpgradeRequested] = useState(arrival.upgrade);
   // Decided on the first settled read, a failed one too: a sign-in in the dialog goes on to checkout from there, so the page doesn't start a second one.
   const [checkoutFromPage, setCheckoutFromPage] = useState<boolean | null>(null);
@@ -45,7 +48,7 @@ export function AccountView() {
   }, [backFromCheckout]);
   useOttoLoadingScreen(
     backFromCheckout && patient && (loading || watch.state === "checking" || goingBack),
-    bought ? `Setting up your ${PLANS[bought].name} plan` : "Setting up your new plan",
+    bought ? fmt(words.view.settingUp, { plan: PLANS[bought].name }) : words.view.settingUpNew,
   );
   const wanted: PaidPlanId | null = arrival.plan ?? nextPlan(user?.plan ?? "free");
   const alreadyOn = arrival.upgrade && user && planArrived(user.plan, wanted) ? user.plan : null;
@@ -88,20 +91,20 @@ export function AccountView() {
 
   let content: ReactNode;
   if (loading) {
-    content = <AccountSkeleton />;
+    content = <AccountSkeleton words={words.skeleton} />;
   } else if (!me) {
     content = (
       <Alert
         data-narrow
         variant="error"
-        title="Couldn't load your account"
+        title={words.view.loadFailed}
         action={
           <Button variant="secondary" onClick={() => void refresh()}>
-            Try again
+            {words.tryAgain}
           </Button>
         }
       >
-        Check your connection, then try again.
+        {words.checkConnection}
       </Alert>
     );
   } else if (!user) {
@@ -129,7 +132,7 @@ export function AccountView() {
               {checkingOut ? (
                 <p role="status" className="flex items-center gap-2 text-sm text-muted">
                   <Spinner />
-                  Taking you to checkout for {PLANS[checkingOut].name}
+                  {fmt(words.view.checkout, { plan: PLANS[checkingOut].name })}
                 </p>
               ) : null}
               {backFromCheckout ? (
