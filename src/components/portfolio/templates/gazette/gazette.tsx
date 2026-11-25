@@ -1,4 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
+import { rich } from "@/i18n/rich";
 import type {
   ContentProject,
   ContentRole,
@@ -7,6 +10,7 @@ import type {
 } from "@/lib/portfolio/content";
 import type { PortfolioView } from "@/lib/portfolio/view";
 import {
+  designFormat,
   featuredFirst,
   Marked,
   nameOf,
@@ -18,13 +22,15 @@ import {
   unbroken,
 } from "../parts";
 import { RevealOnScroll } from "../reveal";
-import type { PortfolioTemplateProps } from "../types";
+import type { DesignWords, PortfolioTemplateProps } from "../types";
 import { LocalTime } from "./on-demand";
 import { Caret, Fleuron, Hand, Star } from "./ornaments";
 import { GAZETTE_CSS } from "./styles";
 
 // Ported from JoaccoG/portfolio-v2, "The Daily Godoy" (MIT, see ./LICENSE.txt). Its portrait,
 // photographs and written copy are the author's own and are not used.
+
+type Words = DesignWords["gazette"];
 
 const ID = {
   top: "pf-gazette-top",
@@ -40,28 +46,12 @@ const TICKER_MAX = 10;
 const TICKER_MIN = 8;
 const TWO_COLUMNS = 520;
 const ADS = 4;
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const MILESTONE_LEADS: Record<MilestoneKind, string> = {
-  award: "Honours",
-  hackathon: "Honours",
-  launch: "Launched",
-  talk: "Lectured",
-  press: "In the press",
-  other: "Notice",
-};
+const EDITION_DATE = {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+} as const satisfies Intl.DateTimeFormatOptions;
 const INKS = ["#0e141b", "#1d1610", "#13201a", "#2a1214"] as const;
 const PATTERNS = ["ring", "hatch", "grid"] as const;
 
@@ -85,10 +75,9 @@ function roman(n: number): string {
 }
 
 // A page always has a save time; the guard keeps a blank sample from printing 1970.
-function editionDate(ms: number): string | null {
-  const date = new Date(ms);
-  if (date.getUTCFullYear() < 2000) return null;
-  return `${MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
+function editionDate(ms: number, format: Format): string | null {
+  if (new Date(ms).getUTCFullYear() < 2000) return null;
+  return format.date(ms, EDITION_DATE);
 }
 
 function surnameOf(name: string): string {
@@ -99,11 +88,12 @@ function tickerOf(
   view: PortfolioView,
   content: PortfolioContentView,
   aboutShown: boolean,
+  t: Words,
 ): string[] {
   const items = [
     ...content.experience
       .filter((job) => job.highlight && job.company)
-      .map((job) => `${job.highlight} at ${job.company}`),
+      .map((job) => fmt(t.tickerAt, { highlight: job.highlight, company: job.company })),
     ...content.projects.filter((p) => p.outcome).map((p) => `${p.name}: ${p.outcome}`),
     ...content.milestones.map((milestone) => milestone.title),
     ...(aboutShown ? content.stats.map((stat) => `${stat.value} ${stat.label}`) : []),
@@ -113,7 +103,7 @@ function tickerOf(
       ? items.slice(0, TICKER_MAX)
       : content.disciplines.length > 0
         ? content.disciplines
-        : [content.headline || view.headline || "The morning edition is on the streets"];
+        : [content.headline || view.headline || t.tickerFallback];
   const run = [...found];
   while (run.length < TICKER_MIN) run.push(...found);
   return run;
@@ -130,15 +120,17 @@ function Band({
   label,
   note,
   page,
+  t,
 }: {
   letter: string;
   label: string;
   note: string;
   page: string;
+  t: Words;
 }) {
   return (
     <div className="band" aria-hidden>
-      <span className="band-tab">Section {letter}</span>
+      <span className="band-tab">{fmt(t.section, { letter })}</span>
       <span className="band-label">{label}</span>
       <span className="band-note">{note}</span>
       <span className="band-page">{page}</span>
@@ -168,7 +160,7 @@ function Btn({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-function PlateArt({ project, index }: { project: ContentProject; index: number }) {
+function PlateArt({ project, index, t }: { project: ContentProject; index: number; t: Words }) {
   const random = seeded(seedOf(project.name));
   const pattern = PATTERNS[Math.floor(random() * PATTERNS.length)]!;
   const style = {
@@ -178,20 +170,20 @@ function PlateArt({ project, index }: { project: ContentProject; index: number }
   } as CSSProperties;
   return (
     <div className="plate-art" data-pattern={pattern} style={style} aria-hidden>
-      <span className="plate-no">Plate No. {index + 1}</span>
+      <span className="plate-no">{fmt(t.plate.number, { number: index + 1 })}</span>
       <span className="plate-name">{project.name}</span>
       {project.line ? <span className="plate-line">{project.line}</span> : null}
       {project.active || project.featured ? (
         <span className="stamp">
-          <b>{project.active ? "In daily service" : "Of special note"}</b>
-          <small>Works inspector</small>
+          <b>{project.active ? t.plate.active : t.plate.featured}</b>
+          <small>{t.plate.inspector}</small>
         </span>
       ) : null}
     </div>
   );
 }
 
-function Plate({ project, index }: { project: ContentProject; index: number }) {
+function Plate({ project, index, t }: { project: ContentProject; index: number; t: Words }) {
   const meta = [project.category, project.years].filter(Boolean).join(" · ");
   const story = project.description || project.line || project.lines[0] || "";
   const more = [
@@ -204,10 +196,10 @@ function Plate({ project, index }: { project: ContentProject; index: number }) {
       id={safeId("pf-gazette-p", project.id)}
       data-reveal
     >
-      <PlateArt project={project} index={index} />
+      <PlateArt project={project} index={index} t={t} />
       <div className="plate-text">
         <p className="kicker">
-          No. {index + 1}
+          {fmt(t.number, { number: index + 1 })}
           {meta ? ` — ${meta}` : ""}
         </p>
         <h3 className="plate-title">
@@ -216,18 +208,18 @@ function Plate({ project, index }: { project: ContentProject; index: number }) {
         </h3>
         {story ? <p className="plate-dek">{story}</p> : null}
         {project.tech.length > 0 ? (
-          <p className="composed">Composed with {project.tech.join(", ")}</p>
+          <p className="composed">{fmt(t.plate.composed, { tech: project.tech.join(", ") })}</p>
         ) : null}
         {project.outcome ? <p className="outcome">{project.outcome}</p> : null}
         <div className="btns">
-          {project.website ? <Btn href={project.website.href}>Visit the works</Btn> : null}
-          {project.source ? <Btn href={project.source.href}>The blueprints</Btn> : null}
+          {project.website ? <Btn href={project.website.href}>{t.plate.visit}</Btn> : null}
+          {project.source ? <Btn href={project.source.href}>{t.plate.source}</Btn> : null}
         </div>
         {more.length > 0 ? (
           <details className="account">
             <summary className="btn">
               <Hand />
-              <span>Full account</span>
+              <span>{t.plate.more}</span>
             </summary>
             <div className="account-body">
               {more.map((line, i) => (
@@ -241,14 +233,16 @@ function Plate({ project, index }: { project: ContentProject; index: number }) {
   );
 }
 
-function Appointment({ job }: { job: ContentRole }) {
+function Appointment({ job, t }: { job: ContentRole; t: Words }) {
   const line = job.summary || job.lines[0] || "";
   const rest = job.summary ? job.lines : job.lines.slice(1);
   const role = [job.title, job.company].filter(Boolean).join(", ");
   return (
     <li className="appt" data-reveal>
       <p className={job.current ? "appt-date now" : "appt-date"}>
-        {job.current ? `${unbroken(job.start || job.dates)} — today` : unbroken(job.dates)}
+        {job.current
+          ? fmt(t.today, { start: unbroken(job.start || job.dates) })
+          : unbroken(job.dates)}
       </p>
       <div className="appt-body">
         <h3 className="appt-role">
@@ -273,31 +267,44 @@ function Appointment({ job }: { job: ContentRole }) {
 function Advert({
   label,
   items,
+  t,
 }: {
   label: string;
   items: { name: string; years: number | null }[];
+  t: Words;
 }) {
   const [first, ...rest] = items;
   if (!first) return null;
   const years = Math.max(0, ...items.map((item) => item.years ?? 0));
+  const shown = label || t.advert.skills;
   return (
     <div className="advert" data-reveal>
-      <p className="advert-label">— Advertisement —</p>
+      <p className="advert-label">{t.advert.label}</p>
       <p className="advert-title">
         <em>{first.name}</em>
         {rest.length > 0 ? `, ${rest.map((item) => item.name).join(", ")}` : ""}
       </p>
       <p className="advert-line">
-        {label || "Skills"}
-        {years > 1 ? ` — ${years} years in service.` : ". Supplied daily."}
+        {years > 1
+          ? fmt(t.advert.years, { label: shown, count: years })
+          : fmt(t.advert.daily, { label: shown })}
       </p>
     </div>
   );
 }
 
-export function GazetteTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function GazetteTemplate({
+  view,
+  content,
+  words,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = words.gazette;
+  const format = designFormat(view);
+  const name = nameOf(view, words.shared.untitled);
   const surname = surnameOf(name);
+  const nameplate = `${t.nameplate.the} ${t.nameplate.daily} `;
   const headline = content.headline || view.headline;
   const about = content.about;
   const dek = content.pitch && content.pitch !== about[0] ? content.pitch : content.intro;
@@ -309,33 +316,34 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
   const others = projects.slice(PLATES);
   const skillGroups = content.skills.filter((group) => group.items.length > 0).slice(0, ADS);
   const printed = content.updatedAt || view.updatedAt;
-  const edition = editionDate(printed);
+  const edition = editionDate(printed, format);
   const year = edition ? new Date(printed).getUTCFullYear() : null;
   // Numbers, kind words and the now list belong to About and hide with it.
   const aboutShown = !view.hidden.includes("about");
-  const ticker = tickerOf(view, content, aboutShown);
+  const ticker = tickerOf(view, content, aboutShown, t);
   const stats = aboutShown ? content.stats : [];
   const testimonials = aboutShown ? content.testimonials : [];
   const lately = aboutShown ? (content.now?.items ?? []) : [];
   const hasSubject = testimonials.length > 0;
   const hasColumns = content.writing.length > 0 || content.talks.length > 0;
   const hasAppointments = content.experience.length > 0 || skillGroups.length > 0;
+  const leads: Record<MilestoneKind, string> = t.leads;
   const classifieds = [
     ...content.education.map((school) => ({
       id: `ed-${school.id}`,
-      lead: "Schooled",
+      lead: t.leads.school,
       text: [school.degree, school.school, school.dates].filter(Boolean).join(", "),
       href: school.website?.href ?? null,
     })),
     ...view.certifications.map((cert) => ({
       id: `ce-${cert.id}`,
-      lead: "Certified",
+      lead: t.leads.certificate,
       text: [cert.name, cert.issuer, cert.date].filter(Boolean).join(", "),
       href: null,
     })),
     ...content.milestones.slice(0, 4).map((milestone) => ({
       id: `mi-${milestone.id}`,
-      lead: MILESTONE_LEADS[milestone.kind],
+      lead: leads[milestone.kind],
       text: [milestone.title, milestone.result, milestone.date].filter(Boolean).join(", "),
       href: milestone.href,
     })),
@@ -351,63 +359,65 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
     ),
   ];
   const hasWire = wire !== null || socials.length > 0 || classifieds.length > 0;
+  const [callersBefore = "", callersAfter = ""] = t.wire.callers.split("{links}");
 
   const order = [
-    hasSubject && { id: ID.subject, label: "The subject", title: "Testimony of the Trade" },
-    plates.length > 0 && {
-      id: ID.works,
-      label: "The works",
-      title: "Machinery Lately Constructed",
-    },
+    hasSubject && { id: ID.subject, title: t.sections.subject },
+    plates.length > 0 && { id: ID.works, title: t.sections.works },
     hasColumns && {
       id: ID.columns,
-      label: "The columns",
-      title: content.writing.length > 0 ? "The Columns" : "From the Lectern",
+      title: content.writing.length > 0 ? t.sections.columns : t.sections.lectern,
     },
-    hasAppointments && {
-      id: ID.appointments,
-      label: "Appointments",
-      title: "Appointments & Advertisements",
-    },
-    hasWire && { id: ID.wire, label: "Correspondence", title: "Telegrams to the Editor" },
+    hasAppointments && { id: ID.appointments, title: t.sections.appointments },
+    hasWire && { id: ID.wire, title: t.sections.wire },
   ].filter((item) => item !== false);
   const letter = (id: string) =>
     String.fromCharCode(66 + order.findIndex((item) => item.id === id));
   const page = (id: string) => {
     const at = order.findIndex((item) => item.id === id);
-    return at === order.length - 1 ? "Back page" : `Page ${at + 2}`;
+    return at === order.length - 1 ? t.backPage : fmt(t.page, { number: at + 2 });
   };
 
   const almanac = [
     content.location?.label
-      ? { label: "Filed from", value: <span className="value">{content.location.label}</span> }
+      ? {
+          label: t.almanac.filed,
+          value: <span className="value">{content.location.label}</span>,
+        }
       : null,
     content.location?.timezone
-      ? { label: "Local time", value: <LocalTime timeZone={content.location.timezone} /> }
+      ? {
+          label: t.almanac.time,
+          value: <LocalTime timeZone={content.location.timezone} locale={format.locale} />,
+        }
       : null,
     content.availability
       ? {
-          label: "Status",
+          label: t.almanac.status,
           value: (
             <span className="value">{content.availability.short || content.availability.text}</span>
           ),
         }
       : null,
     content.disciplines.length > 0
-      ? { label: "Trades", value: <span className="value">{content.disciplines.join(" · ")}</span> }
+      ? {
+          label: t.almanac.trades,
+          value: <span className="value">{content.disciplines.join(" · ")}</span>,
+        }
       : null,
   ].filter((row) => row !== null);
 
   const notices = [
     content.availability?.open && content.availability.text
-      ? { lead: "To recruiters —", body: `${content.availability.text}.` }
+      ? { lead: t.notices.recruiters, body: `${content.availability.text}.` }
       : null,
     content.email
-      ? { lead: "To correspondents —", body: `Letters reach the desk at ${content.email}.` }
+      ? {
+          lead: t.notices.correspondents,
+          body: fmt(t.notices.letters, { email: content.email }),
+        }
       : null,
-    resumeHref
-      ? { lead: "To the hiring desk —", body: "The complete record is filed with this edition." }
-      : null,
+    resumeHref ? { lead: t.notices.hiring, body: t.notices.record } : null,
   ].filter((row) => row !== null);
 
   return (
@@ -432,26 +442,30 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
 
         <header className="mast">
           <div className="top">
-            <span className="rise r1">No. 001</span>
-            <span className="rise r2 motto">All the Work That Is Fit to Ship.</span>
+            <span className="rise r1">{t.issue}</span>
+            <span className="rise r2 motto">{t.motto}</span>
             <span className="rise r3 price">2¢</span>
           </div>
           <div className="plate-row">
             <div className="ear weather">
-              <span className="ear-label">The Weather.</span>
+              <span className="ear-label">{t.weather.label}</span>
               <span className="ear-text">
-                {city ? `Fair over ${city}.` : "Fair and settled."} Deploys expected before noon.
+                {city ? fmt(t.weather.city, { city }) : t.weather.none}
               </span>
             </div>
-            <h1 className="nameplate" style={{ "--chars": 10 + surname.length } as CSSProperties}>
+            <h1
+              className="nameplate"
+              style={{ "--chars": nameplate.length + surname.length } as CSSProperties}
+            >
               <span className="sr-only">{name} — </span>
               <Star className="fleuron-l" />
-              <span className="np-word w1">The</span> <span className="np-word w2">Daily</span>{" "}
+              <span className="np-word w1">{t.nameplate.the}</span>{" "}
+              <span className="np-word w2">{t.nameplate.daily}</span>{" "}
               <span className="np-word w3">{surname}</span>
               <Star className="fleuron-r" />
             </h1>
             <div className="ear press" aria-hidden>
-              <span className="ear-label">The Press.</span>
+              <span className="ear-label">{t.press}</span>
               <svg viewBox="0 0 100 100" className="seal">
                 <defs>
                   <path id="pf-gazette-seal-top" d="M 15,50 A 35,35 0 0 1 85,50" />
@@ -461,12 +475,12 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
                 <circle className="seal-inner" cx="50" cy="50" r="26" />
                 <text textAnchor="middle" className="seal-arc">
                   <textPath href="#pf-gazette-seal-top" startOffset="50%">
-                    {`The Daily ${surname}`.slice(0, 22)}
+                    {`${nameplate}${surname}`.slice(0, 22)}
                   </textPath>
                 </text>
                 <text textAnchor="middle" className="seal-arc">
                   <textPath href="#pf-gazette-seal-bot" startOffset="50%">
-                    Morning Edition
+                    {t.edition}
                   </textPath>
                 </text>
                 <text x="50" y="58" textAnchor="middle" className="seal-mono">
@@ -474,21 +488,19 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
                 </text>
                 {year ? (
                   <text x="50" y="67" textAnchor="middle" className="seal-est">
-                    Est. {year}
+                    {fmt(t.est, { year })}
                   </text>
                 ) : null}
               </svg>
             </div>
           </div>
           <div className="folio">
-            <span>Morning Edition{edition ? ` — ${edition}` : ""}</span>
-            <span className="folio-place">
-              {city ? `${city} & the wider web` : "The wider web"}
-            </span>
+            <span>{edition ? fmt(t.editionOn, { date: edition }) : t.edition}</span>
+            <span className="folio-place">{city ? fmt(t.place, { city }) : t.placeNone}</span>
             {resumeHref ? (
               <a className="folio-link" href={resumeHref}>
                 <Hand />
-                <span>Resume</span>
+                <span>{t.resume}</span>
               </a>
             ) : (
               <span className="folio-link">{name}</span>
@@ -496,10 +508,10 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
           </div>
         </header>
 
-        <section className="front" aria-label="Front page">
+        <section className="front" aria-label={t.front}>
           <div className="story">
             <p className="kicker rise r2">
-              Late intelligence — {content.disciplines[0] || "the trade"}
+              {fmt(t.late, { topic: content.disciplines[0] || t.trade })}
             </p>
             <h2
               className="headline rise r3"
@@ -510,7 +522,7 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
             </h2>
             {dek ? <p className="dek">{dek}</p> : null}
             <p className="byline">
-              By {name} — {city ? `wired from ${city}` : "wired from the scene"}
+              {city ? fmt(t.byline, { name, city }) : fmt(t.bylineNone, { name })}
             </p>
             {about.length > 0 ? (
               <div
@@ -523,14 +535,12 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
                   </p>
                 ))}
                 {order.length > 0 ? (
-                  <p className="closer">
-                    The full particulars appear in the columns below. — <span>Ed.</span>
-                  </p>
+                  <p className="closer">{rich(t.closer, { b: (chunk) => <span>{chunk}</span> })}</p>
                 ) : null}
               </div>
             ) : null}
             {stats.length > 0 ? (
-              <dl className="figures" aria-label="By the figures">
+              <dl className="figures" aria-label={t.figures}>
                 {stats.map((stat) => (
                   <div key={stat.label}>
                     <dt>{stat.label}</dt>
@@ -548,12 +558,12 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
               </div>
               <figcaption>
                 {name}
-                {headline ? `, ${headline}` : ""} — <em>engraved for this edition</em>
+                {headline ? `, ${headline}` : ""} — <em>{t.engraved}</em>
               </figcaption>
             </figure>
             {order.length > 0 ? (
-              <nav className="box" aria-label="In this edition">
-                <p className="box-title">In this edition</p>
+              <nav className="box" aria-label={t.contents}>
+                <p className="box-title">{t.contents}</p>
                 <ul className="index">
                   {order.map((item) => (
                     <li key={item.id}>
@@ -571,7 +581,7 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
             <div className="strip">
               {almanac.length > 0 ? (
                 <div className="box">
-                  <p className="box-title">The Almanac</p>
+                  <p className="box-title">{t.almanac.title}</p>
                   <dl className="almanac">
                     {almanac.map((row) => (
                       <div key={row.label}>
@@ -580,12 +590,12 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
                       </div>
                     ))}
                   </dl>
-                  <p className="box-foot">The stars accept no tickets.</p>
+                  <p className="box-foot">{t.almanac.foot}</p>
                 </div>
               ) : null}
               {notices.length > 0 ? (
                 <div className="box">
-                  <p className="box-title">Notices to correspondents</p>
+                  <p className="box-title">{t.notices.title}</p>
                   <ul className="notices">
                     {notices.map((notice) => (
                       <li key={notice.lead}>
@@ -597,7 +607,7 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
               ) : null}
               {lately.length > 0 ? (
                 <div className="box">
-                  <p className="box-title">Lately at the bench</p>
+                  <p className="box-title">{t.lately}</p>
                   <dl className="almanac">
                     {lately.map((item) => (
                       <div key={item.label}>
@@ -612,26 +622,23 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
           ) : null}
           {order[0] ? (
             <a className="cue" href={`#${order[0].id}`}>
-              <span>Turn the page</span>
+              <span>{t.turn}</span>
               <Caret />
             </a>
           ) : null}
         </section>
 
         {hasSubject ? (
-          <section className="section" id={ID.subject} aria-label="The subject">
+          <section className="section" id={ID.subject} aria-label={t.subject.label}>
             <Band
               letter={letter(ID.subject)}
-              label="The subject"
-              note="Related to this desk, at some length"
+              label={t.subject.label}
+              note={t.subject.note}
               page={page(ID.subject)}
+              t={t}
             />
             <div className="inner">
-              <Head
-                kicker="The profile piece"
-                title="What the trade says"
-                line="Testimony taken in the subject's absence"
-              />
+              <Head kicker={t.subject.kicker} title={t.subject.title} line={t.subject.line} />
               {testimonials.length > 0 ? (
                 <div className="testimony">
                   {testimonials.map((quote, i) => (
@@ -651,52 +658,48 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
         ) : null}
 
         {resumeHref ? (
-          <aside className="advert wide" aria-label="Resume">
-            <p className="advert-label">— Advertisement —</p>
+          <aside className="advert wide" aria-label={t.resume}>
+            <p className="advert-label">{t.advert.label}</p>
             <p className="advert-title big">
-              Obtain the subject’s papers<span className="dot">!</span>
+              {t.papers.title}
+              <span className="dot">!</span>
             </p>
-            <p className="advert-line">
-              The record in full, dispatched to your reading-room by electronic post.
-            </p>
+            <p className="advert-line">{t.papers.line}</p>
             <div className="btns center">
               <a className="btn" href={resumeHref}>
                 <Hand />
-                <span>Read the Resume</span>
+                <span>{t.papers.read}</span>
               </a>
             </div>
-            <p className="advert-foot">The complete record, folded for the pocket.</p>
+            <p className="advert-foot">{t.papers.foot}</p>
           </aside>
         ) : null}
 
         {plates.length > 0 ? (
-          <section className="section" id={ID.works} aria-label="The works">
+          <section className="section" id={ID.works} aria-label={t.works.label}>
             <Band
               letter={letter(ID.works)}
-              label="The works"
-              note="Assembled on the premises"
+              label={t.works.label}
+              note={t.works.note}
               page={page(ID.works)}
+              t={t}
             />
             <div className="inner">
-              <Head
-                kicker="From the workshop floor"
-                title="Machinery lately constructed"
-                line="One account, continued overleaf"
-              />
+              <Head kicker={t.works.kicker} title={t.works.title} line={t.works.line} />
               <div className="plates">
                 {plates.map((project, index) => (
-                  <Plate key={project.id} project={project} index={index} />
+                  <Plate key={project.id} project={project} index={index} t={t} />
                 ))}
               </div>
               {others.length > 0 ? (
                 <div className="also" data-reveal>
                   <p className="rule-title">
-                    <span>Also from the workshop</span>
+                    <span>{t.works.also}</span>
                   </p>
                   <ul>
                     {others.map((project, i) => (
                       <li key={project.id}>
-                        <span className="also-no">No. {PLATES + i + 1}</span>
+                        <span className="also-no">{fmt(t.number, { number: PLATES + i + 1 })}</span>
                         <div>
                           <h3>
                             <OutLink href={project.website?.href ?? project.source?.href ?? null}>
@@ -717,29 +720,30 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
         ) : null}
 
         {hasColumns ? (
-          <section className="section" id={ID.columns} aria-label="The columns">
+          <section className="section" id={ID.columns} aria-label={t.columns.label}>
             <Band
               letter={letter(ID.columns)}
-              label="The columns"
-              note="Occasional, set as they occur"
+              label={t.columns.label}
+              note={t.columns.note}
               page={page(ID.columns)}
+              t={t}
             />
             <div className="inner split">
               <div className="col-intro" data-reveal>
                 <h2 className="sec-title left">
-                  {content.writing.length > 0 ? "The columns" : "From the lectern"}
+                  {content.writing.length > 0 ? t.columns.writing : t.columns.lectern}
                   <span className="dot">.</span>
                 </h2>
                 <p className="col-dek">
                   {content.writing.length > 0
-                    ? `A standing column on the trade and whatever else the week produced. ${content.writing.length} to date; no schedule promised.`
-                    : `Addresses delivered to societies and meetings. ${content.talks.length} on the record.`}
+                    ? fmt(t.columns.writingDek, { count: content.writing.length })
+                    : fmt(t.columns.talksDek, { count: content.talks.length })}
                 </p>
               </div>
               <div className="col-lists">
                 {content.writing.length > 0 ? (
                   <div className="col-list" data-reveal>
-                    <p className="list-title">Lately set in type</p>
+                    <p className="list-title">{t.columns.set}</p>
                     <ol>
                       {content.writing.map((post, i) => (
                         <li key={post.id}>
@@ -751,7 +755,7 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
                             <p className="meta">
                               {[
                                 post.date,
-                                post.minutes ? `${post.minutes} min` : "",
+                                post.minutes ? fmt(t.columns.minutes, { count: post.minutes }) : "",
                                 post.publisher,
                               ]
                                 .filter(Boolean)
@@ -765,7 +769,7 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
                 ) : null}
                 {content.talks.length > 0 ? (
                   <div className="col-list" data-reveal>
-                    <p className="list-title">Addresses delivered</p>
+                    <p className="list-title">{t.columns.talks}</p>
                     <ol>
                       {content.talks.map((talk, i) => (
                         <li key={talk.id}>
@@ -791,29 +795,30 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
         ) : null}
 
         {hasAppointments ? (
-          <section className="section" id={ID.appointments} aria-label="Appointments">
+          <section className="section" id={ID.appointments} aria-label={t.appointments.label}>
             <Band
               letter={letter(ID.appointments)}
-              label="Appointments"
-              note="Entered in reverse order of occurrence"
+              label={t.appointments.label}
+              note={t.appointments.note}
               page={page(ID.appointments)}
+              t={t}
             />
             <div className="inner split wide-left">
               <div>
                 <header className="sec-head left" data-reveal>
-                  <p className="kicker">The service column</p>
+                  <p className="kicker">{t.appointments.kicker}</p>
                   <h2 className="sec-title left">
                     {content.experience.length > 0
-                      ? view.titles.experience || "Appointments"
-                      : view.titles.skills || "Skills"}
+                      ? view.titles.experience || t.appointments.title
+                      : view.titles.skills || t.advert.skills}
                     <span className="dot">.</span>
                   </h2>
-                  <p className="sec-line">Professional postings — enquiries entertained.</p>
+                  <p className="sec-line">{t.appointments.line}</p>
                 </header>
                 {content.experience.length > 0 ? (
                   <ul className="appts">
                     {content.experience.map((job) => (
-                      <Appointment key={job.id} job={job} />
+                      <Appointment key={job.id} job={job} t={t} />
                     ))}
                   </ul>
                 ) : null}
@@ -821,7 +826,7 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
               {skillGroups.length > 0 ? (
                 <div className="adverts">
                   {skillGroups.map((group) => (
-                    <Advert key={group.id} label={group.label} items={group.items} />
+                    <Advert key={group.id} label={group.label} items={group.items} t={t} />
                   ))}
                 </div>
               ) : null}
@@ -830,47 +835,41 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
         ) : null}
 
         {hasWire ? (
-          <section className="section" id={ID.wire} aria-label="Correspondence">
+          <section className="section" id={ID.wire} aria-label={t.wire.label}>
             <Band
               letter={letter(ID.wire)}
-              label="Correspondence"
-              note="Inland rate, two cents"
+              label={t.wire.label}
+              note={t.wire.note}
               page={page(ID.wire)}
+              t={t}
             />
             <div className="inner">
               {wire ? (
                 <>
-                  <Head
-                    kicker="The wire desk"
-                    title="Telegrams to the editor"
-                    line="All wires answered within two days"
-                  />
+                  <Head kicker={t.wire.kicker} title={t.wire.title} line={t.wire.line} />
                   <div className="postcard" data-reveal>
-                    <p className="pc-title">Post card</p>
-                    <p className="pc-sub">
-                      The address only to be written on this side — inland rate, 2¢
-                    </p>
+                    <p className="pc-title">{t.wire.card}</p>
+                    <p className="pc-sub">{t.wire.cardLine}</p>
                     <div className="pc-grid">
                       <div className="pc-message">
-                        <p className="pc-label">The message — economy of words appreciated</p>
+                        <p className="pc-label">{t.wire.message}</p>
                         <p className="pc-lines">
-                          Dear {content.first || name}, I have seen the machinery and wish to
-                          discuss it.
+                          {fmt(t.wire.dear, { name: content.first || name })}
                         </p>
                       </div>
                       <div className="pc-address">
                         <span className="pc-stamp" aria-hidden>
                           <Fleuron />
                           <b>2¢</b>
-                          <small>Electronic post</small>
+                          <small>{t.wire.stamp}</small>
                         </span>
-                        <p className="pc-label">To —</p>
+                        <p className="pc-label">{t.wire.to}</p>
                         <p className="pc-to">
                           {name}
                           {headline ? `, ${headline}` : ""}
                         </p>
                         {city ? <p className="pc-to">{city}</p> : null}
-                        <p className="pc-label">Or by wire —</p>
+                        <p className="pc-label">{t.wire.byWire}</p>
                         <ul className="pc-wires">
                           {content.email ? (
                             <li>
@@ -886,9 +885,9 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
                       </div>
                     </div>
                     <div className="pc-foot">
-                      <span>Response window — 48 hours</span>
+                      <span>{t.wire.window}</span>
                       <OutLink href={wire} className="btn">
-                        <span>Post it</span>
+                        <span>{t.wire.post}</span>
                         <Hand />
                       </OutLink>
                     </div>
@@ -898,7 +897,7 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
               {classifieds.length > 0 || socials.length > 0 ? (
                 <div className="classifieds" data-reveal>
                   <p className="rule-title">
-                    <span>Classified advertisements</span>
+                    <span>{t.wire.classifieds}</span>
                   </p>
                   <ul>
                     {classifieds.map((item) => (
@@ -909,14 +908,14 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
                     ))}
                     {socials.length > 0 ? (
                       <li>
-                        <b>Notice —</b> The proprietor receives callers at{" "}
+                        <b>{t.wire.notice}</b> {callersBefore}
                         {socials.map((social, i) => (
                           <span key={social.href}>
-                            {i > 0 ? (i === socials.length - 1 ? " and " : ", ") : ""}
+                            {i > 0 ? (i === socials.length - 1 ? ` ${t.wire.and} ` : ", ") : ""}
                             <OutLink href={social.href}>{social.label}</OutLink>
                           </span>
                         ))}
-                        .
+                        {callersAfter}
                       </li>
                     ) : null}
                   </ul>
@@ -934,13 +933,10 @@ export function GazetteTemplate({ view, content, footer, resumeHref }: Portfolio
           >
             <span>{surname}</span>
           </p>
-          <p className="colophon">
-            Thus concludes the morning edition · set in Fraktur &amp; Old Standard · printed on
-            recycled electrons
-          </p>
+          <p className="colophon">{t.colophon}</p>
           <p className="colophon">
             © {year ? `${year} ` : ""}
-            {name}, proprietor <Fleuron />
+            {fmt(t.proprietor, { name })} <Fleuron />
           </p>
           {footer ? <div className="credit">{footer}</div> : null}
         </footer>

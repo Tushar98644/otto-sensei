@@ -420,7 +420,7 @@ describe("/api/notifications/unsubscribe", () => {
     const html = await visit.text();
     expect(html).toContain('<html lang="es">');
     expect(html).toContain("Detener el correo semanal");
-    expect(html).toContain('href="https://otto.test/dashboard/account#reminders"');
+    expect(html).toContain('href="https://otto.test/es/dashboard/account#reminders"');
     const action = /action="([^"]+)"/.exec(html)?.[1]?.replaceAll("&amp;", "&");
     const pressed = await unsubscribe(new Request(`http://localhost${action}`, { method: "POST" }));
     expect(await pressed.text()).toContain("Ya no recibirás el correo semanal de empleos.");

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { intlLocale, type Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
 
 // Ported from Ladvace/astro-bento-portfolio (MIT, see ./LICENSE.txt).
 
@@ -21,14 +23,24 @@ function timeIn(ms: number, timeZone: string, h24: boolean): string {
   }).format(ms);
 }
 
-function zoneName(ms: number, timeZone: string): string {
-  const part = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "short" })
+export type TimeZoneWords = {
+  in: string;
+  here: string;
+  same: string;
+  ahead: string;
+  behind: string;
+  hours: string;
+  hoursMinutes: string;
+};
+
+function zoneName(ms: number, timeZone: string, locale: Locale): string {
+  const part = new Intl.DateTimeFormat(intlLocale(locale), { timeZone, timeZoneName: "short" })
     .formatToParts(ms)
     .find((item) => item.type === "timeZoneName");
   return part?.value ?? timeZone.split("/").pop() ?? timeZone;
 }
 
-function offsetLabel(ms: number, home: string, visitor: string): string {
+function offsetLabel(ms: number, home: string, visitor: string, words: TimeZoneWords): string {
   const minutes = (timeZone: string) => {
     const date = new Date(new Date(ms).toLocaleString("en-US", { timeZone }));
     return date.getHours() * 60 + date.getMinutes();
@@ -36,10 +48,13 @@ function offsetLabel(ms: number, home: string, visitor: string): string {
   let diff = minutes(home) - minutes(visitor);
   if (diff > 720) diff -= 1440;
   if (diff < -720) diff += 1440;
-  if (diff === 0) return "same timezone";
+  if (diff === 0) return words.same;
   const abs = Math.abs(diff);
-  const label = abs % 60 ? `${Math.floor(abs / 60)}h ${abs % 60}m` : `${abs / 60}h`;
-  return diff > 0 ? `${label} ahead of you` : `${label} behind you`;
+  const offset =
+    abs % 60
+      ? fmt(words.hoursMinutes, { hours: Math.floor(abs / 60), minutes: abs % 60 })
+      : fmt(words.hours, { hours: abs / 60 });
+  return fmt(diff > 0 ? words.ahead : words.behind, { offset });
 }
 
 function prefers24h(): boolean {
@@ -51,10 +66,14 @@ export function TimeZoneTile({
   timeZone,
   place,
   country,
+  locale,
+  words,
 }: {
   timeZone: string;
   place: string;
   country: string;
+  locale: Locale;
+  words: TimeZoneWords;
 }) {
   const now = useSyncExternalStore(subscribeClock, clockSnapshot, serverClock);
   const [override, setOverride] = useState<boolean | null>(null);
@@ -66,14 +85,14 @@ export function TimeZoneTile({
       <div className="tz-block">
         <div className="tz-head">
           <span className="dot" aria-hidden />
-          <span className="tz-label">In {place}</span>
+          <span className="tz-label">{fmt(words.in, { place })}</span>
           <button type="button" className="tz-format" onClick={() => setOverride(!h24)}>
             {h24 ? "12h" : "24h"}
           </button>
         </div>
         <time className="clock">{live ? timeIn(now, timeZone, h24) : "--:--"}</time>
         <div className="tz-sub">
-          <span>{live ? zoneName(now, timeZone) : ""}</span>
+          <span>{live ? zoneName(now, timeZone, locale) : ""}</span>
           {country ? (
             <>
               <span className="sep">·</span>
@@ -83,12 +102,12 @@ export function TimeZoneTile({
         </div>
       </div>
       <div className="tz-rule">
-        <span>{live ? offsetLabel(now, timeZone, visitor) : ""}</span>
+        <span>{live ? offsetLabel(now, timeZone, visitor, words) : ""}</span>
       </div>
       <div className="tz-block">
-        <span className="tz-label">Where you are</span>
+        <span className="tz-label">{words.here}</span>
         <time className="clock">{live ? timeIn(now, visitor, h24) : "--:--"}</time>
-        <span className="tz-sub">{live ? zoneName(now, visitor) : ""}</span>
+        <span className="tz-sub">{live ? zoneName(now, visitor, locale) : ""}</span>
       </div>
     </div>
   );
@@ -116,7 +135,7 @@ function chooseAccent(next: Accent) {
   for (const listener of listeners) listener();
 }
 
-export function AccentSwatches() {
+export function AccentSwatches({ labels }: { labels: Record<Accent, string> }) {
   const ref = useRef<HTMLDivElement>(null);
   const accent = useSyncExternalStore(
     (onChange) => {
@@ -141,7 +160,7 @@ export function AccentSwatches() {
           key={name}
           type="button"
           className={`swatch ${name}`}
-          aria-label={`${name} accent`}
+          aria-label={labels[name]}
           aria-pressed={accent === name}
           onClick={() => chooseAccent(name)}
         />

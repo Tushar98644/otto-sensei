@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 const SHOW_AFTER = 250;
 
-export function ToTop() {
+export function ToTop({ label }: { label: string }) {
   const [shown, setShown] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
 
@@ -25,7 +25,7 @@ export function ToTop() {
       className="to-top"
       data-shown={shown}
       tabIndex={shown ? 0 : -1}
-      aria-label="Back to top"
+      aria-label={label}
       onClick={() =>
         window.scrollTo({
           top: 0,

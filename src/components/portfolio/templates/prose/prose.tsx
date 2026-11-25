@@ -1,5 +1,7 @@
 import { ArrowUpRight, FileText, Film, Lightbulb, Mic, Newspaper } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import type { ContentProject } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
 import { Marked, nameOf, OutLink, seedOf, TemplateStyle } from "../parts";
@@ -14,14 +16,17 @@ const NAV_SOCIALS = 3;
 const stage = (n: number, step = 90) =>
   ({ "--enter-stage": n, "--enter-step": `${step}ms` }) as CSSProperties;
 
-function groupOf(project: ContentProject): string {
-  return project.category.split(/\s*[·/|]\s*/)[0]?.trim() || "Projects";
+function groupOf(project: ContentProject, fallback: string): string {
+  return project.category.split(/\s*[·/|]\s*/)[0]?.trim() || fallback;
 }
 
-function groups(projects: readonly ContentProject[]): [string, ContentProject[]][] {
+function groups(
+  projects: readonly ContentProject[],
+  fallback: string,
+): [string, ContentProject[]][] {
   const byGroup = new Map<string, ContentProject[]>();
   for (const project of projects) {
-    const key = groupOf(project);
+    const key = groupOf(project, fallback);
     byGroup.set(key, [...(byGroup.get(key) ?? []), project]);
   }
   return [...byGroup.entries()];
@@ -80,7 +85,7 @@ type ListItem = {
   recording: boolean;
 };
 
-function YearList({ items }: { items: readonly ListItem[] }) {
+function YearList({ items, recording }: { items: readonly ListItem[]; recording: string }) {
   return (
     <ul className="list">
       {items.map((item, index) => {
@@ -102,7 +107,7 @@ function YearList({ items }: { items: readonly ListItem[] }) {
                     {item.href ? <ArrowUpRight aria-hidden /> : null}
                   </span>
                   <span className="post-meta">
-                    {item.recording ? <Film aria-label="With a recording" /> : null}
+                    {item.recording ? <Film aria-label={recording} /> : null}
                     {item.date ? <span className="when">{item.date}</span> : null}
                     {item.more ? <span className="more">· {item.more}</span> : null}
                     {item.place ? <span className="more place-sm">· {item.place}</span> : null}
@@ -118,8 +123,15 @@ function YearList({ items }: { items: readonly ListItem[] }) {
   );
 }
 
-export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function ProseTemplate({
+  view,
+  content,
+  words,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = words.prose;
+  const name = nameOf(view, words.shared.untitled);
   const lead = content.pitch || view.headline;
   const showLead = lead !== "" && !(content.about[0] ?? "").trim().startsWith(lead.trim());
   const socials = content.socials.filter((social) => social.kind !== "email");
@@ -127,7 +139,7 @@ export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTe
   const now = current.length > 0 ? current : content.experience.slice(0, 1);
   const before = content.experience.filter((job) => !now.includes(job));
   const made = content.projects.slice(0, 6);
-  const grouped = groups(content.projects);
+  const grouped = groups(content.projects, t.nav.projects);
   const hasIntro =
     showLead ||
     now.length > 0 ||
@@ -150,7 +162,7 @@ export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTe
     title: post.title,
     href: post.href,
     date: post.date,
-    more: post.minutes ? `${post.minutes}min` : post.publisher,
+    more: post.minutes ? fmt(t.minutes, { minutes: post.minutes }) : post.publisher,
     place: "",
     recording: false,
   }));
@@ -166,33 +178,33 @@ export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTe
       <TemplateStyle css={PROSE_CSS} />
       <ArtPlum />
       <header className="header">
-        <a href="#pf-prose-top" className="logo" aria-label={`${name}, back to the top`}>
+        <a href="#pf-prose-top" className="logo" aria-label={fmt(t.top, { name })}>
           <span aria-hidden>{content.initials || "·"}</span>
         </a>
-        <nav className="nav" aria-label="Sections">
+        <nav className="nav" aria-label={t.nav.label}>
           <div />
           <div className="right">
             {content.projects.length > 0 ? (
-              <a href="#pf-prose-projects" title="Projects">
-                <span className="label">Projects</span>
+              <a href="#pf-prose-projects" title={t.nav.projects}>
+                <span className="label">{t.nav.projects}</span>
                 <Lightbulb className="icon-sm" aria-hidden />
               </a>
             ) : null}
             {talks.length > 0 ? (
-              <a href="#pf-prose-talks" title="Talks">
-                <span className="label">Talks</span>
+              <a href="#pf-prose-talks" title={t.nav.talks}>
+                <span className="label">{t.nav.talks}</span>
                 <Mic className="icon-sm" aria-hidden />
               </a>
             ) : null}
             {writing.length > 0 ? (
-              <a href="#pf-prose-writing" title="Writing">
-                <span className="label">Writing</span>
+              <a href="#pf-prose-writing" title={t.nav.writing}>
+                <span className="label">{t.nav.writing}</span>
                 <Newspaper className="icon-sm" aria-hidden />
               </a>
             ) : null}
             {resumeHref ? (
-              <a href={resumeHref} title="Resume">
-                <span className="label">Resume</span>
+              <a href={resumeHref} title={t.nav.resume}>
+                <span className="label">{t.nav.resume}</span>
                 <FileText className="icon-sm" aria-hidden />
               </a>
             ) : null}
@@ -214,9 +226,9 @@ export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTe
             {showLead ? <p>{lead}</p> : null}
             {now.length > 0 || made.length > 0 ? (
               <p className="lines">
-                <ChipLine label="Currently at">{now.map(jobChip)}</ChipLine>
-                <ChipLine label="Previously">{before.map(jobChip)}</ChipLine>
-                <ChipLine label="Projects">
+                <ChipLine label={t.lines.current}>{now.map(jobChip)}</ChipLine>
+                <ChipLine label={t.lines.before}>{before.map(jobChip)}</ChipLine>
+                <ChipLine label={t.lines.projects}>
                   {made.map((project) => (
                     <Chip
                       key={project.id}
@@ -236,7 +248,7 @@ export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTe
               </p>
             ))}
             {socials.length > 0 || content.email ? <hr /> : null}
-            {socials.length > 0 ? <p>Elsewhere on the web</p> : null}
+            {socials.length > 0 ? <p>{t.elsewhere}</p> : null}
             {socials.length > 0 ? (
               <p className="socials">
                 {socials.map((social) => (
@@ -249,19 +261,26 @@ export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTe
             ) : null}
             {content.email ? (
               <p>
-                Say hello at{" "}
-                <code>
-                  <a href={`mailto:${content.email}`}>{content.email}</a>
-                </code>
+                {rich(
+                  t.sayHello,
+                  {
+                    link: (chunk) => (
+                      <code>
+                        <a href={`mailto:${content.email}`}>{chunk}</a>
+                      </code>
+                    ),
+                  },
+                  { email: content.email },
+                )}
               </p>
             ) : null}
           </article>
         ) : null}
 
         {grouped.length > 0 ? (
-          <section className="projects" id="pf-prose-projects" aria-label="Projects">
+          <section className="projects" id="pf-prose-projects" aria-label={t.nav.projects}>
             <div className="prose">
-              <h2>Projects</h2>
+              <h2>{t.nav.projects}</h2>
             </div>
             {grouped.map(([group, projects], groupIndex) => (
               <div key={group} className="slide-enter" style={stage(groupIndex + 1)}>
@@ -301,16 +320,16 @@ export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTe
         ) : null}
 
         {talks.length > 0 ? (
-          <section className="prose" id="pf-prose-talks" aria-label="Talks">
-            <h2>Talks</h2>
-            <YearList items={talks} />
+          <section className="prose" id="pf-prose-talks" aria-label={t.nav.talks}>
+            <h2>{t.nav.talks}</h2>
+            <YearList items={talks} recording={t.recording} />
           </section>
         ) : null}
 
         {writing.length > 0 ? (
-          <section className="prose" id="pf-prose-writing" aria-label="Writing">
-            <h2>Writing</h2>
-            <YearList items={writing} />
+          <section className="prose" id="pf-prose-writing" aria-label={t.nav.writing}>
+            <h2>{t.nav.writing}</h2>
+            <YearList items={writing} recording={t.recording} />
           </section>
         ) : null}
 
@@ -320,7 +339,7 @@ export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTe
           </footer>
         ) : null}
       </div>
-      <ToTop />
+      <ToTop label={t.toTop} />
     </div>
   );
 }

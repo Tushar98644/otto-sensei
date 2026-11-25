@@ -17,16 +17,27 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { fmt, selectPlural } from "@/i18n/format";
 import type { ContentProject } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
-import { contactHref, featuredFirst, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
-import type { PortfolioTemplateProps } from "../types";
+import {
+  contactHref,
+  designLocale,
+  featuredFirst,
+  Marked,
+  nameOf,
+  OutLink,
+  TemplateStyle,
+} from "../parts";
+import type { DesignWords, PortfolioTemplateProps } from "../types";
 import type { CardPanel, FilterItem } from "./islands";
 import { Filtered, MoreInfo, Pages } from "./on-demand";
 import { CARD_CSS } from "./styles";
 
 // Ported from codewithsadee/vcard-personal-portfolio (MIT, see ./LICENSE.txt). Its memoji
 // avatars, photographs and client logos are not used: initials and drawn tiles stand in.
+
+type Words = DesignWords["card"];
 
 const SKILL_BARS = 8;
 
@@ -62,11 +73,11 @@ function Title({ children }: { children: ReactNode }) {
   return <h2 className="h2 article-title">{children}</h2>;
 }
 
-function groupOf(project: ContentProject): string {
-  return project.category.split(/\s*[·/|]\s*/)[0]?.trim() || "Projects";
+function groupOf(project: ContentProject, t: Words): string {
+  return project.category.split(/\s*[·/|]\s*/)[0]?.trim() || t.projects;
 }
 
-function ProjectTile({ project }: { project: ContentProject }) {
+function ProjectTile({ project, t }: { project: ContentProject; t: Words }) {
   const href = project.website?.href ?? project.source?.href ?? null;
   const inner = (
     <>
@@ -81,7 +92,7 @@ function ProjectTile({ project }: { project: ContentProject }) {
       </figure>
       <h3 className="project-title">{project.name}</h3>
       <p className="project-category">
-        {[project.category || "Project", project.years].filter(Boolean).join(" · ")}
+        {[project.category || t.project, project.years].filter(Boolean).join(" · ")}
       </p>
     </>
   );
@@ -94,8 +105,10 @@ function ProjectTile({ project }: { project: ContentProject }) {
   );
 }
 
-export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function CardTemplate({ view, content, words, footer, resumeHref }: PortfolioTemplateProps) {
+  const t = words.card;
+  const locale = designLocale(view);
+  const name = nameOf(view, words.shared.untitled);
   const headline = content.headline || view.headline;
   const aboutShown = !view.hidden.includes("about");
   const socials = content.socials.filter((social) => social.kind !== "email");
@@ -114,7 +127,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
   const timeline = [
     content.education.length > 0 && {
       key: "education",
-      title: view.titles.education || "Education",
+      title: view.titles.education || t.education,
       icon: BookOpen,
       items: content.education.map((school) => ({
         id: school.id,
@@ -126,7 +139,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
     },
     content.experience.length > 0 && {
       key: "experience",
-      title: view.titles.experience || "Experience",
+      title: view.titles.experience || t.experience,
       icon: BriefcaseBusiness,
       items: content.experience.map((job) => ({
         id: job.id,
@@ -138,7 +151,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
     },
     view.certifications.length > 0 && {
       key: "certifications",
-      title: view.titles.certifications || "Certifications",
+      title: view.titles.certifications || t.certifications,
       icon: FileText,
       items: view.certifications.map((cert) => ({
         id: cert.id,
@@ -166,11 +179,11 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
 
   panels.push({
     id: "about",
-    label: "About",
+    label: t.nav.about,
     body: (
       <>
         <header>
-          <Title>About me</Title>
+          <Title>{t.aboutMe}</Title>
         </header>
         {content.about.length > 0 || content.pitch ? (
           <section className="about-text">
@@ -187,7 +200,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
         ) : null}
         {doing.length > 0 || content.disciplines.length > 0 ? (
           <section className="service">
-            <h3 className="h3 service-title">What I&rsquo;m doing</h3>
+            <h3 className="h3 service-title">{t.doing}</h3>
             <ul className="service-list">
               {doing.length > 0
                 ? doing.map((item) => (
@@ -212,7 +225,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
         ) : null}
         {testimonials.length > 0 ? (
           <section className="testimonials">
-            <h3 className="h3 testimonials-title">Testimonials</h3>
+            <h3 className="h3 testimonials-title">{t.testimonials}</h3>
             <ul className="testimonials-list">
               {testimonials.map((quote) => (
                 <li className="testimonials-item" key={quote.id}>
@@ -233,7 +246,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
         ) : null}
         {companies.length > 0 ? (
           <section className="clients">
-            <h3 className="h3 clients-title">Where I&rsquo;ve worked</h3>
+            <h3 className="h3 clients-title">{t.worked}</h3>
             <ul className="clients-list">
               {companies.map((company, i) => (
                 <li className="clients-item" key={company} data-style={i % 3}>
@@ -250,15 +263,15 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
   if (timeline.length > 0 || content.skills.length > 0)
     panels.push({
       id: "resume",
-      label: "Resume",
+      label: t.nav.resume,
       body: (
         <>
           <header className="title-row">
-            <Title>Resume</Title>
+            <Title>{t.nav.resume}</Title>
             {resumeHref ? (
               <a className="form-btn small" href={resumeHref}>
                 <FileText aria-hidden />
-                <span>Full resume</span>
+                <span>{t.fullResume}</span>
               </a>
             ) : null}
           </header>
@@ -286,7 +299,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
           ))}
           {content.skills.length > 0 ? (
             <section className="skill">
-              <h3 className="h3 skills-title">My skills</h3>
+              <h3 className="h3 skills-title">{t.mySkills}</h3>
               <div className="skills-list content-card">
                 {bars.length > 0 ? (
                   <ul>
@@ -295,7 +308,9 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
                         <div className="title-wrapper">
                           <h5 className="h5">{item.name}</h5>
                           <data value={item.years ?? 0}>
-                            {item.years} {item.years === 1 ? "year" : "years"}
+                            {fmt(selectPlural(locale, t.years, item.years ?? 0), {
+                              count: item.years ?? 0,
+                            })}
                           </data>
                         </div>
                         <div className="skill-progress-bg">
@@ -313,7 +328,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
                 <dl className="skill-groups">
                   {content.skills.map((group) => (
                     <div key={group.id}>
-                      <dt>{group.label || "Skills"}</dt>
+                      <dt>{group.label || t.skills}</dt>
                       <dd>{group.items.map((item) => item.name).join(", ")}</dd>
                     </div>
                   ))}
@@ -328,22 +343,26 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
   if (projects.length > 0) {
     const items: FilterItem[] = projects.map((project) => ({
       id: project.id,
-      category: groupOf(project),
-      body: <ProjectTile project={project} />,
+      category: groupOf(project, t),
+      body: <ProjectTile project={project} t={t} />,
     }));
     panels.push({
       id: "portfolio",
       label:
         view.titles.projects && view.titles.projects !== "Projects"
           ? view.titles.projects
-          : "Portfolio",
+          : t.nav.portfolio,
       body: (
         <>
           <header>
-            <Title>Portfolio</Title>
+            <Title>{t.nav.portfolio}</Title>
           </header>
           <section className="projects">
-            <Filtered items={items} categories={[...new Set(items.map((item) => item.category))]} />
+            <Filtered
+              items={items}
+              categories={[...new Set(items.map((item) => item.category))]}
+              all={t.all}
+            />
           </section>
         </>
       ),
@@ -353,15 +372,15 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
   const posts = [
     ...content.writing.map((post) => ({
       id: post.id,
-      kind: post.publisher || "Writing",
+      kind: post.publisher || t.writing,
       date: post.date,
       title: post.title,
-      text: post.minutes ? `${post.minutes} minute read.` : "",
+      text: post.minutes ? fmt(t.minuteRead, { count: post.minutes }) : "",
       href: post.href,
     })),
     ...content.talks.map((talk) => ({
       id: talk.id,
-      kind: "Talk",
+      kind: t.talk,
       date: talk.date,
       title: talk.title,
       text: [talk.event, talk.place].filter(Boolean).join(", "),
@@ -371,11 +390,11 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
   if (posts.length > 0)
     panels.push({
       id: "blog",
-      label: content.writing.length > 0 ? "Blog" : "Talks",
+      label: content.writing.length > 0 ? t.nav.blog : t.nav.talks,
       body: (
         <>
           <header>
-            <Title>{content.writing.length > 0 ? "Blog" : "Talks"}</Title>
+            <Title>{content.writing.length > 0 ? t.nav.blog : t.nav.talks}</Title>
           </header>
           <ul className="blog-posts-list">
             {posts.map((post) => {
@@ -422,14 +441,14 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
   if (hello || place)
     panels.push({
       id: "contact",
-      label: "Contact",
+      label: t.nav.contact,
       body: (
         <>
           <header>
-            <Title>Contact</Title>
+            <Title>{t.nav.contact}</Title>
           </header>
           {place ? (
-            <section className="mapbox" aria-label="Location">
+            <section className="mapbox" aria-label={t.location}>
               <span className="map-grid" aria-hidden />
               <span className="map-pin" aria-hidden>
                 <MapPin />
@@ -442,7 +461,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
           ) : null}
           {hello ? (
             <section className="contact-form">
-              <h3 className="h3 form-title">Say hello</h3>
+              <h3 className="h3 form-title">{t.sayHello}</h3>
               <ul className="form-rows">
                 {content.email ? (
                   <li>
@@ -463,7 +482,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
               </ul>
               <OutLink href={hello} className="form-btn">
                 <Mail aria-hidden />
-                <span>{content.email ? "Send message" : "Get in touch"}</span>
+                <span>{content.email ? t.sendMessage : t.getInTouch}</span>
               </OutLink>
             </section>
           ) : null}
@@ -474,7 +493,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
   const details = [
     content.email && {
       icon: Mail,
-      title: "Email",
+      title: t.details.email,
       body: (
         <a className="contact-link" href={`mailto:${content.email}`}>
           {content.email}
@@ -483,7 +502,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
     },
     content.phone && {
       icon: Smartphone,
-      title: "Phone",
+      title: t.details.phone,
       body: (
         <a className="contact-link" href={`tel:${content.phone.replace(/[^\d+]/g, "")}`}>
           {content.phone}
@@ -492,18 +511,18 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
     },
     content.availability && {
       icon: CalendarDays,
-      title: "Status",
+      title: t.details.status,
       body: (
         <p className="contact-link">{content.availability.short || content.availability.text}</p>
       ),
     },
-    place && { icon: MapPin, title: "Location", body: <address>{place}</address> },
+    place && { icon: MapPin, title: t.details.location, body: <address>{place}</address> },
     resumeHref && {
       icon: FileText,
-      title: "Resume",
+      title: t.details.resume,
       body: (
         <a className="contact-link" href={resumeHref}>
-          Read my Resume
+          {t.readResume}
         </a>
       ),
     },
@@ -513,7 +532,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
     <div className="pf-card">
       <TemplateStyle css={CARD_CSS} />
       <div className="main">
-        <aside className="sidebar" aria-label="Profile">
+        <aside className="sidebar" aria-label={t.profile}>
           <div className="sidebar-info">
             <figure className="avatar-box" aria-hidden>
               <span>{content.initials || name.slice(0, 1)}</span>
@@ -526,7 +545,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
             </div>
           </div>
           {details.length > 0 || socials.length > 0 ? (
-            <MoreInfo>
+            <MoreInfo show={t.showContacts} hide={t.hideContacts}>
               <div className="separator" />
               {details.length > 0 ? (
                 <ul className="contacts-list">
@@ -556,7 +575,7 @@ export function CardTemplate({ view, content, footer, resumeHref }: PortfolioTem
             </MoreInfo>
           ) : null}
         </aside>
-        <Pages panels={panels} />
+        <Pages panels={panels} label={t.pages} />
       </div>
       {footer ? <footer className="credit">{footer}</footer> : null}
     </div>

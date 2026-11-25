@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { fmt } from "@/i18n/format";
 import { Ps1 } from "./prompt";
 
 // Ported from Cveinnt/LiveTerm (MIT, see ./LICENSE.txt): the prompt, its history keys, tab
@@ -12,15 +13,25 @@ type Entry = { id: number; command: string; output: ReactNode };
 
 export type ShellLinks = Record<string, { href: string; label: string }>;
 
-const JOKES: Record<string, string> = {
-  vi: "woah, you still use 'vi'? just try 'vim'.",
-  vim: "'vim' is so outdated. how about 'nvim'?",
-  nvim: "'nvim'? too fancy. why not 'emacs'?",
-  emacs: "you know what? just use vscode.",
-  sudo: "Permission denied: with little power comes... no responsibility?",
-  cd: "unfortunately, i cannot afford more directories.",
+const JOKES = ["vi", "vim", "nvim", "emacs", "sudo", "cd"] as const;
+type Joke = (typeof JOKES)[number];
+const BUILTIN = ["help", "clear", "echo", "whoami", "date", "ls", "theme", ...JOKES];
+
+export type ShellWords = {
+  user: string;
+  welcome: string;
+  tab: string;
+  clear: string;
+  hint: string;
+  opening: string;
+  themeSet: string;
+  usage: string;
+  notFound: string;
+  prompt: string;
+  jokes: Record<Joke, string>;
 };
-const BUILTIN = ["help", "clear", "echo", "whoami", "date", "ls", "theme", ...Object.keys(JOKES)];
+
+const isJoke = (name: string): name is Joke => (JOKES as readonly string[]).includes(name);
 const PER_LINE = 7;
 
 function rootOf(node: Element | null): HTMLElement | null {
@@ -45,10 +56,12 @@ export function Shell({
   host,
   outputs,
   links,
+  words,
 }: {
   host: string;
   outputs: Record<string, ReactNode>;
   links: ShellLinks;
+  words: ShellWords;
 }) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [command, setCommand] = useState("");
@@ -61,7 +74,7 @@ export function Shell({
 
   const help = (
     <>
-      Welcome! Here are all the available commands:
+      {words.welcome}
       {"\n\n"}
       {names.map((name, i) => (
         <span key={name}>
@@ -69,8 +82,12 @@ export function Shell({
           {(i + 1) % PER_LINE === 0 ? "\n" : " "}
         </span>
       ))}
-      {"\n\n"}[tab]: trigger completion.{"\n"}[ctrl+l]/clear: clear terminal.{"\n\n"}Type
-      &apos;sumfetch&apos; to display summary.
+      {"\n\n"}
+      {words.tab}
+      {"\n"}
+      {words.clear}
+      {"\n\n"}
+      {words.hint}
     </>
   );
 
@@ -90,19 +107,19 @@ export function Shell({
       const link = links[name]!;
       if (/^mailto:/.test(link.href)) window.location.href = link.href;
       else window.open(link.href, "_blank", "noopener,noreferrer");
-      output = `Opening ${link.label}...`;
+      output = fmt(words.opening, { label: link.label });
     } else if (name === "echo") output = args.join(" ");
-    else if (name === "whoami") output = "visitor";
+    else if (name === "whoami") output = words.user;
     else if (name === "date") output = new Date().toString();
     else if (name === "ls") output = Object.keys(outputs).join("\n");
     else if (name === "theme") {
       const mode = args[0];
       if (mode === "light" || mode === "dark") {
         root?.setAttribute("data-theme", mode);
-        output = `Theme set to ${mode}.`;
-      } else output = "usage: theme [light|dark]";
-    } else if (name in JOKES) output = JOKES[name];
-    else output = `shell: command not found: ${name}. Try 'help' to get started.`;
+        output = fmt(words.themeSet, { mode });
+      } else output = words.usage;
+    } else if (isJoke(name)) output = words.jokes[name];
+    else output = fmt(words.notFound, { name });
     counter.current += 1;
     setEntries((list) => [...list, { id: counter.current, command: raw, output }]);
   };
@@ -174,7 +191,7 @@ export function Shell({
         {entries.map((entry) => (
           <div className="entry" key={entry.id}>
             <p className="line">
-              <Ps1 host={host} />
+              <Ps1 host={host} user={words.user} />
               <span className="cmd">{entry.command}</span>
             </p>
             {entry.output !== null ? <div className="out">{entry.output}</div> : null}
@@ -183,14 +200,14 @@ export function Shell({
       </div>
       <p className="line prompt">
         <label htmlFor="pf-terminal-prompt">
-          <Ps1 host={host} />
+          <Ps1 host={host} user={words.user} />
         </label>
         <input
           ref={input}
           id="pf-terminal-prompt"
           className="input"
           data-ok={command === "" || exists(command) ? "true" : "false"}
-          aria-label="Type a command, or help"
+          aria-label={words.prompt}
           value={command}
           onChange={(event) => setCommand(event.target.value)}
           onKeyDown={onKeyDown}

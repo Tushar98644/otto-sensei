@@ -14,12 +14,14 @@ export function Profile({
   contact,
   initials,
   caption,
+  words,
 }: {
   id: string;
   paragraphs: ReactNode[];
   contact: string | null;
   initials: string;
   caption: string;
+  words: { hello: string; message: string; about: string };
 }) {
   const sectionRef = useRef<HTMLElement>(null);
   const sectionVisible = useSectionVisible(sectionRef);
@@ -46,7 +48,7 @@ export function Profile({
                 data-visible={visible}
                 id={titleId}
               >
-                <DecoderText text="Hi there" start={visible} delay={500} />
+                <DecoderText text={words.hello} start={visible} delay={500} />
               </h2>
               {paragraphs.map((paragraph, index) => (
                 <p
@@ -66,7 +68,7 @@ export function Profile({
                   href={contact}
                   icon="send"
                 >
-                  Send me a message
+                  {words.message}
                 </Button>
               ) : null}
             </div>
@@ -79,7 +81,7 @@ export function Profile({
                   collapseDelay={1000}
                 />
                 <div className="profile-tag-text" data-visible={visible}>
-                  About me
+                  {words.about}
                 </div>
               </div>
               <div className="profile-image">

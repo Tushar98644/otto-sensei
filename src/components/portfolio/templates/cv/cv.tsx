@@ -21,10 +21,20 @@ import {
   Trophy,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { fmt } from "@/i18n/format";
+import type { Format } from "@/i18n/intl";
 import type { ContentRole, MilestoneKind } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
-import { Marked, nameOf, OutLink, safeId, TemplateStyle } from "../parts";
-import type { PortfolioTemplateProps } from "../types";
+import {
+  designFormat,
+  designLocale,
+  Marked,
+  nameOf,
+  OutLink,
+  safeId,
+  TemplateStyle,
+} from "../parts";
+import type { DesignWords, PortfolioTemplateProps } from "../types";
 import {
   Greeting,
   IsoMark,
@@ -39,6 +49,8 @@ import { flatPaths, isoPaths, pixelText, ROWS } from "./pixel";
 import { CV_CSS } from "./styles";
 
 // Ported from ncdai/chanhdai.com (MIT, see ./LICENSE.txt).
+
+type Words = DesignWords["cv"];
 
 const PREFIX = "pf-cv";
 const SHOWN = { companies: 3, rows: 4 };
@@ -130,19 +142,38 @@ function monthIndex(text: string, end: boolean, now: Date): number | null {
   return Number(year) * 12 + Math.min(Math.max(month, 0), 11);
 }
 
-function duration(start: string, end: string, current: boolean, now: Date): string {
+function duration(
+  start: string,
+  end: string,
+  current: boolean,
+  now: Date,
+  t: Words,
+  format: Format,
+): string {
   const from = monthIndex(start, false, now);
   const to = monthIndex(current && !end ? "Present" : end, true, now);
   if (from === null || to === null) return "";
   const months = to - from + 1;
   if (months <= 0) return "";
-  if (months < 12) return `${months}m`;
+  if (months < 12) return format.plural(t.months, months);
   const years = Math.floor(months / 12);
   const rest = months % 12;
-  return rest ? `${years}y ${rest}m` : `${years}y`;
+  return rest
+    ? `${format.plural(t.years, years)} ${format.plural(t.months, rest)}`
+    : format.plural(t.years, years);
 }
 
-function Period({ start, end, current }: { start: string; end: string; current?: boolean }) {
+function Period({
+  start,
+  end,
+  current,
+  present,
+}: {
+  start: string;
+  end: string;
+  current?: boolean;
+  present: string;
+}) {
   const ongoing = current || ONGOING.test(end.trim());
   if (!start && !end) return null;
   if (!start || start === end) return <span>{end || start}</span>;
@@ -150,7 +181,7 @@ function Period({ start, end, current }: { start: string; end: string; current?:
     <span className="period">
       <span>{start}</span>
       <span className="dash">—</span>
-      {ongoing ? <Ongoing className="inf" aria-label="Present" /> : <span>{end}</span>}
+      {ongoing ? <Ongoing className="inf" aria-label={present} /> : <span>{end}</span>}
     </span>
   );
 }
@@ -185,7 +216,9 @@ function JobTile({ title }: { title: string }) {
   );
 }
 
-function Position({ role, open, now }: { role: ContentRole; open: boolean; now: Date }) {
+type Dating = { now: Date; t: Words; format: Format };
+
+function Position({ role, open, dating }: { role: ContentRole; open: boolean; dating: Dating }) {
   const hasBody = Boolean(role.summary) || role.lines.length > 0;
   const head = (
     <>
@@ -199,9 +232,14 @@ function Position({ role, open, now }: { role: ContentRole; open: boolean; now: 
       <Meta
         items={[
           role.start || role.end ? (
-            <Period start={role.start} end={role.end} current={role.current} />
+            <Period
+              start={role.start}
+              end={role.end}
+              current={role.current}
+              present={dating.t.present}
+            />
           ) : null,
-          duration(role.start, role.end, role.current, now) || null,
+          duration(role.start, role.end, role.current, dating.now, dating.t, dating.format) || null,
         ]}
       />
     </>
@@ -235,7 +273,16 @@ function companies(roles: readonly ContentRole[]): ContentRole[][] {
   return groups;
 }
 
-function Company({ roles, first, now }: { roles: ContentRole[]; first: boolean; now: Date }) {
+function Company({
+  roles,
+  first,
+  dating,
+}: {
+  roles: ContentRole[];
+  first: boolean;
+  dating: Dating;
+}) {
+  const t = dating.t.company;
   const lead = roles[0]!;
   const current = roles.some((role) => role.current);
   const name = lead.company || lead.title;
@@ -259,15 +306,15 @@ function Company({ roles, first, now }: { roles: ContentRole[]; first: boolean; 
             <dl className="company-meta">
               {lead.location ? (
                 <>
-                  <dt className="sr-only">Location</dt>
+                  <dt className="sr-only">{t.location}</dt>
                   <dd className="truncate">{lead.location}</dd>
                 </>
               ) : null}
               {current ? (
                 <>
-                  <dt className="sr-only">Employment status</dt>
+                  <dt className="sr-only">{t.status}</dt>
                   <dd>
-                    <span className="sr-only">Current</span>
+                    <span className="sr-only">{t.current}</span>
                     <span className="ping" aria-hidden>
                       <span />
                       <span />
@@ -281,7 +328,7 @@ function Company({ roles, first, now }: { roles: ContentRole[]; first: boolean; 
       </div>
       <div className="positions">
         {roles.map((role, index) => (
-          <Position key={role.id} role={role} open={first && index === 0} now={now} />
+          <Position key={role.id} role={role} open={first && index === 0} dating={dating} />
         ))}
       </div>
     </div>
@@ -341,7 +388,7 @@ function Row({ item }: { item: RowItem }) {
   );
 }
 
-function RowList({ items }: { items: RowItem[] }) {
+function RowList({ items, more }: { items: RowItem[]; more: { more: string; less: string } }) {
   const head = items.slice(0, SHOWN.rows);
   const rest = items.slice(SHOWN.rows);
   return (
@@ -352,7 +399,7 @@ function RowList({ items }: { items: RowItem[] }) {
         ))}
       </div>
       {rest.length > 0 ? (
-        <ShowMore>
+        <ShowMore {...more}>
           <div className="rows">
             {rest.map((item) => (
               <Row key={item.id} item={item} />
@@ -372,24 +419,19 @@ const MILESTONE_ICONS: Record<MilestoneKind, ReactNode> = {
   talk: <Mic />,
   other: <Star />,
 };
-const MILESTONE_LABELS: Record<MilestoneKind, string> = {
-  award: "Award",
-  hackathon: "Hackathon",
-  launch: "Launch",
-  press: "Press",
-  talk: "Talk",
-  other: "Milestone",
-};
 
 function dateOf(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
 }
 
-export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function CvTemplate({ view, content, words, footer, resumeHref }: PortfolioTemplateProps) {
+  const t = words.cv;
+  const name = nameOf(view, words.shared.untitled);
   const first = content.first || name.split(" ")[0] || name;
   const initials = (content.initials || name.slice(0, 1)).slice(0, 3);
   const now = new Date();
+  const dating: Dating = { now, t, format: designFormat(view) };
+  const more = { more: t.more, less: t.less };
   const place = content.location?.label || view.location;
   const headline = view.headline || content.headline;
   const taglines =
@@ -399,10 +441,10 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
   const skills = view.skills.filter((group) => group.items.length > 0);
   const groups = companies(content.experience);
   const titles = {
-    stack: view.titles.skills || "Stack",
-    experience: view.titles.experience || "Experience",
-    education: view.titles.education || "Education",
-    projects: view.titles.projects || "Projects",
+    stack: view.titles.skills || t.titles.stack,
+    experience: view.titles.experience || t.titles.experience,
+    education: view.titles.education || t.titles.education,
+    projects: view.titles.projects || t.titles.projects,
   };
 
   const mark = flatPaths(pixelText(initials), 4);
@@ -431,7 +473,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
           <p>
             {role.title ? (
               <>
-                {role.title} <span aria-label="at">@</span>
+                {role.title} <span aria-label={t.at}>@</span>
               </>
             ) : null}
             <a className="link strong" href={`#${safeId(`${PREFIX}-xp`, role.id)}`}>
@@ -459,7 +501,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
               <OutLink
                 className="link"
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}`}
-                label={`Location: ${place}`}
+                label={fmt(t.location, { place })}
               >
                 {place}
               </OutLink>
@@ -468,7 +510,14 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
         ]
       : []),
     ...(content.location?.timezone
-      ? [<LocalTime key="time" timeZone={content.location.timezone} />]
+      ? [
+          <LocalTime
+            key="time"
+            timeZone={content.location.timezone}
+            locale={designLocale(view)}
+            words={t.clock}
+          />,
+        ]
       : []),
     ...(content.email
       ? [
@@ -510,7 +559,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
       tile: <span className="mono-mark">{project.monogram || <Box />}</span>,
       meta: [project.years || project.category || null],
       href: project.website?.href ?? project.source?.href ?? null,
-      linkLabel: `Open ${project.name}`,
+      linkLabel: fmt(t.open, { title: project.name }),
       body: hasBody ? (
         <>
           {lead || lines.length > 0 ? <Lines lead={lead} lines={lines} /> : null}
@@ -526,7 +575,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
       id: cert.id,
       title: cert.name,
       tile: <Award />,
-      meta: ["Certificate", cert.issuer || null, cert.date || null],
+      meta: [t.certificate, cert.issuer || null, cert.date || null],
       href: null,
       linkLabel: "",
     })),
@@ -536,12 +585,12 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
         title: milestone.title,
         tile: MILESTONE_ICONS[milestone.kind],
         meta: [
-          MILESTONE_LABELS[milestone.kind],
+          t.milestones[milestone.kind],
           milestone.result || milestone.detail || milestone.place || null,
           milestone.date || null,
         ],
         href: milestone.href,
-        linkLabel: `Open ${milestone.title}`,
+        linkLabel: fmt(t.open, { title: milestone.title }),
         external: true,
       };
     }),
@@ -551,9 +600,9 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
     id: post.id,
     title: post.title,
     tile: <PenLine />,
-    meta: [post.date || null, post.minutes ? `${post.minutes} min read` : null],
+    meta: [post.date || null, post.minutes ? fmt(t.minutes, { minutes: post.minutes }) : null],
     href: post.href,
-    linkLabel: `Read ${post.title}`,
+    linkLabel: fmt(t.read, { title: post.title }),
     external: true,
   }));
 
@@ -563,7 +612,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
     tile: <Mic />,
     meta: [talk.event || null, talk.date || null],
     href: talk.href ?? talk.recording ?? talk.slides,
-    linkLabel: `Open ${talk.title}`,
+    linkLabel: fmt(t.open, { title: talk.title }),
     external: true,
   }));
 
@@ -576,14 +625,14 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
         <>
           {overview.length > 0 ? (
             <Panel className="overview">
-              <h2 className="sr-only">Overview</h2>
+              <h2 className="sr-only">{t.overview}</h2>
               <div className="panel-body ov-grid">{overview}</div>
               <span className="ov-rule" aria-hidden />
             </Panel>
           ) : null}
           {socials.length > 0 ? (
             <Panel className={overview.length > 0 ? "socials joined" : "socials"}>
-              <h2 className="sr-only">Social links</h2>
+              <h2 className="sr-only">{t.socialLinks}</h2>
               <div className="panel-body">
                 <ul className="social-list">
                   {socials.map((social) => (
@@ -600,7 +649,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
                 </ul>
               </div>
               <span className="note note-follow" aria-hidden>
-                <span>follow me</span>
+                <span>{t.followMe}</span>
                 <svg viewBox="0 0 40 40" className="arrow flip">
                   <path d="M34 4c1 15-5 26-21 30" />
                   <path d="m22 37-9-3 7.5-8" />
@@ -626,8 +675,8 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
           {greetingPanel ? (
             <Panel className="hello">
               <header className="panel-hd">
-                <h2 className="sr-only">About</h2>
-                <Greeting />
+                <h2 className="sr-only">{t.about}</h2>
+                <Greeting words={t.greeting} />
               </header>
               <div className="panel-body">
                 <div className="typeset">
@@ -645,7 +694,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
           ) : null}
           {stats.length > 0 ? (
             <Panel className="numbers">
-              <h2 className="caps">By the numbers</h2>
+              <h2 className="caps">{t.numbers}</h2>
               <dl className="panel-body num-list">
                 {stats.map((stat) => (
                   <div key={`${stat.value}-${stat.label}`} className="num-row">
@@ -659,7 +708,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
           ) : null}
           {quotes.length > 0 ? (
             <Panel className="quotes">
-              <h2 className="caps">Kind words</h2>
+              <h2 className="caps">{t.kindWords}</h2>
               <ul className="quote-grid">
                 {quotes.map((quote) => (
                   <li key={quote.id} className="quote">
@@ -703,7 +752,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
                     <span className="stack-index" aria-hidden>
                       {String(index + 1).padStart(2, "0")}
                     </span>
-                    {group.label || "Skills"}
+                    {group.label || t.titles.skills}
                   </div>
                   <ul aria-labelledby={id} className="pills">
                     {group.items.map((item) => (
@@ -729,14 +778,14 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
         <Panel id={ids.experience} title={titles.experience}>
           <div className="xp">
             {head.map((roles, index) => (
-              <Company key={roles[0]!.id} roles={roles} first={index === 0} now={now} />
+              <Company key={roles[0]!.id} roles={roles} first={index === 0} dating={dating} />
             ))}
           </div>
           {rest.length > 0 ? (
-            <ShowMore>
+            <ShowMore {...more}>
               <div className="xp">
                 {rest.map((roles) => (
-                  <Company key={roles[0]!.id} roles={roles} first={false} now={now} />
+                  <Company key={roles[0]!.id} roles={roles} first={false} dating={dating} />
                 ))}
               </div>
             </ShowMore>
@@ -774,7 +823,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
                   <Meta
                     items={[
                       school.start || school.end ? (
-                        <Period start={school.start} end={school.end} />
+                        <Period start={school.start} end={school.end} present={t.present} />
                       ) : null,
                       school.school && school.degree ? school.degree : null,
                     ]}
@@ -807,7 +856,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
       key: "projects",
       node: (
         <Panel id={ids.projects} title={titles.projects} count={projectRows.length}>
-          <RowList items={projectRows} />
+          <RowList items={projectRows} more={more} />
         </Panel>
       ),
     });
@@ -820,12 +869,12 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
           id={ids.recognition}
           title={
             view.certifications.length > 0 && content.milestones.length === 0
-              ? view.titles.certifications || "Certifications"
-              : "Recognition"
+              ? view.titles.certifications || t.titles.certifications
+              : t.titles.recognition
           }
           count={recognitionRows.length}
         >
-          <RowList items={recognitionRows} />
+          <RowList items={recognitionRows} more={more} />
         </Panel>
       ),
     });
@@ -834,8 +883,8 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
     blocks.push({
       key: "writing",
       node: (
-        <Panel id={ids.writing} title="Writing" count={writingRows.length}>
-          <RowList items={writingRows} />
+        <Panel id={ids.writing} title={t.titles.writing} count={writingRows.length}>
+          <RowList items={writingRows} more={more} />
         </Panel>
       ),
     });
@@ -844,8 +893,8 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
     blocks.push({
       key: "talks",
       node: (
-        <Panel id={ids.talks} title="Talks" count={talkRows.length}>
-          <RowList items={talkRows} />
+        <Panel id={ids.talks} title={t.titles.talks} count={talkRows.length}>
+          <RowList items={talkRows} more={more} />
         </Panel>
       ),
     });
@@ -857,6 +906,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
       node: (
         <Panel id={safeId(PREFIX, extra.id)} title={extra.title} count={extra.items.length}>
           <RowList
+            more={more}
             items={extra.items.map((item) => ({
               id: item.id,
               title: item.title || item.subtitle,
@@ -879,23 +929,29 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
     groups.length > 0 ? { href: `#${ids.experience}`, label: titles.experience } : null,
     projectRows.length > 0 ? { href: `#${ids.projects}`, label: titles.projects } : null,
     skills.length > 0 ? { href: `#${ids.stack}`, label: titles.stack } : null,
-    writingRows.length > 0 ? { href: `#${ids.writing}`, label: "Writing" } : null,
+    writingRows.length > 0 ? { href: `#${ids.writing}`, label: t.titles.writing } : null,
   ].filter((item) => item !== null);
 
   const topSkills = skills.flatMap((group) => group.items).slice(0, 6);
   const updated = view.updatedAt > Date.UTC(2000, 0, 1) ? dateOf(view.updatedAt) : "";
   const fields: { key: string; label: string; wide?: boolean; value: ReactNode }[] = [
-    { key: "by", label: "Crafted by", value: name },
-    ...(place ? [{ key: "place", label: "Based in", value: place }] : []),
+    { key: "by", label: t.fields.by, value: name },
+    ...(place ? [{ key: "place", label: t.fields.place, value: place }] : []),
     ...(updated
-      ? [{ key: "updated", label: "Updated", value: <time dateTime={updated}>{updated}</time> }]
+      ? [
+          {
+            key: "updated",
+            label: t.fields.updated,
+            value: <time dateTime={updated}>{updated}</time>,
+          },
+        ]
       : []),
-    { key: "type", label: "Typeface", value: "Geist" },
+    { key: "type", label: t.fields.typeface, value: "Geist" },
     ...(content.email
       ? [
           {
             key: "email",
-            label: "Contact",
+            label: t.fields.contact,
             wide: true,
             value: (
               <a className="link-underline" href={`mailto:${content.email}`}>
@@ -909,10 +965,10 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
       ? [
           {
             key: "resume",
-            label: "Resume",
+            label: t.fields.resume,
             value: (
               <a className="link-underline" href={resumeHref}>
-                Resume
+                {t.resume}
               </a>
             ),
           },
@@ -922,7 +978,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
       ? [
           {
             key: "stack",
-            label: "Stack",
+            label: t.titles.stack,
             wide: true,
             value: (
               <ul className="field-list">
@@ -938,7 +994,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
       ? [
           {
             key: "links",
-            label: "Elsewhere",
+            label: t.fields.elsewhere,
             wide: true,
             value: (
               <ul className="field-list">
@@ -963,24 +1019,24 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
       <TemplateStyle css={CV_CSS} />
       <header className="hd">
         <div className="hd-in">
-          <a href="#pf-cv-top" className="mark" aria-label="Back to top">
+          <a href="#pf-cv-top" className="mark" aria-label={t.backToTop}>
             <svg viewBox={`0 0 ${markWidth} ${ROWS * 4}`} aria-hidden>
               <path d={mark.fill} />
             </svg>
           </a>
           <span className="grow" />
           {nav.length > 0 || resumeHref ? (
-            <nav className="nav" aria-label="Sections">
+            <nav className="nav" aria-label={t.sections}>
               {nav.map((item) => (
                 <a key={item.href} href={item.href}>
                   {item.label}
                 </a>
               ))}
-              {resumeHref ? <a href={resumeHref}>Resume</a> : null}
+              {resumeHref ? <a href={resumeHref}>{t.resume}</a> : null}
             </nav>
           ) : null}
           <span className="vsep" aria-hidden />
-          <ThemeToggle />
+          <ThemeToggle label={t.theme} />
         </div>
       </header>
 
@@ -996,7 +1052,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
                   <path d="M34 4c1 15-5 26-21 30" />
                   <path d="m22 37-9-3 7.5-8" />
                 </svg>
-                <span>follows your cursor</span>
+                <span>{t.followsCursor}</span>
               </span>
             </figure>
             <div className="avatar-col">

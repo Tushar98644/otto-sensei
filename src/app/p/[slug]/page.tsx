@@ -76,6 +76,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
   if (result.status === "missing") notFound();
   const { portfolio } = result;
   const { Component } = PORTFOLIO_TEMPLATES[portfolio.template];
+  const words = await loadMessages(portfolioLocale(result), "portfolioDesigns");
   const jsonLd = profilePageJsonLd({
     view: portfolio.view,
     content: portfolio.content,
@@ -91,6 +92,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
       <Component
         view={portfolio.view}
         content={portfolio.content}
+        words={words}
         resumeHref={portfolio.resumeHref}
       />
       <PortfolioViewBeacon slug={portfolio.slug} />

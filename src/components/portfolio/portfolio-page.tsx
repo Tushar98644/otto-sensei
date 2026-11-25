@@ -115,13 +115,14 @@ export function PortfolioPage() {
     userId !== null && !locked && !(status === "ready" && portfolio !== null),
   );
   const template = portfolio?.template ?? null;
+  const lang = portfolio?.snapshot.lang ?? null;
 
   const ready = hydrated && userId !== null && status === "ready";
   const from = fromResumeId ? (resumes.find((resume) => resume.id === fromResumeId) ?? null) : null;
 
   useEffect(() => {
-    if (template && !locked) preloadTemplate(template);
-  }, [template, locked]);
+    if (template && !locked) preloadTemplate(template, lang);
+  }, [template, lang, locked]);
 
   useEffect(() => {
     if (!ready || handled.current || !fromResumeId || locked) return;

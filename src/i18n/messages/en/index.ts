@@ -28,6 +28,7 @@ import onboarding from "./onboarding";
 import otto from "./otto";
 import portfolio from "./portfolio";
 import portfolioContent from "./portfolio-content";
+import portfolioDesigns from "./portfolio-designs";
 import prep from "./prep";
 import pricing from "./pricing";
 import product from "./product";
@@ -78,6 +79,7 @@ const en = {
   otto,
   portfolio,
   portfolioContent,
+  portfolioDesigns,
   prep,
   pricing,
   product,

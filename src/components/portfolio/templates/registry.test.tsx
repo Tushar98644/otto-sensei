@@ -3,6 +3,7 @@ import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
 import { readMigrations } from "@/db/migration-files";
+import { englishMessages } from "@/i18n/messages";
 import { emptyContent, type PortfolioContentView } from "@/lib/portfolio/content";
 import { contentView } from "@/lib/portfolio/content-view";
 import { TEMPLATE_USES } from "@/lib/portfolio/content-uses";
@@ -102,6 +103,7 @@ describe.each(PORTFOLIO_TEMPLATE_IDS)("the %s template", (id) => {
       <Component
         view={data.view}
         content={data.content}
+        words={englishMessages().portfolioDesigns}
         footer={footer ? <span>{footer}</span> : undefined}
         resumeHref={resumeHref}
       />,

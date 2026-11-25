@@ -34,7 +34,7 @@ export function TemplatePreview({
     if (!card || wanted) return;
     // Fetched with the live view's code, and warm by the time the card is picked.
     const want = () => {
-      preloadTemplate(id);
+      preloadTemplate(id, sample?.view.lang);
       setWanted(true);
     };
     card.addEventListener("pointerenter", want);
@@ -43,7 +43,7 @@ export function TemplatePreview({
       card.removeEventListener("pointerenter", want);
       card.removeEventListener("focusin", want);
     };
-  }, [wanted, id]);
+  }, [wanted, id, sample?.view.lang]);
 
   useEffect(() => {
     const box = frame.current;

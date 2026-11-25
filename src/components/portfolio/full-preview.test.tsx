@@ -9,7 +9,7 @@ import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { portfolioView } from "@/lib/portfolio/view";
 import { FullPortfolioPreview } from "./full-preview";
 import type { TemplateSample } from "./live-template";
-import { loadTemplate } from "./templates/lazy";
+import { loadDesignWords, loadTemplate } from "./templates/lazy";
 import { inEnglish } from "@/components/dashboard/messages-testing";
 
 // The English messages these components read, as the page would pass them.
@@ -62,7 +62,10 @@ describe("FullPortfolioPreview before a design's code is here", () => {
 
 describe("FullPortfolioPreview", () => {
   beforeAll(async () => {
-    await Promise.all(PORTFOLIO_TEMPLATE_IDS.map((id) => loadTemplate(id)));
+    await Promise.all([
+      ...PORTFOLIO_TEMPLATE_IDS.map((id) => loadTemplate(id)),
+      loadDesignWords("en"),
+    ]);
   });
 
   it("draws every design at full size, with its place in the set and the way to go live", () => {

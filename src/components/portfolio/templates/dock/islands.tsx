@@ -115,10 +115,12 @@ export function Dock({
   home,
   resume,
   socials,
+  theme,
 }: {
   home: DockLink;
   resume: DockLink | null;
   socials: DockLink[];
+  theme: { label: string; toggle: string };
 }) {
   const bar = useRef<HTMLDivElement>(null);
 
@@ -195,14 +197,14 @@ export function Dock({
           <button
             type="button"
             className="dock-icon theme"
-            aria-label="Toggle theme"
+            aria-label={theme.toggle}
             onClick={toggle}
           >
             <Sun className="sun" aria-hidden />
             <Moon className="moon" aria-hidden />
           </button>
           <span className="tip" aria-hidden>
-            Theme
+            {theme.label}
           </span>
         </div>
       </div>

@@ -11,6 +11,8 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { intlLocale, type Locale } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
 import { WidthDimension } from "./dimension";
 import type { Iso } from "./pixel";
 
@@ -237,15 +239,17 @@ function clockHands(hour: number, minute: number): string {
 }
 
 type Clock = { hour: string; minute: string; period: string; diff: string; hands: string };
+type ClockWords = { same: string; ahead: string; behind: string };
 
-function readClock(timeZone: string): Clock | null {
+function readClock(timeZone: string, locale: Locale, words: ClockWords): Clock | null {
   try {
     const now = new Date();
-    const parts = new Intl.DateTimeFormat("en-US", {
+    // English keeps its 12-hour clock; other languages read the time their own way.
+    const parts = new Intl.DateTimeFormat(intlLocale(locale), {
       timeZone,
       hour: "2-digit",
       minute: "2-digit",
-      hour12: true,
+      ...(locale === "en" ? { hour12: true } : {}),
     }).formatToParts(now);
     const part = (type: Intl.DateTimeFormatPartTypes) =>
       parts.find((item) => item.type === type)?.value ?? "";
@@ -257,8 +261,8 @@ function readClock(timeZone: string): Clock | null {
     const hours = Math.abs(target - viewer) / 60;
     const diff =
       hours < 1
-        ? " // same time"
-        : ` // ${Math.floor(hours)}h ${target > viewer ? "ahead" : "behind"}`;
+        ? ` // ${words.same}`
+        : ` // ${fmt(target > viewer ? words.ahead : words.behind, { hours: Math.floor(hours) })}`;
     return {
       hour: part("hour"),
       minute: part("minute"),
@@ -271,18 +275,26 @@ function readClock(timeZone: string): Clock | null {
   }
 }
 
-export function LocalTime({ timeZone }: { timeZone: string }) {
+export function LocalTime({
+  timeZone,
+  locale,
+  words,
+}: {
+  timeZone: string;
+  locale: Locale;
+  words: ClockWords;
+}) {
   const [clock, setClock] = useState<Clock | null>(null);
 
   useEffect(() => {
     let timer = 0;
     const tick = () => {
-      setClock(readClock(timeZone));
+      setClock(readClock(timeZone, locale, words));
       timer = window.setTimeout(tick, 60000 - (Date.now() % 60000));
     };
     tick();
     return () => window.clearTimeout(timer);
-  }, [timeZone]);
+  }, [timeZone, locale, words]);
 
   return (
     <div className="ov-item">
@@ -317,17 +329,23 @@ export function LocalTime({ timeZone }: { timeZone: string }) {
   );
 }
 
-function greetingNow(): string {
+type GreetingWords = { morning: string; afternoon: string; evening: string; hello: string };
+
+function greetingNow(words: GreetingWords): string {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return words.morning;
+  if (hour < 17) return words.afternoon;
+  return words.evening;
 }
 
 const noSubscription = () => () => {};
 
-export function Greeting() {
-  const text = useSyncExternalStore(noSubscription, greetingNow, () => "Hello");
+export function Greeting({ words }: { words: GreetingWords }) {
+  const text = useSyncExternalStore(
+    noSubscription,
+    () => greetingNow(words),
+    () => words.hello,
+  );
   return (
     <div className="panel-title" aria-hidden>
       {text}
@@ -369,7 +387,15 @@ export function Taglines({ items }: { items: string[] }) {
   );
 }
 
-export function ShowMore({ children }: { children: ReactNode }) {
+export function ShowMore({
+  children,
+  more,
+  less,
+}: {
+  children: ReactNode;
+  more: string;
+  less: string;
+}) {
   const [open, setOpen] = useState(false);
   const body = useId();
   return (
@@ -385,7 +411,7 @@ export function ShowMore({ children }: { children: ReactNode }) {
           aria-controls={body}
           onClick={() => setOpen((value) => !value)}
         >
-          {open ? "Show less" : "Show more"}
+          {open ? less : more}
           <ChevronDown aria-hidden className={open ? "up" : undefined} />
         </button>
       </div>
@@ -399,7 +425,7 @@ function darkNow(root: HTMLElement): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ label }: { label: string }) {
   const button = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -422,13 +448,7 @@ export function ThemeToggle() {
   };
 
   return (
-    <button
-      ref={button}
-      type="button"
-      className="theme-btn"
-      aria-label="Toggle theme"
-      onClick={toggle}
-    >
+    <button ref={button} type="button" className="theme-btn" aria-label={label} onClick={toggle}>
       <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden>
         <path d="M16 .5C7.4.5.5 7.4.5 16S7.4 31.5 16 31.5 31.5 24.6 31.5 16 24.6.5 16 .5zm0 28.1V3.4C23 3.4 28.6 9 28.6 16S23 28.6 16 28.6z" />
       </svg>

@@ -133,6 +133,13 @@ describe("copy in the markup", () => {
     expect(await rulesHit("src/components/a.tsx", code)).toEqual([]);
   });
 
+  it("checks the portfolio designs, whose words follow the portfolio's language", async () => {
+    const file = "src/components/portfolio/templates/navy/navy.tsx";
+    expect(await rulesHit(file, "export const A = () => <p>Get In Touch</p>;\n")).toEqual([
+      "otto/no-literal-copy",
+    ]);
+  });
+
   it("leaves the guides to their own phase", async () => {
     const file = "src/app/[lang]/(marketing)/compare/a.tsx";
     expect(await rulesHit(file, "export const A = () => <p>Save changes</p>;\n")).toEqual([]);

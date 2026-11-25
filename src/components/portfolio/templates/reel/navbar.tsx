@@ -17,14 +17,16 @@ export type ReelSocial = { label: string; href: string; kind: SocialKind };
 const EXTERNAL = /^https?:/i;
 const OWN_MARKS = new Set<SocialKind>(["github", "bluesky"]);
 
+export type NavbarLabels = { home: string; menu: string; theme: string };
+
 export function Navbar({
-  name,
+  labels,
   initials,
   home,
   links,
   socials,
 }: {
-  name: string;
+  labels: NavbarLabels;
   initials: string;
   home: string;
   links: ReelNavLink[];
@@ -67,12 +69,12 @@ export function Navbar({
         href={home}
         data-navbar-item
         className="navbar-logo"
-        aria-label={`${name}, home`}
+        aria-label={labels.home}
         onClick={handleMobileNavClick}
       >
         <Monogram initials={initials} />
       </a>
-      <NavToggle onClick={() => setMenuOpen(!menuOpen)} menuOpen={menuOpen} />
+      <NavToggle onClick={() => setMenuOpen(!menuOpen)} menuOpen={menuOpen} label={labels.menu} />
       <nav className="navbar-nav">
         <div className="navbar-nav-list">
           {links.map(({ label, href }) => (
@@ -106,11 +108,11 @@ export function Navbar({
               </NavLink>
             ))}
             <NavbarIcons socials={socials} />
-            <ThemeToggle isMobile />
+            <ThemeToggle isMobile label={labels.theme} />
           </nav>
         )}
       </Transition>
-      <ThemeToggle data-navbar-item />
+      <ThemeToggle data-navbar-item label={labels.theme} />
     </header>
   );
 }
@@ -194,9 +196,17 @@ function Monogram({ initials }: { initials: string }) {
   );
 }
 
-function NavToggle({ menuOpen, onClick }: { menuOpen: boolean; onClick: () => void }) {
+function NavToggle({
+  menuOpen,
+  onClick,
+  label,
+}: {
+  menuOpen: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
-    <Button iconOnly className="nav-toggle" label="Menu" expanded={menuOpen} onClick={onClick}>
+    <Button iconOnly className="nav-toggle" label={label} expanded={menuOpen} onClick={onClick}>
       <span className="nav-toggle-inner">
         <Icon className="nav-toggle-icon" data-menu data-open={menuOpen} icon="menu" />
         <Icon className="nav-toggle-icon" data-close data-open={menuOpen} icon="close" />
@@ -205,7 +215,15 @@ function NavToggle({ menuOpen, onClick }: { menuOpen: boolean; onClick: () => vo
   );
 }
 
-function ThemeToggle({ isMobile, ...rest }: { isMobile?: boolean; "data-navbar-item"?: boolean }) {
+function ThemeToggle({
+  isMobile,
+  label,
+  ...rest
+}: {
+  isMobile?: boolean;
+  label: string;
+  "data-navbar-item"?: boolean;
+}) {
   const id = useId();
   const { toggleTheme } = useReel();
   const maskId = `${id}theme-toggle-mask`;
@@ -214,7 +232,7 @@ function ThemeToggle({ isMobile, ...rest }: { isMobile?: boolean; "data-navbar-i
       iconOnly
       className="theme-toggle"
       data-mobile={isMobile}
-      label="Toggle theme"
+      label={label}
       onClick={() => toggleTheme()}
       {...rest}
     >

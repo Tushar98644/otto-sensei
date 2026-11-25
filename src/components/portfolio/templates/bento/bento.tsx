@@ -1,8 +1,18 @@
 import type { ReactNode } from "react";
+import { fmt, selectPlural } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import type { ContentProject, ContentSocial } from "@/lib/portfolio/content";
 import { compactNumber } from "@/lib/portfolio/metrics";
 import { SocialIcon } from "../icons";
-import { featuredFirst, nameOf, OutLink, seeded, seedOf, TemplateStyle } from "../parts";
+import {
+  designFormat,
+  featuredFirst,
+  nameOf,
+  OutLink,
+  seeded,
+  seedOf,
+  TemplateStyle,
+} from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { AccentSwatches, TimeZoneTile } from "./on-demand";
 import { PixelArrow, PixelGitHub, PixelLinkedIn } from "./pixel-icons";
@@ -16,12 +26,7 @@ const PROJECT_TILES = 4;
 const JOBS = 4;
 
 // UTC, so the server's page and the browser's preview print the same day.
-const DAY = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
+const DAY = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
 
 function Tile({
   className = "",
@@ -120,9 +125,9 @@ function ProjectTile({ project }: { project: ContentProject }) {
   );
 }
 
-function PixelHeart() {
+function PixelHeart({ label }: { label: string }) {
   return (
-    <svg className="heart" viewBox="0 0 7 6" shapeRendering="crispEdges" aria-label="love">
+    <svg className="heart" viewBox="0 0 7 6" shapeRendering="crispEdges" aria-label={label}>
       <rect x="1" y="0" width="2" height="1" fill="#ef4444" />
       <rect x="4" y="0" width="2" height="1" fill="#ef4444" />
       <rect x="0" y="1" width="7" height="1" fill="#ef4444" />
@@ -134,8 +139,16 @@ function PixelHeart() {
   );
 }
 
-export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function BentoTemplate({
+  view,
+  content,
+  words,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = words.bento;
+  const format = designFormat(view);
+  const name = nameOf(view, words.shared.untitled);
   const socials = content.socials.filter((social) => social.kind !== "email");
   const buttons = [
     ...socials.filter((social) => social.kind === "github" || social.kind === "linkedin"),
@@ -152,6 +165,11 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
   const year = new Date().getUTCFullYear();
   const weeks = github?.activity.weeks ?? [];
   const peak = Math.max(1, ...weeks);
+  // German nouns keep their capital inside the sentence.
+  const headline =
+    format.locale === "de"
+      ? view.headline
+      : `${view.headline.charAt(0).toLowerCase()}${view.headline.slice(1)}`;
 
   return (
     <div className="pf-bento">
@@ -162,13 +180,11 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
           <div className="intro-row">
             <div className="intro-text">
               <div>
-                <h1 className="welcome">welcome</h1>
+                <h1 className="welcome">{t.welcome}</h1>
                 <p className="intro-p">
                   <span>
-                    Hi, I&rsquo;m <b>{name}</b>
-                    {view.headline
-                      ? `, ${view.headline.charAt(0).toLowerCase()}${view.headline.slice(1)}.`
-                      : "."}
+                    {rich(t.hello, { b: (chunk) => <b>{chunk}</b> }, { name })}
+                    {view.headline ? `, ${headline}.` : "."}
                     {content.pitch ? ` ${content.pitch}` : ""}
                   </span>
                   {content.about.slice(0, INTRO_PARAGRAPHS).map((paragraph, index) => (
@@ -192,11 +208,11 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
 
         {groups.length > 0 ? (
           <Tile className="t-stack pad-lg">
-            <h2 className="title">Stack &amp; tools</h2>
+            <h2 className="title">{t.stack}</h2>
             <div className="stack">
               {groups.map((group) => (
                 <div key={group.id} className="stack-group">
-                  <span className="stack-label">{group.label || "Skills"}</span>
+                  <span className="stack-label">{group.label || t.skills}</span>
                   <div className="chips">
                     {group.items.map((item) => (
                       <span key={item.name} className="chip">
@@ -212,10 +228,10 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
 
         {content.email || location || socials.length > 0 || resumeHref ? (
           <Tile className="t-contact contact pad-lg">
-            <h2 className="title">Let&rsquo;s start working together!</h2>
+            <h2 className="title">{t.contact.title}</h2>
             {content.email || location || resumeHref ? (
               <address>
-                <h3 className="label">Contact Details</h3>
+                <h3 className="label">{t.contact.details}</h3>
                 {content.email ? (
                   <p className="email">
                     <a href={`mailto:${content.email}`}>{content.email}</a>
@@ -224,14 +240,14 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
                 {location ? <p>{country || location.label}</p> : null}
                 {resumeHref ? (
                   <p className="email">
-                    <a href={resumeHref}>Resume</a>
+                    <a href={resumeHref}>{t.contact.resume}</a>
                   </p>
                 ) : null}
               </address>
             ) : null}
             {socials.length > 0 ? (
               <div className="find">
-                <h3 className="label">Find me on</h3>
+                <h3 className="label">{t.contact.findMe}</h3>
                 <ul>
                   {socials.map((social) => (
                     <li key={social.href}>
@@ -246,7 +262,13 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
 
         {location?.timezone ? (
           <Tile className="t-tz p4">
-            <TimeZoneTile timeZone={location.timezone} place={place} country={country} />
+            <TimeZoneTile
+              timeZone={location.timezone}
+              place={place}
+              country={country}
+              locale={format.locale}
+              words={t.tz}
+            />
           </Tile>
         ) : null}
 
@@ -254,7 +276,7 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
           <Tile
             className="t-github"
             href={github.href}
-            label="GitHub profile"
+            label={t.github.label}
             background={
               weeks.length > 0 ? (
                 <div className="heat">
@@ -268,8 +290,14 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
             <h2 className="title">GitHub</h2>
             <p className="gh-meta">
               {[
-                github.totalStars > 0 ? `${compactNumber(github.totalStars)} stars` : "",
-                `${github.publicRepos} repos`,
+                github.totalStars > 0
+                  ? fmt(selectPlural(format.locale, t.github.stars, github.totalStars), {
+                      count: compactNumber(github.totalStars),
+                    })
+                  : "",
+                fmt(selectPlural(format.locale, t.github.repos, github.publicRepos), {
+                  count: github.publicRepos,
+                }),
                 `@${github.username}`,
               ]
                 .filter(Boolean)
@@ -282,20 +310,20 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
           <Tile className="t-now tight center">
             <div className="now-head">
               <div className="now-title">
-                <h2>Now</h2>
+                <h2>{t.now.title}</h2>
                 <a
                   className="now-what"
                   href="https://nownownow.com/about"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  what&rsquo;s this?
+                  {t.now.what}
                 </a>
               </div>
               <div className="now-date">
                 {now.updatedAt ? (
                   <time dateTime={new Date(now.updatedAt).toISOString().slice(0, 10)}>
-                    {DAY.format(now.updatedAt)}
+                    {format.date(now.updatedAt, DAY)}
                   </time>
                 ) : null}
                 <span className="pulse" aria-hidden />
@@ -313,14 +341,14 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
 
         {jobs.length > 0 ? (
           <Tile className="t-exp pad-lg">
-            <h2 className="title">Experience</h2>
+            <h2 className="title">{t.experience}</h2>
             <ul className="jobs">
               {jobs.map((job) => (
                 <li key={job.id} className="job">
                   <span className="job-title">
                     {job.title || job.company}
                     {job.title && job.company ? (
-                      <span className="job-at"> at {job.company}</span>
+                      <span className="job-at"> {fmt(t.at, { company: job.company })}</span>
                     ) : null}
                   </span>
                   <span className="job-dates">
@@ -333,13 +361,14 @@ export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTe
         ) : null}
 
         <Tile className="t-accent p4">
-          <AccentSwatches />
+          <AccentSwatches labels={t.accents} />
         </Tile>
 
         <Tile className="t-foot">
           <div className="foot">
             <p>
-              &copy; {year} · Crafted with <PixelHeart /> by {name}
+              &copy; {year} ·{" "}
+              {rich(t.crafted, { b: (chunk) => <PixelHeart label={chunk} /> }, { name })}
             </p>
             {footer ? <div className="credit">{footer}</div> : null}
           </div>

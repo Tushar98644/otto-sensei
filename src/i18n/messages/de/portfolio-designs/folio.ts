@@ -1,0 +1,51 @@
+import type { Messages } from "../..";
+import type { Translation } from "../../../types";
+
+export default {
+  notes: {
+    aboutMe: "über mich",
+    quickLinks: "schnelle links",
+    experience: "erfahrung",
+    projects: "projekte",
+    skills: "fähigkeiten",
+    education: "ausbildung",
+    writing: "texte",
+    talks: "vorträge",
+    milestones: "meilensteine",
+    certifications: "zertifikate",
+    now: "jetzt",
+    kindWords: "nette worte",
+    readingList: "leseliste",
+    offTheClock: "nach feierabend",
+  },
+  about: {
+    myName: "ich heiße <b>{name}</b>",
+    currently: "derzeit",
+    roleAt: "{title} bei <link>{company}</link>",
+    basedIn: "wohne in {place}",
+    previously: "davor",
+    studied: "studium: <link>{school}</link>",
+    studiedAt: "studium {degree}, <link>{school}</link>",
+  },
+  links: {
+    email: "e-mail",
+    phone: "telefon",
+    resume: "lebenslauf",
+    resumeLink: "Lebenslauf",
+  },
+  stack: "technik: {list}",
+  minutes: "{minutes} Min. Lesezeit",
+  by: "von {by}",
+  app: {
+    notes: "Notizen",
+    search: "Suchen",
+    searchLabel: "Notizen durchsuchen",
+    clear: "Suche löschen",
+    empty: "Keine Ergebnisse",
+    pinned: "Angeheftet",
+    today: "Heute",
+    yesterday: "Gestern",
+    week: "Letzte 7 Tage",
+    month: "Letzte 30 Tage",
+  },
+} satisfies Translation<Messages["portfolioDesigns"]["folio"]>;

@@ -1,20 +1,23 @@
 import type { CSSProperties, ReactNode } from "react";
+import { fmt } from "@/i18n/format";
 import {
   allSkills,
   contactHref,
+  designFormat,
   featuredFirst,
   nameOf,
   OutLink,
   safeId,
   TemplateStyle,
 } from "../parts";
-import type { PortfolioTemplateProps } from "../types";
+import type { DesignWords, PortfolioTemplateProps } from "../types";
 import { PopIn } from "./on-demand";
 import { Mascot, MascotDefs, type MascotKind } from "./mascots";
 import { BUBBLE_CSS } from "./styles";
 
 // Ported from Nuu-maan/portfolio-template (MIT, see ./LICENSE.txt): its loud, cute Y2K sections and mascots.
 
+type Words = DesignWords["bubble"];
 type Tone = "cream" | "ink" | "yellow" | "pink" | "blue" | "lavender";
 const CYCLE: Tone[] = ["cream", "yellow", "pink", "blue", "lavender"];
 const TINTS: Tone[] = ["pink", "blue", "lavender", "cream"];
@@ -29,6 +32,9 @@ const CAST: { kind: MascotKind; colors?: Record<string, string> }[] = [
 
 const slug = (text: string) => safeId("x", text).slice(2);
 const upper = (text: string) => text.toUpperCase();
+// A brand name, written as the button shows it in every language.
+const GITHUB_BUTTON = "⌘ GITHUB";
+const appFile = (name: string) => `${slug(name)}.app`;
 
 function Pill({
   tone,
@@ -183,12 +189,26 @@ function SayBubble({ top, bottom }: { top: string; bottom: string }) {
   );
 }
 
-function weightOf(index: number): string {
-  return index < 2 ? "PRIMARY" : index === 2 ? "MEDIUM" : index === 3 ? "LIGHT" : "REGULAR";
+function weightOf(index: number, weights: Words["weights"]): string {
+  return index < 2
+    ? weights.primary
+    : index === 2
+      ? weights.medium
+      : index === 3
+        ? weights.light
+        : weights.regular;
 }
 
-export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function BubbleTemplate({
+  view,
+  content,
+  words: designWords,
+  footer,
+  resumeHref,
+}: PortfolioTemplateProps) {
+  const t = designWords.bubble;
+  const format = designFormat(view);
+  const name = nameOf(view, designWords.shared.untitled);
   const words = name.split(/\s+/).filter(Boolean);
   const lines = words.length > 1 ? [words[0]!, words.slice(1).join(" ")] : [name];
   const chars = Math.max(4, ...lines.map((line) => line.length));
@@ -212,22 +232,22 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
     "★ " +
     ([
       skills.length > 0
-        ? `${skills.length} SKILL STACK`
+        ? format.plural(t.skillStack, skills.length)
         : projects.length > 0
-          ? `${projects.length} BUILDS`
+          ? format.plural(t.builds, projects.length)
           : "",
       role ? `1 ${role}` : "",
     ]
       .filter(Boolean)
-      .join(" · ") || "PORTFOLIO");
+      .join(" · ") || t.portfolio);
   const weights = content.disciplines.slice(0, 4).map((discipline) => {
     const [head = "", ...tail] = discipline.split(/\s+/);
     return { head: upper(head), tail: upper(tail.join(" ")) };
   });
   const secondary = resumeHref
-    ? { href: resumeHref, label: "Resume ↗" }
+    ? { href: resumeHref, label: t.resume }
     : github
-      ? { href: github.href, label: "⌘ GITHUB" }
+      ? { href: github.href, label: GITHUB_BUTTON }
       : socials[0]
         ? { href: socials[0].href, label: `⌘ ${upper(socials[0].label)}` }
         : null;
@@ -239,14 +259,16 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
     known.length >= 3
       ? [...known].sort((a, b) => (b.years ?? 0) - (a.years ?? 0)).slice(0, 6)
       : (content.skills[0]?.items.slice(0, 6) ?? []);
-  const specimenLabel = known.length >= 3 ? "Most used" : content.skills[0]?.label || "Skills";
+  const specimenLabel = known.length >= 3 ? t.mostUsed : content.skills[0]?.label || t.skills;
   const tiles =
     stats.length > 0
       ? stats.slice(0, 2)
       : [
-          projects.length > 0 ? { value: String(projects.length), label: "builds shipped" } : null,
+          projects.length > 0
+            ? { value: String(projects.length), label: format.plural(t.shipped, projects.length) }
+            : null,
           jobs.length > 0
-            ? { value: String(jobs.length), label: jobs.length === 1 ? "role" : "roles" }
+            ? { value: String(jobs.length), label: format.plural(t.roles, jobs.length) }
             : null,
         ].filter((tile) => tile !== null);
   const wins = jobs.filter((job) => job.highlight);
@@ -266,7 +288,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
   if (content.education.length > 0)
     books.push({
       id: "school",
-      file: "~/school.txt",
+      file: t.files.school,
       rows: content.education.map((school) => ({
         id: school.id,
         what: school.school || school.degree,
@@ -277,7 +299,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
   if (content.milestones.length > 0 || view.certifications.length > 0)
     books.push({
       id: "wins",
-      file: "~/trophies.log",
+      file: t.files.wins,
       rows: [
         ...content.milestones.map((item) => ({
           id: item.id,
@@ -296,12 +318,12 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
   if (content.writing.length > 0)
     books.push({
       id: "writing",
-      file: "~/writing.md",
+      file: t.files.writing,
       rows: content.writing.map((post) => ({
         id: post.id,
         what: post.title,
         href: post.href,
-        meta: [post.date, post.minutes ? `${post.minutes} min read` : ""]
+        meta: [post.date, post.minutes ? fmt(t.minutes, { minutes: post.minutes }) : ""]
           .filter(Boolean)
           .join(" · "),
       })),
@@ -309,7 +331,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
   if (content.talks.length > 0)
     books.push({
       id: "talks",
-      file: "~/talks.key",
+      file: t.files.talks,
       rows: content.talks.map((talk) => ({
         id: talk.id,
         what: talk.title,
@@ -333,7 +355,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
 
   const reach = [
     ...(content.email
-      ? [{ key: "EMAIL", value: content.email, href: `mailto:${content.email}` }]
+      ? [{ key: t.email, value: content.email, href: `mailto:${content.email}` }]
       : []),
     ...socials.slice(0, 5).map((social) => ({
       key: upper(social.label),
@@ -351,6 +373,8 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
     "contact",
   ];
   const no = (id: string) => String(chapters.indexOf(id) + 1).padStart(2, "0");
+  const number = (id: string) => fmt(t.number, { no: no(id).padStart(3, "0") });
+  const chapter = (id: string, title: string) => fmt(t.chapter, { no: no(id), name: title });
 
   return (
     <div className="pf-bubble" id="pf-bubble-top">
@@ -391,7 +415,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
         <div className="corner l">
           <span className="mono-pill">◐ {initials}</span>
           <Pill tone="cream" className="hide-s">
-            {series} — NO.{no("hero").padStart(3, "0")}
+            {series} — {number("hero")}
           </Pill>
         </div>
         {weights.length > 0 ? (
@@ -421,7 +445,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
             <div className="ctas">
               {hello ? (
                 <OutLink href={hello} className="btn btn-yellow">
-                  {content.availability?.open ? "HIRE ME →" : "SAY HI →"}
+                  {content.availability?.open ? t.hireMe : t.sayHi}
                 </OutLink>
               ) : null}
               {secondary ? (
@@ -451,8 +475,8 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
           <div className="say" style={{ left: "43%", bottom: "92%" }}>
             <span style={{ display: "inline-block", rotate: "-3deg" }}>
               <SayBubble
-                top={(content.disciplines[0] || headline || "my").toLowerCase()}
-                bottom="portfolio"
+                top={(content.disciplines[0] || headline || t.say.my).toLowerCase()}
+                bottom={t.say.portfolio}
               />
             </span>
           </div>
@@ -483,7 +507,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
           />
         </div>
         <span className="cue bob" aria-hidden>
-          ↓ SCROLL ↓
+          {t.scroll}
         </span>
       </header>
 
@@ -518,32 +542,30 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
             md
           />
           <Corners
-            left={`NO.${no("stack").padStart(3, "0")}`}
-            chapter={`CH · ${no("stack")} · STACK`}
-            right={{ tone: "yellow", text: `${skills.length} SKILLS` }}
+            left={number("stack")}
+            chapter={chapter("stack", t.chapters.stack)}
+            right={{ tone: "yellow", text: format.plural(t.skillsCount, skills.length) }}
           />
           <div className="inner">
             <div className="two">
               <div className="first">
                 <Pill tone="ink" className="reveal">
-                  ▷ CH · {no("stack")} · TOOLBELT
+                  ▷ {chapter("stack", t.chapters.toolbelt)}
                 </Pill>
                 <h2
                   className="display title-xl t-stripe-sm reveal"
                   id="pf-bubble-stack"
                   style={{ marginTop: "1rem" }}
                 >
-                  MY
+                  {t.stackTitle.top}
                   <br />
-                  <span className="pink">STACK</span>
+                  <span className="pink">{t.stackTitle.bottom}</span>
                 </h2>
-                <p className="lede reveal">
-                  The tools I reach for first, grouped the way I use them.
-                </p>
+                <p className="lede reveal">{t.stackLede}</p>
                 <div className="chip-rows">
                   {view.skills.map((group, groupIndex) => (
                     <div key={group.id} className="chip-row reveal">
-                      <span className="chip-label">{group.label || "Skills"}</span>
+                      <span className="chip-label">{group.label || t.skills}</span>
                       {group.items.map((item, index) => (
                         <span
                           key={item}
@@ -558,23 +580,21 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
                 </div>
               </div>
               <div style={{ display: "grid", gap: "1.25rem", alignContent: "start" }}>
-                <Win title={`~/stack.md — ${slug(first)}@dev`} className="reveal">
+                <Win title={fmt(t.files.stack, { user: slug(first) })} className="reveal">
                   <div className="specimen">
                     <span className="word group">{specimenLabel}</span>
-                    <span className="weight-name">GROUP</span>
+                    <span className="weight-name">{t.group}</span>
                     {specimen.map((item, index) => (
                       <span key={item.name} style={{ display: "contents" }}>
                         <span className="word">{item.name}</span>
                         <span className="weight-name">
                           {known.length >= 3 && item.years !== null
-                            ? `${item.years} ${item.years === 1 ? "YR" : "YRS"}`
-                            : weightOf(index)}
+                            ? format.plural(t.years, item.years)
+                            : weightOf(index, t.weights)}
                         </span>
                       </span>
                     ))}
-                    {known.length >= 3 ? (
-                      <span className="note">Years of use, most first.</span>
-                    ) : null}
+                    {known.length >= 3 ? <span className="note">{t.yearsNote}</span> : null}
                   </div>
                 </Win>
                 {tiles.length > 0 ? (
@@ -662,14 +682,14 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
             colors={{ petal: "#ffd24c", center: "#ff6f9c" }}
           />
           <Corners
-            left={`NO.${no("jobs").padStart(3, "0")}`}
-            chapter={`CH · ${no("jobs")} · ${upper(view.titles.experience || "Work")}`}
-            right={{ tone: "pink", text: `★ ${jobs.length} ${jobs.length === 1 ? "JOB" : "JOBS"}` }}
+            left={number("jobs")}
+            chapter={chapter("jobs", upper(view.titles.experience || t.chapters.jobs))}
+            right={{ tone: "pink", text: format.plural(t.jobs, jobs.length) }}
           />
           <div className="inner">
             <div className="center">
               <Pill tone="ink" className="reveal">
-                CHAPTER · {no("jobs")}
+                {fmt(t.chapterNo, { no: no("jobs") })}
               </Pill>
               <h2
                 className="display reveal"
@@ -682,17 +702,17 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
                 }}
               >
                 <span className="t-stripe-sm" style={{ color: "var(--cream)" }}>
-                  WHERE
+                  {t.worked.top}
                 </span>
                 <span
                   className="t-sticker"
                   style={{ color: "var(--pink-deep)", margin: "0 0.15em" }}
                 >
-                  I
+                  {t.worked.middle}
                 </span>
                 <br />
                 <span className="t-stripe-sm" style={{ color: "var(--yellow-sun)" }}>
-                  WORKED
+                  {t.worked.bottom}
                 </span>
               </h2>
               <div className="hands reveal" aria-hidden>
@@ -710,7 +730,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
             </div>
             <div className={wins.length === 0 ? "cols one" : "cols"}>
               <div className="col">
-                <p className="col-head">THE JOBS</p>
+                <p className="col-head">{t.theJobs}</p>
                 {jobs.map((job, index) => (
                   <article
                     key={job.id}
@@ -732,13 +752,13 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
                 ))}
                 {current ? (
                   <div className="reveal">
-                    <SayBubble top="currently at" bottom={current.company} />
+                    <SayBubble top={t.currentlyAt} bottom={current.company} />
                   </div>
                 ) : null}
               </div>
               {wins.length > 0 ? (
                 <div className="col">
-                  <p className="col-head">THE WINS</p>
+                  <p className="col-head">{t.theWins}</p>
                   {wins.map((job, index) => (
                     <div
                       key={job.id}
@@ -797,15 +817,12 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
             md
           />
           <Corners
-            left={`NO.${no("work").padStart(3, "0")}`}
-            chapter={`CH · ${no("work")} · WORK`}
-            right={{
-              tone: "pink",
-              text: `✦ ${projects.length} ${projects.length === 1 ? "BUILD" : "BUILDS"}`,
-            }}
+            left={number("work")}
+            chapter={chapter("work", t.chapters.work)}
+            right={{ tone: "pink", text: format.plural(t.buildsCount, projects.length) }}
           />
           <div className="inner">
-            <Win title={`featured-work — ${slug(first)}.git`} className="reveal">
+            <Win title={fmt(t.files.featured, { user: slug(first) })} className="reveal">
               <div className="work-head halftone">
                 <h2
                   className="display title-xl t-stripe-sm"
@@ -815,10 +832,10 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
                   {upper(
                     view.titles.projects && view.titles.projects !== "Projects"
                       ? view.titles.projects
-                      : "Featured",
+                      : t.featured,
                   )}
                   <br />
-                  <span className="deep">WORK</span>
+                  <span className="deep">{t.work}</span>
                 </h2>
                 {kinds.length > 0 ? (
                   <div className="work-badges">
@@ -837,7 +854,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
                 return (
                   <Win
                     key={project.id}
-                    title={`${slug(project.name)}.app`}
+                    title={appFile(project.name)}
                     tint={TINTS[index % TINTS.length]}
                     className="build reveal"
                   >
@@ -857,10 +874,10 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
                     {project.website || project.source ? (
                       <span className="go">
                         {project.website ? (
-                          <OutLink href={project.website.href}>LIVE ↗</OutLink>
+                          <OutLink href={project.website.href}>{t.live}</OutLink>
                         ) : null}
                         {project.source ? (
-                          <OutLink href={project.source.href}>CODE ↗</OutLink>
+                          <OutLink href={project.source.href}>{t.code}</OutLink>
                         ) : null}
                       </span>
                     ) : null}
@@ -871,7 +888,7 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
             {github ? (
               <p className="ctas reveal" style={{ marginTop: "1.5rem" }}>
                 <OutLink href={github.href} className="btn btn-ink">
-                  SEE ALL ON GITHUB →
+                  {t.allOnGitHub}
                 </OutLink>
               </p>
             ) : null}
@@ -906,11 +923,14 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
             md
           />
           <Corners
-            left={`NO.${no("books").padStart(3, "0")}`}
-            chapter={`CH · ${no("books")} · NOTEBOOK`}
+            left={number("books")}
+            chapter={chapter("books", t.chapters.notebook)}
             right={{
               tone: "blue",
-              text: `${books.reduce((sum, book) => sum + book.rows.length, 0)} ENTRIES`,
+              text: format.plural(
+                t.entries,
+                books.reduce((sum, book) => sum + book.rows.length, 0),
+              ),
             }}
           />
           <div className="inner">
@@ -920,9 +940,9 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
                 id="pf-bubble-books"
                 style={{ fontSize: "clamp(2.75rem, 10cqi, 7.5rem)" }}
               >
-                EXTRA
+                {t.credit.top}
                 <br />
-                <span className="pink">CREDIT</span>
+                <span className="pink">{t.credit.bottom}</span>
               </h2>
             </div>
             <div className={books.length === 1 ? "books one" : "books"}>
@@ -985,34 +1005,28 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
           md
         />
         <Corners
-          left={`NO.${no("contact").padStart(3, "0")}`}
-          chapter={`CH · ${no("contact")} · CONTACT`}
-          right={
-            content.availability?.open
-              ? { tone: "yellow", text: "★ OPEN" }
-              : { tone: "yellow", text: "★ HELLO" }
-          }
+          left={number("contact")}
+          chapter={chapter("contact", t.chapters.contact)}
+          right={{ tone: "yellow", text: content.availability?.open ? t.open : t.hello }}
         />
         <div className="inner center">
           <Pill tone="cream" className="reveal">
-            CHAPTER · {no("contact")} · LET&rsquo;S TALK
+            {fmt(t.letsTalk, { no: no("contact") })}
           </Pill>
           <h2 className="display title-xl t-stripe reveal" style={{ marginTop: "1rem" }}>
-            SAY
+            {t.sayHello.top}
             <br />
-            HELLO
+            {t.sayHello.bottom}
           </h2>
           <div className="reveal" style={{ rotate: "-3deg" }}>
             <SayBubble
-              top={content.location?.city ? "based in" : "always happy"}
-              bottom={content.location?.city || "to chat"}
+              top={content.location?.city ? t.basedIn : t.happy}
+              bottom={content.location?.city || t.toChat}
             />
           </div>
           <p className="blurb reveal">
-            {content.availability?.text
-              ? `${content.availability.text}. `
-              : "Want to work together, or just swap notes? "}
-            My inbox is open.
+            {content.availability?.text ? `${content.availability.text}. ` : `${t.together} `}
+            {t.inbox}
           </p>
           {reach.length > 0 ? (
             <div
@@ -1030,16 +1044,16 @@ export function BubbleTemplate({ view, content, footer, resumeHref }: PortfolioT
           <div className="ctas reveal" style={{ marginTop: "1.25rem" }}>
             {hello ? (
               <OutLink href={hello} className="btn btn-yellow">
-                {content.email ? "SEND AN EMAIL →" : "SAY HI →"}
+                {content.email ? t.sendEmail : t.sayHi}
               </OutLink>
             ) : null}
             {resumeHref ? (
               <a href={resumeHref} className="btn btn-cream">
-                Resume ↗
+                {t.resume}
               </a>
             ) : null}
             <a href="#pf-bubble-top" className="btn btn-cream">
-              ↑ BACK TO TOP
+              {t.backToTop}
             </a>
           </div>
           <p className="signoff">

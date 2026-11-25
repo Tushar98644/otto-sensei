@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
+import { fmt } from "@/i18n/format";
 import type { ContentProject } from "@/lib/portfolio/content";
 import { contactHref, featuredFirst, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
-import type { PortfolioTemplateProps } from "../types";
+import type { DesignWords, PortfolioTemplateProps } from "../types";
 import {
   deviceOf,
   detailId,
@@ -28,6 +29,8 @@ import { Button } from "./ui";
 
 // Ported from HamishMW/portfolio (MIT, see ./LICENSE.txt).
 
+type Words = DesignWords["reel"];
+
 const SOCIALS_MAX = 4;
 
 const hostOf = (href: string) => {
@@ -53,11 +56,12 @@ function drawnOf(project: ContentProject): DrawnContent {
   };
 }
 
-export function ReelTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
-  const name = nameOf(view);
+export function ReelTemplate({ view, content, words, footer, resumeHref }: PortfolioTemplateProps) {
+  const t = words.reel;
+  const name = nameOf(view, words.shared.untitled);
   const disciplines =
     content.disciplines.length > 0 ? content.disciplines : view.headline ? [view.headline] : [];
-  const role = disciplines[0] ?? "Portfolio";
+  const role = disciplines[0] ?? t.role;
   const rotating = disciplines.slice(1);
   const projects = featuredFirst(content.projects);
   const summaries = projects.slice(0, SUMMARIES_MAX);
@@ -78,14 +82,14 @@ export function ReelTemplate({ view, content, footer, resumeHref }: PortfolioTem
   const year = new Date().getUTCFullYear();
 
   const links: ReelNavLink[] = [
-    firstProject ? { label: "Projects", href: firstProject } : null,
-    about.length > 0 ? { label: "Details", href: "#pf-reel-details" } : null,
-    roles.length > 0 ? { label: "Experience", href: "#pf-reel-experience" } : null,
-    resumeHref ? { label: "Resume", href: resumeHref } : null,
-    hello ? { label: "Contact", href: hello } : null,
-  ].filter((link): link is ReelNavLink => link !== null);
+    firstProject ? { label: t.nav.projects, href: firstProject } : null,
+    about.length > 0 ? { label: t.nav.details, href: "#pf-reel-details" } : null,
+    roles.length > 0 ? { label: t.nav.experience, href: "#pf-reel-experience" } : null,
+    resumeHref ? { label: t.nav.resume, href: resumeHref } : null,
+    hello ? { label: t.nav.contact, href: hello } : null,
+  ].filter((link) => link !== null);
 
-  const pages = projects.filter((project) => projectTarget(project)?.href.startsWith("#"));
+  const pages = projects.filter((project) => projectTarget(project, t.view)?.href.startsWith("#"));
 
   return (
     <ReelRoot>
@@ -94,7 +98,7 @@ export function ReelTemplate({ view, content, footer, resumeHref }: PortfolioTem
       <ReelSprites />
       <div className="shell">
         <Navbar
-          name={name}
+          labels={{ home: fmt(t.home, { name }), menu: t.menu, theme: t.theme }}
           initials={content.initials || name.charAt(0)}
           home="#pf-reel-intro"
           links={links}
@@ -106,9 +110,10 @@ export function ReelTemplate({ view, content, footer, resumeHref }: PortfolioTem
             name={name}
             role={role}
             disciplines={rotating}
-            label={introLabel(role, rotating)}
+            label={introLabel(role, rotating, t.and)}
             titleScale={titleScale(role, rotating)}
             scrollTarget={firstProject}
+            scrollLabel={t.scroll}
           />
 
           {summaries.map((project, index) => (
@@ -118,20 +123,21 @@ export function ReelTemplate({ view, content, footer, resumeHref }: PortfolioTem
               index={index + 1}
               title={project.name}
               description={project.line || project.description}
-              button={projectTarget(project)}
+              button={projectTarget(project, t.view)}
               alternate={index % 2 === 1}
               device={deviceOf(project)}
               drawn={drawnOf(project)}
-              alt={`${project.name}, drawn on a ${deviceOf(project) === "phone" ? "pair of phones" : "laptop"}`}
+              alt={fmt(t.drawn[deviceOf(project)], { name: project.name })}
+              loading={t.loading}
             />
           ))}
 
           {more.length > 0 ? (
-            <ExtraSection id="pf-reel-more" title="More projects">
+            <ExtraSection id="pf-reel-more" title={t.more}>
               <table className="extra-table">
                 <tbody>
                   {more.map((project, index) => {
-                    const target = projectTarget(project);
+                    const target = projectTarget(project, t.view);
                     return (
                       <tr key={project.id} className="extra-row">
                         <td className="extra-cell" data-kind="index">
@@ -168,11 +174,12 @@ export function ReelTemplate({ view, content, footer, resumeHref }: PortfolioTem
               contact={hello}
               initials={content.initials || name.charAt(0)}
               caption={content.location?.city || view.headline}
+              words={{ hello: t.hello, message: t.message, about: t.aboutMe }}
             />
           ) : null}
 
           {roles.length > 0 ? (
-            <ExtraSection id="pf-reel-experience" title="Experience">
+            <ExtraSection id="pf-reel-experience" title={t.experience}>
               <table className="extra-table">
                 <tbody>
                   {roles.map((job) => (
@@ -220,14 +227,19 @@ export function ReelTemplate({ view, content, footer, resumeHref }: PortfolioTem
         </div>
 
         {pages.map((project) => (
-          <ProjectPage key={project.id} project={project} back={firstProject ?? "#pf-reel-intro"} />
+          <ProjectPage
+            key={project.id}
+            project={project}
+            back={firstProject ?? "#pf-reel-intro"}
+            t={t}
+          />
         ))}
       </div>
     </ReelRoot>
   );
 }
 
-function ProjectPage({ project, back }: { project: ContentProject; back: string }) {
+function ProjectPage({ project, back, t }: { project: ContentProject; back: string; t: Words }) {
   const link = project.website ?? project.source;
   const meta = [...project.roles, project.category, project.years].filter(Boolean);
   const paragraphs =
@@ -254,7 +266,7 @@ function ProjectPage({ project, back }: { project: ContentProject; back: string 
                 icon="chevron-right"
                 href={link.href}
               >
-                {project.website ? "Visit website" : "View source"}
+                {project.website ? t.visit : t.source}
               </Button>
             ) : null}
           </div>
@@ -307,7 +319,7 @@ function ProjectPage({ project, back }: { project: ContentProject; back: string 
       <section className="project-section">
         <div className="section project-section-inner">
           <Button secondary icon="chevron-right" href={back}>
-            Back to projects
+            {t.back}
           </Button>
         </div>
       </section>

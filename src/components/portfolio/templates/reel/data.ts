@@ -1,3 +1,4 @@
+import { fmt } from "@/i18n/format";
 import type { ContentProject } from "@/lib/portfolio/content";
 import { safeId } from "../parts";
 
@@ -11,23 +12,29 @@ export function deviceOf(project: Pick<ContentProject, "device">): Device {
 
 export const detailId = (project: ContentProject) => safeId("pf-reel-p", project.id);
 
-export function projectTarget(project: ContentProject): { href: string; label: string } | null {
+export type TargetLabels = { project: string; website: string; source: string };
+
+export function projectTarget(
+  project: ContentProject,
+  labels: TargetLabels,
+): { href: string; label: string } | null {
   if (project.details.length > 0) {
-    return { href: `#${detailId(project)}`, label: "View project" };
+    return { href: `#${detailId(project)}`, label: labels.project };
   }
-  if (project.website) return { href: project.website.href, label: "View website" };
-  if (project.source) return { href: project.source.href, label: "View source" };
+  if (project.website) return { href: project.website.href, label: labels.website };
+  if (project.source) return { href: project.source.href, label: labels.source };
   return null;
 }
 
 export const indexText = (index: number) => (index < 10 ? `0${index}` : String(index));
 
-export function introLabel(role: string, disciplines: readonly string[]): string {
+// and is "{list}, and {last}" in English.
+export function introLabel(role: string, disciplines: readonly string[], and: string): string {
   if (disciplines.length === 0) return role;
   const list =
     disciplines.length === 1
       ? disciplines[0]!
-      : [disciplines.slice(0, -1).join(", "), disciplines.at(-1)].join(", and ");
+      : fmt(and, { list: disciplines.slice(0, -1).join(", "), last: disciplines.at(-1)! });
   return `${role} + ${list}`;
 }
 

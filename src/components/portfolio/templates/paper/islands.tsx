@@ -203,7 +203,9 @@ function darkNow(root: HTMLElement): boolean {
 }
 
 // Day or night: the header's button flips it, the footer's pair picks one, and the choice is remembered.
-export function ModeButtons({ header = false }: { header?: boolean }) {
+export type ModeWords = { day: string; night: string; toDay: string; toNight: string };
+
+export function ModeButtons({ header = false, words }: { header?: boolean; words: ModeWords }) {
   const box = useRef<HTMLDivElement>(null);
   const [dark, setDark] = useState<boolean | null>(null);
 
@@ -238,11 +240,11 @@ export function ModeButtons({ header = false }: { header?: boolean }) {
         <button
           type="button"
           className="tag picker-button"
-          aria-label={dark ? "Switch to day" : "Switch to night"}
+          aria-label={dark ? words.toDay : words.toNight}
           onClick={() => pick(dark ? "light" : "dark")}
         >
           <i className="dot" />
-          {dark ? "night" : "day"}
+          {dark ? words.night : words.day}
         </button>
       </div>
     );
@@ -255,7 +257,7 @@ export function ModeButtons({ header = false }: { header?: boolean }) {
         aria-pressed={dark === false}
         onClick={() => pick("light")}
       >
-        day
+        {words.day}
       </button>
       <button
         type="button"
@@ -263,7 +265,7 @@ export function ModeButtons({ header = false }: { header?: boolean }) {
         aria-pressed={dark === true}
         onClick={() => pick("dark")}
       >
-        night
+        {words.night}
       </button>
     </div>
   );

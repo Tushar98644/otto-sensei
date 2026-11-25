@@ -188,7 +188,6 @@ const COPY_ELSEWHERE = [
   "src/components/career-log/**",
   "src/components/recap/**",
   "src/components/eligibility/**",
-  "src/components/portfolio/templates/**",
 ];
 
 // Where English formats are meant: English sources and defaults, machine text (time zones, analytics, AI input), and areas other phases own.
@@ -215,10 +214,13 @@ const EN_US_ALLOWED = [
   "src/lib/job-feed/**",
   "src/lib/inbound/**",
   "src/lib/seo-pages/**",
+  // Portfolio designs' machine text: time-zone math that parses an en-US date, and a count-up that redraws the owner's own "4,000".
+  "src/components/portfolio/templates/bento/islands.tsx",
+  "src/components/portfolio/templates/cv/islands.tsx",
+  "src/components/portfolio/templates/starring/islands.tsx",
   // Still English: the leftover sweep didn't reach these yet (docs/i18n.md, Known gaps).
   "src/components/account/pro-perks.tsx",
   "src/components/dashboard/letters/letter-paper.tsx",
-  "src/components/portfolio/templates/**",
   "src/components/recap/**",
   "src/lib/recap/**",
   "src/lib/career-log/**",

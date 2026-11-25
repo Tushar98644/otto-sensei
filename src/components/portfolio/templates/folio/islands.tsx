@@ -10,6 +10,8 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import type { Locale } from "@/i18n/config";
+import { formatFor } from "@/i18n/intl";
 
 // Ported from alanagoyal/alanagoyal's Notes app (MIT, see ./LICENSE.txt).
 
@@ -32,6 +34,19 @@ function Lights() {
   );
 }
 
+export type NotesWords = {
+  notes: string;
+  search: string;
+  searchLabel: string;
+  clear: string;
+  empty: string;
+  pinned: string;
+  today: string;
+  yesterday: string;
+  week: string;
+  month: string;
+};
+
 const DAY = 86_400_000;
 const noSubscription = () => () => {};
 
@@ -40,23 +55,23 @@ function dayOf(time: number): number {
   return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function monthOf(at: number, now?: number): string {
+function monthOf(locale: Locale, at: number, now?: number): string {
   const date = new Date(at);
-  const month = date.toLocaleDateString("en-US", { month: "long" });
+  const month = formatFor(locale).date(date, { month: "long" });
   return now === undefined || date.getFullYear() === new Date(now).getFullYear()
     ? month
     : String(date.getFullYear());
 }
 
 // The original files notes under how long ago they changed, in the visitor's own calendar.
-function groupNow(at: number): string {
+function groupNow(locale: Locale, words: NotesWords, at: number): string {
   const now = Date.now();
   const days = Math.round((dayOf(now) - dayOf(at)) / DAY);
-  if (days <= 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days <= 7) return "Previous 7 Days";
-  if (days <= 30) return "Previous 30 Days";
-  return monthOf(at, now);
+  if (days <= 0) return words.today;
+  if (days === 1) return words.yesterday;
+  if (days <= 7) return words.week;
+  if (days <= 30) return words.month;
+  return monthOf(locale, at, now);
 }
 
 function matches(note: NoteMeta, query: string): boolean {
@@ -71,6 +86,8 @@ export function NotesApp({
   updatedAt,
   stamp,
   short,
+  locale,
+  words,
   footer,
 }: {
   notes: NoteMeta[];
@@ -78,13 +95,15 @@ export function NotesApp({
   updatedAt: number | null;
   stamp: string;
   short: string;
+  locale: Locale;
+  words: NotesWords;
   footer?: ReactNode;
 }) {
   const id = useId().replace(/[^\w-]/g, "");
   const group = useSyncExternalStore(
     noSubscription,
-    () => (updatedAt === null ? "Notes" : groupNow(updatedAt)),
-    () => (updatedAt === null ? "Notes" : monthOf(updatedAt)),
+    () => (updatedAt === null ? words.notes : groupNow(locale, words, updatedAt)),
+    () => (updatedAt === null ? words.notes : monthOf(locale, updatedAt)),
   );
   const [selected, setSelected] = useState(notes[0]?.id ?? "");
   const [open, setOpen] = useState(false);
@@ -170,8 +189,8 @@ export function NotesApp({
             <Search className="search-icon" aria-hidden />
             <input
               type="search"
-              placeholder="Search"
-              aria-label="Search notes"
+              placeholder={words.search}
+              aria-label={words.searchLabel}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -179,21 +198,21 @@ export function NotesApp({
               <button
                 type="button"
                 className="search-clear"
-                aria-label="Clear search"
+                aria-label={words.clear}
                 onClick={() => setQuery("")}
               >
                 <X aria-hidden />
               </button>
             ) : null}
           </div>
-          <nav ref={list} className="list" aria-label="Notes">
+          <nav ref={list} className="list" aria-label={words.notes}>
             {shown.length === 0 ? (
-              <p className="empty">No results found</p>
+              <p className="empty">{words.empty}</p>
             ) : searching ? (
               <ul onKeyDown={onKey}>{shown.map((note, index) => item(note, index, shown))}</ul>
             ) : (
               <>
-                {section("Pinned", pinned)}
+                {section(words.pinned, pinned)}
                 {section(group, rest)}
               </>
             )}
@@ -204,7 +223,7 @@ export function NotesApp({
       <div ref={pane} className="pane">
         <button type="button" className="back" onClick={() => setOpen(false)}>
           <ChevronLeft aria-hidden />
-          <span>Notes</span>
+          <span>{words.notes}</span>
         </button>
         {notes.map((note, index) => (
           <article

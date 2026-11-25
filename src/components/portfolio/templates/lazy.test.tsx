@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { jordanPage } from "@/lib/portfolio/fixtures/jordan";
 import { PORTFOLIO_TEMPLATE_IDS, type PortfolioTemplateId } from "@/lib/portfolio/types";
-import { LazyTemplate, loadTemplate } from "./lazy";
+import { LazyTemplate, loadDesignWords, loadTemplate } from "./lazy";
 import { PORTFOLIO_TEMPLATES } from "./registry";
 
 const page = jordanPage();
@@ -22,7 +22,7 @@ describe("the designs the editor loads one at a time", () => {
     expect(waiting).toContain("Loading the design");
     expect(waiting).not.toContain('class="pf-folio"');
 
-    await loadTemplate("folio");
+    await Promise.all([loadTemplate("folio"), loadDesignWords("en")]);
     const html = draw("folio");
     expect(html).toContain('class="pf-folio"');
     expect(html).toContain("Jordan Ellis");
