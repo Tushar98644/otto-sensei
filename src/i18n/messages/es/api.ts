@@ -271,6 +271,11 @@ export default {
     savedGone: "Ese empleo guardado ya no está aquí.",
     board: "No se pudo leer el portal de ese empleo.",
     typeLess: "Escribe como máximo {max} caracteres.",
+    mapFailed: "No se pudo cargar el mapa ahora. Inténtalo de nuevo.",
+    companySignIn: "Inicia sesión para ver esta empresa.",
+    companyName: "Ese nombre de empresa no funcionó.",
+    companyGone: "Esta empresa no tiene empleos abiertos aquí ahora.",
+    companyFailed: "No se pudo cargar esta empresa. Inténtalo de nuevo.",
   },
   github: {
     connect: "Conecta tu cuenta de GitHub para importar sus proyectos.",

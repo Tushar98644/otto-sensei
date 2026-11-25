@@ -167,11 +167,19 @@ export type CompanyFacts = {
   slots: { board: number; company: string }[];
 };
 
-let cached: { builtAt: number; byKey: Map<string, CompanyFacts> } | null = null;
+// Every company by its name's key (visa.ts companyKey) and by each board and stored name it has.
+export type CompanyIndex = {
+  byKey: Map<string, CompanyFacts>;
+  bySlot: Map<string, CompanyFacts>;
+};
 
-// Every company, read once per match index build.
-export async function companyIndex(db: Db, builtAt: number): Promise<Map<string, CompanyFacts>> {
-  if (cached?.builtAt === builtAt) return cached.byKey;
+let cached: { builtAt: number; index: CompanyIndex } | null = null;
+
+export const companySlot = slotOf;
+
+// Read once per match index build.
+export async function companyIndex(db: Db, builtAt: number): Promise<CompanyIndex> {
+  if (cached?.builtAt === builtAt) return cached.index;
   const rows = await db
     .select({
       board: companies.board,
@@ -188,28 +196,32 @@ export async function companyIndex(db: Db, builtAt: number): Promise<Map<string,
     .from(companies)
     .innerJoin(jobBoards, eq(jobBoards.id, companies.board));
   const byKey = new Map<string, CompanyFacts>();
+  const bySlot = new Map<string, CompanyFacts>();
   for (const row of rows) {
     const key = companyKey(row.name);
     const careers = careersUrl(row.source as JobSourceId, row.token);
-    const known = byKey.get(key);
-    if (known) {
-      known.slots.push({ board: row.board, company: row.company });
-      known.careers ??= careers;
-      continue;
+    let facts = byKey.get(key);
+    if (facts) {
+      facts.slots.push({ board: row.board, company: row.company });
+      facts.careers ??= careers;
+    } else {
+      facts = {
+        name: row.name,
+        city: row.city,
+        roles: row.roles,
+        remote: row.remote,
+        hybrid: row.hybrid,
+        newest: fromMinutes(row.newest),
+        careers,
+        slots: [{ board: row.board, company: row.company }],
+      };
+      byKey.set(key, facts);
     }
-    byKey.set(key, {
-      name: row.name,
-      city: row.city,
-      roles: row.roles,
-      remote: row.remote,
-      hybrid: row.hybrid,
-      newest: fromMinutes(row.newest),
-      careers,
-      slots: [{ board: row.board, company: row.company }],
-    });
+    bySlot.set(slotOf(row), facts);
   }
-  cached = { builtAt, byKey };
-  return byKey;
+  const index = { byKey, bySlot };
+  cached = { builtAt, index };
+  return index;
 }
 
 export const hiringSince = (now: number) => toMinutes(now - HIRING_DAYS * DAY_MS);

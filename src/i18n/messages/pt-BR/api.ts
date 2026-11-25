@@ -271,6 +271,11 @@ export default {
     savedGone: "Essa vaga salva não está mais aqui.",
     board: "Não foi possível ler o site dessa vaga.",
     typeLess: "Digite no máximo {max} caracteres.",
+    mapFailed: "Não foi possível carregar o mapa agora. Tente de novo.",
+    companySignIn: "Entre para ver esta empresa.",
+    companyName: "Esse nome de empresa não funcionou.",
+    companyGone: "Esta empresa não tem vagas abertas aqui agora.",
+    companyFailed: "Não foi possível carregar esta empresa. Tente de novo.",
   },
   github: {
     connect: "Conecte sua conta do GitHub para importar os projetos dela.",

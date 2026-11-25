@@ -342,6 +342,10 @@ export {
   MatchActionSchema,
 } from "@/lib/job-feed/validation";
 export type {
+  CitySearchResponse,
+  CompanyJobsResponse,
+  CompanySnapshot,
+  JobMapResponse,
   JobMatchesRequestBody,
   JobMatchesResponse,
   LookingFor,

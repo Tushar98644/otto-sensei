@@ -290,6 +290,11 @@ export default {
     savedGone: "Dieser gespeicherte Job ist nicht mehr da.",
     board: "Die Jobbörse dieser Stelle konnte nicht gelesen werden.",
     typeLess: "Gib höchstens {max} Zeichen ein.",
+    mapFailed: "Die Karte konnte gerade nicht geladen werden. Bitte versuch es noch mal.",
+    companySignIn: "Melde dich an, um dieses Unternehmen zu sehen.",
+    companyName: "Dieser Firmenname hat nicht funktioniert.",
+    companyGone: "Dieses Unternehmen hat hier gerade keine offenen Stellen.",
+    companyFailed: "Dieses Unternehmen konnte nicht geladen werden. Bitte versuch es noch mal.",
   },
   github: {
     connect: "Verbinde dein GitHub-Konto, um seine Projekte zu importieren.",

@@ -166,9 +166,30 @@ export type CompanySnapshot = {
   // A job posted in the last HIRING_DAYS.
   hiring: boolean;
   // Where most of its open jobs are.
-  city: { name: string; country: string; admin: string } | null;
+  city: CityLabel | null;
   careers: string | null;
 };
+
+export type CityLabel = { name: string; country: string; admin: string };
+
+export type MapPin = {
+  name: string;
+  lat: number;
+  lng: number;
+  city: CityLabel;
+  // Its openings in this list here, and all its open jobs.
+  roles: number;
+  total: number;
+  hiring: boolean;
+};
+
+// `openings` the list has (up to the map's first 5,000), `placed` of them on a pin.
+export type JobMapResponse = { ok: true; pins: MapPin[]; openings: number; placed: number };
+
+export type CompanyJobsResponse = { ok: true; company: CompanySnapshot; jobs: FeedJob[] };
+
+export type CityOption = CityLabel & { id: number };
+export type CitySearchResponse = { ok: true; cities: CityOption[] };
 
 export type MatchedJob = FeedJob & {
   match: JobMatch;

@@ -261,6 +261,11 @@ export default {
     savedGone: "That saved job isn't here any more.",
     board: "The job's board couldn't be read.",
     typeLess: "Type at most {max} characters.",
+    mapFailed: "Couldn't load the map right now. Please try again.",
+    companySignIn: "Sign in to see this company.",
+    companyName: "That company name didn't work.",
+    companyGone: "This company has no open jobs here now.",
+    companyFailed: "Couldn't load this company. Please try again.",
   },
   github: {
     connect: "Connect your GitHub account to import its projects.",

@@ -458,7 +458,7 @@ async function withCompanies(
   const index = await companyIndex(db, counts.builtAt).catch(() => null);
   if (!index) return jobs;
   return jobs.map((job) => {
-    const facts = index.get(companyKey(job.company));
+    const facts = index.byKey.get(companyKey(job.company));
     return { ...job, employer: facts ? snapshotOf(facts, now) : null };
   });
 }

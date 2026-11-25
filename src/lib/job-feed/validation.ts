@@ -110,6 +110,9 @@ export const JobMatchesRequestSchema = z.object({
   lookingFor: LookingForSchema.nullable().default(null),
 });
 
+// What the map reads: the list's own inputs, without a page.
+export const JobMapRequestSchema = JobMatchesRequestSchema.omit({ view: true, page: true });
+
 // Ids and labels only: never resume text.
 export const MatchActionSchema = z
   .object({
