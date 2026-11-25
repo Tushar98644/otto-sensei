@@ -193,7 +193,10 @@ export function detectLanguage(text: string): Detection {
   return { lang: confidence >= MIN_CONFIDENCE ? first : "unknown", confidence };
 }
 
-export function languageOf(text: string, fallback: ContentLang = DEFAULT_CONTENT_LANG): ContentLang {
+export function languageOf(
+  text: string,
+  fallback: ContentLang = DEFAULT_CONTENT_LANG,
+): ContentLang {
   const { lang } = detectLanguage(text);
   return lang === "unknown" ? fallback : lang;
 }

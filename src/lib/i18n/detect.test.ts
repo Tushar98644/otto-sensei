@@ -93,7 +93,9 @@ describe("detectLanguage", () => {
   });
 
   it("tells Spanish from Portuguese when they share most words", () => {
-    expect(detectLanguage("Gestión de proyectos y coordinación de equipos de ventas").lang).toBe("es");
+    expect(detectLanguage("Gestión de proyectos y coordinación de equipos de ventas").lang).toBe(
+      "es",
+    );
     expect(detectLanguage("Gestão de projetos e coordenação de equipes de vendas").lang).toBe("pt");
   });
 
@@ -121,16 +123,9 @@ describe("languageOf", () => {
 
 describe("detectionWords", () => {
   it("splits French elisions and keeps English contractions whole", () => {
-    expect(detectionWords("L’équipe d'ingénieurs qu'on a formée").map((word) => word.lower)).toEqual([
-      "l'",
-      "équipe",
-      "d'",
-      "ingénieurs",
-      "qu'",
-      "on",
-      "a",
-      "formée",
-    ]);
+    expect(
+      detectionWords("L’équipe d'ingénieurs qu'on a formée").map((word) => word.lower),
+    ).toEqual(["l'", "équipe", "d'", "ingénieurs", "qu'", "on", "a", "formée"]);
     expect(detectionWords("I'm sure it's the team's").map((word) => word.lower)).toEqual([
       "i'm",
       "sure",
