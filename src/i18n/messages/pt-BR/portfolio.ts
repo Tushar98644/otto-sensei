@@ -1,0 +1,250 @@
+import type { Messages } from "..";
+import type { Translation } from "../../types";
+
+export default {
+  title: "Portfólio",
+  about:
+    "Um site de portfólio feito a partir do seu currículo, hospedado para você no seu próprio link.",
+  loadFailed: "Não foi possível carregar seu portfólio",
+  tryAgain: "Tentar de novo",
+  checkConnection: "Confira sua conexão e tente de novo.",
+  otto: {
+    pick: "Escolha um design e eu preencho com o seu currículo. Abra um para ver com o seu.",
+    pickThin: "Estes mostram um exemplo com tudo preenchido. Escolha um e eu preencho com o seu.",
+    draft: "Preenchi isto com o seu currículo. Nada fica no ar até você publicar.",
+    live: {
+      one: "Sua página está no ar, com {count} visita até agora.",
+      other: "Sua página está no ar, com {count} visitas até agora.",
+    },
+    liveNoViews: "Sua página está no ar. Mande o link para alguém e as visitas aparecem aqui.",
+    behind: "Seu currículo mudou desde esta cópia. Atualize a página quando quiser.",
+    noResume: "O currículo desta página não está neste navegador. A página guarda a própria cópia.",
+    noResumes: "Adicione um currículo primeiro, e eu transformo ele em uma página.",
+    previews:
+      "Cada design abaixo é o seu próprio currículo. Abra um em página inteira para ver como os visitantes.",
+    previewsSample:
+      "Estes mostram uma página de exemplo. Adicione um currículo e eu desenho cada design com o seu.",
+    previewsThin:
+      "Estes mostram uma página de exemplo com tudo preenchido. Troque para a sua quando quiser.",
+  },
+  facts: {
+    projects: { one: "{count} projeto", other: "{count} projetos" },
+    jobs: { one: "{count} emprego", other: "{count} empregos" },
+    skills: { one: "{count} habilidade", other: "{count} habilidades" },
+  },
+  resumeLink: {
+    linked: "Sua página leva ao seu currículo compartilhado, para os visitantes lerem tudo.",
+    hidden:
+      "Seu currículo compartilhado mostra contatos que esta página esconde, então a página deixa o link de fora.",
+    share: "Compartilhe este currículo e sua página leva até ele, para os visitantes lerem tudo.",
+  },
+  views: {
+    none: "Nenhuma visita ainda",
+    count: { one: "{count} visita", other: "{count} visitas" },
+  },
+  saving: "Salvando…",
+  savedLive: "Salvo na sua página publicada",
+  saved: "Todas as alterações salvas",
+  publishNote:
+    "Publicar vem com o Pro, e nós hospedamos a página para você. Até lá, só você consegue vê-la.",
+  store: {
+    makeFailed: "Não foi possível criar seu portfólio",
+    saveFailed: "Não foi possível salvar",
+    notLoaded: "Seu portfólio ainda não carregou. Tente de novo daqui a pouco.",
+    live: "Sua página está no ar",
+    liveDetail: "Qualquer pessoa com o endereço pode abrir agora.",
+    down: "Sua página saiu do ar",
+    downDetail: "Quem abrir o endereço agora vai ver que ele não funciona.",
+    undo: "Desfazer",
+    failed: "Algo deu errado. Tente de novo.",
+  },
+  tabs: { design: "Design", content: "Conteúdo", sections: "Seções", settings: "Ajustes" },
+  editLabel: "Edite seu portfólio",
+  offer: {
+    title: "Mostrar “{name}” no lugar?",
+    use: "Usar este currículo",
+    keep: "Manter o atual",
+    shows: "Você tem um portfólio. Agora ele mostra {current}.",
+    quoted: "“{name}”",
+    another: "outro currículo",
+  },
+  inUseNote: "Em uso na sua página.",
+  notYetNote: "Ainda não está na sua página.",
+  useDesign: "Usar este design",
+  useDesignNamed: "Usar este design: {name}",
+  bar: {
+    copied: "Copiado",
+    copyLink: "Copiar link",
+    publish: "Publicar",
+    live: "No ar",
+    draft: "Rascunho",
+    newTab: "(abre em uma nova aba)",
+    openPage: "Abrir página",
+    pageActions: "Ações da página",
+    moreActions: "Mais ações da página",
+    takeDown: "Tirar do ar",
+    takeDownHint: "Os visitantes veem que a página saiu do ar. Você pode desfazer.",
+    linkCopied: "Link copiado",
+    preview: "Prévia",
+  },
+  start: {
+    noResume: "Nenhum currículo ainda",
+    waving: "Otto, a lontra, acenando",
+    title: "Escolha um design",
+    intro: "Você pode trocar de design quando quiser. Nada fica no ar até você publicar.",
+    makeFrom: "Fazer a partir de",
+  },
+  upgrade: {
+    eyebrow: "Hospedado para você, sem configurar nada",
+    offlineTitle: "Sua página está fora do ar por enquanto",
+    title: "Um portfólio de verdade, no ar no seu próprio link",
+    offline:
+      "Portfólios vêm com o Pro e o Max. Sua página e os ajustes dela ficam guardados, então ela volta como estava.",
+    pitch:
+      "Seus projetos, trabalho, textos e links em um de {count} designs, preenchido a partir do seu currículo.",
+    liveAt: "No ar em <b>{url}</b>",
+    hosted: "Nós hospedamos: sem domínio, servidor ou código para configurar.",
+    flows:
+      "As edições do seu currículo chegam sozinhas, e você pode trocar de design quando quiser.",
+    comesWith: "Portfólios vêm com o Pro e o Max.",
+    trial:
+      "{price} por {days} dias, depois {plan} por mês. Cancele quando quiser antes de o teste acabar.",
+    fullPage: "Página inteira",
+  },
+  previewFull: "Ver {name} em página inteira",
+  settings: {
+    madeFrom: "Feito a partir de",
+    resume: "Currículo",
+    notHere: "Um currículo que não está neste navegador",
+    upToDate: "Manter a página atualizada",
+    sync: "Sincronizar com meu currículo",
+    syncHint: "Ligado: as edições do currículo aparecem na página sozinhas.",
+    update: "Atualizar a página com meu currículo mais recente",
+    search: "Buscadores",
+    indexing: "Deixar os buscadores encontrarem",
+    indexingHint: "Desligado: pedimos ao Google e a outros que não a mostrem nos resultados.",
+    views: "Visitas",
+    viewsNote: "{views}. A contagem não inclui você, prévias de links nem buscadores.",
+  },
+  address: {
+    title: "Endereço",
+    livesAt: "Sua página fica em /p/",
+    keepsOld: "Se você mudar, o endereço antigo continua funcionando por {days} dias.",
+    rules: "Letras minúsculas, números e hifens.",
+    free: "/p/{slug} está disponível.",
+    checking: "Verificando…",
+    save: "Salvar",
+    problems: {
+      too_short: "Use pelo menos {min} letras ou números.",
+      too_long: "Use no máximo {max} caracteres.",
+      characters: "Use letras, números e hifens simples.",
+      reserved: "Esse endereço é reservado para o app. Tente outro.",
+    },
+  },
+  delete: {
+    done: "Sua página foi excluída",
+    doneDetail: "O endereço e o conteúdo dela não existem mais. Seu currículo continua intacto.",
+    failed: "Não foi possível excluir sua página",
+    confirm:
+      "Isto exclui a página, o endereço dela e tudo o que você adicionou para ela. Não dá para desfazer.",
+    delete: "Excluir página",
+    keep: "Manter",
+    start: "Excluir esta página",
+  },
+  picker: {
+    title: "Design",
+    intro: "Todos os designs usam o mesmo conteúdo. Troque quando quiser; nada se perde.",
+    inUse: "Em uso",
+    groups: { picks: "Nossos favoritos", more: "Mais designs" },
+  },
+  full: {
+    previewOnly: "Só uma prévia: ainda não está no ar.",
+    previous: "Design anterior",
+    next: "Próximo design",
+    position: "{at} de {count}",
+    width: "Largura da página",
+    close: "Fechar prévia",
+  },
+  preview: {
+    label: "Prévia",
+    width: "Largura da prévia",
+    desktop: "Computador",
+    phone: "Celular",
+    asVisitors: "{name} · como os visitantes veem",
+    fullScreen: "Tela cheia",
+    region: "Prévia da sua página em {name}. Role para ver tudo.",
+  },
+  source: {
+    yours: "Sua página",
+    sample: "Página de exemplo",
+    group: "Página mostrada nas prévias",
+    own: "Sua página, com o seu próprio conteúdo",
+    sampleShort: "Exemplo:",
+    sampleLong: "Página de exemplo:",
+    madeUpShort: "uma pessoa fictícia",
+    madeUpLong: "{name}, uma pessoa fictícia",
+  },
+  visibility: {
+    linkSettings: "Ajustes do link",
+    shareResume: "Compartilhar este currículo",
+    onPage: "Na sua página",
+    shown:
+      "{shown} de {total} à mostra. Uma seção oculta guarda o que tem dentro, pronta para voltar.",
+    legend: "Seções da sua página",
+    hidden: "Oculta na sua página",
+    contact: "Contatos",
+    contactIntro:
+      "Os dois começam desligados, para uma página pública nunca entregar seus contatos sem você pedir.",
+    showEmail: "Mostrar meu e-mail",
+    noEmail: "Seu currículo não tem e-mail.",
+    emailOn: "Ligado: os visitantes veem {email}.",
+    emailOff: "Desligado: {email} fica fora da página.",
+    showPhone: "Mostrar meu telefone",
+    noPhone: "Seu currículo não tem telefone.",
+    phoneOn: "Ligado: os visitantes veem {phone}.",
+    phoneOff: "Desligado: {phone} fica fora da página.",
+    resumeLink: "Link do currículo",
+  },
+  sections: {
+    about: "Sobre",
+    projects: "Projetos",
+    experience: "Experiência",
+    skills: "Habilidades",
+    education: "Formação",
+    certifications: "Certificações",
+    extras: "Outras seções",
+    links: "Links",
+  },
+  templates: {
+    navy: "Página azul-marinho escura com seções numeradas, abas por emprego e grandes projetos em destaque.",
+    dock: "Uma coluna tranquila que surge aos poucos, com linhas de trabalho, cards de projetos e um dock flutuante.",
+    reel: "Um título enorme girando sobre uma esfera 3D, depois cada projeto na moldura de um aparelho.",
+    bento: "Tudo em blocos: apresentação, tecnologias, hora local ao vivo, GitHub e projetos.",
+    cv: "Um CV desenhado em escala: painéis pautados, suas iniciais em 3D e empregos agrupados por empresa.",
+    prose:
+      "Palavras primeiro, com etiquetas coloridas, projetos agrupados por tipo, depois palestras e textos.",
+    folio:
+      "Sua página como um app de notas: uma nota fixada sobre você e links rápidos, depois uma nota para cada parte do seu trabalho.",
+    paper:
+      "Desenhado à mão: seu nome em marcador sobre uma raposa à beira-mar, cards a nanquim e sublinhados ondulados, de dia ou de noite.",
+    gazette:
+      "Sua página como um jornal de 1926: um cabeçalho em letra gótica, sua manchete, colunas pautadas e um letreiro de notícias.",
+    terminal:
+      "Um terminal que imprime seu resumo ao abrir e deixa os visitantes digitarem help, work ou contact.",
+    brutal:
+      "Blocos de cor chamativos com bordas pretas grossas, sombras duras que afundam e etiquetas em formato de pílula.",
+    card: "Um card sobre fundo grafite: uma barra lateral de perfil ao lado de abas de sobre, currículo e trabalho, com detalhes dourados.",
+    retro:
+      "Uma estação de trabalho retrô: janelas que você arrasta, recolhe e amplia, uma barra de menus e três épocas para escolher.",
+    starring:
+      "Sua carreira como um filme: seu nome em letras enormes num palco escuro, depois um ato para cada parte do seu trabalho.",
+    bubble:
+      "Chamativo e fofo: letras infladas e listradas num céu quadriculado, cards de adesivos, mascotinhos e um letreiro.",
+  },
+  page: {
+    title: "{name} - Portfólio",
+    untitled: "Portfólio",
+    description: "Um portfólio feito com {brand}.",
+    imageLabel: "PORTFÓLIO",
+  },
+} satisfies Translation<Messages["portfolio"]>;

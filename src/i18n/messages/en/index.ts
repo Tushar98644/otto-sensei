@@ -11,9 +11,11 @@ import letters from "./letters";
 import lint from "./lint";
 import login from "./login";
 import portfolio from "./portfolio";
+import portfolioContent from "./portfolioContent";
 import pricing from "./pricing";
 import product from "./product";
 import seo from "./seo";
+import share from "./share";
 import site from "./site";
 import studio from "./studio";
 
@@ -32,9 +34,11 @@ const en = {
   lint,
   login,
   portfolio,
+  portfolioContent,
   pricing,
   product,
   seo,
+  share,
   site,
   studio,
 } as const;
