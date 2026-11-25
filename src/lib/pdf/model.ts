@@ -1,3 +1,12 @@
+import type { ContentLang } from "@/lib/i18n/languages";
+import {
+  documentTitles,
+  extraHeading,
+  extraHeadingIn,
+  sectionHeading,
+  sectionHeadingIn,
+} from "@/lib/resume/labels";
+import { resumeLang } from "@/lib/resume/lang";
 import {
   EXTRA_KIND_LABELS,
   SECTION_KEYS,
@@ -69,6 +78,8 @@ export type PdfModel = {
   extras?: PdfExtraSection[];
   meta: { title: string; author: string; subject: string };
   changedCharacters: string[];
+  // The resume's language, which its headings and the document's language tag follow.
+  lang?: ContentLang;
 };
 
 export type PdfModelOptions = {
@@ -242,8 +253,11 @@ function skills(resume: Resume, c: Clean): PdfSkillLine[] {
     .filter((group) => group.items !== "");
 }
 
-function section(resume: Resume, key: SectionKey, c: Clean): PdfSection | null {
-  const title = c.line(sectionTitleOf(resume, key)) || SECTION_LABELS[key];
+function section(resume: Resume, key: SectionKey, c: Clean, lang: ContentLang): PdfSection | null {
+  const title =
+    lang === "en"
+      ? c.line(sectionTitleOf(resume, key)) || SECTION_LABELS[key]
+      : c.line(sectionHeading(resume, key, lang)) || sectionHeadingIn(key, lang);
   switch (key) {
     case "summary": {
       const paragraphs = c.paragraphs(resume.summary);
@@ -268,7 +282,7 @@ function extraFallbackTitle(kind: ExtraKind): string {
   return kind === "custom" ? "Additional information" : EXTRA_KIND_LABELS[kind];
 }
 
-function extra(item: ExtraSection, c: Clean): PdfExtraSection | null {
+function extra(item: ExtraSection, c: Clean, lang: ContentLang): PdfExtraSection | null {
   const entries = item.items
     .map((entry) => ({
       id: entry.id,
@@ -280,7 +294,10 @@ function extra(item: ExtraSection, c: Clean): PdfExtraSection | null {
     }))
     .filter((entry) => !isEmpty(entry));
   if (entries.length === 0) return null;
-  const title = c.line(item.title) || extraFallbackTitle(item.kind);
+  const title =
+    lang === "en"
+      ? c.line(item.title) || extraFallbackTitle(item.kind)
+      : c.line(extraHeading(item, lang)) || extraHeadingIn(item.kind, lang);
   const simple = entries.every((entry) => !entry.dates && !entry.note && !entry.bullets.length);
   const list = simple
     ? entries.map((entry) => (entry.org ? `${entry.title} (${entry.org})` : entry.title)).join(", ")
@@ -308,16 +325,18 @@ export function buildPdfModel(source: Resume, options: PdfModelOptions = {}): Pd
   const lost = new Set<string>();
   const c = cleaner(options.charset, lost);
   const resume = visibleResume(source);
+  const lang = resumeLang(source);
   const name = c.line(resume.basics.name);
   const headline = c.line(resume.basics.headline);
   const order = [...new Set(resume.sectionOrder)].filter((key) => SECTION_KEYS.includes(key));
   const sections = order
-    .map((key) => section(resume, key, c))
+    .map((key) => section(resume, key, c, lang))
     .filter((item): item is PdfSection => item !== null);
   const extras = extrasOf(resume)
-    .map((item) => extra(item, c))
+    .map((item) => extra(item, c, lang))
     .filter((item): item is PdfExtraSection => item !== null);
-  const title = name ? `${name} - Resume` : c.line(resume.title) || "Resume";
+  const word = documentTitles(lang).resume;
+  const title = name ? `${name} - ${word}` : c.line(resume.title) || word;
   const basics = contactOf(resume, c);
   return {
     name,
@@ -328,5 +347,6 @@ export function buildPdfModel(source: Resume, options: PdfModelOptions = {}): Pd
     extras,
     meta: { title, author: name, subject: headline },
     changedCharacters: [...lost],
+    lang,
   };
 }

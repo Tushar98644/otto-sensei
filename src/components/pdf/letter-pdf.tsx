@@ -1,7 +1,9 @@
 import { Document, Page, View } from "@react-pdf/renderer";
 import { BRAND } from "@/config/brand";
+import { languageOf } from "@/lib/i18n/detect";
 import { letterBlocks, letterDate } from "@/lib/pdf/letter";
 import { buildPdfModel } from "@/lib/pdf/model";
+import { documentTitles } from "@/lib/resume/labels";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { Header, Line } from "./document";
@@ -29,17 +31,20 @@ export function LetterPdf({ resume, letter, pageSize = "LETTER", template, now }
     base,
     [modelText(model), themeText(base), ...blocks.flat()].join("\n"),
   );
-  const title = model.name ? `${model.name} - Cover letter` : "Cover letter";
+  // The letter's own language: it can differ from the resume's when the job post's does.
+  const lang = languageOf(letter, model.lang);
+  const word = documentTitles(lang).letter;
+  const title = model.name ? `${model.name} - ${word}` : word;
   return (
     <Document
       title={title}
       author={model.meta.author || undefined}
       creator={BRAND.name}
-      language="en"
+      language={lang}
     >
       <Page size={pageSize} style={theme.styles.page}>
         <Header model={model} theme={theme} />
-        <Line style={DATE}>{letterDate(now, pageSize)}</Line>
+        <Line style={DATE}>{letterDate(now, pageSize, lang)}</Line>
         {blocks.map((lines, index) => (
           <View key={index} wrap={false} style={index > 0 ? BLOCK_GAP : undefined}>
             {lines.map((line, lineIndex) => (

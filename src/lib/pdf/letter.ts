@@ -1,3 +1,4 @@
+import { intlTagOf, type ContentLang } from "@/lib/i18n/languages";
 import type { PdfPageSize } from "./page-size";
 import { toPdfLine } from "./text";
 
@@ -21,8 +22,10 @@ function splitLetter(text: string, clean: (line: string) => string): string[][] 
     .filter((block) => block.length > 0);
 }
 
-export function letterDate(now: number, pageSize: PdfPageSize): string {
-  return new Date(now).toLocaleDateString(pageSize === "LETTER" ? "en-US" : "en-GB", {
+// English follows the page size's readers; other languages their own way of writing a date.
+export function letterDate(now: number, pageSize: PdfPageSize, lang: ContentLang = "en"): string {
+  const locale = lang !== "en" ? intlTagOf(lang) : pageSize === "LETTER" ? "en-US" : "en-GB";
+  return new Date(now).toLocaleDateString(locale, {
     day: "numeric",
     month: "long",
     year: "numeric",

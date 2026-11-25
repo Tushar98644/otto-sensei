@@ -328,7 +328,7 @@ export function ResumeDocument({ resume, pageSize = "LETTER", theme: base }: Res
       author={model.meta.author || undefined}
       subject={model.meta.subject || undefined}
       creator={BRAND.name}
-      language="en"
+      language={model.lang ?? "en"}
     >
       <Page size={pageSize} style={theme.styles.page}>
         <Header model={model} theme={theme} />

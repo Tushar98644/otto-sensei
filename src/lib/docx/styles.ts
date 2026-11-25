@@ -1,3 +1,4 @@
+import type { ContentLang } from "@/lib/i18n/languages";
 import { PDF_FONT_FAMILIES } from "@/lib/pdf/fonts";
 import { WORD_BULLET_FONT, wordFont, type DocxLook, type TextLook } from "./look";
 import { W_NS, XML_HEAD, escapeXml, paragraphProps, runProps, type ParagraphProps } from "./xml";
@@ -48,7 +49,16 @@ function headingStyle(look: DocxLook): string {
   return paragraphStyle("Heading1", "heading 1", props, textProps(heading, body));
 }
 
-export function stylesXml(look: DocxLook): string {
+// Word's proofing language for each resume language.
+const WORD_LANGUAGES: Record<ContentLang, string> = {
+  en: "en-US",
+  es: "es-MX",
+  pt: "pt-BR",
+  fr: "fr-FR",
+  de: "de-DE",
+};
+
+export function stylesXml(look: DocxLook, lang: ContentLang = "en"): string {
   const { body } = look;
   const line = body.size * look.lineHeight;
   const center = look.centerHeader ? ("center" as const) : undefined;
@@ -56,7 +66,7 @@ export function stylesXml(look: DocxLook): string {
   return [
     XML_HEAD,
     `<w:styles xmlns:w="${W_NS}">`,
-    `<w:docDefaults><w:rPrDefault>${defaults.replace("</w:rPr>", '<w:lang w:val="en-US"/></w:rPr>')}</w:rPrDefault>`,
+    `<w:docDefaults><w:rPrDefault>${defaults.replace("</w:rPr>", `<w:lang w:val="${WORD_LANGUAGES[lang]}"/></w:rPr>`)}</w:rPrDefault>`,
     `<w:pPrDefault>${paragraphProps({ before: 0, after: 0, line })}</w:pPrDefault></w:docDefaults>`,
     '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>',
     '<w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/><w:unhideWhenUsed/></w:style>',
