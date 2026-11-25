@@ -39,7 +39,18 @@ export function byLocale(render: (locale: Locale) => string): string {
   return `${blocks.join("")}{{ else }}${render(DEFAULT_LOCALE)}{{ end }}`;
 }
 
+// Supabase caps a subject at 255 characters, so the subject reads the language once into $l and shares the code's ending.
+export function compactSubject(): string {
+  const ending = ": {{ .Token }}";
+  const lead = (locale: Locale) => codeEmailSubject(locale).slice(0, -ending.length);
+  const others = LOCALES.filter((locale) => locale !== DEFAULT_LOCALE);
+  const blocks = others.map(
+    (locale, index) => `{{${index === 0 ? "if" : "else if"} eq $l "${locale}"}}${lead(locale)}`,
+  );
+  return `{{$l:=print .Data.${AUTH_LOCALE_KEY}}}${blocks.join("")}{{else}}${lead(DEFAULT_LOCALE)}{{end}}${ending}`;
+}
+
 export const CODE_EMAIL = {
-  subject: byLocale(codeEmailSubject),
+  subject: compactSubject(),
   body: byLocale(codeEmailBody),
 } as const;

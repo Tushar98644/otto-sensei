@@ -8,7 +8,7 @@ export default {
   unsubscribeLine: "Mit einem Klick abmelden: {url}",
   emailSettings: "E-Mail-Einstellungen",
   signInCode: {
-    subject: "Dein Code für Otto Sensei: {token}",
+    subject: "Dein Otto-Sensei-Code: {token}",
     lead: "Dein Code für Otto Sensei lautet",
     expires: "Er läuft in 10 Minuten ab.",
     ignore: "Wenn du ihn nicht angefordert hast, kannst du diese E-Mail ignorieren.",

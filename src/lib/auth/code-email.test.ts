@@ -17,6 +17,25 @@ const BRANCH = new RegExp(
   "g",
 );
 
+const SUBJECT_BRANCH = /\{\{(?:if|else if) eq \$l "([^"]+)"\}\}|\{\{else\}\}|\{\{end\}\}/g;
+
+// The compact subject: $l read once, a chain of leads, then the shared ending after {{end}}.
+function renderSubject(template: string, locale: unknown): string {
+  const head = `{{$l:=print .Data.${AUTH_LOCALE_KEY}}}`;
+  expect(template.startsWith(head)).toBe(true);
+  const chain = template.slice(head.length);
+  const marks = [...chain.matchAll(SUBJECT_BRANCH)];
+  const end = marks.at(-1)!;
+  expect(end[0]).toBe("{{end}}");
+  const blocks = marks.slice(0, -1).map((mark, index) => ({
+    locale: mark[1] ?? null,
+    text: chain.slice((mark.index ?? 0) + mark[0].length, marks[index + 1]?.index),
+  }));
+  const value = typeof locale === "string" ? locale : "<nil>";
+  const lead = (blocks.find((block) => block.locale === value) ?? blocks.at(-1)!).text;
+  return lead + chain.slice((end.index ?? 0) + end[0].length);
+}
+
 // What Go's template does with this one if/else-if/else chain: the block whose locale matches, else the last.
 function render(template: string, locale: unknown): string {
   const marks = [...template.matchAll(BRANCH)];
@@ -36,23 +55,27 @@ describe("the sign-in code email", () => {
     expect(codeEmailSubject("en")).toBe(ENGLISH_SUBJECT);
     expect(codeEmailBody("en")).toBe(ENGLISH_BODY);
     for (const value of [undefined, null, "en", "pt", "es-MX", "EN", "<script>"]) {
-      expect(render(CODE_EMAIL.subject, value)).toBe(ENGLISH_SUBJECT);
+      expect(renderSubject(CODE_EMAIL.subject, value)).toBe(ENGLISH_SUBJECT);
       expect(render(CODE_EMAIL.body, value)).toBe(ENGLISH_BODY);
     }
   });
 
   it("has a block per language, each with the code and no link", () => {
     for (const locale of LOCALES) {
-      expect(render(CODE_EMAIL.subject, locale)).toBe(codeEmailSubject(locale));
+      expect(renderSubject(CODE_EMAIL.subject, locale)).toBe(codeEmailSubject(locale));
       expect(render(CODE_EMAIL.body, locale)).toBe(codeEmailBody(locale));
       expect(codeEmailSubject(locale)).toContain("{{ .Token }}");
       expect(codeEmailBody(locale).match(/\{\{/g)).toHaveLength(1);
     }
     expect(CODE_EMAIL.body).not.toContain("ConfirmationURL");
     expect(render(CODE_EMAIL.body, "es")).toContain("Tu código de Otto Sensei es");
-    expect(render(CODE_EMAIL.subject, "pt-BR")).toBe("Seu código do Otto Sensei: {{ .Token }}");
+    expect(renderSubject(CODE_EMAIL.subject, "pt-BR")).toBe("Seu código Otto Sensei: {{ .Token }}");
     expect(render(CODE_EMAIL.body, "de")).toContain("Er läuft in 10 Minuten ab.");
     expect(render(CODE_EMAIL.body, "fr")).toContain("Si tu ne l'as pas demandé");
+  });
+
+  it("keeps the subject within Supabase's 255 characters", () => {
+    expect(CODE_EMAIL.subject.length).toBeLessThanOrEqual(255);
   });
 
   it("stays well under Supabase's template size", () => {
