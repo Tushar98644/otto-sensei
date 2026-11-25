@@ -5,15 +5,36 @@ import { describe, expect, it } from "vitest";
 import { checkMessages } from "./check";
 import { ENABLED_LOCALES, LOCALES, type Locale } from "./config";
 import { englishMessages, loadMessages, NAMESPACES, translationsFor } from "./messages";
+import { PAGE_KEYS, pageNamespaces, type PageKey } from "./pages";
+import { publishedPages } from "./publish";
 
 const DIR = fileURLToPath(new URL("./messages", import.meta.url));
+
+// The pages P2 translated; the guides (P5) and sign-in (with the app, P3) follow.
+const MARKETING_CORE: readonly PageKey[] = [
+  "/",
+  "/pricing",
+  "/job-match",
+  "/resume-builder",
+  "/cover-letter-generator",
+  "/job-application-tracker",
+  "/interview-prep",
+  "/portfolio-website-builder",
+  "/privacy",
+  "/terms",
+  "/refunds",
+  "/acceptable-use",
+];
 const TRANSLATED = LOCALES.filter((locale): locale is Exclude<Locale, "en"> => locale !== "en");
 const en = englishMessages();
 
+// A namespace's file is its key in kebab case: job-match.ts holds jobMatch.
 const filesIn = (locale: Locale) =>
   readdirSync(path.join(DIR, locale))
     .filter((file) => file.endsWith(".ts") && file !== "index.ts")
-    .map((file) => file.slice(0, -3));
+    .map((file) =>
+      file.slice(0, -3).replace(/-(\w)/g, (_, letter: string) => letter.toUpperCase()),
+    );
 
 // Words that read the same in every language, per locale and message path.
 const SAME_AS_ENGLISH: Record<Exclude<Locale, "en">, ReadonlySet<string>> = {
@@ -53,10 +74,20 @@ describe.each(TRANSLATED)("%s messages", (locale) => {
     expect(problems).toEqual([]);
   });
 
-  it("is complete before it is enabled", async () => {
-    if (!ENABLED_LOCALES.includes(locale)) return;
+  it("publishes a page only once every namespace it reads is translated", async () => {
     const translated = await translationsFor(locale);
-    expect(NAMESPACES.filter((namespace) => !(namespace in translated))).toEqual([]);
+    const published = await publishedPages(locale);
+    for (const key of PAGE_KEYS) {
+      const missing = pageNamespaces(key).filter((namespace) => !(namespace in translated));
+      expect(published.has(key), `${key} (missing: ${missing.join(", ")})`).toBe(
+        ENABLED_LOCALES.includes(locale) && missing.length === 0,
+      );
+    }
+  });
+
+  it("publishes the marketing core (P2)", async () => {
+    const published = await publishedPages(locale);
+    expect(MARKETING_CORE.filter((key) => !published.has(key))).toEqual([]);
   });
 });
 

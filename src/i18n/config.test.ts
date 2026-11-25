@@ -13,11 +13,11 @@ import {
 } from "./config";
 
 describe("locales", () => {
-  it("serves only English until a language is translated", () => {
+  it("serves every language, English by default; each page is published per language", () => {
     expect(DEFAULT_LOCALE).toBe("en");
-    expect(ENABLED_LOCALES).toEqual(["en"]);
+    expect(ENABLED_LOCALES).toEqual(["en", "es", "pt-BR", "fr", "de"]);
     expect(LOCALES).toEqual(["en", "es", "pt-BR", "fr", "de"]);
-    expect(LOCALES.filter(isEnabledLocale)).toEqual(["en"]);
+    expect(LOCALES.filter(isEnabledLocale)).toEqual(LOCALES);
   });
 
   it("knows its own codes and nothing else", () => {

@@ -1,3 +1,4 @@
+import type { Messages } from "@/i18n/messages";
 import { SEO_PATHS } from "@/lib/seo-pages/paths";
 
 export const ROUTES = {
@@ -34,50 +35,59 @@ export function upgradeHref(
 
 export type NavLink = { href: string; label: string };
 
-export const MAIN_NAV: readonly NavLink[] = [
-  { href: ROUTES.howItWorks, label: "How it works" },
-  { href: ROUTES.jobsSection, label: "Jobs" },
-  { href: ROUTES.pricing, label: "Pricing" },
+type SiteMessages = Messages["site"];
+
+export function mainNav(nav: SiteMessages["nav"]): NavLink[] {
+  return [
+    { href: ROUTES.howItWorks, label: nav.howItWorks },
+    { href: ROUTES.jobsSection, label: nav.jobs },
+    { href: ROUTES.pricing, label: nav.pricing },
+  ];
+}
+
+type FooterLinkKey = keyof SiteMessages["footer"]["links"];
+
+export type FooterGroup = {
+  id: keyof SiteMessages["footer"]["groups"];
+  links: readonly { href: string; key: FooterLinkKey }[];
+};
+
+export const FOOTER_GROUPS: readonly FooterGroup[] = [
+  {
+    id: "product",
+    links: [
+      { href: SEO_PATHS.resumeBuilder, key: "resumeBuilder" },
+      { href: SEO_PATHS.jobMatch, key: "jobMatch" },
+      { href: SEO_PATHS.coverLetterGenerator, key: "coverLetters" },
+      { href: SEO_PATHS.applicationTracker, key: "applicationTracker" },
+      { href: SEO_PATHS.interviewPrep, key: "interviewPrep" },
+      { href: SEO_PATHS.portfolioBuilder, key: "portfolioWebsite" },
+      { href: ROUTES.pricing, key: "pricing" },
+    ],
+  },
+  {
+    id: "guides",
+    links: [
+      { href: SEO_PATHS.resumeExamples, key: "resumeExamples" },
+      { href: SEO_PATHS.resumeTemplates, key: "resumeTemplates" },
+      { href: SEO_PATHS.ats, key: "atsGuides" },
+      { href: SEO_PATHS.compare, key: "comparisons" },
+    ],
+  },
+  {
+    id: "legal",
+    links: [
+      { href: ROUTES.privacy, key: "privacy" },
+      { href: ROUTES.terms, key: "terms" },
+      { href: ROUTES.refunds, key: "refunds" },
+      { href: ROUTES.acceptableUse, key: "acceptableUse" },
+    ],
+  },
 ];
 
-export const SIGN_IN_LINK: NavLink = { href: ROUTES.login, label: "Sign in" };
-
-export type NavGroup = { title: string; links: readonly NavLink[] };
-
-export const FOOTER_GROUPS: readonly NavGroup[] = [
-  {
-    title: "Product",
-    links: [
-      { href: SEO_PATHS.resumeBuilder, label: "Resume builder" },
-      { href: SEO_PATHS.jobMatch, label: "Job match check" },
-      { href: SEO_PATHS.coverLetterGenerator, label: "Cover letters" },
-      { href: SEO_PATHS.applicationTracker, label: "Application tracker" },
-      { href: SEO_PATHS.interviewPrep, label: "Interview prep" },
-      { href: SEO_PATHS.portfolioBuilder, label: "Portfolio website" },
-      { href: ROUTES.pricing, label: "Pricing" },
-    ],
-  },
-  {
-    title: "Guides",
-    links: [
-      { href: SEO_PATHS.resumeExamples, label: "Resume examples" },
-      { href: SEO_PATHS.resumeTemplates, label: "Resume templates" },
-      { href: SEO_PATHS.ats, label: "ATS guides" },
-      { href: SEO_PATHS.compare, label: "Comparisons" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { href: ROUTES.privacy, label: "Privacy" },
-      { href: ROUTES.terms, label: "Terms" },
-      { href: ROUTES.refunds, label: "Refunds" },
-      { href: ROUTES.acceptableUse, label: "Acceptable use" },
-    ],
-  },
-];
-
-export const FOOTER_NAV: readonly NavLink[] = FOOTER_GROUPS.flatMap((group) => group.links);
+export const FOOTER_HREFS: readonly string[] = FOOTER_GROUPS.flatMap((group) =>
+  group.links.map((link) => link.href),
+);
 
 export const LEGAL_LAST_UPDATED = "2026-11-23";
 export const PRIVACY_LAST_UPDATED = "2026-11-25";

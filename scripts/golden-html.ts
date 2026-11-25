@@ -20,12 +20,16 @@ export function pagePath(file: string): string | null {
 
 // What a visitor and a crawler get: scripts, build hashes and React's tree-position ids taken out.
 export function normalize(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "")
-    .replace(/<link rel="preload" as="script"[^>]*>/g, "")
-    .replace(/\/_next\/static\/[^"'\s)]+/g, "/_next/static/…")
-    .replace(/_R_[0-9a-zA-Z]+_/g, "_R_id_")
-    .replace(/>\s*</g, ">\n<");
+  return (
+    html
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "")
+      // React's empty separators between text pieces: copy moved into messages joins them.
+      .replace(/<!-- -->/g, "")
+      .replace(/<link rel="preload" as="script"[^>]*>/g, "")
+      .replace(/\/_next\/static\/[^"'\s)]+/g, "/_next/static/…")
+      .replace(/_R_[0-9a-zA-Z]+_/g, "_R_id_")
+      .replace(/>\s*</g, ">\n<")
+  );
 }
 
 function htmlFiles(dir: string): string[] {

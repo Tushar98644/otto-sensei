@@ -9,9 +9,9 @@ export const HERO_CTA_ID = "hero-cta";
 // Clears the sticky header, so a button tucked under it counts as scrolled away.
 const UNDER_HEADER = "-64px 0px 0px 0px";
 
-// On the home page the header's button waits until the hero's own has scrolled away.
-export function useHeroCtaInView(): boolean {
-  const onHome = usePathname() === ROUTES.home;
+// On the home page (homePath: /, or /es and the like) the header's button waits until the hero's own has scrolled away.
+export function useHeroCtaInView(homePath: string = ROUTES.home): boolean {
+  const onHome = usePathname() === homePath;
   const [inView, setInView] = useState(true);
 
   useEffect(() => {

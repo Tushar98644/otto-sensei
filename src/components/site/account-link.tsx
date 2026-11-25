@@ -5,17 +5,17 @@ import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useHeroCtaInView } from "./hero-cta-in-view";
 import { IntentLink } from "./intent-link";
-import { MAIN_NAV, ROUTES, SIGN_IN_LINK } from "./routes";
-import { DASHBOARD_LINK, useSignedIn } from "./use-account-link";
+import { ROUTES } from "./routes";
+import { dashboardLink, useSignedIn, type HeaderCopy } from "./use-account-link";
 
 export const NAV_LINK_CLASSES =
   "inline-flex h-11 items-center rounded-full px-3 text-sm text-muted transition-colors hover:text-ink";
 
-export function MainNavLinks() {
+export function MainNavLinks({ copy }: { copy: HeaderCopy }) {
   if (useSignedIn()) return null;
   return (
-    <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
-      {MAIN_NAV.map((link) => (
+    <nav aria-label={copy.navLabel} className="hidden items-center gap-1 md:flex">
+      {copy.nav.map((link) => (
         <Link key={link.href} href={link.href} className={NAV_LINK_CLASSES}>
           {link.label}
         </Link>
@@ -30,26 +30,27 @@ const HEADER_KEY = buttonClasses({
   className: "max-md:h-10 pointer-coarse:h-10 after:absolute after:inset-x-0 after:-inset-y-0.5",
 });
 
-export function HeaderActions() {
+export function HeaderActions({ copy }: { copy: HeaderCopy }) {
   const signedIn = useSignedIn();
-  const heroCtaInView = useHeroCtaInView();
+  const heroCtaInView = useHeroCtaInView(copy.homePath);
   if (signedIn) {
+    const dashboard = dashboardLink(copy);
     return (
-      <Link href={DASHBOARD_LINK.href} className={HEADER_KEY}>
-        {DASHBOARD_LINK.label}
+      <Link href={dashboard.href} className={HEADER_KEY}>
+        {dashboard.label}
       </Link>
     );
   }
   return (
     <>
-      <Link href={SIGN_IN_LINK.href} className={cn(NAV_LINK_CLASSES, "hidden md:inline-flex")}>
-        {SIGN_IN_LINK.label}
+      <Link href={copy.signIn.href} className={cn(NAV_LINK_CLASSES, "hidden md:inline-flex")}>
+        {copy.signIn.label}
       </Link>
       <IntentLink
         href={ROUTES.studio}
         className={cn(HEADER_KEY, heroCtaInView && "invisible opacity-0")}
       >
-        Check my resume
+        {copy.checkMyResume}
       </IntentLink>
     </>
   );

@@ -4,8 +4,8 @@ export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "en";
 
-// Routed, prerendered and offered; a locale joins once its pages are translated.
-export const ENABLED_LOCALES: readonly Locale[] = ["en"];
+// Routed and prerendered; each page is published per locale (src/i18n/publish.ts), the rest read in English.
+export const ENABLED_LOCALES: readonly Locale[] = ["en", "es", "pt-BR", "fr", "de"];
 
 // URL prefixes are lowercase, so pt-BR lives at /pt-br.
 const SEGMENTS: Record<Locale, string> = {
@@ -31,6 +31,15 @@ const OPEN_GRAPH_LOCALES: Record<Locale, string> = {
   "pt-BR": "pt_BR",
   fr: "fr_FR",
   de: "de_DE",
+};
+
+// Each language's own name for itself, as the language picker shows it.
+export const LANGUAGE_NAMES: Record<Locale, string> = {
+  en: "English",
+  es: "Español",
+  "pt-BR": "Português",
+  fr: "Français",
+  de: "Deutsch",
 };
 
 export function isLocale(value: unknown): value is Locale {

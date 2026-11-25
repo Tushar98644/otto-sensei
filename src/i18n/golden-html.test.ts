@@ -21,6 +21,9 @@ describe("golden English HTML", () => {
     expect(normalize(build("abc", "_R_2jiulb_", "Hi"))).toBe(
       normalize(build("xyz", "_R_19pf_", "Hi")),
     );
+    expect(normalize(build("abc", "_R_1_", "Hi <!-- -->there"))).toBe(
+      normalize(build("abc", "_R_1_", "Hi there")),
+    );
     expect(normalize(build("abc", "_R_1_", "Hi"))).not.toBe(
       normalize(build("abc", "_R_1_", "Hello")),
     );

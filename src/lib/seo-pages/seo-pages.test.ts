@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fullTitle } from "@/components/site/page-metadata";
-import { FOOTER_GROUPS, FOOTER_NAV } from "@/components/site/routes";
+import { FOOTER_GROUPS, FOOTER_HREFS } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import { FREE_TEMPLATES, PRICES_USD, PRO_PRICE_COMPARISON } from "@/config/plans";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
@@ -398,22 +398,24 @@ describe("public SEO pages", () => {
   });
 
   it("links the guides from the site footer, grouped as product, guides and legal", () => {
-    expect(FOOTER_GROUPS.map((group) => group.title)).toEqual(["Product", "Guides", "Legal"]);
-    const product = FOOTER_GROUPS.find((group) => group.title === "Product")?.links ?? [];
+    expect(FOOTER_GROUPS.map((group) => group.id)).toEqual(["product", "guides", "legal"]);
+    const product = FOOTER_GROUPS.find((group) => group.id === "product")?.links ?? [];
     expect(product.map((link) => link.href)).toEqual([
       SEO_PATHS.resumeBuilder,
       SEO_PATHS.jobMatch,
       ...TOOL_PAGES.map((page) => page.path),
       "/pricing",
     ]);
-    const guides = FOOTER_GROUPS.find((group) => group.title === "Guides")?.links ?? [];
+    const guides = FOOTER_GROUPS.find((group) => group.id === "guides")?.links ?? [];
     expect(guides.map((link) => link.href)).toEqual([
       SEO_PATHS.resumeExamples,
       SEO_PATHS.resumeTemplates,
       SEO_PATHS.ats,
       SEO_PATHS.compare,
     ]);
-    expect(FOOTER_NAV).toEqual(FOOTER_GROUPS.flatMap((group) => group.links));
+    expect(FOOTER_HREFS).toEqual(
+      FOOTER_GROUPS.flatMap((group) => group.links.map((link) => link.href)),
+    );
   });
 
   it("titles the templates page with what it shows: how many formats are free", () => {

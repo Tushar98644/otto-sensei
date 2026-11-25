@@ -21,7 +21,8 @@ import {
   relatedExamples,
 } from "@/lib/seo-pages/examples";
 import { RELATED, RESUME_EXAMPLES_PAGE, examplePage, exampleHeadline } from "@/lib/seo-pages/pages";
-import { examplePath } from "@/lib/seo-pages/paths";
+import { publishedHere } from "@/i18n/publish";
+import { SEO_PATHS, examplePath } from "@/lib/seo-pages/paths";
 import { cn } from "@/lib/utils";
 import { FaqList, faqEntries } from "../../_components/faq-list";
 import { NoteRows } from "../../_components/note-rows";
@@ -37,7 +38,9 @@ import { StartFromExample } from "../_components/start-from-example";
 
 export const dynamicParams = false;
 
-export function generateStaticParams(): { role: string }[] {
+// Only where the examples are published (resume-examples/layout.tsx 404s the rest).
+export async function generateStaticParams(): Promise<{ role: string }[]> {
+  if (!(await publishedHere(SEO_PATHS.resumeExamples))) return [];
   return ROLE_EXAMPLES.map(({ slug }) => ({ role: slug }));
 }
 

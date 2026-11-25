@@ -69,21 +69,36 @@ export function publisherJsonLd(base: string): JsonLdData {
   };
 }
 
-function websiteNode(base: string): JsonLdData {
+// The page's language, the site's description in it and the page's own addresses; English by default.
+export type JsonLdLocale = { language: string; description: string; home: string; pricing: string };
+
+export const ENGLISH_JSON_LD: JsonLdLocale = {
+  language: "en",
+  description: BRAND.description,
+  home: "/",
+  pricing: "/pricing",
+};
+
+// English pages keep the JSON-LD they had; a translated one says its language.
+export function inLanguage(node: JsonLdData, language: string = "en"): JsonLdData {
+  return language === "en" ? node : { ...node, inLanguage: language };
+}
+
+function websiteNode(base: string, page: JsonLdLocale): JsonLdData {
   const home = absoluteUrl("/", base);
   return {
     "@type": "WebSite",
     "@id": websiteId(base),
     name: BRAND.name,
     url: home,
-    description: BRAND.description,
-    inLanguage: "en",
+    description: page.description,
+    inLanguage: page.language,
     publisher: { "@id": organizationId(base) },
   };
 }
 
-export function websiteJsonLd(base: string): JsonLdData {
-  return jsonLdGraph([websiteNode(base), organizationJsonLd(base)]);
+export function websiteJsonLd(base: string, page: JsonLdLocale = ENGLISH_JSON_LD): JsonLdData {
+  return jsonLdGraph([websiteNode(base, page), organizationJsonLd(base)]);
 }
 
 const INTERVALS: Record<BillingInterval, { name: string; duration: string; unit: string }> = {
@@ -91,8 +106,8 @@ const INTERVALS: Record<BillingInterval, { name: string; duration: string; unit:
   year: { name: "yearly", duration: "P1Y", unit: "year" },
 };
 
-function softwareNode(offer: BillingOffer, base: string): JsonLdData {
-  const url = absoluteUrl("/pricing", base);
+function softwareNode(offer: BillingOffer, base: string, page: JsonLdLocale): JsonLdData {
+  const url = absoluteUrl(page.pricing, base);
   const paid = PAID_PLANS.flatMap((plan) =>
     offer[plan].map((interval) => {
       const price = PRICES_USD[plan][interval];
@@ -118,10 +133,10 @@ function softwareNode(offer: BillingOffer, base: string): JsonLdData {
     "@id": softwareId(base),
     name: BRAND.name,
     url: absoluteUrl("/", base),
-    description: BRAND.description,
+    description: page.description,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    inLanguage: "en",
+    inLanguage: page.language,
     image: shareImageUrl(base),
     publisher: { "@id": organizationId(base) },
     offers: [
@@ -131,8 +146,12 @@ function softwareNode(offer: BillingOffer, base: string): JsonLdData {
   };
 }
 
-export function softwareJsonLd(offer: BillingOffer, base: string): JsonLdData {
-  return { "@context": CONTEXT, ...softwareNode(offer, base) };
+export function softwareJsonLd(
+  offer: BillingOffer,
+  base: string,
+  page: JsonLdLocale = ENGLISH_JSON_LD,
+): JsonLdData {
+  return { "@context": CONTEXT, ...softwareNode(offer, base, page) };
 }
 
 export type FaqEntry = { question: string; answer: string };
@@ -148,26 +167,29 @@ export function faqNode(entries: readonly FaqEntry[]): JsonLdData {
   };
 }
 
-export function faqJsonLd(entries: readonly FaqEntry[]): JsonLdData {
-  return { "@context": CONTEXT, ...faqNode(entries) };
+export function faqJsonLd(entries: readonly FaqEntry[], language?: string): JsonLdData {
+  return { "@context": CONTEXT, ...inLanguage(faqNode(entries), language) };
 }
 
 export function homeJsonLd(
   offer: BillingOffer,
   faq: readonly FaqEntry[],
   base: string,
+  page: JsonLdLocale = ENGLISH_JSON_LD,
 ): JsonLdData {
+  const faqId =
+    page.home === "/" ? `${absoluteUrl("/", base)}/#faq` : `${absoluteUrl(page.home, base)}#faq`;
   return jsonLdGraph([
-    websiteNode(base),
+    websiteNode(base, page),
     organizationJsonLd(base),
-    softwareNode(offer, base),
-    { ...faqNode(faq), "@id": `${absoluteUrl("/", base)}/#faq` },
+    softwareNode(offer, base, page),
+    { ...inLanguage(faqNode(faq), page.language), "@id": faqId },
   ]);
 }
 
 export type FreeToolInfo = { name: string; path: string; description: string };
 
-export function freeToolJsonLd(tool: FreeToolInfo, base: string): JsonLdData {
+export function freeToolJsonLd(tool: FreeToolInfo, base: string, language = "en"): JsonLdData {
   const url = absoluteUrl(tool.path, base);
   return {
     "@context": CONTEXT,
@@ -178,7 +200,7 @@ export function freeToolJsonLd(tool: FreeToolInfo, base: string): JsonLdData {
     description: tool.description,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    inLanguage: "en",
+    inLanguage: language,
     isAccessibleForFree: true,
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD", url },
     publisher: { "@id": organizationId(base) },

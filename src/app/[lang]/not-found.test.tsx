@@ -8,8 +8,8 @@ const decode = (value: string) =>
   value.replaceAll("&amp;", "&").replaceAll("&quot;", '"').replaceAll("&#x27;", "'");
 
 describe("the 404 page", () => {
-  it("leads with checking a resume, and keeps the home page as the second key", () => {
-    const html = renderToStaticMarkup(<NotFound />);
+  it("leads with checking a resume, and keeps the home page as the second key", async () => {
+    const html = renderToStaticMarkup(await NotFound());
     const main = html.slice(html.indexOf("<main"), html.indexOf("</main>"));
     const keys = [...main.matchAll(/<a([^>]*)>([^<]+)</g)].map(([, attributes = "", label]) => ({
       href: /href="([^"]+)"/.exec(attributes)?.[1],

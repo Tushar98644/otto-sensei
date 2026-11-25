@@ -15,7 +15,8 @@ export function generateStaticParams(): { lang: string }[] {
 // src/app/opengraph-image.tsx sits above this layout, whose openGraph would replace its image, so the image is passed on.
 export async function generateMetadata(_: unknown, parent: ResolvingMetadata): Promise<Metadata> {
   const { openGraph } = await parent;
-  return rootMetadata(await getLocale(), openGraph?.images);
+  const { brand } = await getMessages("common");
+  return rootMetadata(await getLocale(), openGraph?.images, brand);
 }
 
 export default async function RootLayout({ children, params }: LayoutProps<"/[lang]">) {
