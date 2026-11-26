@@ -68,12 +68,43 @@ const Vitals = z.strictObject({
   ),
 });
 
-// Seconds on the page, so PostHog can tell a bounce from a read.
+const Pixels = z.number().int().min(0).max(10_000_000);
+
+// Seconds on the page, so PostHog can tell a bounce from a read, and how far down it was read.
 const Leave = z.strictObject({
   type: z.literal("leave"),
   route: Route,
   seconds: z.number().int().min(0).max(86_400),
+  scroll: z
+    .strictObject({
+      lastY: Pixels,
+      maxY: Pixels,
+      maxHeight: Pixels,
+      lastContent: Pixels,
+      maxContent: Pixels,
+      contentHeight: Pixels,
+    })
+    .optional(),
 });
+
+type Scroll = NonNullable<z.output<typeof Leave>["scroll"]>;
+
+const share = (part: number, whole: number) => (whole <= 1 ? 1 : Math.min(Math.max(part / whole, 0), 1));
+
+// posthog-js's scroll properties (shares from 0 to 1), which the scroll depth report reads.
+function scrollProps(scroll: Scroll | undefined): Record<string, number> {
+  if (!scroll) return {};
+  return {
+    $prev_pageview_last_scroll: scroll.lastY,
+    $prev_pageview_last_scroll_percentage: share(scroll.lastY, scroll.maxHeight),
+    $prev_pageview_max_scroll: scroll.maxY,
+    $prev_pageview_max_scroll_percentage: share(scroll.maxY, scroll.maxHeight),
+    $prev_pageview_last_content: scroll.lastContent,
+    $prev_pageview_last_content_percentage: share(scroll.lastContent, scroll.contentHeight),
+    $prev_pageview_max_content: scroll.maxContent,
+    $prev_pageview_max_content_percentage: share(scroll.maxContent, scroll.contentHeight),
+  };
+}
 
 export const BeaconSchema = z.strictObject({
   visitor: Id.optional(),
@@ -132,6 +163,7 @@ export function beaconEvent(item: ParsedItem, context: BeaconContext): BatchEven
           ...page,
           $prev_pageview_pathname: item.route,
           $prev_pageview_duration: item.seconds,
+          ...scrollProps(item.scroll),
         },
       };
     case "event":

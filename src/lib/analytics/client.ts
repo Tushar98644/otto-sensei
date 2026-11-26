@@ -13,7 +13,15 @@ const SESSION_IDLE_MS = 30 * 60_000;
 const MAX_ITEMS = 20;
 
 type Visitor = { id: string; linked: boolean; session: string; seenAt: number };
-type OpenPage = { route: string; start: number; left: boolean };
+type Scroll = {
+  lastY: number;
+  maxY: number;
+  maxHeight: number;
+  lastContent: number;
+  maxContent: number;
+  contentHeight: number;
+};
+type OpenPage = { route: string; start: number; left: boolean; scroll?: Scroll };
 
 let queue: BeaconItem[] = [];
 let scheduled = false;
@@ -22,6 +30,7 @@ let firstView = true;
 let currentRoute = "/";
 let openPage: OpenPage | null = null;
 let watchingLeave = false;
+let scrollQueued = false;
 // Kept here as well, so a browser that blocks storage still has one id for the whole visit.
 let memory: Visitor | null = null;
 
@@ -170,22 +179,59 @@ function takeEmailLanding() {
   return landing;
 }
 
+const pixels = (value: number) => Math.min(Math.max(Math.ceil(value), 0), 10_000_000);
+
+// How far down the open page has been read, measured the way posthog-js does.
+function measureScroll(): void {
+  const full = document.documentElement?.scrollHeight;
+  if (!openPage || openPage.left || !full) return;
+  const view = window.innerHeight;
+  const y = pixels(window.scrollY);
+  const was = openPage.scroll;
+  openPage.scroll = {
+    lastY: y,
+    maxY: Math.max(was?.maxY ?? 0, y),
+    maxHeight: Math.max(was?.maxHeight ?? 0, pixels(full - view)),
+    lastContent: pixels(y + view),
+    maxContent: Math.max(was?.maxContent ?? 0, pixels(y + view)),
+    contentHeight: Math.max(was?.contentHeight ?? 0, pixels(full)),
+  };
+}
+
+function nextFrame(run: () => void): void {
+  if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(run);
+  else run();
+}
+
+function onScroll(): void {
+  if (scrollQueued) return;
+  scrollQueued = true;
+  nextFrame(() => {
+    scrollQueued = false;
+    measureScroll();
+  });
+}
+
 // Once per page, on moving to the next one or closing the tab.
 function leavePage(now: number): void {
   if (!openPage || openPage.left) return;
   openPage.left = true;
   const seconds = Math.min(Math.max(Math.round((now - openPage.start) / 1000), 0), 86_400);
-  enqueue({ type: "leave", route: openPage.route, seconds });
+  const { scroll } = openPage;
+  enqueue({ type: "leave", route: openPage.route, seconds, ...(scroll ? { scroll } : {}) });
 }
 
 function onPageHide(): void {
+  measureScroll();
   leavePage(Date.now());
   flushBeacon();
 }
 
 // Back from the browser's page cache: the same page, open again.
 function onPageShow(event: PageTransitionEvent): void {
-  if (event.persisted && openPage) openPage = { ...openPage, start: Date.now(), left: false };
+  if (!event.persisted || !openPage) return;
+  openPage = { route: openPage.route, start: Date.now(), left: false };
+  measureScroll();
 }
 
 // Set before the page's own effects run, so the events they send name the right page.
@@ -202,7 +248,10 @@ export function trackPageView(route: string, pathname: string): void {
     watchingLeave = true;
     window.addEventListener("pagehide", onPageHide);
     window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("scroll", onScroll, { passive: true });
   }
+  // What shows before any scrolling counts as read too.
+  nextFrame(measureScroll);
   const referrer = firstView ? referrerDomain() : undefined;
   firstView = false;
   const utm = utmTags(window.location.search);
@@ -247,4 +296,5 @@ export function resetAnalyticsForTests(): void {
   memory = null;
   openPage = null;
   watchingLeave = false;
+  scrollQueued = false;
 }

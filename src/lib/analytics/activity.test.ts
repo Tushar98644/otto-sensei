@@ -255,6 +255,42 @@ describe("POST /api/activity", () => {
     ]);
   });
 
+  it("forwards how far the page was read under posthog-js's scroll names, as shares of 1", async () => {
+    const scroll = {
+      lastY: 400,
+      maxY: 1100,
+      maxHeight: 2200,
+      lastContent: 1200,
+      maxContent: 1900,
+      contentHeight: 3000,
+    };
+    await post(beacon([{ type: "leave", route: "/", seconds: 9, scroll }]));
+    expect(forwarded()).toMatchObject([
+      {
+        event: "$pageleave",
+        properties: {
+          $prev_pageview_last_scroll: 400,
+          $prev_pageview_last_scroll_percentage: 400 / 2200,
+          $prev_pageview_max_scroll: 1100,
+          $prev_pageview_max_scroll_percentage: 0.5,
+          $prev_pageview_last_content: 1200,
+          $prev_pageview_last_content_percentage: 0.4,
+          $prev_pageview_max_content: 1900,
+          $prev_pageview_max_content_percentage: 1900 / 3000,
+        },
+      },
+    ]);
+  });
+
+  it("counts a page too short to scroll as read to the end", async () => {
+    const scroll = { lastY: 0, maxY: 0, maxHeight: 0, lastContent: 800, maxContent: 800, contentHeight: 700 };
+    await post(beacon([{ type: "leave", route: "/", seconds: 3, scroll }]));
+    expect(forwarded()[0]?.properties).toMatchObject({
+      $prev_pageview_max_scroll_percentage: 1,
+      $prev_pageview_max_content_percentage: 1,
+    });
+  });
+
   it("notes nothing when the browser asks not to be tracked", async () => {
     await signInAs();
     for (const header of [{ dnt: "1" }, { "sec-gpc": "1" }] as Record<string, string>[]) {

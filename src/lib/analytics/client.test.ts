@@ -15,6 +15,7 @@ type Page = {
   hide: () => void;
   close: () => void;
   restore: () => void;
+  scrollTo: (y: number) => void;
   answer: { identified: boolean };
   location: { search: string; href: string; hostname: string };
 };
@@ -25,6 +26,7 @@ function stubBrowser({
   referrer = "",
   coarse = false,
   blockStorage = false,
+  layout = undefined as { height: number; view: number } | undefined,
 } = {}): Page {
   const store = new Map<string, string>();
   const idle: Array<() => void> = [];
@@ -45,6 +47,10 @@ function stubBrowser({
     },
     close: () => fire("pagehide", false),
     restore: () => fire("pageshow", true),
+    scrollTo: (y: number) => {
+      (window as unknown as { scrollY: number }).scrollY = y;
+      fire("scroll", false);
+    },
   };
   const storage = {
     getItem: (key: string) => {
@@ -61,9 +67,11 @@ function stubBrowser({
     referrer,
     visibilityState: "visible",
     addEventListener: (_type: string, listener: () => void) => listeners.push(listener),
+    ...(layout ? { documentElement: { scrollHeight: layout.height } } : {}),
   };
   vi.stubGlobal("document", document);
   vi.stubGlobal("window", {
+    ...(layout ? { scrollY: 0, innerHeight: layout.view } : {}),
     navigator,
     location: page.location,
     localStorage: storage,
@@ -244,6 +252,31 @@ describe("leaving a page", () => {
     page.close();
     expect(page.sent.slice(1).map((beacon) => beacon.items)).toEqual([
       [{ type: "leave", route: "/pricing", seconds: 7 }],
+    ]);
+  });
+
+  it("sends how far down the page was read, for the scroll depth report", async () => {
+    const page = stubBrowser({ layout: { height: 3000, view: 800 } });
+    const client = await loadClient();
+    client.trackPageView("/", "/");
+    runIdle(page);
+    page.scrollTo(1100);
+    page.scrollTo(400);
+    page.close();
+    expect(page.sent.at(-1)?.items).toEqual([
+      {
+        type: "leave",
+        route: "/",
+        seconds: 0,
+        scroll: {
+          lastY: 400,
+          maxY: 1100,
+          maxHeight: 2200,
+          lastContent: 1200,
+          maxContent: 1900,
+          contentHeight: 3000,
+        },
+      },
     ]);
   });
 
