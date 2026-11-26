@@ -130,6 +130,7 @@ describe("ATS guides", () => {
     ]);
     expect(guideSources(atsGuide("lever"))).toEqual([
       { ...HIRING_SYSTEMS.lever.notes[0]?.source, topics: ["ai"] },
+      { ...HIRING_SYSTEMS.lever.notes[1]?.source, topics: ["file"] },
     ]);
     expect(guideSources(atsGuide("workday")).map((source) => Boolean(source.byTopic))).toEqual([
       true,
@@ -143,9 +144,13 @@ describe("ATS guides", () => {
     expect(topTip(atsGuide("greenhouse"))).toBe(
       "Use one column under 2.5 MB, with contact details in the main text.",
     );
-    expect(HIRING_SYSTEMS.recruitee.notes[0]?.todo).toMatch(/^Answer these /);
-    expect(topTip(atsGuide("recruitee"))).toBe(
+    const knockout = HIRING_SYSTEMS.recruitee.notes.slice(0, 1);
+    expect(knockout[0]?.todo).toMatch(/^Answer these /);
+    expect(topTip({ notes: knockout })).toBe(
       "Answer screening questions truthfully, and the same way every time.",
+    );
+    expect(topTip(atsGuide("recruitee"))).toBe(
+      "Use one column of real text, with your email in the main text.",
     );
     expect(topTip(atsGuide("bamboohr"))).toBe(HIRING_SYSTEMS.bamboohr.notes[0]?.todo);
     for (const guide of ATS_GUIDES) {
@@ -156,7 +161,7 @@ describe("ATS guides", () => {
 
   it("knows which guides have no sourced notes on file reading", () => {
     expect(readsFiles(atsGuide("greenhouse"))).toBe(true);
-    expect(readsFiles(atsGuide("lever"))).toBe(false);
+    expect(readsFiles(atsGuide("ashby"))).toBe(false);
   });
 
   it("promises how a system reads your resume only when a note covers it", () => {
@@ -176,8 +181,11 @@ describe("ATS guides", () => {
       expect(isIndexed(guide), guide.name).toBe(indexed);
       expect(Boolean(atsGuidePage(guide).noindex), guide.name).toBe(!indexed);
     }
-    expect(isIndexed(atsGuide("lever"))).toBe(false);
-    expect(isIndexed(atsGuide("greenhouse"))).toBe(true);
+    const lever = atsGuide("lever");
+    const thin = { ...lever, notes: lever.notes.slice(0, 1) };
+    expect(isIndexed(thin)).toBe(false);
+    expect(atsGuidePage(thin).noindex).toBe(true);
+    expect(isIndexed(lever)).toBe(true);
   });
 
   it("keeps the general advice general: no promises", () => {
@@ -309,7 +317,6 @@ describe("public SEO pages", () => {
     expect(paths.filter((path) => path.startsWith(`${SEO_PATHS.ats}/`))).toEqual(
       INDEXED_ATS_GUIDES.map((guide) => `${SEO_PATHS.ats}/${guide.id}`),
     );
-    expect(paths).not.toContain(`${SEO_PATHS.ats}/lever`);
     expect(pages.some((page) => page.noindex)).toBe(false);
     expect(paths.filter((path) => path.startsWith(`${SEO_PATHS.compare}/`))).toHaveLength(
       COMPETITORS.length,

@@ -99,6 +99,11 @@ export default {
         todo: "Nutze die Wörter der Stellenanzeige für Fähigkeiten, die du wirklich hast.",
         source: { label: "Lever" },
       },
+      {
+        fact: "Lever übernimmt deinen Namen, deinen Arbeitgeber und deine Kontaktdaten aus deinem Lebenslauf. Bilder kann es nicht lesen, und wahrscheinlich auch keine Datei, deren Text du nicht markieren kannst.",
+        todo: "Schick ein PDF oder eine Word-Datei, deren Text sich markieren lässt.",
+        source: { label: "Lever-Hilfecenter" },
+      },
     ],
     ashby: [
       {
@@ -250,6 +255,11 @@ export default {
         todo: "Beantworte jede Frage vollständig: Menschen lesen sie.",
         source: { label: "BambooHR" },
       },
+      {
+        fact: "Arbeitgeber können eine Ja/Nein-Frage so einstellen, dass sie dich je nach Antwort automatisch ausschließt.",
+        todo: ANSWER_THE_SAME,
+        source: { label: "BambooHR-Hilfecenter" },
+      },
     ],
     jobvite: [
       {
@@ -267,6 +277,11 @@ export default {
       {
         fact: "K.-o.-Fragen (Ja/Nein, Einfach- oder Mehrfachauswahl) schließen bei der falschen Antwort automatisch aus und können auch die Absage-E-Mail schicken.",
         todo: ANSWER_THE_SAME,
+        source: { label: "Recruitee-Hilfecenter" },
+      },
+      {
+        fact: "Recruitee übernimmt deinen Namen, deine E-Mail-Adresse und deine Telefonnummer aus deinem Lebenslauf. Spalten, Grafiken, Text in Bildern oder eine E-Mail-Adresse nur in der Kopf- oder Fußzeile bringen es oft aus dem Tritt.",
+        todo: "Nutze eine Spalte mit echtem Text und deine E-Mail-Adresse im Haupttext.",
         source: { label: "Recruitee-Hilfecenter" },
       },
     ],

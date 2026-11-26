@@ -9,7 +9,7 @@ import { users } from "@/db/schema";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { createPortfolio, updatePortfolio } from "@/lib/portfolio/records";
 import { sampleResume } from "@/lib/portfolio/testing";
-import { INDEXED_ATS_GUIDES } from "@/lib/seo-pages/ats";
+import { ATS_GUIDES, INDEXED_ATS_GUIDES, isIndexed } from "@/lib/seo-pages/ats";
 import { COMPETITORS } from "@/lib/seo-pages/compare";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { PRODUCT_PAGES_UPDATED, SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
@@ -26,6 +26,7 @@ const pathOf = (url: string) => new URL(url).pathname;
 
 const ATS_SYSTEMS = [
   "greenhouse",
+  "lever",
   "ashby",
   "workday",
   "icims",
@@ -33,11 +34,15 @@ const ATS_SYSTEMS = [
   "successfactors",
   "smartrecruiters",
   "workable",
+  "bamboohr",
   "jobvite",
+  "recruitee",
   "teamtailor",
 ];
 // Guides with one sourced note: served, but kept out of search until they have more.
-const THIN_GUIDES = ["/ats/lever", "/ats/bamboohr", "/ats/recruitee"];
+const THIN_GUIDES = ATS_GUIDES.filter((guide) => !isIndexed(guide)).map(
+  (guide) => `/ats/${guide.id}`,
+);
 const COMPARISONS = [
   "jobscan",
   "rezi",

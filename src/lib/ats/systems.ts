@@ -102,6 +102,15 @@ const lever = [
     todo: "Use the job post's words for skills you really have.",
     source: { label: "Lever", url: "https://www.lever.co/ai-features" },
   },
+  {
+    topic: "file",
+    fact: "Lever copies your name, employer and contact details from your resume. It can't read images, or likely any file whose text you can't highlight.",
+    todo: "Send a PDF or Word file whose text you can highlight.",
+    source: {
+      label: "Lever help center",
+      url: "https://help.lever.co/s/article/Understanding-Resume-Parsing",
+    },
+  },
 ] as const satisfies readonly HiringNote[];
 
 const ASHBY_REVIEW = "https://docs.ashbyhq.com/ai-assisted-application-review";
@@ -306,6 +315,15 @@ const bamboohr = [
       url: "https://www.bamboohr.com/integrations/listings/bamboohr-applicant-tracking",
     },
   },
+  {
+    topic: "screening",
+    fact: "Employers can set a yes/no question to disqualify you automatically, based on your answer.",
+    todo: ANSWER_THE_SAME,
+    source: {
+      label: "BambooHR help center",
+      url: "https://help.bamboohr.com/s/article/587638",
+    },
+  },
 ] as const satisfies readonly HiringNote[];
 
 const JOBVITE = "https://www.jobvite.com/commitment-to-transparency/";
@@ -333,6 +351,15 @@ const recruitee = [
     source: {
       label: "Recruitee help center",
       url: "https://support.recruitee.com/articles/6108676",
+    },
+  },
+  {
+    topic: "file",
+    fact: "Recruitee copies your name, email and phone from your CV. Columns, graphics, text in images, or an email only in the header or footer often trip it up.",
+    todo: "Use one column of real text, with your email in the main text.",
+    source: {
+      label: "Recruitee help center",
+      url: "https://support.recruitee.com/articles/4752121",
     },
   },
 ] as const satisfies readonly HiringNote[];

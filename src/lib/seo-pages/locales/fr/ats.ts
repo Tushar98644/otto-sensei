@@ -99,6 +99,11 @@ export default {
         todo: "Reprends les mots de l'offre pour les compétences que tu as vraiment.",
         source: { label: "Lever" },
       },
+      {
+        fact: "Lever copie ton nom, ton employeur et tes coordonnées depuis ton CV. Il ne peut pas lire les images, ni sans doute un fichier dont tu ne peux pas sélectionner le texte.",
+        todo: "Envoie un PDF ou un fichier Word dont le texte se sélectionne.",
+        source: { label: "Centre d'aide de Lever" },
+      },
     ],
     ashby: [
       {
@@ -250,6 +255,11 @@ export default {
         todo: "Réponds complètement à chaque question : des personnes les lisent.",
         source: { label: "BambooHR" },
       },
+      {
+        fact: "Les employeurs peuvent régler une question oui/non pour t'écarter automatiquement selon ta réponse.",
+        todo: ANSWER_THE_SAME,
+        source: { label: "Centre d'aide de BambooHR" },
+      },
     ],
     jobvite: [
       {
@@ -267,6 +277,11 @@ export default {
       {
         fact: "Les questions éliminatoires (oui/non, choix unique ou multiple) disqualifient automatiquement la mauvaise réponse, et peuvent aussi envoyer l'e-mail de refus.",
         todo: ANSWER_THE_SAME,
+        source: { label: "Centre d'aide de Recruitee" },
+      },
+      {
+        fact: "Recruitee copie ton nom, ton e-mail et ton téléphone depuis ton CV. Les colonnes, les graphiques, le texte dans des images ou un e-mail placé seulement dans l'en-tête ou le pied de page le perturbent souvent.",
+        todo: "Utilise une seule colonne de vrai texte, avec ton e-mail dans le texte principal.",
         source: { label: "Centre d'aide de Recruitee" },
       },
     ],

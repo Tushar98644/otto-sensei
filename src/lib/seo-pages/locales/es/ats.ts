@@ -100,6 +100,11 @@ export default {
         todo: "Usa las palabras de la oferta para las habilidades que de verdad tienes.",
         source: { label: "Lever" },
       },
+      {
+        fact: "Lever copia tu nombre, tu empleador y tus datos de contacto desde tu currículum. No puede leer imágenes, y probablemente tampoco un archivo cuyo texto no puedas seleccionar.",
+        todo: "Envía un PDF o un Word cuyo texto se pueda seleccionar.",
+        source: { label: "Centro de ayuda de Lever" },
+      },
     ],
     ashby: [
       {
@@ -251,6 +256,11 @@ export default {
         todo: "Responde cada pregunta por completo: las leen personas.",
         source: { label: "BambooHR" },
       },
+      {
+        fact: "Los empleadores pueden configurar una pregunta de sí/no para descartarte automáticamente según tu respuesta.",
+        todo: ANSWER_THE_SAME,
+        source: { label: "Centro de ayuda de BambooHR" },
+      },
     ],
     jobvite: [
       {
@@ -268,6 +278,11 @@ export default {
       {
         fact: "Las preguntas eliminatorias (sí/no, de opción única o de opción múltiple) descalifican automáticamente a quien da la respuesta incorrecta, y también pueden enviar el correo de rechazo.",
         todo: ANSWER_THE_SAME,
+        source: { label: "Centro de ayuda de Recruitee" },
+      },
+      {
+        fact: "Recruitee copia tu nombre, tu correo y tu teléfono desde tu currículum. Las columnas, los gráficos, el texto dentro de imágenes o un correo que solo está en el encabezado o el pie de página suelen causarle problemas.",
+        todo: "Usa una sola columna de texto real, con tu correo en el texto principal.",
         source: { label: "Centro de ayuda de Recruitee" },
       },
     ],

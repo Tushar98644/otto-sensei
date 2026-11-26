@@ -150,8 +150,8 @@ describe("ATS guide pages", () => {
   });
 
   it("says so when Otto has nothing sourced on how a system reads files", async () => {
-    expect(text(await render(guide("lever")))).toContain(
-      "Otto's notes don't cover how Lever reads files yet",
+    expect(text(await render(guide("ashby")))).toContain(
+      "Otto's notes don't cover how Ashby reads files yet",
     );
     expect(text(await render(guide("greenhouse")))).not.toContain("don't cover how");
   });
@@ -167,13 +167,13 @@ describe("ATS guide pages", () => {
     expect(meta.robots).toBeUndefined();
   });
 
-  it("names what a thin guide covers, and keeps it out of search", async () => {
-    const meta = await guideMetadata({ params: Promise.resolve({ system: "lever" }) });
-    expect(meta.title).toBe("Lever ATS: what it does with your application");
-    expect(meta.robots).toEqual({ index: false, follow: true });
-    const words = text(await render(guide("lever")));
-    expect(words).toContain("What Lever does with your application");
-    expect(words).not.toContain("How Lever reads your resume");
+  it("names what a guide without file notes covers", async () => {
+    const meta = await guideMetadata({ params: Promise.resolve({ system: "ashby" }) });
+    expect(meta.title).toBe("Ashby ATS: what it does with your application");
+    expect(meta.robots).toBeUndefined();
+    const words = text(await render(guide("ashby")));
+    expect(words).toContain("What Ashby does with your application");
+    expect(words).not.toContain("How Ashby reads your resume");
   });
 
   it("links every guide from the index, each with its best tip and no thin counts", async () => {

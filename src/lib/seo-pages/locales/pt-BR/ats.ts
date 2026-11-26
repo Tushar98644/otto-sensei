@@ -99,6 +99,11 @@ export default {
         todo: "Use as palavras da vaga para as habilidades que você realmente tem.",
         source: { label: "Lever" },
       },
+      {
+        fact: "O Lever copia seu nome, empregador e dados de contato do seu currículo. Ele não consegue ler imagens e, provavelmente, nenhum arquivo cujo texto você não consiga selecionar.",
+        todo: "Envie um PDF ou Word com texto que dê para selecionar.",
+        source: { label: "Central de ajuda do Lever" },
+      },
     ],
     ashby: [
       {
@@ -250,6 +255,11 @@ export default {
         todo: "Responda a todas as perguntas por completo: pessoas vão lê-las.",
         source: { label: "BambooHR" },
       },
+      {
+        fact: "Os empregadores podem configurar uma pergunta de sim/não para desclassificar você automaticamente conforme a sua resposta.",
+        todo: ANSWER_THE_SAME,
+        source: { label: "Central de ajuda do BambooHR" },
+      },
     ],
     jobvite: [
       {
@@ -267,6 +277,11 @@ export default {
       {
         fact: "Perguntas eliminatórias (sim/não, escolha única ou múltipla escolha) desqualificam a resposta errada automaticamente, e também podem enviar o e-mail de recusa.",
         todo: ANSWER_THE_SAME,
+        source: { label: "Central de ajuda do Recruitee" },
+      },
+      {
+        fact: "O Recruitee copia seu nome, e-mail e telefone do seu currículo. Colunas, gráficos, texto dentro de imagens ou um e-mail só no cabeçalho ou no rodapé costumam atrapalhá-lo.",
+        todo: "Use uma coluna só, de texto real, com seu e-mail no texto principal.",
         source: { label: "Central de ajuda do Recruitee" },
       },
     ],
