@@ -36,12 +36,18 @@ async function entryYears(tx: postgres.TransactionSql) {
       count(*) filter (where level = 1 and (flags & 1) <> 0)::int as junior_remote,
       count(*) filter (where level = 0 and min_years >= 1)::int as intern_any_years,
       count(*) filter (where level = 2)::int as mid,
-      count(*) filter (where level = 2 and min_years >= 3)::int as mid_3_plus
+      count(*) filter (where level = 2 and min_years >= 3)::int as mid_3_plus,
+      count(*) filter (where level = 1 and title_text ~* '\\massociate\\M')::int as junior_associate,
+      count(*) filter (where level = 1 and title_text ~* '\\massociate\\M' and min_years >= 2)::int as junior_associate_2_plus
     from public.listings where ${open(tx)}`;
   const families = await tx`
     select family, count(*)::int as junior,
       count(*) filter (where min_years >= 2)::int as two_plus,
-      count(*) filter (where min_years >= 3)::int as three_plus
+      count(*) filter (where min_years >= 3)::int as three_plus,
+      -- "Associate" can be a mid-level title (an associate marketing manager), so it's counted apart too.
+      count(*) filter (where title_text !~* '\\massociate\\M')::int as junior_core,
+      count(*) filter (where title_text !~* '\\massociate\\M' and min_years >= 2)::int as core_two_plus,
+      count(*) filter (where title_text !~* '\\massociate\\M' and min_years = 0)::int as core_none
     from public.listings where ${open(tx)} and level = 1
     group by family order by count(*) desc`;
   const sources = await tx`
