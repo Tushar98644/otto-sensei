@@ -1,0 +1,30 @@
+# Manual only: read-only counts from the job listings for data-driven social posts (totals, never a job's text).
+# gh workflow run content-stats.yml -f stat=entry-years, then read the CONTENT_STATS line in the run's log.
+name: Content stats
+
+on:
+  workflow_dispatch:
+    inputs:
+      stat:
+        description: Which count to run
+        type: choice
+        options: [entry-years]
+        default: entry-years
+
+permissions:
+  contents: read
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Count
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STAT: ${{ inputs.stat }}
+        run: bun scripts/content-stats.ts
