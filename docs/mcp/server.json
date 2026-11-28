@@ -1,0 +1,14 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.ottosensei/jobs",
+  "title": "Otto Jobs",
+  "description": "Search open jobs by title, skill, company or place, with links to the original postings.",
+  "version": "1.0.0",
+  "websiteUrl": "https://www.ottosensei.com",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://www.ottosensei.com/api/mcp"
+    }
+  ]
+}

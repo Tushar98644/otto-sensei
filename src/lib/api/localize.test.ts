@@ -104,7 +104,7 @@ describe("API errors in the reader's language", () => {
 // Every error sentence a wrapped route writes has a translation, so a new one can't ship in English by accident.
 const API = fileURLToPath(new URL("../../app/api", import.meta.url));
 const UNWRAPPED =
-  /\/(cron|inbound|extension|health)\/|\/billing\/webhook\/|\/calendar\/\[token\]\//;
+  /\/(cron|inbound|extension|health|mcp)\/|\/billing\/webhook\/|\/calendar\/\[token\]\//;
 const SENTENCE = /^[A-Z][^]*[a-z][^]*[.!?]$/;
 
 function routeFiles(dir: string, out: string[] = []): string[] {

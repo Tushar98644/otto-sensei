@@ -17,6 +17,7 @@
     "extension:icons": "bun extension/scripts/icons.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
     "@react-pdf/renderer": "^4.9.0",
     "@sentry/nextjs": "^11.11.0",
     "@supabase/ssr": "0.12.7",
