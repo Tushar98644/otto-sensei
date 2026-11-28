@@ -201,7 +201,7 @@ describe("/api/mcp", () => {
       "Apply: https://job-boards.greenhouse.io/gitlab/jobs/8638232002 (via Greenhouse)",
     );
     expect(details.text).toMatch(
-      /Tailor your resume to this job on Otto Sensei: https?:\/\/\S+\/login\?next=%2Fdashboard%2Fjobs%3Ftailor%3D[\w-]+&utm_source=mcp&utm_medium=connector&utm_campaign=otto_jobs/,
+      /Tailor your resume to this job with Otto Sensei Pro: https?:\/\/\S+\/login\?next=%2Fdashboard%2Fjobs%3Ftailor%3D[\w-]+&utm_source=mcp&utm_medium=connector&utm_campaign=otto_jobs/,
     );
     expect(JSON.stringify(job)).not.toContain(POST_TEXT);
   });

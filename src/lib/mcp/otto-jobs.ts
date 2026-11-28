@@ -135,7 +135,7 @@ function detailsText(job: PublicJob): string {
     `Posted: ${job.postedAt.slice(0, 10)}`,
     job.skills.length > 0 ? `Skills: ${job.skills.slice(0, MAX_SKILLS).join(", ")}` : null,
     `Apply: ${job.applyUrl} (${job.sourceCredit})`,
-    `Tailor your resume to this job on Otto Sensei: ${job.ottoUrl}`,
+    `Tailor your resume to this job with Otto Sensei Pro: ${job.ottoUrl}`,
   ];
   return lines.filter((line): line is string => line !== null).join("\n");
 }
