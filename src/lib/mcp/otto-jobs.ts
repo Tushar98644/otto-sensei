@@ -4,6 +4,7 @@ import { getDb } from "@/db/client";
 import { listingIdOf } from "@/lib/job-feed/codes";
 import { countClaim } from "@/lib/job-feed/counts";
 import { loadJobCounts } from "@/lib/job-feed/live-counts";
+import { cachedForDay } from "@/lib/job-feed/public-cache";
 import { searchWords } from "@/lib/job-feed/normalize";
 import {
   PUBLIC_SEARCH_LIMITS,
@@ -14,6 +15,16 @@ import {
 import { EMPLOYMENT_LABELS, type Seniority } from "@/lib/job-feed/types";
 import { log } from "@/lib/log";
 import { absoluteUrl } from "@/lib/seo/urls";
+
+// Same words, same answer until the next ingest drops the jobs cache.
+const cachedSearch = cachedForDay("mcp-search", async (q: string, remote: boolean) =>
+  searchPublicJobs(
+    await getDb(),
+    { q, remote },
+    { limit: PUBLIC_SEARCH_LIMITS.limit, offset: 0 },
+    Date.now(),
+  ),
+);
 
 export const OTTO_JOBS_SERVER = {
   name: "otto-jobs",
@@ -194,12 +205,7 @@ export function createOttoJobsServer(): McpServer {
       const started = Date.now();
       const filters = parseJobQuery(query);
       try {
-        const { jobs, total } = await searchPublicJobs(
-          await getDb(),
-          filters,
-          { limit: PUBLIC_SEARCH_LIMITS.limit, offset: 0 },
-          Date.now(),
-        );
+        const { jobs, total } = await cachedSearch(filters.q, Boolean(filters.remote));
         const results = jobs.map((job) => ({
           id: job.id,
           title: resultTitle(job),

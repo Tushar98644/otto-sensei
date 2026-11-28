@@ -48,7 +48,7 @@ Otto Jobs is a public, read-only [MCP](https://modelcontextprotocol.io) server. 
   - Over a limit, the answer is a JSON-RPC 429 with `Retry-After`.
   - If the limiter's database write fails, the call goes through.
 - **Search limits:**
-  - One SQL query per search, with a 3-second `statement_timeout`.
+  - One SQL query per search, with an 8-second `statement_timeout`; answers are cached per query until the next job ingest.
   - At most 10 results; the code also caps paging at 100 skipped.
   - Request bodies over 64 KB are refused.
 - **HTTP behaviour:**

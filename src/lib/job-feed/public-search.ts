@@ -17,7 +17,7 @@ import { sourceCredit } from "./sources";
 import type { EmploymentType, Seniority } from "./types";
 
 // Shallow on purpose: a public search shows a few openings, not the whole pool the app ranks.
-export const PUBLIC_SEARCH_LIMITS = { limit: 10, offset: 100, timeout: "3s" } as const;
+export const PUBLIC_SEARCH_LIMITS = { limit: 10, offset: 100, timeout: "8s" } as const;
 
 // What anyone may see of a job: never its post text, which the feeds allow only inside the app.
 export type PublicJob = {
